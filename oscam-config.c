@@ -2196,9 +2196,10 @@ void update_priority_config(){
 					dvbapiKey=3;	//start other section
 			}
 		}
-		else if ( (p=strchr(token, '=')) != 0 && dvbapiKey == 1){
+
+		if ( (p=strchr(token, '=')) != 0 && dvbapiKey == 1){
 			strncpy(key,token,p-token);
-			if(!strcmp("priority",trim(key)))
+			if(!strcmp("priority",trim(strtolower(key))))
 				priokey=1;
 		}
 		if(priokey)continue;
