@@ -1,0 +1,167 @@
+K 25
+svn:wc:ra_dav:version-url
+V 38
+/svn/oscam/!svn/ver/3242/trunk/cscrypt
+END
+bn_lcl.h
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/oscam/!svn/ver/8/trunk/cscrypt/bn_lcl.h
+END
+bn_asm.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_asm.c
+END
+i_cbc.c
+K 25
+svn:wc:ra_dav:version-url
+V 46
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/i_cbc.c
+END
+bn_div.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_div.c
+END
+idea_lcl.h
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/svn/oscam/!svn/ver/580/trunk/cscrypt/idea_lcl.h
+END
+bn.h
+K 25
+svn:wc:ra_dav:version-url
+V 43
+/svn/oscam/!svn/ver/1137/trunk/cscrypt/bn.h
+END
+bn_add.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_add.c
+END
+idea.h
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/oscam/!svn/ver/580/trunk/cscrypt/idea.h
+END
+openssl_mods.h
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/svn/oscam/!svn/ver/8/trunk/cscrypt/openssl_mods.h
+END
+bn_print.c
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_print.c
+END
+bn_exp.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_exp.c
+END
+des.c
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/des.c
+END
+bn_mul.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_mul.c
+END
+crc32.c
+K 25
+svn:wc:ra_dav:version-url
+V 46
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/crc32.c
+END
+bn_ctx.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_ctx.c
+END
+buffer.h
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/oscam/!svn/ver/8/trunk/cscrypt/buffer.h
+END
+mem.c
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/mem.c
+END
+des.h
+K 25
+svn:wc:ra_dav:version-url
+V 41
+/svn/oscam/!svn/ver/8/trunk/cscrypt/des.h
+END
+i_skey.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/i_skey.c
+END
+bn_sqr.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_sqr.c
+END
+bn_lib.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_lib.c
+END
+md5.c
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/oscam/!svn/ver/3194/trunk/cscrypt/md5.c
+END
+bn_word.c
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_word.c
+END
+bn_shift.c
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/bn_shift.c
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 46
+/svn/oscam/!svn/ver/657/trunk/cscrypt/Makefile
+END
+CMakeLists.txt
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/oscam/!svn/ver/3242/trunk/cscrypt/CMakeLists.txt
+END
+cscrypt.h
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/svn/oscam/!svn/ver/3194/trunk/cscrypt/cscrypt.h
+END

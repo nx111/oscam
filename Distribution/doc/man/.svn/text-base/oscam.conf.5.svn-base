@@ -1,0 +1,792 @@
+.TH oscam.conf 5
+.SH NAME
+\fBoscam.conf\fR - main configuration file for OSCam
+.SH SYNOPSIS
+The main configuration file for OSCam contains global parameters 
+such as debugging, logging, monitor, protocols and anti-cascading. 
+sections in \fBoscam.conf\fR are \fInonrecurring\fR. The [global] 
+section is \fIrequired\fR. All other sections are optional.
+.SH DESCRIPTIONS
+.SS "The [global] section"
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.PP
+\fBcachedelay\fP = \fBmilli-seconds\fP
+.RS 3n
+value to delay cached requests, default:0
+.RE
+.PP
+\fBlogfile\fP = \fBfilename\fP|\fB/dev/null\fP|\fB/dev/tty\fP|\fBsyslog\fP
+.RS 3n
+logging target, default: /var/log/oscam.log
+.RE
+.PP
+\fBdisablelog\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = disable log file, default:0
+.RE
+.PP
+\fBdisableuserfile\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = avoid logging although \fBlogfile\fP is set, default:0
+.RE
+.PP
+\fBpidfile\fP = \fBfilename\fP
+.RS 3n
+PID file, default:no PID file
+.RE
+.PP
+\fBusrfile\fP = \fBfilename\fP
+.RS 3n
+log file for user logging, default:none
+
+log file format:
+ 
+ date
+ time
+ CWs per second
+ username
+ IP address of client
+ TCP/IP port
+ CWs found
+ CWs from cache
+ CWs not found
+ CWs ignored
+ CWs timed out
+ CWs tunneled
+ login time in unix/POSIX format
+ logout time in unix/POSIX format
+ protocol  
+.RE
+.PP
+\fBcwlogdir\fP = \fBpath\fP
+.RS 3n
+directory for CW logging, default:none
+.RE
+.PP
+\fBclienttimeout\fP = \fBseconds\fP
+.RS 3n
+value for client process to wait for key, default:5
+.RE
+.PP
+\fBfallbacktimeout\fP = \fBmilli-seconds\fP
+.RS 3n
+time falling back to fallback reader, default:2500
+.RE
+.PP
+\fBclientmaxidle\fP = \fBseconds\fP
+.RS 3n
+value for client process being idle before disconnect, default:120
+.RE
+.PP
+\fBbindwait\fP = \fBseconds\fP
+.RS 3n
+value to wait for bind request to complete, default:120
+.RE
+.PP
+\fBnetprio\fP = \fBpriority\fP
+.RS 3n
+network priority, default:system given
+.RE
+.PP
+\fBresolvegethostbyname\fP = \fB0\fP|\fB1\fP
+.RS 3n
+set mode for DNS resolving:
+
+  0 = getadressinfo (default)
+  1 = gethostbyname
+.RE
+.PP
+\fBresolvedelay\fP = \fBseconds\fP
+.RS 3n
+delay for DNS resolving, default:30
+.RE
+.PP
+\fBclientdyndns\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = enable DNS resolving of clients, if you have already defined a hostname 
+for your clients the parameter must be 1, otherwise no authentication will 
+be possible for this clients, default:0
+.RE
+.PP
+\fBsleep\fP = \fBminutes\fP
+.RS 3n
+time waiting for inactive users, default:none, can be overwritten per user in \fBoscam.user\fR
+.RE
+.PP
+\fBunlockparental\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = unlock parental mode option to disable Seca pin code request for adult movie, default:0
+.RE
+.PP
+\fBnice\fP = \fB-20\fP..\fB+20\fP
+.RS 3n
+system priority, default:99
+.RE
+.PP
+\fBserialreadertimeout\fP = \fBmilli-seconds\fP
+.RS 3n
+timeout for serial reader, default:1500
+.RE
+.PP
+\fBmaxlogsize\fP = \fBkbytes\fP
+.RS 3n
+max log file size, default:10
+.RE
+.PP
+\fBwaitforcards\fP = \fB0\fP|\fB1\fP 
+.RS 3n
+1 = wait for local SCs on startup before opening network ports, default:1
+.RE
+.PP
+\fBpreferlocalcards\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = try decoding on local cards first, default:0
+.RE
+.PP
+\fBreaderrestartseconds\fP = \fBseconds\fP
+.RS 3n
+seconds beetween restarts, 0 = disable reader restart, default:5
+.RE
+.PP
+\fBsaveinithistory\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = save SC init history to /tmp/.oscam/reader<number>, default:0
+.RE
+.PP
+\fBdouble_check\fP = \fB0\fP|\fB1\fP \fI(only if CW double check enabled)\fR
+.RS 3n
+1 = ECM will be send to two or more readers with the same SC and the CWs will be verified against each other, \fBlb_nbest_readers\fP must be set to 2 or higher, default:0
+.RE
+.PP
+\fBlb_mode\fP = \fBmode\fP 
+.RS 3n
+loadbalance mode:
+
+ 0 = loadbalance disabled, ECMs go to all readers (default)
+ 1 = fastest reader first, after 5 ECMs the reader with the fastest 
+     response time will be selected
+ 2 = oldest reader first, reader with the longest no answer
+ 3 = lowest usage level, the usage level will be calculated by the 
+     sum of 5 ECMS response times, the higher a reader is busy, the 
+     higher is usage level
+.RE
+.PP
+\fBlb_save\fP = \fB0\fP|\fBcounts\fP 
+.RS 3n
+save autoloadbalance statistics:
+
+      0 = saving of autoloadbalance statistics disabled (default)
+ counts = save autoloadbalance statistics every \fBcounts\fP ECMs
+
+To save CPU power a minimum counts of 100 is recommended.
+.RE
+.PP
+\fBlb_nbest_readers\fP = \fBcounts\fP
+.RS 3n
+set count of best readers for loadbalancing, default:1
+.RE
+.PP
+\fBlb_nfb_readers\fP = \fBcounts\fP
+.RS 3n
+set count of fallback readers for loadbalancing, default:1
+.RE
+.PP
+\fBlb_min_ecmcount\fP = \fBcounts\fP
+.RS 3n
+minimal ECM count to evaluate loadbalancing values, default:5
+.RE
+.PP
+\fBlb_max_ecmcount\fP = \fBcounts\fP
+.RS 3n
+maximum ECM count before resetting loadbalancing values, default:500
+.RE
+.PP
+\fBlb_reopen_seconds\fP = \fBseconds\fP
+.RS 3n
+time between retrying failed readers/CAIDs/providers/services, default:900
+.RE
+.SS "The [monitor] section"
+.PP
+\fBport\fP = \fB0\fP|\fBport\fP
+.RS 3n
+UDP port for monitor, port=0 monitor disabled, default:0
+.RE
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.PP
+\fBnocrypt\fP = \fBIP address\fP|\fBIP address range\fP[,\fBIP address\fP|\fBIP address range]\fP...
+.RS 3n
+unsecured monitor connection, default:none
+
+ example: nocrypt = 127.0.0.1,192.168.0.0-192.168.255.255
+.RE
+.PP
+\fBaulow\fP = \fBminutes\fP
+.RS 3n
+time no EMM occurs so that client is set to low, default:30
+.RE
+.PP
+\fBmonlevel\fP = \fB0\fP|\fB1\fP|\fB2\fP|\fB3\fP|\fB4\fP
+.RS 3n
+monitor level:
+
+ 0 = no access to monitor
+ 1 = only server and own procs
+ 2 = all procs, but viewing only, default
+ 3 = all procs, reload of \fBoscam.user\fR possible
+ 4 = complete access
+
+monlevel can be overwritten per user in \fBoscam.user\fR
+.RE
+.PP
+\fBhideclient_to\fP = \fBseconds\fP
+.RS 3n
+time to hide clients in the monitor if not sending requests, 0 = disabled, default:0
+.RE
+.PP
+\fBappendchaninfo\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = append channel name on log messages, default:0
+.RE
+.SS "The [webif] section" \fI(only if web interface module enabled)\fR
+\fBhttpport\fP = \fBport\fP
+.RS 3n
+port for web interface, 0 = disabled, default:none, \fIrequired\fR
+.RE
+.PP
+\fBhttpuser\fP = \fBusername\fP
+.RS 3n
+username for password protection, default:none
+.RE
+.PP
+\fBhttppwd\fP = \fBpassword\fP
+.RS 3n
+password for password protection, default:none
+.RE
+.PP
+\fBhttpcss\fP = \fBpath\fP
+.RS 3n
+path for external CSS file, default:none
+.RE
+.PP
+\fBhttptpl\fP = \fBpath\fP
+.RS 3n
+path for external templates, default:none
+.RE
+.PP
+\fBhttprefresh\fP = \fBseconds\fP
+.RS 3n
+status refresh in seconds, default:none
+.RE
+.PP
+\fBhttptpl\fP = \fBpath\fP
+.RS 3n
+path for external templates, default:none
+.RE
+.PP
+\fBhttphideidleclients\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = enables hiding clients after idle time set in parameter \fBhideclient_to\fP, default:0
+.RE
+.PP
+\fBhttpscript\fP = \fBpath\fP
+.RS 3n
+path to an executable script which you wish to start from web interface, default:none
+.RE
+.PP
+\fBhttpallowed\fP = \fBIP address\fP|\fBIP address range\fP[,\fBIP address\fP|\fBIP address range]\fP...
+.RS 3n
+http web interface connections allowed, default:none
+ example: httpallowed = 127.0.0.1,192.168.0.0-192.168.255.255
+.RE
+.PP
+\fBhttpdyndns\fP = \fBhostname\fP
+.RS 3n
+http web interface connections allowed, default:none
+ example: httpdyndns = my.dynexample.com
+.RE
+.PP
+\fBhttpreadonly\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = read only modus for web interface, default:0
+.RE
+.SS "The [camd33] section"
+.PP
+\fBport\fP = \fB0\fP|\fBport\fP
+.RS 3n
+TCP/IP port for camd 3.3x clients, 0 = disabled, default:0
+.RE
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.PP
+\fBnocrypt\fP = \fBIP address\fP|\fBIP address range\fP[,\fBIP address\fP|\fBIP address range]\fP...
+.RS 3n
+unsecured camd 3.3x client connection, default:none
+
+ example: nocrypt = 127.0.0.1,192.168.0.0-192.168.255.255
+.RE
+.PP
+\fBpassive\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1=force passive camd 3.3x client, default:0
+.RE
+.PP
+\fBkey\fP = \fB128 bit key\fP
+.RS 3n
+key for camd 3.3x client encryption, default:none
+
+ example: key = 01020304050607080910111213141516
+.RE
+.SS "The [camd35] section"
+.PP
+\fBport\fP = \fB0\fP|\fBport\fP
+.RS 3n
+UDP port for camd 3.5x clients, 0 = disabled, default:0
+.RE
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.SS "The [newcamd] section"
+.PP
+\fBmgclient\fP = \fB0\fP|\fB1\fP \fI(for beta testing only)\fR
+.RS 3n
+1 = enable mgcamd extended newcamd protocol,  allowing for a single connection to work with mutliple providers, default:0
+.RE
+.PP
+\fBkey\fP = \fBDES key\fP
+.RS 3n
+default key for newcamd client encryption, default:none
+
+ example key = 0102030405060708091011121314
+.RE
+.PP
+\fBport\fP = \fBport[{DES key}]@CAID[:ident][,ident]...[;port[{DES key}]@CAID[:ident][,ident]...]...\fP
+.RS 3n
+TCP port/DES key/CAID/ident definitions, default:none
+
+ example: port = 10000@0100:100000;20000{0102030405060708091011121314}@0200:200000,300000,400000
+
+Each CAID requires a separate port. If you don't specify a DES key for a port, the default DES Key will be used.
+.RE
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.PP
+\fBallowed\fP = \fBIP address\fP|\fBIP address range\fP[,\fBIP address\fP|\fBIP address range]\fP...
+.RS 3n
+client connections allowed from, default:none
+
+ example: allowed = 127.0.0.1,192.168.0.0-192.168.255.255
+.RE
+.PP
+\fBkeepalive\fP = \fB0\fP|\fB1\fP
+.RS 3n
+0 = disable keepalive, default:1
+.RE
+.SS "The [radegast] section"
+.PP
+\fBport\fP = \fB0\fP|\fBport\fP
+.RS 3n
+TCP/IP port for radegast clients, 0=disabled, default:0
+.RE
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.PP
+\fBallowed\fP = \fBIP address\fP|\fBIP address range\fP[,\fBIP address\fP|\fBIP address range]\fP...
+.RS 3n
+client connections allowed from, default:none
+
+ example: allowed = 127.0.0.1,192.168.0.0-192.168.255.255
+.RE
+.PP
+\fBuser\fP = \fBusername\fP
+.RS 3n
+user name for radegast client
+.RE
+.SS "The [serial] section"
+.PP
+\fBdevice\fP = \fB<user>@<device>[:baud][?option1=value1[&option2=value2]]\fP
+.RS 3n
+parameters:
+ \fBuser\fP   = \fBaccount\fP
+ \fBdevice\fP = \fBserial device name\fP
+ \fBoption\fP = \fBtimeout\fP = milli-seconds, timeout for connection, 
+                    default:50
+          \fBdelay\fP   = milli-seconds, additional delay between two
+                    characters, default:0
+
+supported serial devices:
+ HSIC    (humax sharing interface client)
+ SSSP    (simple serial sharing protocol)
+ bomba   (BOMBA firmware)
+ dsr9500 (DSR 9500)
+.RE 
+.SS "The [cs357x] section"
+.PP
+\fBport\fP = \fB0\fP|\fBport\fP
+.RS 3n
+UDP port for camd 3.57x clients, 0 = disabled, default:0
+.RE
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.PP
+\fBsuppresscmd08\fP = \fB0\fP|\fB1\fP
+.RS 3n
+0 = CMD08 enabled, 1 = CMD08 disabled, default:0
+.RE
+.SS "The [cs378x] section"
+.PP
+\fBport\fP = \fB0\fP|\fBport@CAID[:ident][,ident]...[;port@CAID[:ident][,ident]...]...\fP
+.RS 3n
+TCP port/CAID/ident definitions for camd 3.78x clients,0 = disabled, default:0
+
+ example: port = 10000@0100:100000;20000@0200:200000,300000,400000
+
+ Each CAID requires a separate port.
+.RE
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.PP
+\fBsuppresscmd08\fP = \fB0\fP|\fB1\fP
+.RS 3n
+0 = CMD08 enabled, 1 = CMD08 disabled, default:0
+.RE
+.SS "The [cccam] section"
+.PP
+\fBport\fP = \fB0\fP|\fBport\fP
+.RS 3n
+TCP/IP port for CCcam clients, 0 = disabled, default:0
+.RE
+.PP
+\fBversion\fP = \fB<main version>.<version>.<sub version>\fP
+.RS 3n
+define CCcam version, default:none
+
+ example: version = 1.2.34
+.RE
+.PP
+\fBbuild\fP = \fB<4-digit number>\fP
+.RS 3n
+define CCcam build, default:none
+
+ example: build = 5678
+.RE
+.PP
+\fBreshare\fP = \fBlevel\fP
+.RS 3n
+reshare level for CCcam clients:
+
+ 0 = no resharing (default)
+ 1 = resharing for direct peer only
+ 2 = resharing for direct peer and next level
+ x = resharing for direct peer and next x level
+.RE
+.PP
+\fBminimizecards\fP = \fBmode\fP
+.RS 3n
+mode how to provide CCCam servers to CCCam clients:
+
+ 0 = no aggregation, remove duplicates only (default)
+ 1 = based on minimum hop: two SCs with different hops are 
+     summarized, new SCs get a smaller hop
+ 2 = aggregation based on CAIDs: all SCs with the same CAIDs 
+     will be merged, provider will be removed
+.RE
+.SS "The [gbox] section"
+.PP
+\fBpassword\fP = \fBpassword\fP
+.RS 3n
+password for gbox server
+.RE
+.PP
+\fBmaxdist\fP = \fBdistance\fP
+.RS 3n
+maximum distance to gbox servers, default:5
+.RE
+.PP
+\fBignorelist\fP = \fBfilename\fP
+.RS 3n
+listing of providers to be ignored, format: G:{<CAID><provider ID>}, default:none
+
+ example: G:{01001234}
+.RE
+.PP
+\fBonlineinfos\fP = \fBfilename\fP
+.RS 3n
+file to store online information, default:none
+.RE
+.PP
+\fBcardinfos\fP = \fBfilename\fP
+.RS 3n
+file to store card information, default:none
+.RE
+.PP
+\fBlocals\fP = \fB<CAID><provider ID>[,<CAID><provider ID>]\fP...
+.RS 3n
+backwards sharing of local cards,default:none
+
+ example: locals = 01001234,02005678
+.RE
+.SS "The [dvbapi] section" \fI(only if DVB API module enabled)\fR
+.PP
+\fBenabled\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = DVB API enabled, default:0
+
+Create file /tmp/.pauseoscam to pause DVB API, e.g. if STB goes into standby and OSCam remains as SC server only.
+.RE
+.PP
+\fBuser\fP = \fBusername\fP
+.RS 3n
+user name for DVB API client, default:anonymous
+.RE
+.PP
+\fBignore\fP = \fB<CAID>[,<CAID>]...\fP
+.RS 3n
+CAIDs to be ignored, default:none
+.RE
+.PP
+\fBpriority\fP = \fB<CAID>:<provider ID>[,CAID:<provider ID>]...\fP
+.RS 3n
+CAIDs and provider IDs to be prioritized, default:CAIDs and provider IDs of local SCs will be prioritized
+.RE
+.PP
+\fBau\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = enable AU, default:0
+.RE
+.PP
+\fBpmt_mode\fP = \fB0\fP|\fB1\fP|\fB2\fP|\fB3\fP
+.RS 3n
+PMT mode:
+ 0 = use camd.socket and PMT file, default
+ 1 = disable reading PMT file
+ 2 = disable camd.socket
+ 3 = read PMT file on startup only
+.RE
+.PP
+\fBboxtype\fP = \fBdbox2\fP|\fBdreambox\fP|\fBdm7000\fP|\fBduckbox\fP|\fBufs910\fP|\fBipbox\fP|\fBipbox-pmt\fP
+.RS 3n
+set boxtype, auto detection of DVB API will be aspired, default:dreambox
+
+ipbox with camd.socket support, currently only with PGI image version 0.6 or above, 
+verified on HD models only
+
+ipbox-pmt can be used on any DGS based images (with or without camd.socket support), 
+verified on HD models only
+.RE
+.SS "The [anticasc] section" \fI(only if anti-cascading enabled)\fR
+.PP
+\fBenabled\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = enabled anti-cascading, default:0
+.RE
+.PP
+\fBnumusers\fP = \fBquantity\fP
+.RS 3n
+anti-cascading: user per account, 0 = anti-cascading disabled, default:0
+.RE
+.PP
+\fBsampletime\fP = \fBminutes\fP
+.RS 3n
+duration of sample, default:2
+.RE
+.PP
+\fBsamples\fP = \fBquantity\fP
+.RS 3n
+quantity of samples over limit, default:10
+.RE
+.PP
+\fBpenalty\fP = \fB0\fP|\fB1\fP|\fB2\fP
+.RS 3n
+level of penalty:
+
+ 0 = only logging
+ 1 = send fake CWs
+ 2 = disbable user temporary
+
+default:0, penalty can be overwritten per user in \fBoscam.user\fR
+.RE
+.PP
+\fBaclogfile\fP = \fBfilename\fP
+.RS 3n
+file for anti-cascading logging, default:none
+.RE
+.PP
+\fBfakedelay\fP = \fBmilli-seconds\fP
+.RS 3n
+fake delay time, default:1000
+.RE
+.PP
+\fBdenysamples\fP = \fBquantity\fP
+.RS 3n
+How many samples should be penalized?, default:8
+.RE
+.SH MONITOR
+monitor commands:
+.TP 3n
+\(bu
+\fBlogin <user> <password>\fP
+
+login (for unencrypted connections only)
+
+.TP 3n
+\(bu
+\fBsetuser <user> <parameter>=<value>\fP
+
+set parameter for user
+ 
+.TP 3n
+\(bu
+\fBexit\fP
+
+exit monitor
+ 
+.TP 3n
+\(bu
+\fBlog <on|onwohist|off>\fP
+
+enable|enable without hitory|disable logging for 2 minutes
+
+.TP 3n
+\(bu
+\fBstatus\fP
+
+list of current processes and clients
+
+.TP 3n
+\(bu
+\fBshutdown\fP
+
+shutdown OSCam
+ 
+.TP 3n
+\(bu
+\fBreload\fP
+
+reinit user db, clients and anti-cascading, for newcamd connections: after reloading the ident, please restart newcamd client
+
+.TP 3n
+\(bu
+\fBdetails <PID>\fP
+
+details about selected PID
+
+.TP 3n
+\(bu
+\fBdebug <level>\fP
+
+set debug level (\fBmonlevel\fP > 3 required)
+                            
+debug level mask:
+   0 = no debugging (default)
+   2 = ATR parsing info, ECM dumps, CW dumps
+   4 = traffic from/to the reader
+   8 = traffic from/to the clients
+  16 = traffic to the reader-device on IFD layer 
+  32 = traffic to the reader-device on I/O layer
+  64 = EMM logging 
+ 255 = debug all
+.TP 3n
+\(bu
+\fBversion\fP
+
+show OSCam version
+
+.TP 3n
+\(bu
+\fBcommands\fP
+
+show all valid monitor commands
+.SH WEB INTERFACE
+.TP 3n
+\(bu
+template system
+
+The web interface allows you to create your own template. For developing your 
+own template request the orignal template with the non-linked page 
+\fBsavetemplates.html\fP. Store your own template in the directory specified 
+by \fBhttptpl\fP. 
+.TP 3n
+\(bu
+SSL connection to the web interface
+
+The Apache module \fBmod_proxy\fP can be used to proxy requests to the web 
+interface. With this module it's also possible to use a SSL connection to 
+the web interface. 
+
+ ProxyRequests Off
+  <Proxy *>
+   Order deny,allow
+   Allow from all
+  </Proxy>
+  ProxyPass /oscam/ http://localhost:8080/
+  ProxyPassReverse /oscam/ http://localhost:8080/
+
+For further information please read the Apache documentation. 
+.TP 3n
+\(bu
+known issues
+
+Login is not possible by now with the Safari browser because of incorrect 
+stale flag handling. Increasing the AUTHNONCEVALIDSECS in oscam-http.h would 
+be a workaround, but also a small security risk.
+.SH EXAMPLES
+ [global]
+ logfile      = /var/log/oscam/oscam.log
+ usrfile      = /var/log/oscam/oscamuser.log
+ pidfile      = /var/run/oscam.pid
+
+ waitforcards = 1
+
+ [monitor]
+ port         = 988
+ monlevel     = 1
+ nocrypt      = 127.0.0.1
+ 
+ [webif]
+ httpport     = 8888
+ httpuser     = myusername
+ httppwd      = mypassword
+ 
+ [newcamd]
+ key          = 0102030405060708091011121314
+ port         = 10000@0100:100000;20000{0102030405060708091011121314}@0200:200000,300000,400000
+ 
+ [radegast]
+ port         = 30000
+ user         = radegastuser
+ allowed      = 127.0.0.1,192.168.0.0-192.168.255.255
+
+ [camd33]
+ port         = 40000
+ serverip     = 192.168.0.1
+ key          = 01020304050607080910111213141516
+    
+ [cs378x]
+ port         = 50000@0300:600000
+.SH "SEE ALSO"
+\fBlist_smargo\fR(1), \fBoscam\fR(1), \fBoscam.ac\fR(5), \fBoscam.cert\fR(5), \fBoscam.guess\fR(5), \fBoscam.ird\fR(5), \fBoscam.provid\fR(5), \fBoscam.server\fR(5), \fBoscam.services\fR(5), \fBoscam.srvid\fR(5), \fBoscam.tiers\fR(5), \fBoscam.user\fR(5)

@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 37
+/svn/oscam/!svn/ver/2823/trunk/cygwin
+END
+WinSCard.h
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/svn/oscam/!svn/ver/2820/trunk/cygwin/WinSCard.h
+END
+SCardErr.h
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/svn/oscam/!svn/ver/2820/trunk/cygwin/SCardErr.h
+END
+WinSmCrd.h
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/svn/oscam/!svn/ver/2820/trunk/cygwin/WinSmCrd.h
+END

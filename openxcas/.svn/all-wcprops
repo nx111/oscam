@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 39
+/svn/oscam/!svn/ver/2940/trunk/openxcas
+END
+openxcas_api.h
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/oscam/!svn/ver/2783/trunk/openxcas/openxcas_api.h
+END
+libOpenXCASAPI.a
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/oscam/!svn/ver/2784/trunk/openxcas/libOpenXCASAPI.a
+END
+openxcas.conf
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/oscam/!svn/ver/2940/trunk/openxcas/openxcas.conf
+END
+openxcas_smartcard.h
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/oscam/!svn/ver/2750/trunk/openxcas/openxcas_smartcard.h
+END
+openxcas_message.h
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/oscam/!svn/ver/2750/trunk/openxcas/openxcas_message.h
+END

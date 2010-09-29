@@ -1,0 +1,17 @@
+K 25
+svn:wc:ra_dav:version-url
+V 42
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/aes
+END
+aes_core.c
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/oscam/!svn/ver/3181/trunk/cscrypt/aes/aes_core.c
+END
+aes.h
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/110/trunk/cscrypt/aes/aes.h
+END

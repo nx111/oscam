@@ -1,0 +1,11 @@
+K 10
+svn:ignore
+V 62
+oscam-type.h
+oscam-ostype.h
+build_freetz
+build_sh4
+
+*.project
+
+END

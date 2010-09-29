@@ -1,0 +1,71 @@
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svn/oscam/!svn/ver/2990/trunk/Distribution/doc/example
+END
+oscam.ird
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/oscam/!svn/ver/205/trunk/Distribution/doc/example/oscam.ird
+END
+oscam.user
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/oscam/!svn/ver/1884/trunk/Distribution/doc/example/oscam.user
+END
+oscam.ac
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/oscam/!svn/ver/1884/trunk/Distribution/doc/example/oscam.ac
+END
+oscam.provid
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/oscam/!svn/ver/2149/trunk/Distribution/doc/example/oscam.provid
+END
+oscam.services
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/oscam/!svn/ver/205/trunk/Distribution/doc/example/oscam.services
+END
+oscam.conf
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/oscam/!svn/ver/1884/trunk/Distribution/doc/example/oscam.conf
+END
+oscam.guess
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/oscam/!svn/ver/205/trunk/Distribution/doc/example/oscam.guess
+END
+oscam.server
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/oscam/!svn/ver/2878/trunk/Distribution/doc/example/oscam.server
+END
+oscam.tiers
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/example/oscam.tiers
+END
+oscam.srvid
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/oscam/!svn/ver/2990/trunk/Distribution/doc/example/oscam.srvid
+END
+oscam.cert
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/oscam/!svn/ver/205/trunk/Distribution/doc/example/oscam.cert
+END
