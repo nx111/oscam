@@ -1207,7 +1207,7 @@ void reader_videoguard2();
 void reader_videoguard12();
 void reader_dre();
 void reader_tongfang();
-
+void reader_streamguard();
 // oscam
 extern int recv_from_udpipe(uchar *);
 extern char* username(int);
