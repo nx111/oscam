@@ -105,6 +105,14 @@
 #ifndef READER_DRE
 #define READER_DRE
 #endif
+
+#ifndef READER_TONGFANG
+#define READER_TONGFANG
+#endif
+
+#ifndef READER_STREAMGUARD
+#define READER_STREAMGUARD
+#endif
 #endif
 
 

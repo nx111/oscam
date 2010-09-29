@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/3296/trunk
+/svn/oscam/!svn/ver/3300/trunk
 END
 Maketype
 K 25
@@ -109,7 +109,7 @@ Makefile
 K 25
 svn:wc:ra_dav:version-url
 V 39
-/svn/oscam/!svn/ver/3153/trunk/Makefile
+/svn/oscam/!svn/ver/3298/trunk/Makefile
 END
 CMakeLists.txt
 K 25
@@ -127,7 +127,7 @@ config.sh
 K 25
 svn:wc:ra_dav:version-url
 V 40
-/svn/oscam/!svn/ver/3296/trunk/config.sh
+/svn/oscam/!svn/ver/3297/trunk/config.sh
 END
 module-stat.c
 K 25
@@ -139,7 +139,7 @@ oscam.c
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/3295/trunk/oscam.c
+/svn/oscam/!svn/ver/3297/trunk/oscam.c
 END
 oscam-reader.c
 K 25
@@ -181,7 +181,7 @@ oscam-config.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/3295/trunk/oscam-config.c
+/svn/oscam/!svn/ver/3299/trunk/oscam-config.c
 END
 reader-conax.c
 K 25
@@ -211,7 +211,7 @@ oscam-config.h
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/3296/trunk/oscam-config.h
+/svn/oscam/!svn/ver/3297/trunk/oscam-config.h
 END
 reader-seca.c
 K 25
@@ -289,7 +289,7 @@ module-cccam.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/3294/trunk/module-cccam.c
+/svn/oscam/!svn/ver/3300/trunk/module-cccam.c
 END
 reader-videoguard12.c
 K 25

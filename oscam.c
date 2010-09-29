@@ -2820,7 +2820,12 @@ int main (int argc, char *argv[])
 #ifdef READER_DRE
 	reader_dre,
 #endif
+#ifdef READER_TONGFANG
 	reader_tongfang,
+#endif
+#ifdef READER_STREAMGUARD
+	reader_streamguard,
+#endif
 	0
   };
 
