@@ -2182,19 +2182,21 @@ void update_priority_config(){
 	}
 	
 	int dvbapiKey=0;
-	while (fgets(token, sizeof(token), fi)) {
+	int eof=0;
+	while (!eof) {
 		int i, l ,priokey=0;
 		char key[128],*p;
-		
-		if ((l = strlen(trim(token))) >= 3){
-			if ((token[0] == '[') && (token[l-1] == ']')) {
-				if (!strcmp("dvbapi", strtolower(token+1)))
-					dvbapiKey = 1;  //started dvbapi
-				else if(dvbapiKey == 1)
-					dvbapiKey = 2;	//done finished for dvbapi
-				else 
-					dvbapiKey=3;	//start other section
-			}
+		if(!fgets(token, sizeof(token), fi) && dvbapiKey == 1){
+			dvbapiKey=2;
+			eof=1;
+		}
+		else if ((l = strlen(trim(token))) >= 3){
+				if ((token[0] == '[') && (token[l-1] == ']')) {
+					if (!strncmp("dvbapi", strtolower(token+1),l-2))
+						dvbapiKey = 1;  //started dvbapi
+					else if(dvbapiKey == 1)
+						dvbapiKey = 2;	//done finished for dvbapi
+				}
 		}
 
 		if ( (p=strchr(token, '=')) != 0 && dvbapiKey == 1){
@@ -2202,15 +2204,15 @@ void update_priority_config(){
 			if(!strcmp("priority",trim(strtolower(key))))
 				priokey=1;
 		}
-		if(priokey)continue;
-		if(dvbapiKey == 2){
+//		cs_log("[update priority]dvbapiKey=%d token=%s",dvbapiKey,token);
+		if(dvbapiKey == 2 ){
 			ulong provid = 0;
 			int writePriorityKey=0;
 
 			for (i=0;i<CS_MAXCAIDTAB;i++) {
 				if(cfg->dvbapi_prioritytab.caid[i]==0)continue;
 				if(!writePriorityKey){
-					fprintf_conf(fo, CONFVARWIDTH, "priority", "");
+					fprintf(fo, "priority\t= ");
 					writePriorityKey=1;
 				       	dot = "";
 					}
@@ -2225,7 +2227,9 @@ void update_priority_config(){
 				fprintf(fo,"\n");
 			
 		}	
-		fputs(token,fo);
+		if(!priokey && !eof && strlen(trim(token)))
+			fprintf(fo,"%s\n",token);
+	
 		
 	}
 	fclose(fo);
