@@ -621,6 +621,16 @@ void chk_t_global(char *token, char *value)
 		}
 	}
 	
+	if (!strcmp(token, "failbantime")) {
+		if(strlen(value) == 0) {
+			cfg->failbantime = 0;
+			return;
+		} else {
+			cfg->failbantime = atoi(value);
+			return;
+		}
+	}
+
 #ifdef CS_WITH_DOUBLECHECK
 	if (!strcmp(token, "double_check")) {
 		if (strlen(value) == 0) {
@@ -1258,7 +1268,7 @@ void chk_t_dvbapi(char *token, char *value)
 
 	if (!strcmp(token, "auto_priority")) {
 		if(strlen(value) == 0) {
-			cfg->dvbapi_auto_priority = 0;
+			cfg->dvbapi_auto_priority = 1;
 		} else {
 			cfg->dvbapi_auto_priority = atoi(value);
 		}
@@ -1456,6 +1466,9 @@ int init_config()
 	cfg->ac_denysamples = 8;
 	cfg->ac_fakedelay = 1000;
 	strcpy(cfg->ac_logfile, "./oscam_ac.log");
+#endif
+#ifdef HAVE_DVBAPI
+	cfg->dvbapi_auto_priority = 1;
 #endif
 	sprintf(token, "%s%s", cs_confdir, cs_conf);
 	if (!(fp = fopen(token, "r"))) {
@@ -1821,6 +1834,7 @@ int write_config()
 	fprintf_conf(f, CONFVARWIDTH, "clienttimeout", "%ld\n", cfg->ctimeout);
 	fprintf_conf(f, CONFVARWIDTH, "fallbacktimeout", "%ld\n", cfg->ftimeout);
 	fprintf_conf(f, CONFVARWIDTH, "clientmaxidle", "%d\n", cfg->cmaxidle);
+	fprintf_conf(f, CONFVARWIDTH, "failbantime", "%d\n", cfg->failbantime);
 	if(!cfg->delay == CS_DELAY)
 		fprintf_conf(f, CONFVARWIDTH, "cachedelay", "%ld\n", cfg->delay); //deprecated
 	fprintf_conf(f, CONFVARWIDTH, "bindwait", "%d\n", cfg->bindwait);
@@ -2227,7 +2241,7 @@ void update_priority_config(){
 				fprintf(fo,"\n");
 			
 		}	
-		if(!priokey && !eof && strlen(trim(token)))
+		if(!priokey && !eof )
 			fprintf(fo,"%s\n",token);
 	
 		

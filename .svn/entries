@@ -1,15 +1,15 @@
 10
 
 dir
-3306
+3309
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-09-29T23:36:27.809758Z
-3306
-rorothetroll
+2010-09-30T06:19:29.993385Z
+3309
+alno
 has-props
 
 
@@ -35,11 +35,11 @@ file
 
 
 
-2010-09-29T23:38:11.196806Z
-53eeae5d0b7c3aee78b2c03f6cfb2b7a
-2010-09-29T23:36:27.809758Z
-3306
-rorothetroll
+2010-09-30T06:49:25.697501Z
+cb9d8b6b7d737600fcec97476efcb8fe
+2010-09-30T05:57:59.413708Z
+3307
+schlocke
 
 
 
@@ -61,7 +61,7 @@ rorothetroll
 
 
 
-3866
+3891
 
 Maketype
 file
@@ -409,6 +409,9 @@ dingo35
 
 9791
 
+toolchains
+dir
+
 module-obj-llist.c
 file
 
@@ -442,9 +445,6 @@ has-props
 
 
 2855
-
-toolchains
-dir
 
 oscam-ac.c
 file
@@ -594,40 +594,6 @@ dingo35
 
 1611
 
-Makefile
-file
-
-
-
-
-2010-09-29T23:29:55.652806Z
-526a07fbf51e706d382812b53f6a2d1f
-2010-09-29T07:21:28.346731Z
-3298
-merek
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-25029
-
 CMakeLists.txt
 file
 
@@ -662,18 +628,17 @@ rorothetroll
 
 27460
 
-config.sh
+Makefile
 file
 
 
 
 
-2010-09-29T23:29:55.660806Z
-c949b225c17175963b010c9561205bda
-2010-09-29T07:17:41.453217Z
-3297
+2010-09-29T23:29:55.652806Z
+526a07fbf51e706d382812b53f6a2d1f
+2010-09-29T07:21:28.346731Z
+3298
 merek
-has-props
 
 
 
@@ -694,7 +659,8 @@ has-props
 
 
 
-4056
+
+25029
 
 module-dvbapi.h
 file
@@ -730,6 +696,40 @@ _network
 
 3997
 
+config.sh
+file
+
+
+
+
+2010-09-29T23:29:55.660806Z
+c949b225c17175963b010c9561205bda
+2010-09-29T07:17:41.453217Z
+3297
+merek
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+4056
+
 module-stat.c
 file
 
@@ -764,39 +764,17 @@ schlocke
 
 14818
 
-module-serial.c
+oscam.c
 file
 
 
 
 
-2010-09-29T23:29:55.664806Z
-8cbfe8c7643068a35fd092cac91417d6
-2010-09-24T08:25:46.068688Z
-3210
-dingo35
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-27727
+4a8de39ed77008fb204a5902fe2c5b0d
+2010-09-30T06:19:29.993385Z
+3309
+alno
 
 oscam-reader.c
 file
@@ -832,17 +810,17 @@ alno
 
 20490
 
-oscam.c
+module-serial.c
 file
 
 
 
 
 2010-09-29T23:29:55.664806Z
-3bdbfd7876c08242d75b1f5c1aa2e8c5
-2010-09-29T07:17:41.453217Z
-3297
-merek
+8cbfe8c7643068a35fd092cac91417d6
+2010-09-24T08:25:46.068688Z
+3210
+dingo35
 
 
 
@@ -864,41 +842,7 @@ merek
 
 
 
-81672
-
-module-stat.h
-file
-
-
-
-
-2010-09-29T23:29:55.664806Z
-fcdf1dddd5198274183d2eb5da54676a
-2010-09-26T16:12:04.606400Z
-3261
-alno
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-569
+27727
 
 module-constcw.c
 file
@@ -933,6 +877,40 @@ _network
 
 
 4287
+
+module-stat.h
+file
+
+
+
+
+2010-09-29T23:29:55.664806Z
+fcdf1dddd5198274183d2eb5da54676a
+2010-09-26T16:12:04.606400Z
+3261
+alno
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+569
 
 reader-tongfang.c
 file
@@ -974,33 +952,11 @@ file
 
 
 
-2010-09-29T23:29:55.668806Z
-6f763763b9e98abd824eb9784e4c082d
-2010-09-29T07:30:57.974995Z
-3299
-merek
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-103555
+e9c439020d745d4004a25e2f4033fd64
+2010-09-30T06:17:00.302375Z
+3308
+alno
 
 oscam-chk.c
 file
@@ -1531,10 +1487,10 @@ file
 
 
 
-4853f114174aee0973af88da5cf14b92
-2010-09-29T22:44:40.584576Z
-3304
-schlocke
+d0bc4af7f47e324ef49b8eadf0a1d11a
+2010-09-30T06:17:00.302375Z
+3308
+alno
 
 reader-common.c
 file
@@ -1610,10 +1566,10 @@ file
 
 
 
-2010-09-29T23:34:39.600806Z
-e1b640391ac89ab3366d361fb4ebcb00
-2010-09-29T22:44:40.584576Z
-3304
+2010-09-30T06:49:25.705501Z
+e76bc3fa61470b9c147b621906a4d15f
+2010-09-30T05:57:59.413708Z
+3307
 schlocke
 has-props
 
@@ -1636,7 +1592,7 @@ has-props
 
 
 
-88163
+88161
 
 reader-videoguard12.c
 file

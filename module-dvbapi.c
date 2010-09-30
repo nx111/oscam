@@ -242,6 +242,8 @@ int dvbapi_stop_filternum(int demux_index, int num) {
 		close(demux[demux_index].demux_fd[num].fd);
 #endif
 		demux[demux_index].demux_fd[num].fd=0;
+		if(ret == -1)
+			cs_log("stop filter failed,demux %d filter %d!",demux_index,num);
 	}
 
 	return ret;
@@ -950,7 +952,8 @@ void dvbapi_try_next_caid(int demux_id) {
 			if (num == -1 && select_first_ECM == -1 && valid_ecm == 0){
 					demux[demux_id].tries++;
 					for (n=0; n<demux[demux_id].ECMpidcount; n++) {
-						demux[demux_id].ECMpids[n].checked=0;
+						if(demux[demux_id].ECMpids[n].checked != -1)
+							demux[demux_id].ECMpids[n].checked=0;
 					}
 					dvbapi_try_next_caid(demux_id);
 					return;
@@ -1680,14 +1683,15 @@ void dvbapi_send_dcw(ECM_REQUEST *er) {
 				dvbapi_start_descrambling(i);
 			}
 
-			if (er->rc>3 && demux[i].pidindex==-1) {
-				dvbapi_try_next_caid(i);
-				return;
+			if (er->rc > 3 && er->rc !=5 && er->rc !=6 && er->rc <= 13 ){
+				int k;
+				for(k=0;k<demux[i].ECMpidcount && demux[i].ECMpids[k].ECM_PID != er->pid;k++);
+				if(k<demux[i].ECMpidcount)
+					demux[i].ECMpids[k].checked=-1;		//this ecmpid is unusable		
 			}
-			if (er->rc>3) {
-				demux[i].tries++;
+
+			if (er->rc > 3) {
 				dvbapi_try_next_caid(i);
-				cs_debug("cw not found");
 				return;
 			}
 
