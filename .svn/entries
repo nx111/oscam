@@ -1,15 +1,15 @@
 10
 
 dir
-3325
+3327
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-10-01T01:20:43.328071Z
-3325
-Gorlan.Ng
+2010-10-01T03:47:24.369757Z
+3327
+rebdog
 has-props
 
 
@@ -313,10 +313,10 @@ file
 
 
 
-2010-10-01T01:33:24.779940Z
-90025baffecf9d5a0976c6f10da0e775
-2010-09-30T22:45:09.224440Z
-3321
+2010-10-01T05:51:18.010299Z
+f985f6dc6dae6cf62cfc64c8ce7590f4
+2010-10-01T03:47:24.369757Z
+3327
 rebdog
 
 
@@ -339,7 +339,7 @@ rebdog
 
 
 
-33457
+31535
 
 oscam-http-helpers.c
 file
@@ -409,9 +409,6 @@ Gorlan.Ng
 
 9817
 
-toolchains
-dir
-
 module-obj-llist.c
 file
 
@@ -445,6 +442,9 @@ has-props
 
 
 2855
+
+toolchains
+dir
 
 oscam-ac.c
 file
@@ -486,10 +486,10 @@ file
 
 
 
-2010-10-01T01:33:24.779940Z
-bde57b98f1d5ebc5b75710869abf1935
-2010-09-30T22:45:09.224440Z
-3321
+2010-10-01T05:51:18.010299Z
+b836c65bf7428ba0ca9f878a229cc1c3
+2010-10-01T03:47:24.369757Z
+3327
 rebdog
 
 
@@ -512,7 +512,7 @@ rebdog
 
 
 
-2186
+1994
 
 module-obj-llist.h
 file
@@ -555,9 +555,9 @@ file
 
 
 
-4ad7a13eec19e3edcba54b8e40e8074d
-2010-10-01T01:20:43.328071Z
-3325
+24e9d57095391b79f2c48ec5fa7b12b8
+2010-10-01T01:44:30.105615Z
+3326
 Gorlan.Ng
 
 oscam-nano.c
@@ -594,40 +594,6 @@ dingo35
 
 1611
 
-CMakeLists.txt
-file
-
-
-
-
-2010-09-29T23:29:55.652806Z
-e598b2c665cbec980f3efe73acade49b
-2010-09-25T00:06:46.773431Z
-3241
-rorothetroll
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-27460
-
 Makefile
 file
 
@@ -662,17 +628,39 @@ merek
 
 25029
 
-module-dvbapi.h
+CMakeLists.txt
 file
 
 
 
 
+2010-09-29T23:29:55.652806Z
+e598b2c665cbec980f3efe73acade49b
+2010-09-25T00:06:46.773431Z
+3241
+rorothetroll
 
-3f9036a56157f7c179a5c6c80f749fc5
-2010-09-30T12:17:08.746394Z
-3316
-Gorlan.Ng
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+27460
 
 config.sh
 file
@@ -708,6 +696,18 @@ has-props
 
 4056
 
+module-dvbapi.h
+file
+
+
+
+
+
+3f9036a56157f7c179a5c6c80f749fc5
+2010-09-30T12:17:08.746394Z
+3316
+Gorlan.Ng
+
 module-stat.c
 file
 
@@ -741,52 +741,6 @@ schlocke
 
 
 14818
-
-oscam.c
-file
-
-
-
-
-
-ff671ad79c5f19c9976e14295b5af011
-2010-09-30T21:50:35.268931Z
-3318
-alno
-
-oscam-reader.c
-file
-
-
-
-
-2010-10-01T01:32:53.415940Z
-74a48d01e4b53b94e37c3d4d5f543e1a
-2010-09-30T11:56:37.428230Z
-3315
-Gorlan.Ng
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-20480
 
 module-serial.c
 file
@@ -822,17 +776,17 @@ dingo35
 
 27727
 
-module-constcw.c
+oscam-reader.c
 file
 
 
 
 
-2010-09-29T23:29:55.664806Z
-f2f3f5cfc197d93fc229406c19d9e183
-2010-09-28T09:39:47.269502Z
-3283
-_network
+2010-10-01T01:32:53.415940Z
+74a48d01e4b53b94e37c3d4d5f543e1a
+2010-09-30T11:56:37.428230Z
+3315
+Gorlan.Ng
 
 
 
@@ -854,7 +808,19 @@ _network
 
 
 
-4287
+20480
+
+oscam.c
+file
+
+
+
+
+
+ff671ad79c5f19c9976e14295b5af011
+2010-09-30T21:50:35.268931Z
+3318
+alno
 
 module-stat.h
 file
@@ -889,6 +855,40 @@ alno
 
 
 569
+
+module-constcw.c
+file
+
+
+
+
+2010-09-29T23:29:55.664806Z
+f2f3f5cfc197d93fc229406c19d9e183
+2010-09-28T09:39:47.269502Z
+3283
+_network
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+4287
 
 reader-tongfang.c
 file
@@ -1183,10 +1183,10 @@ file
 
 
 
-2010-10-01T01:33:24.783940Z
-79ed50fa9b5800271bded73cd62fd8a2
-2010-09-30T22:45:09.224440Z
-3321
+2010-10-01T05:51:18.018299Z
+ca72bdd89835368295f92e31817355b4
+2010-10-01T03:47:24.369757Z
+3327
 rebdog
 
 
@@ -1209,7 +1209,7 @@ rebdog
 
 
 
-15699
+26353
 
 README
 file
@@ -1556,10 +1556,10 @@ file
 
 
 
-2010-10-01T01:33:24.787940Z
-7133fb867547af2714ff053f35b8b487
-2010-09-30T22:45:09.224440Z
-3321
+2010-10-01T05:51:18.022299Z
+142f4b968769b0f2b4d317e858ca0b97
+2010-10-01T03:47:24.369757Z
+3327
 rebdog
 
 
@@ -1582,7 +1582,7 @@ rebdog
 
 
 
-14568
+14748
 
 module-camd33.c
 file

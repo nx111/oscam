@@ -59,6 +59,7 @@ typedef struct filter_s
 	int pid;
 	ushort type;
 	int count;
+	int status;	//0:stoped 1:started
 #ifdef WITH_STAPI
 	uint	SlotHandle;
 	uint  	BufferHandle;

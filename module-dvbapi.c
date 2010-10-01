@@ -106,8 +106,11 @@ int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uc
 			break;
 	}
 
-	if (ret < 0)
+	demux[demux_id].demux_fd[n].status= 1;
+	if (ret < 0){
 		cs_debug("could not start demux filter (Errno: %d)", errno);
+		demux[demux_id].demux_fd[n].status = 0;
+	}
 
 	return ret;
 }
@@ -234,7 +237,7 @@ int dvbapi_stop_filter(int demux_index, int type) {
 
 int dvbapi_stop_filternum(int demux_index, int num) {
 	int ret=-1;
-	if (demux[demux_index].demux_fd[num].fd>0) {
+	if (demux[demux_index].demux_fd[num].status) {
 #ifdef WITH_STAPI
 		ret=stapi_remove_filter(demux_index, num);
 #else	
@@ -244,6 +247,9 @@ int dvbapi_stop_filternum(int demux_index, int num) {
 		demux[demux_index].demux_fd[num].fd=0;
 		if(ret == -1)
 			cs_log("stop filter failed,demux %d filter %d!",demux_index,num);
+		else		
+			demux[demux_index].demux_fd[num].status = 0;
+
 	}
 
 	return ret;
