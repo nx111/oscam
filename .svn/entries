@@ -1,15 +1,15 @@
 10
 
 dir
-3327
+3332
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-10-01T03:47:24.369757Z
-3327
-rebdog
+2010-10-01T10:00:48.820341Z
+3332
+landlord
 has-props
 
 
@@ -409,6 +409,9 @@ Gorlan.Ng
 
 9817
 
+toolchains
+dir
+
 module-obj-llist.c
 file
 
@@ -442,9 +445,6 @@ has-props
 
 
 2855
-
-toolchains
-dir
 
 oscam-ac.c
 file
@@ -594,6 +594,40 @@ dingo35
 
 1611
 
+CMakeLists.txt
+file
+
+
+
+
+2010-09-29T23:29:55.652806Z
+e598b2c665cbec980f3efe73acade49b
+2010-09-25T00:06:46.773431Z
+3241
+rorothetroll
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+27460
+
 Makefile
 file
 
@@ -628,39 +662,17 @@ merek
 
 25029
 
-CMakeLists.txt
+module-dvbapi.h
 file
 
 
 
 
-2010-09-29T23:29:55.652806Z
-e598b2c665cbec980f3efe73acade49b
-2010-09-25T00:06:46.773431Z
-3241
-rorothetroll
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-27460
+3f9036a56157f7c179a5c6c80f749fc5
+2010-09-30T12:17:08.746394Z
+3316
+Gorlan.Ng
 
 config.sh
 file
@@ -696,18 +708,6 @@ has-props
 
 4056
 
-module-dvbapi.h
-file
-
-
-
-
-
-3f9036a56157f7c179a5c6c80f749fc5
-2010-09-30T12:17:08.746394Z
-3316
-Gorlan.Ng
-
 module-stat.c
 file
 
@@ -741,6 +741,52 @@ schlocke
 
 
 14818
+
+oscam.c
+file
+
+
+
+
+
+ff671ad79c5f19c9976e14295b5af011
+2010-09-30T21:50:35.268931Z
+3318
+alno
+
+oscam-reader.c
+file
+
+
+
+
+2010-10-01T10:49:48.071010Z
+3adbb1bb15b3ac3e1b1b423cc763e151
+2010-10-01T09:16:55.353886Z
+3330
+landlord
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+21562
 
 module-serial.c
 file
@@ -776,17 +822,17 @@ dingo35
 
 27727
 
-oscam-reader.c
+module-constcw.c
 file
 
 
 
 
-2010-10-01T01:32:53.415940Z
-74a48d01e4b53b94e37c3d4d5f543e1a
-2010-09-30T11:56:37.428230Z
-3315
-Gorlan.Ng
+2010-09-29T23:29:55.664806Z
+f2f3f5cfc197d93fc229406c19d9e183
+2010-09-28T09:39:47.269502Z
+3283
+_network
 
 
 
@@ -808,19 +854,7 @@ Gorlan.Ng
 
 
 
-20480
-
-oscam.c
-file
-
-
-
-
-
-ff671ad79c5f19c9976e14295b5af011
-2010-09-30T21:50:35.268931Z
-3318
-alno
+4287
 
 module-stat.h
 file
@@ -855,40 +889,6 @@ alno
 
 
 569
-
-module-constcw.c
-file
-
-
-
-
-2010-09-29T23:29:55.664806Z
-f2f3f5cfc197d93fc229406c19d9e183
-2010-09-28T09:39:47.269502Z
-3283
-_network
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-4287
 
 reader-tongfang.c
 file
@@ -931,10 +931,10 @@ file
 
 
 
-e9c439020d745d4004a25e2f4033fd64
-2010-09-30T06:17:00.302375Z
-3308
-alno
+5f67f932496e43d0ce2dbea8f2e69655
+2010-10-01T09:16:55.353886Z
+3330
+landlord
 
 oscam-chk.c
 file
@@ -1465,10 +1465,10 @@ file
 
 
 
-155010b9ab1f9eee991a7515aed86e71
-2010-09-30T21:50:35.268931Z
-3318
-alno
+5c9222d2c3c05828a657f2ae899a5dfa
+2010-10-01T09:16:55.353886Z
+3330
+landlord
 
 reader-common.c
 file
@@ -1522,11 +1522,11 @@ file
 
 
 
-2010-10-01T01:32:53.423940Z
-0ad973f3cc05542ecebe2783cbfa58cb
-2010-09-30T11:56:37.428230Z
-3315
-Gorlan.Ng
+2010-10-01T10:49:48.083010Z
+3164ec353cbf0f3b0f7a5bbd8e136e81
+2010-10-01T07:33:30.671045Z
+3328
+schlocke
 has-props
 
 
@@ -1548,7 +1548,7 @@ has-props
 
 
 
-87942
+87911
 
 reader-videoguard12.c
 file

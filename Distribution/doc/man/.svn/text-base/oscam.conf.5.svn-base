@@ -112,6 +112,11 @@ for your clients the parameter must be 1, otherwise no authentication will
 be possible for this clients, default:0
 .RE
 .PP
+\fBfailbantime\fP = \fBminutes\fP
+.RS 3n
+time for IP based blocking for clients with an invalid login attempt, 0 = failban is disabled, default:0
+.RE
+.PP
 \fBsleep\fP = \fBminutes\fP
 .RS 3n
 time waiting for inactive users, default:none, can be overwritten per user in \fBoscam.user\fR
@@ -514,6 +519,14 @@ mode how to provide CCCam servers to CCCam clients:
      summarized, new SCs get a smaller hop
  2 = aggregation based on CAIDs: all SCs with the same CAIDs 
      will be merged, provider will be removed
+.RE
+.PP
+\fBupdateinterval\fP = \fBseconds\fP
+.RS 3n
+interval to provide share list update to CCCam clients, default:240:
+
+  0 = updates based on server updates
+ -1 = disable
 .RE
 .SS "The [gbox] section"
 .PP
