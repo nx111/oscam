@@ -98,7 +98,7 @@ int cs_check_violation(uint ip) {
 					llist_itr_remove(&itr);
 					return 0;
 				}
-				cs_debug("banned ip %d - %ld seconds left",
+				cs_debug("banned ip %u - %ld seconds left",
 						v_ban_entry->v_ip,(cfg->failbantime * 60) - (now - v_ban_entry->v_time));
 				return 1;
 			}
@@ -119,7 +119,7 @@ void cs_add_violation(uint ip) {
 		V_BAN *v_ban_entry = llist_itr_init(cfg->v_list, &itr);
 		while (v_ban_entry) {
 			if (ip == v_ban_entry->v_ip) {
-				cs_debug("banned ip %d - already exist in list", v_ban_entry->v_ip);
+				cs_debug("banned ip %u - already exist in list", v_ban_entry->v_ip);
 				return ;
 			}
 			v_ban_entry = llist_itr_next(&itr);
@@ -133,7 +133,7 @@ void cs_add_violation(uint ip) {
 
 		llist_append(cfg->v_list, v_ban_entry);
 
-		cs_debug("ban ip: %d timestamp: %d", v_ban_entry->v_ip, v_ban_entry->v_time);
+		cs_debug("ban ip: %u timestamp: %d", v_ban_entry->v_ip, v_ban_entry->v_time);
 
 	}
 }
@@ -366,23 +366,23 @@ void cs_exit(int sig)
 
   struct s_client *cl = &client[cs_idx];
   
-  switch(client[cs_idx].typ)
+  switch(cl->typ)
   {
     case 'c':
-    	cs_statistics(cs_idx);
+    	cs_statistics(cl->cidx);
     	cl->last_caid = 0xFFFF;
     	cl->last_srvid = 0xFFFF;
-    	cs_statistics(cs_idx);
+    	cs_statistics(cl->cidx);
     	break;
     case 'm': break;
     case 'n': break;
     case 'r':
         // free AES entries allocated memory
-        if(reader[client[cs_idx].ridx].aes_list) {
-            aes_clear_entries(&reader[client[cs_idx].ridx]);
+        if(reader[cl->ridx].aes_list) {
+            aes_clear_entries(&reader[cl->ridx]);
         }
         // close the device
-        reader_device_close(&reader[client[cs_idx].ridx]);
+        reader_device_close(&reader[cl->ridx]);
         break;
     case 'h':
     case 's':
@@ -406,28 +406,22 @@ void cs_exit(int sig)
 	}
 
 	// this is very important - do not remove
-	int i;
-	for (i=1; i<CS_MAXPID; i++) {
-		if (pthread_equal(client[i].thread, pthread_self())) {
-			client[i].pid=0;
-			if(client[i].ecmtask) 	free(client[i].ecmtask);
-			if(client[i].emmcache) 	free(client[i].emmcache);
-			if(client[i].req) 		free(client[i].req);
-			if(client[i].prefix) 	free(client[i].prefix);
-			if(client[i].cc) 		free(client[i].cc);
-			if(client[i].pfd)	close(client[i].pfd); //Closing Network socket
-			if(client[i].fd_m2c_c)  close(client[i].fd_m2c_c); //Closing client read fd
-			if(client[i].fd_m2c)		close(client[i].fd_m2c); //Closing client read fd
-			if(client[i].ufd)		close(client[i].ufd);
-			                
-			cs_log("thread %d ended!", i);
-			pthread_exit(NULL);
-			return;
-		}
-	}
+	if (cl->cidx>0) {
+		if(cl->ecmtask) 	free(cl->ecmtask);
+		if(cl->emmcache) 	free(cl->emmcache);
+		if(cl->req) 		free(cl->req);
+		if(cl->cc) 		free(cl->cc);
 
-	for (i=1; i<CS_MAXPID; i++) {
-		kill_thread(i);
+		if(cl->pfd)		close(cl->pfd); //Closing Network socket
+		if(cl->fd_m2c_c)	close(cl->fd_m2c_c); //Closing client read fd
+		if(cl->fd_m2c)	close(cl->fd_m2c); //Closing client read fd
+		if(cl->ufd)		close(cl->ufd);
+
+		cs_log("thread %d ended!", cl->cidx);
+		cl->pid=0;
+
+		pthread_exit(NULL);
+		return;
 	}
 	
 	cs_log("cardserver down");
@@ -570,6 +564,8 @@ int cs_fork(in_addr_t ip, in_port_t port) {
 
 		client[i].login=client[i].last=time((time_t *)0);
 		client[i].pid=pid;    // MUST be last -> wait4master()
+
+		client[i].cidx=i;
 
 		cs_last_idx=i;
 
@@ -834,7 +830,7 @@ int cs_user_resolve(struct s_auth *account)
     	account->dynip=0;
     return result;
 }
-
+#if defined(CS_ANTICASC) || defined(WEBIF) 
 static void start_thread(void * startroutine, char * nameroutine, char typ) {
 	int i,o;
 
@@ -859,7 +855,7 @@ static void start_thread(void * startroutine, char * nameroutine, char typ) {
 		pthread_detach(client[o].thread);
 	}
 }
-
+#endif
 void kill_thread(int cidx) {
 
 	if (client[cidx].pid==0) return;
@@ -870,7 +866,6 @@ void kill_thread(int cidx) {
 	if(client[cidx].ecmtask) 	free(client[cidx].ecmtask);
 	if(client[cidx].emmcache) 	free(client[cidx].emmcache);
 	if(client[cidx].req) 	free(client[cidx].req);
-	if(client[cidx].prefix) 	free(client[cidx].prefix);
 	if(client[cidx].cc) 		free(client[cidx].cc);
 
 	if(client[cidx].pfd)		close(client[cidx].pfd); //Closing Network socket
@@ -1243,10 +1238,10 @@ static void store_ecm(ECM_REQUEST *er)
 	ecmcache[rc].reader = er->reader[0];
 	//cs_ddump(ecmcache[*ecmidx].ecmd5, CS_ECMSTORESIZE, "ECM stored (idx=%d)", *ecmidx);
 }
-
+#ifdef CS_LOGHISTORY
 void store_logentry(char *txt)
 {
-#ifdef CS_LOGHISTORY
+
 	char *ptr;
 	ptr=(char *)(loghist+(*loghistidx*CS_LOGHISTSIZE));
 	ptr[0]='\1';    // make username unusable
@@ -1255,9 +1250,9 @@ void store_logentry(char *txt)
 		cs_strncpy(ptr, client[cs_idx].usr, 31);
 	cs_strncpy(ptr+32, txt, CS_LOGHISTSIZE-33);
 	*loghistidx=(*loghistidx+1) % CS_MAXLOGHIST;
-#endif
-}
 
+}
+#endif
 // only for debug
 int get_thread_by_pipefd(int fd) {
 	int i;
@@ -2268,7 +2263,7 @@ void log_emm_request(int auidx)
 void do_emm(EMM_PACKET *ep)
 {
 	int au;
-	char *typtext[]={"UNKNOWN", "UNIQUE", "SHARED", "GLOBAL"}; 
+	char *typtext[]={"unknown", "unique", "shared", "global"};
 
 	au = client[cs_idx].au;
 	cs_ddump_mask(D_ATR, ep->emm, ep->l, "emm:");
@@ -2384,7 +2379,7 @@ void do_emm(EMM_PACKET *ep)
 		if (reader[au].logemm & 0x08)  {
 			cs_log("%s emmtype=%s, len=%d, idx=0, cnt=%d: blocked (0 ms) by %s",
 					client[cs_idx].usr,
-					strtolower(typtext[ep->type]),
+					typtext[ep->type],
 					ep->emm[2],
 					is_blocked,
 					reader[au].label);
@@ -2445,9 +2440,10 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 			int act, j;
 			er=&client[cs_idx].ecmtask[i];
 			tpc=er->tps;
-			tpc.millitm += (er->stage) ? cfg->ctimeout : cfg->ftimeout;
-			tpc.time += tpc.millitm / 1000;
-			tpc.millitm = tpc.millitm % 1000;
+			unsigned int tt;
+			tt = (er->stage) ? cfg->ctimeout : cfg->ftimeout;
+			tpc.time +=tt / 1000;
+			tpc.millitm += tt % 1000;
 			if (!er->stage) {
 				for (j=0, act=1; (act) && (j<CS_MAXREADER); j++) {
 					if (cfg->preferlocalcards && !er->locals_done) {
@@ -2475,19 +2471,20 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 								inc_stage = 0;
 						}
 					}
+					unsigned int tt;
 					if (!inc_stage) {
 						request_cw(er, er->stage, 2);
-						tpc.millitm += 1000 * (tpn.time - er->tps.time) + tpn.millitm - er->tps.millitm;
-						tpc.time += tpc.millitm / 1000;
-						tpc.millitm = tpc.millitm % 1000;
+						tt = 1000 * (tpn.time - er->tps.time) + tpn.millitm - er->tps.millitm;
+						tpc.time += tt / 1000;
+						tpc.millitm += tt % 1000;
 					} else {
 						er->locals_done = 0;
 						er->stage++;
 						request_cw(er, er->stage, cfg->preferlocalcards ? 1 : 0);
 
-						tpc.millitm += (cfg->ctimeout-cfg->ftimeout);
-						tpc.time += tpc.millitm / 1000;
-						tpc.millitm = tpc.millitm % 1000;
+						tt = (cfg->ctimeout-cfg->ftimeout);
+						tpc.time += tt / 1000;
+						tpc.millitm += tt % 1000;
 					}
 				}
 			}
@@ -2507,9 +2504,10 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 				} else {
 					er->stage++;
 					request_cw(er, er->stage, 0);
-					tpc.millitm += (cfg->ctimeout-cfg->ftimeout);
-					tpc.time += tpc.millitm / 1000;
-					tpc.millitm = tpc.millitm % 1000;
+					unsigned int tt;
+					tt = (cfg->ctimeout-cfg->ftimeout);
+					tpc.time += tt / 1000;
+					tpc.millitm += tt % 1000;
 				}
 			}
 			//build_delay(&tpe, &tpc);
@@ -2673,23 +2671,21 @@ int accept_connection(int i, int j) {
 	if (ph[i].type==MOD_CONN_UDP) {
 
 		if ((n=recvfrom(ph[i].ptab->ports[j].fd, buf+3, sizeof(buf)-3, 0, (struct sockaddr *)&cad, (socklen_t *)&scad))>0) {
-
-			if (cs_check_violation((uint)cs_inet_order(cad.sin_addr.s_addr)))
-				return 0;
-
 			int idx;
 			idx=idx_from_ip(cs_inet_order(cad.sin_addr.s_addr), ntohs(cad.sin_port));
 
 			if (!idx) {
+				if (cs_check_violation((uint)cs_inet_order(cad.sin_addr.s_addr)))
+					return 0;
+				//printf("IP: %s - %d\n", inet_ntoa(*(struct in_addr *)&cad.sin_addr.s_addr), cad.sin_addr.s_addr);
+
+				o=cs_fork(cs_inet_order(cad.sin_addr.s_addr), ntohs(cad.sin_port));
+				if (o<0) return 0;
+
 				if (pipe(fdp)) {
 					cs_log("Cannot create pipe (errno=%d)", errno);
 					return 0;
 				}
-
-				//printf("IP: %s - %d\n", inet_ntoa(*(struct in_addr *)&cad.sin_addr.s_addr), cad.sin_addr.s_addr);
-				o=cs_fork(cs_inet_order(cad.sin_addr.s_addr), ntohs(cad.sin_port));
-
-				if (o<0) return 0;
 
 				client[o].ufd=fdp[1];
 				client[o].pfd=fdp[0];

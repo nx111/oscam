@@ -342,7 +342,6 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 		demux[demux_id].ECMpidcount++;
 	}
 
-
 	for(k=0;k<demux[demux_id].ECMpids[ecmidx].STREAMpidcount;k++){
 	   	if(demux[demux_id].ECMpids[ecmidx].STREAMpids[k] == STREAMpid){
 			added_STREAM=1;
@@ -434,6 +433,7 @@ void dvbapi_set_pid(int demux_id, int num, int index) {
 						ca_pid2.index = index;
 						if (ioctl(ca_fd[i], CA_SET_PID, &ca_pid2)==-1)
 							cs_debug("Error Stream SET_PID");
+						cs_debug("SET PID %#x",demux[demux_id].STREAMpids[num]);
 					}
 				}
 			}
@@ -638,22 +638,11 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 			}
 			break;
       		case 0x0d:  // Cryptoworks
-				    cs_log("cryptoworks shared emm (EMM-S): %s" , cs_hexdump(1, buffer, len));
-      		// the code bellow can't work.
-      		// here is th description on how to assemble cryptoworks emm
       		//   Cryptoworks EMM-S have to be assembled by the client from an EMM-SH with table
             //   id 0x84 and a corresponding EMM-SB (body) with table id 0x86. A pseudo EMM-S
             //   with table id 0x84 has to be build containing all nano commands from both the
             //    original EMM-SH and EMM-SB in ascending order.
-            //
-            // Here the 2 part are assembled in the wrong order
-            // it should be all data from id 0x84 and then append the data from id 0x86
-            // I'll work on a fix (RoRoTheTroll)
             // 
-      			// Whoever implement the fix - could you have a look at setting a right provid
-      			// in each EMM struct? In the moment just in nagra is a right provid and in CW
-      			// we found smthg but not the right provid. This is why _auprovid_ work just
-      			// on nagra. Auprovid filter is in oscam.c do_emm()
 			if (len>500) return;
 			switch (buffer[0]) {
 				case 0x84:
@@ -669,11 +658,13 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 
 					// we keep the first 12 bytes of the 0x84 emm (EMM-SH)
 					// now we need to append the payload of the 0x86 emm (EMM-SB)
-					// starting after the header (buffer[5])
+					// starting after the header (&buffer[5])
 					// then the rest of the payload from EMM-SH
 					// so we should have :
 					// EMM-SH[0:12] + EMM-SB[5:len_EMM-SB] + EMM-SH[12:EMM-SH_len]
-					// and we need to update the emm len (emmBuf[1:2]
+					// then sort the nano in ascending order
+					// update the emm len (emmBuf[1:2])
+					//
 				    emm_len=len-5 + emm_global_len-12;
                     unsigned char *tmp=malloc(emm_len);
                     unsigned char *assembled_EMM=malloc(emm_len+12);
@@ -686,12 +677,13 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 
                     assembled_EMM[1]=((emm_len+9)>>8) | 0x70;
                     assembled_EMM[2]=(emm_len+9) & 0xFF;
-
-					memcpy(buffer, assembled_EMM, emm_len);
-					len=emm_len;
+                    //copy back the assembled emm in the working buffer
+					memcpy(buffer, assembled_EMM, emm_len+12);
+					len=emm_len+12;
 				    free(tmp);
 				    free(assembled_EMM);
-				    cs_log("cryptoworks shared emm (assembled): %s" , cs_hexdump(1, buffer, len));
+				    emm_global_len=0;
+				    cs_log("cryptoworks shared emm (assembled): %s" , cs_hexdump(1, buffer, emm_len+12));
                     if(assembled_EMM[11]!=emm_len) { // sanity check
                         // error in emm assembly
                         cs_log("Error assembling Cryptoworks EMM-S");
@@ -957,6 +949,7 @@ void dvbapi_try_next_caid(int demux_id) {
 					}
 					dvbapi_try_next_caid(demux_id);
 					return;
+				cs_debug("APPEND PID %#x", demux[demux_id].ECMpids[n].ECM_PID);
 			}
 
 			if(num == -1){
@@ -1360,7 +1353,7 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 
 		unsigned short caid = demux[demux_id].ECMpids[demux[demux_id].demux_fd[filter_num].pidindex].CAID;
 		unsigned long provid = demux[demux_id].ECMpids[demux[demux_id].demux_fd[filter_num].pidindex].PROVID;
-
+			
 		if ((caid >> 8) == 0x06) {
 			int i;
 			//80 70 39 53 04 05 00 88
@@ -1633,7 +1626,8 @@ void dvbapi_write_cw(int demux_id, int descrambler, uchar *cw) {
 	memset(nullcw, 0, 8);
 	ca_descr_t ca_descr;
 	memset(&ca_descr,0,sizeof(ca_descr));
-
+	
+	demux_id&=0xff;				
 		
 	for (n=0;n<2;n++) {
 		if (memcmp(cw+(n*8),demux[demux_id].lastcw[n+2*descrambler],8)!=0 && memcmp(cw+(n*8),nullcw,8)!=0 ) {
@@ -1707,6 +1701,13 @@ void dvbapi_send_dcw(ECM_REQUEST *er) {
 					cs_sleepms(cw_delay);
 				}
 			}
+		
+			int j=0;
+	
+			for (j=0; j<demux[i].ECMpidcount; j++)
+				if (demux[i].ECMpids[j].CAID == er->caid && demux[i].ECMpids[j].ECM_PID == er->pid)
+						break;
+			if (j==demux[i].ECMpidcount) continue;
 
 			int n,ci=-1;
 			for(n=0;n<demux[i].ECMpidcount;n++)
@@ -1874,6 +1875,17 @@ void * azbox_main(void *cli) {
 	struct timeb tp;
 	cs_ftime(&tp);
 	tp.time+=500;
+
+	struct s_auth *account=0;
+	int ok=0;
+	if (!account) {
+		client->usr[0]=0;
+		for (ok=0, account=cfg->account; (account) && (!ok); account=account->next)
+			if( (ok=!strcmp(cfg->dvbapi_usr, account->usr)) )
+				break;
+	}
+
+	cs_auth_client(ok ? account : (struct s_auth *)(-1), "dvbapi");
 
 	openxcas_msg_t msg;
 	int ret;

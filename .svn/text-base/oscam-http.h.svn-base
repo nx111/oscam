@@ -251,6 +251,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		<TD CLASS=\"menu\"><A HREF=\"userconfig.html\">USERS</TD>\n\
 		<TD CLASS=\"menu\"><A HREF=\"services.html\">SERVICES</TD>\n\
 		<TD CLASS=\"menu\"><A HREF=\"files.html\">FILES</TD>\n\
+		<TD CLASS=\"menu\"><A HREF=\"failban.html\">FAILBAN</TD>\n\
 		<TD CLASS=\"script\"><A HREF=\"script.html\">SCRIPT</TD>\n\
 		<TD CLASS=\"shutdown\"><A HREF=\"shutdown.html\">SHUTDOWN</TD>\n\
 		</TR>\n\
@@ -300,20 +301,38 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
   <BR><BR>##SDEBUG####SLOG####SCLEAR##<BR>##FILTER##\n\
   <DIV class=\"log\">\
   <pre>##FILECONTENT##</pre>\
-  </DIV>\n\
+  </DIV><BR>\n\
   ##TPLFOOTER##"
 
+#define TPLFAILBAN "\
+##TPLHEADER##\
+##TPLMENU##\n\
+	<BR><BR>\n\
+	<BR><BR>\n\
+	<TABLE cellspacing=\"0\" cellpadding=\"10\">\n\
+	<TR><TH colspan=\"4\">List of banned IP Addresses</TH></TR>\n\
+	<TR><TH>IP Address</TH><TH>Violation date</TH><TH>left ban time (min)</TH><TH>Action</TH></TR>\n\
+    ##FAILBANROW##\n\
+	</TABLE><BR>\n\
+##TPLFOOTER##"
+
+#define TPLFAILBANBIT "\
+	<TR><TD>##IPADDRESS##</TD>\
+	<TD>##VIOLATIONDATE##</TD>\
+	<TD align=\"center\">##LEFTTIME##</TD>\
+	<TD align=\"center\"><A HREF=\"failban.html?action=delete&intip=##INTIP##\" TITLE=\"Delete Entry\"><IMG SRC=\"##DELICO##\" BORDER=\"0\" ALT=\"Delete Entry\"/></A></TD></TR>\n"
+
 #ifdef CS_ANTICASC
-#define TPLCONFIGMENUANTICASC "<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=anticasc\">Anticascading</TD>\n"
-#define TPLFILEMENUANTICASC "<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=anticasc\">AC Log</TD>\n"
+#define TPLCONFIGMENUANTICASC "<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=anticasc\">Anticascading</A></TD>\n"
+#define TPLFILEMENUANTICASC "<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=anticasc\">AC Log</A></TD>\n"
 #endif
 
 #ifdef HAVE_DVBAPI
-#define TPLCONFIGMENUDVBAPI "<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=dvbapi\">DVB-Api</TD>\n"
+#define TPLCONFIGMENUDVBAPI "<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=dvbapi\">DVB-Api</A></TD>\n"
 #endif
 
 #ifdef CS_WITH_GBOX
-#define TPLCONFIGMENUGBOX "<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=gbox\">Gbox</TD>\n"
+#define TPLCONFIGMENUGBOX "<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=gbox\">Gbox</A></TD>\n"
 #endif
 
 #define TPLSTATUS "\
@@ -966,6 +985,7 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 		<TR><TD>Log file:</TD><TD><input name=\"logfile\" type=\"text\" size=\"30\" maxlength=\"128\" value=\"##LOGFILE##\"></TD></TR>\n\
 		<TR><TD>Usr file flag:</TD><TD><input name=\"usrfileflag\" type=\"text\" size=\"5\" maxlength=\"1\" value=\"##USERFILEFLAG##\"></TD></TR>\n\
 		<TR><TD>CW log dir:</TD><TD><input name=\"cwlogdir\" type=\"text\" size=\"30\" maxlength=\"30\" value=\"##CWLOGDIR##\"></TD></TR>\n\
+		<TR><TD>Failban time:</TD><TD><input name=\"failbantime\" type=\"text\" size=\"7\" maxlength=\"6\" value=\"##FAILBANTIME##\"></TD></TR>\n\
 		<TR><TD>Client timeout:</TD><TD><input name=\"clienttimeout\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##CLIENTTIMEOUT##\"> ms</TD></TR>\n\
 		<TR><TD>Fallback timeout:</TD><TD><input name=\"fallbacktimeout\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##FALLBACKTIMEOUT##\"> ms</TD></TR>\n\
 		<TR><TD>Cache delay:</TD><TD><input name=\"cachedelay\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##CACHEDELAY##\"> ms</TD></TR>\n\
@@ -1267,6 +1287,8 @@ char *tpl[]={
 	"CONFIGMENU",
 	"FILEMENU",
 	"FILE",
+	"FAILBAN",
+	"FAILBANBIT",
 	"CONFIGGBOX",
 	"CONFIGCCCAM",
 	"CONFIGMONITOR",
@@ -1344,6 +1366,8 @@ char *tplmap[]={
 	TPLCONFIGMENU,
 	TPLFILEMENU,
 	TPLFILE,
+	TPLFAILBAN,
+	TPLFAILBANBIT,
 	TPLCONFIGGBOX,
 	TPLCONFIGCCCAM,
 	TPLCONFIGMONITOR,

@@ -355,12 +355,22 @@ void cc_cli_close() {
 
 	struct cc_data *cc = cl->cc;
 	if (cc) {
-		//pthread_mutex_unlock(&cc->lock);
-		//pthread_mutex_unlock(&cc->ecm_busy);
-		//pthread_mutex_unlock(&cc->cards_busy);
+		pthread_mutex_unlock(&cc->lock);
+		pthread_mutex_unlock(&cc->ecm_busy);
+		pthread_mutex_unlock(&cc->cards_busy);
 		cc_clear_auto_blocked(cc->auto_blocked);
 		cc->just_logged_in = 0;
 		free_current_cards(cc->current_cards);
+		if (cc->cards) 
+		{
+			LLIST_ITR itr;
+			struct cc_card *card = llist_itr_init(cc->cards, &itr);
+			while (card) 
+			{
+				cc_free_card(card);
+				card = llist_itr_remove(&itr);
+			}
+		}
 	}
 	cs_debug_mask(D_FUT, "cc_cli_close out");
 }
@@ -908,9 +918,10 @@ int cc_send_ecm(ECM_REQUEST *er, uchar *buf) {
 
 			struct timeb timeout;
 			timeout = cc->ecm_time;
-			timeout.millitm += cfg->ctimeout * 4;
-			timeout.time += timeout.millitm / 1000;
-			timeout.millitm = timeout.millitm % 1000;
+			unsigned int tt;
+			tt = cfg->ctimeout * 4;
+			timeout.time += tt / 1000;
+			timeout.millitm += tt % 1000;
 
 			if (comp_timeb(&cur_time, &timeout) < 0) { //TODO: Configuration?
 				return 0; //pending send...
@@ -2271,24 +2282,15 @@ struct cc_card *create_card(struct cc_card *card) {
 	return card2;
 }
 
-int same_nodes(struct cc_card *card1, struct cc_card *card2) {
+int same_last_node(struct cc_card *card1, struct cc_card *card2) {
 
-	if (llist_count(card1->remote_nodes) != llist_count(card2->remote_nodes))
+	if (!card1->remote_nodes->last || !card2->remote_nodes->last)
 		return 0;
 		
-	LLIST_ITR itr1;
-	LLIST_ITR itr2;
-	
-	uint8 *node1 = llist_itr_init(card1->remote_nodes, &itr1);
-	uint8 *node2 = llist_itr_init(card2->remote_nodes, &itr2);
-	
-	while (node1 && node2) {
-		if (memcmp(node1, node2, 8) != 0)
-			return 0;
-		node1 = llist_itr_next(&itr1);
-		node2 = llist_itr_next(&itr2);
-	}
-	return 1;
+	uint8 *node1 = card1->remote_nodes->last->obj;
+	uint8 *node2 = card2->remote_nodes->last->obj;
+
+	return !memcmp(node1, node2, 8);
 }
 
 /**
@@ -2347,10 +2349,9 @@ int add_card_to_serverlist(LLIST *cardlist, struct cc_card *card) {
 			modified = 1;
 	} else {
 		while (card2) {
-			if (card2->caid == card->caid && card2->hop == card->hop
+			if (card2->caid == card->caid
 					&& card2->remote_id == card->remote_id 
-					&& llist_count(card2->providers) < CS_MAXPROV 
-					&& same_nodes(card2, card))
+					&& same_last_node(card2, card))
 				break;
 			card2 = llist_itr_next(&itr);
 		}
@@ -2363,10 +2364,6 @@ int add_card_to_serverlist(LLIST *cardlist, struct cc_card *card) {
 			if (add_card_providers(card2, card, 1))
 				modified = 1;
 		}
-		else
-			if (add_card_providers(card2, card, 0))
-				modified = 1;
-			
 	}
 	return modified;
 }
@@ -2692,6 +2689,7 @@ int cc_srv_report_cards() {
 }
 
 void cc_init_cc(struct cc_data *cc) {
+/*	
 	pthread_mutexattr_t   mta;
         pthread_mutexattr_init(&mta);
 #if defined(OS_CYGWIN32) || defined(OS_HPUX) || defined(OS_FREEBSD)  || defined(OS_MACOSX)
@@ -2702,10 +2700,11 @@ void cc_init_cc(struct cc_data *cc) {
 	pthread_mutex_init(&cc->lock, &mta);
 	pthread_mutex_init(&cc->ecm_busy, &mta);
 	pthread_mutex_init(&cc->cards_busy, &mta);
-
-	//pthread_mutex_init(&cc->lock, NULL);
-	//pthread_mutex_init(&cc->ecm_busy, NULL);
-	//pthread_mutex_init(&cc->cards_busy, NULL);
+*/
+//Gorlan.Ng : Fixme if recursive lock must be used
+	pthread_mutex_init(&cc->lock, NULL);
+	pthread_mutex_init(&cc->ecm_busy, NULL);
+	pthread_mutex_init(&cc->cards_busy, NULL);
 }
 
 /**
@@ -2967,9 +2966,8 @@ int cc_srv_connect(struct s_client *cl) {
 				struct timeb cur_time;
 				cs_ftime(&cur_time);
 				timeout = cc->ecm_time;
-				timeout.millitm += cfg->cc_update_interval * 1000;
-				timeout.time += timeout.millitm / 1000;
-				timeout.millitm = timeout.millitm % 1000;
+				timeout.time += cfg->cc_update_interval;
+		
 
 				int needs_card_updates = (cfg->cc_update_interval >=0) && comp_timeb(
 						&cur_time, &timeout) > 0;
