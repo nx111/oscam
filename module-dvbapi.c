@@ -42,8 +42,6 @@ int ca_fd[8];
 #define DESCRAMBLER_COUNT     8
 int descramblers[DESCRAMBLER_COUNT];
 
-#define CONFVARWIDTH 30
-
 int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uchar *mask, int timeout, int pidindex, int count, int type) {
 #ifdef AZBOX
 	openxcas_caid = demux[demux_id].ECMpids[pidindex].CAID;
@@ -52,6 +50,9 @@ int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uc
  	return 1; 
 #endif
 	int ret=-1,n=-1,i;
+
+	for (i=0; i<MAX_FILTER && demux[demux_id].demux_fd[i].pid!=pid; i++);
+	if(i<MAX_FILTER)return 0;	//always has a filter for this pid
 
 	for (i=0; i<MAX_FILTER && demux[demux_id].demux_fd[i].fd>0; i++);
 
@@ -330,7 +331,11 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 		return;
 
 	for (n=0;n<demux[demux_id].ECMpidcount;n++) {
-		if (demux[demux_id].ECMpids[n].CAID == caid && demux[demux_id].ECMpids[n].ECM_PID == ecmpid && demux[demux_id].ECMpids[n].irdeto_chid == chid){
+		if (demux[demux_id].ECMpids[n].CAID == caid &&
+		    demux[demux_id].ECMpids[n].ECM_PID == ecmpid && 
+		    demux[demux_id].ECMpids[n].PROVID == provid &&
+		    demux[demux_id].ECMpids[n].irdeto_chid == chid)
+		{
 			added_ECM=1;
 			ecmidx=n;
 			break;
@@ -356,8 +361,8 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 	}
 
 	if(added_STREAM == 0){
-		cs_log("[ADD PID %d] CAID:%04X  STREAMpid_of_ECM[%d]:%04X  ECM_PID:%04X  PROVID:%06X", 
-			ecmidx, caid,demux[demux_id].ECMpids[ecmidx].STREAMpidcount,STREAMpid,ecmpid, provid);
+		cs_log("[ADD PID %d] CAID:%04X  STREAMpid_of_ECM[%d]:%04X  ECM_PID:%04X  PROVID:%06X irdeto_chid:%d", 
+			ecmidx, caid,demux[demux_id].ECMpids[ecmidx].STREAMpidcount,STREAMpid,ecmpid, provid,chid);
 		demux[demux_id].ECMpids[ecmidx].STREAMpids[demux[demux_id].ECMpids[ecmidx].STREAMpidcount]=STREAMpid;
 		demux[demux_id].ECMpids[ecmidx].STREAMpidcount++;
 	}
@@ -369,7 +374,7 @@ void dvbapi_add_emmpid(int demux_id, ushort caid, ushort emmpid, ulong provid) {
 	for (j=0;j<demux[demux_id].ECMpidcount;j++) {
 		if (demux[demux_id].ECMpids[j].CAID==caid && (demux[demux_id].ECMpids[j].PROVID == provid || provid == 0)) {
 			demux[demux_id].ECMpids[j].EMM_PID=emmpid;
-			cs_debug("[ADD EMMPID %d]  CAID:%04X  EMM_PID:%04X  PROVID:%06X", j, caid, emmpid, provid);
+			cs_debug_mask(D_EMM,"[ADD EMMPID %d]  CAID:%04X  EMM_PID:%04X  PROVID:%06X", j, caid, emmpid, provid);
 		}
 	}	
 }
@@ -926,15 +931,15 @@ void dvbapi_try_next_caid(int demux_id) {
 				if(k>=demux[demux_id].ECMpids[i].STREAMpidcount)
 					continue;
 
-				if(num==-1)
-					num=i;
-
 				//if it has same caid and provid to select ecm in first stream,use it
 				if(select_first_ECM != -1 && 
-				    (demux[demux_id].ECMpids[i].CAID == demux[demux_id].ECMpids[select_first_ECM].CAID &&
-				     demux[demux_id].ECMpids[i].PROVID == demux[demux_id].ECMpids[select_first_ECM].PROVID))
-					num=i;
+				    (demux[demux_id].ECMpids[i].CAID != demux[demux_id].ECMpids[select_first_ECM].CAID ||
+				     demux[demux_id].ECMpids[i].PROVID != demux[demux_id].ECMpids[select_first_ECM].PROVID ||
+				     demux[demux_id].ECMpids[i].irdeto_chid != demux[demux_id].ECMpids[select_first_ECM].irdeto_chid ))
+					continue;
 
+				if(num==-1)
+					num=i;
 
 				//if it has higher priority
 				if(demux[demux_id].ECMpids[i].status > 0 
