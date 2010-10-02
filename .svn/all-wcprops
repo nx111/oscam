@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/3342/trunk
+/svn/oscam/!svn/ver/3343/trunk
 END
 module-cccam.h
 K 25
@@ -105,23 +105,17 @@ svn:wc:ra_dav:version-url
 V 43
 /svn/oscam/!svn/ver/3181/trunk/oscam-nano.c
 END
-CMakeLists.txt
-K 25
-svn:wc:ra_dav:version-url
-V 45
-/svn/oscam/!svn/ver/3241/trunk/CMakeLists.txt
-END
 Makefile
 K 25
 svn:wc:ra_dav:version-url
 V 39
 /svn/oscam/!svn/ver/3298/trunk/Makefile
 END
-module-dvbapi.h
+CMakeLists.txt
 K 25
 svn:wc:ra_dav:version-url
-V 46
-/svn/oscam/!svn/ver/3333/trunk/module-dvbapi.h
+V 45
+/svn/oscam/!svn/ver/3241/trunk/CMakeLists.txt
 END
 config.sh
 K 25
@@ -129,17 +123,23 @@ svn:wc:ra_dav:version-url
 V 40
 /svn/oscam/!svn/ver/3297/trunk/config.sh
 END
+module-dvbapi.h
+K 25
+svn:wc:ra_dav:version-url
+V 46
+/svn/oscam/!svn/ver/3333/trunk/module-dvbapi.h
+END
 module-stat.c
 K 25
 svn:wc:ra_dav:version-url
 V 44
 /svn/oscam/!svn/ver/3273/trunk/module-stat.c
 END
-module-serial.c
+oscam.c
 K 25
 svn:wc:ra_dav:version-url
-V 46
-/svn/oscam/!svn/ver/3210/trunk/module-serial.c
+V 38
+/svn/oscam/!svn/ver/3343/trunk/oscam.c
 END
 oscam-reader.c
 K 25
@@ -147,23 +147,11 @@ svn:wc:ra_dav:version-url
 V 45
 /svn/oscam/!svn/ver/3337/trunk/oscam-reader.c
 END
-oscam.c
+module-serial.c
 K 25
 svn:wc:ra_dav:version-url
-V 38
-/svn/oscam/!svn/ver/3335/trunk/oscam.c
-END
-module-stat.h
-K 25
-svn:wc:ra_dav:version-url
-V 44
-/svn/oscam/!svn/ver/3261/trunk/module-stat.h
-END
-module-constcw.c
-K 25
-svn:wc:ra_dav:version-url
-V 47
-/svn/oscam/!svn/ver/3283/trunk/module-constcw.c
+V 46
+/svn/oscam/!svn/ver/3210/trunk/module-serial.c
 END
 reader-tongfang.c
 K 25
@@ -171,17 +159,29 @@ svn:wc:ra_dav:version-url
 V 48
 /svn/oscam/!svn/ver/3182/trunk/reader-tongfang.c
 END
-oscam-config.c
+module-constcw.c
 K 25
 svn:wc:ra_dav:version-url
-V 45
-/svn/oscam/!svn/ver/3337/trunk/oscam-config.c
+V 47
+/svn/oscam/!svn/ver/3283/trunk/module-constcw.c
+END
+module-stat.h
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/oscam/!svn/ver/3261/trunk/module-stat.h
 END
 oscam-chk.c
 K 25
 svn:wc:ra_dav:version-url
 V 42
 /svn/oscam/!svn/ver/3337/trunk/oscam-chk.c
+END
+oscam-config.c
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/svn/oscam/!svn/ver/3337/trunk/oscam-config.c
 END
 reader-conax.c
 K 25
