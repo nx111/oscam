@@ -2383,9 +2383,6 @@ int cc_srv_report_cards() {
 	uint8 buf[CC_MAXMSGSIZE];
 	struct cc_data *cc = cl->cc;
 
-	//Reported deleted cards:
-	cc_free_reported_carddata(cc->reported_carddatas, 1);
-
 	struct s_auth *account = get_account(cl->usr);
 	if (account) {
 		maxhops = account->cccmaxhops;
@@ -2394,6 +2391,9 @@ int cc_srv_report_cards() {
 		maxhops = 10;
 		usr_reshare = cfg->cc_reshare;
 	}
+
+	//Reported deleted cards:
+	cc_free_reported_carddata(cc->reported_carddatas, 1);
 
 	if (!cc->report_carddata_id)
 		id = 0x64;
@@ -2690,7 +2690,6 @@ int cc_srv_report_cards() {
 }
 
 void cc_init_cc(struct cc_data *cc) {
-/*	
 	pthread_mutexattr_t   mta;
         pthread_mutexattr_init(&mta);
 #if defined(OS_CYGWIN32) || defined(OS_HPUX) || defined(OS_FREEBSD)  || defined(OS_MACOSX)
@@ -2701,11 +2700,10 @@ void cc_init_cc(struct cc_data *cc) {
 	pthread_mutex_init(&cc->lock, &mta);
 	pthread_mutex_init(&cc->ecm_busy, &mta);
 	pthread_mutex_init(&cc->cards_busy, &mta);
-*/
-//Gorlan.Ng : Fixme if recursive lock must be used
-	pthread_mutex_init(&cc->lock, NULL);
-	pthread_mutex_init(&cc->ecm_busy, NULL);
-	pthread_mutex_init(&cc->cards_busy, NULL);
+
+//	pthread_mutex_init(&cc->lock, NULL);
+//	pthread_mutex_init(&cc->ecm_busy, NULL);
+//	pthread_mutex_init(&cc->cards_busy, NULL);
 }
 
 /**
@@ -2859,9 +2857,12 @@ int cc_srv_connect(struct s_client *cl) {
 			cs_ddump(buf, 20, "cccam: username '%s':", usr);
 		else if (cc->cc_use_rc4 == 1)
 			cs_ddump(buf_rc4, 20, "cccam: username rc4 '%s':", usr_rc4);
-		else
+		else {
 			cs_debug("illegal username received");
+		}
 	}
+
+	cl->crypted = 1;
 
 	for (account = cfg->account; account; account = account->next) {
 		if (strcmp(usr, account->usr) == 0) {
@@ -2897,7 +2898,6 @@ int cc_srv_connect(struct s_client *cl) {
 	} else
 		return -1;
 
-	cl->crypted = 1;
 	//Starting readers to get cards:
 	int wakeup = cc_srv_wakeup_readers(cl);
 	

@@ -120,8 +120,9 @@ int network_select(int forRead, int timeout)
          return -1; 
        } 
        else { 
-         if(timeout>0)  
-           cs_debug("socket: select timed out (%d %s)",timeout&~MSTIMEOUT,(timeout&MSTIMEOUT)?"ms":"secs"); 
+         if(timeout>0) {
+           cs_debug("socket: select timed out (%d %s)",timeout&~MSTIMEOUT,(timeout&MSTIMEOUT)?"ms":"secs");
+         }
          errno=ETIMEDOUT;
          return 0; 
        } 
@@ -304,8 +305,8 @@ static void casc_do_sock(struct s_reader * reader, int w)
         cs_debug("casc_do_sock: close connection");
         network_tcp_connection_close(reader, client[cs_idx].udp_fd);
       }
+      return;
     }
-    return;
   }
   client[cs_idx].last=time((time_t)0);
   idx=reader->ph.c_recv_chk(dcw, &rc, buf, n);
