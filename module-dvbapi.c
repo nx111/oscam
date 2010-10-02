@@ -926,15 +926,15 @@ void dvbapi_try_next_caid(int demux_id) {
 				if(k>=demux[demux_id].ECMpids[i].STREAMpidcount)
 					continue;
 
-				//skip that different caid or provid to select ecm in first stream
-				if(select_first_ECM != -1 && 
-				    (demux[demux_id].ECMpids[i].CAID != demux[demux_id].ECMpids[select_first_ECM].CAID ||
-				     demux[demux_id].ECMpids[i].PROVID != demux[demux_id].ECMpids[select_first_ECM].PROVID))
-					continue;
-
-
 				if(num==-1)
 					num=i;
+
+				//if it has same caid and provid to select ecm in first stream,use it
+				if(select_first_ECM != -1 && 
+				    (demux[demux_id].ECMpids[i].CAID == demux[demux_id].ECMpids[select_first_ECM].CAID &&
+				     demux[demux_id].ECMpids[i].PROVID == demux[demux_id].ECMpids[select_first_ECM].PROVID))
+					num=i;
+
 
 				//if it has higher priority
 				if(demux[demux_id].ECMpids[i].status > 0 
