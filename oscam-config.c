@@ -2176,6 +2176,7 @@ int write_config()
 	return(safe_overwrite_with_bak(destfile, tmpfile, bakfile, 0));
 }
 
+#ifdef HAVE_DVBAPI
 void update_priority_config(){
 	FILE *fi,*fo;
 	char *dot = ""; //flags for delimiters
@@ -2252,6 +2253,7 @@ void update_priority_config(){
 	fclose(fi);
 	safe_overwrite_with_bak(destfile, tmpfile, bakfile, 0);
 }
+#endif
 
 int write_userdb(struct s_auth *authptr)
 {

@@ -1329,6 +1329,7 @@ extern void chk_reader(char *token, char *value, struct s_reader *rdr);
 
 #ifdef HAVE_DVBAPI
 extern void chk_t_dvbapi(char *token, char *value);
+extern void update_priority_config();
 void dvbapi_chk_caidtab(char *caidasc, CAIDTAB *ctab);
 #endif
 
@@ -1341,7 +1342,6 @@ extern void chk_sidtab(char *token, char *value, struct s_sidtab *sidtab);
 extern int write_services();
 extern int write_userdb(struct s_auth *authptr);
 extern int write_config();
-extern void update_priority_config();
 extern int write_server();
 extern void write_versionfile();
 extern char *mk_t_caidtab(CAIDTAB *ctab);

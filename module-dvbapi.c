@@ -917,7 +917,7 @@ void dvbapi_try_next_caid(int demux_id) {
 
 				valid_ecm_s++;
 
-				//search ECM which for this stream
+				//search ECM for this stream
 				for(k=0;k<demux[demux_id].ECMpids[i].STREAMpidcount ;k++){
 					if(  demux[demux_id].ECMpids[i].STREAMpids[k]==demux[demux_id].STREAMpids[s]
 					    || demux[demux_id].ECMpids[i].STREAMpids[k] == 0 )

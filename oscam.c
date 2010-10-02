@@ -361,9 +361,10 @@ void cs_exit(int sig)
   if (sig && (sig!=SIGQUIT))
     cs_log("exit with signal %d", sig);
 
-
+#ifdef HAVE_DVBAPI
   if(cfg->dvbapi_enabled == 1 && cfg->dvbapi_auto_priority == 1) 
 	update_priority_config();
+#endif
 
   struct s_client *cl = &client[cs_idx];
   
