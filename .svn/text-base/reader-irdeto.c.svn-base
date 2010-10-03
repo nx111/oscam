@@ -37,23 +37,8 @@ static const uchar CryptTable[256] =
   0x36, 0xAC, 0x31, 0xE6, 0xD6, 0x48, 0xAA, 0xB4
 };
 
-uchar
-  sc_GetCountryCode[] = { 0x02, 0x02, 0x03, 0x00, 0x00 },
-  sc_GetASCIISerial[] = { 0x02, 0x00, 0x03, 0x00, 0x00 },
-  sc_GetHEXSerial[]   = { 0x02, 0x01, 0x00, 0x00, 0x00 },
-  sc_GetCardFile[]    = { 0x02, 0x0E, 0x02, 0x00, 0x00 },
-  sc_GetChanelIds[]   = { 0x02, 0x04, 0x00, 0x00, 0x01, 0x00 },
-  sc_CamKey[]         = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88 },
-  sc_GetProvider[]    = { 0x02, 0x03, 0x03, 0x00, 0x00 },
-  sc_GetCamKey383C[]  = { 0x02, 0x09, 0x03, 0x00, 0x40, 
-                          0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
-                          0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
-                          0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
-                          0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF,
-                          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+static const uchar
+  sc_GetCountryCode[] = { 0x02, 0x02, 0x03, 0x00, 0x00 };
 
 static const uchar
   sc_GetCountryCode2[]= { 0x02, 0x0B, 0x00, 0x00, 0x00 },
@@ -196,6 +181,8 @@ static int irdeto_card_init_provider(struct s_reader * reader)
 	int i, p;
 	uchar buf[256] = {0};
 
+	uchar sc_GetProvider[]    = { 0x02, 0x03, 0x03, 0x00, 0x00 };
+
 	/*
 	 * Provider
 	 */
@@ -227,12 +214,27 @@ static int irdeto_card_init_provider(struct s_reader * reader)
 	return OK;
 }
 
-int irdeto_card_init(struct s_reader * reader, ATR newatr)
+
+
+static int irdeto_card_init(struct s_reader * reader, ATR newatr)
 {
 	def_resp;
 	get_atr;
 	int camkey = 0;
 	uchar buf[256] = {0};
+       uchar sc_GetCamKey383C[]  = { 0x02, 0x09, 0x03, 0x00, 0x40,
+                          0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                          0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                          0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                          0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF,
+                          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                          0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+	uchar	sc_GetASCIISerial[] = { 0x02, 0x00, 0x03, 0x00, 0x00 },
+		sc_GetHEXSerial[]   = { 0x02, 0x01, 0x00, 0x00, 0x00 },
+		sc_GetCardFile[]    = { 0x02, 0x0E, 0x02, 0x00, 0x00 };
 
 	if (memcmp(atr+4, "IRDETO", 6))
 		return ERROR;
@@ -242,10 +244,11 @@ int irdeto_card_init(struct s_reader * reader, ATR newatr)
 	{
 		cs_debug("[irdeto-reader] using camkey data from config");
 		memcpy(&sc_GetCamKey383C[5], reader->rsa_mod, 0x40);
-		memcpy(sc_CamKey, reader->nagra_boxkey, 8);
-		cs_debug("[irdeto-reader]      camkey: %s", cs_hexdump (0, sc_CamKey, 8));
+		cs_debug("[irdeto-reader]      camkey: %s", cs_hexdump (0, reader->nagra_boxkey, 8));
 		cs_debug("[irdeto-reader] camkey-data: %s", cs_hexdump (0, &sc_GetCamKey383C[5], 32));
 		cs_debug("[irdeto-reader] camkey-data: %s", cs_hexdump (0, &sc_GetCamKey383C[37], 32));
+	} else {
+		memcpy(reader->nagra_boxkey, "\x11\x22\x33\x44\x55\x66\x77\x88", 8);
 	}
 
 	/*
@@ -337,13 +340,13 @@ int irdeto_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
 		return ERROR;
 	}
 
-	ReverseSessionKeyCrypt(sc_CamKey, cta_res+6);
-	ReverseSessionKeyCrypt(sc_CamKey, cta_res+14);
+	ReverseSessionKeyCrypt(reader->nagra_boxkey, cta_res+6);
+	ReverseSessionKeyCrypt(reader->nagra_boxkey, cta_res+14);
 	memcpy(er->cw, cta_res + 6, 16);
 	return OK;
 }
 
-int irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr) {
+static int irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr) {
 
 	int i, l = (ep->emm[3]&0x07);
 	int base = (ep->emm[3]>>3);
@@ -400,7 +403,7 @@ int irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr) {
 
 }
 
-void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
+static void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
 {
 	filter[0]=0xFF;
 	filter[1]=3;
@@ -439,7 +442,7 @@ void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
 	return;
 }
 
-int irdeto_do_emm(struct s_reader * reader, EMM_PACKET *ep)
+static int irdeto_do_emm(struct s_reader * reader, EMM_PACKET *ep)
 {
 	def_resp;
 	static const uchar sc_EmmCmd[] = { 0x01,0x00,0x00,0x00,0x00 };
@@ -488,10 +491,12 @@ int irdeto_do_emm(struct s_reader * reader, EMM_PACKET *ep)
 	return ERROR;
 }
 
-int irdeto_card_info(struct s_reader * reader)
+static int irdeto_card_info(struct s_reader * reader)
 {
   def_resp;
   int i, p;
+
+  uchar sc_GetChanelIds[]   = { 0x02, 0x04, 0x00, 0x00, 0x01, 0x00 };
 
   /*
    * ContryCode2
