@@ -557,7 +557,7 @@ static void oscam_ser_disconnect()
 {
   oscam_ser_disconnect_client();
   if (connected)
-    cs_log("%s disconnected (%s)", username(cs_idx), proto_txt[connected]);
+    cs_log("%s disconnected (%s)", username(&client[cs_idx]), proto_txt[connected]);
   connected=0;
 }
 
@@ -581,7 +581,7 @@ static void oscam_ser_auth_client(int proto)
       if( (ok=!strcmp(oscam_ser_usr, account->usr)) )
         break;
   }
-  cs_auth_client(ok ? account : (struct s_auth *)(-1), proto_txt[connected]);
+  cs_auth_client(&client[cs_idx], ok ? account : (struct s_auth *)(-1), proto_txt[connected]);
 }
 
 static void oscam_ser_send_dcw(ECM_REQUEST *er)
@@ -805,7 +805,7 @@ static void oscam_ser_process_ecm(uchar *buf, int l)
     case 2: er->rc=9; return;	// error without log
     case 1: er->rc=9;		      // error with log
   }
-  get_cw(er);
+  get_cw(&client[cs_idx], er);
 }
 
 

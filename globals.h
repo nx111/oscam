@@ -58,13 +58,21 @@
 #endif
 
 #ifdef WITH_DEBUG
-#define call(arg) \
+# define call(arg) \
 	if (arg) { \
 		cs_debug_mask(D_TRACE, "ERROR, function call %s returns error.",#arg); \
 		return ERROR; \
 	}
+# define D_USE(x) x
 #else
-#define call(arg) arg
+# define call(arg) arg
+# if defined(__GNUC__)
+#  define D_USE(x) D_USE_ ## x __attribute__((unused))
+# elif defined(__LCLINT__)
+#  define D_USE(x) /*@debug use only@*/ x
+# else
+#  define D_USE(x) x
+# endif
 #endif
 
 #ifndef USE_CMAKE
@@ -502,7 +510,6 @@ typedef struct ecm_request_t
 
 struct s_client
 {
-  int		cidx;
   pid_t	pid;
   in_addr_t	ip;
   in_port_t	port;
@@ -1215,29 +1222,15 @@ extern FILE *fpa;
 #endif
 extern pthread_mutex_t gethostbyname_lock; 
 
-//reader
-void reader_nagra();
-void reader_irdeto();
-void reader_cryptoworks();
-void reader_viaccess();
-void reader_conax();
-void reader_seca();
-void reader_videoguard1();
-void reader_videoguard2();
-void reader_videoguard12();
-void reader_dre();
-void reader_tongfang();
-void reader_streamguard();
 // oscam
 extern int recv_from_udpipe(uchar *);
-extern char* username(int);
+extern char* username(struct s_client *);
 extern int idx_from_pid(pid_t);
 extern int chk_bcaid(ECM_REQUEST *, CAIDTAB *);
 extern void cs_exit(int sig);
 extern int cs_fork(in_addr_t, in_port_t);
-extern void wait4master(void);
-extern int cs_auth_client(struct s_auth *, const char*);
-extern void cs_disconnect_client(void);
+extern int cs_auth_client(struct s_client *, struct s_auth *, const char*);
+extern void cs_disconnect_client(struct s_client *);
 extern int check_ecmcache1(ECM_REQUEST *, ulong);
 extern int check_ecmcache2(ECM_REQUEST *, ulong);
 extern void store_logentry(char *);
@@ -1251,11 +1244,11 @@ extern void guess_cardsystem(ECM_REQUEST *);
 #ifdef IRDETO_GUESSING
 extern void guess_irdeto(ECM_REQUEST *); 
 #endif
-extern void get_cw(ECM_REQUEST *);
+extern void get_cw(struct s_client *, ECM_REQUEST *);
 extern void do_emm(EMM_PACKET *);
 extern ECM_REQUEST *get_ecmtask(void);
 extern void request_cw(ECM_REQUEST *, int, int);
-extern int send_dcw(ECM_REQUEST *);
+extern int send_dcw(struct s_client *, ECM_REQUEST *);
 extern int process_input(uchar *, int, int);
 extern int chk_srvid(ECM_REQUEST *, int);
 extern int chk_srvid_match(ECM_REQUEST *, SIDTAB *);
@@ -1271,7 +1264,6 @@ extern void cs_waitforcardinit(void);
 extern void cs_reinit_clients(void);
 extern int process_client_pipe(struct s_client *cl, uchar *buf, int l);
 extern void update_reader_config(uchar *ptr);
-extern void send_restart_cardreader(int ridx, int force_now);
 extern void send_clear_reader_stat(int ridx);
 extern int chk_ctab(ushort caid, CAIDTAB *ctab);
 extern int chk_srvid_match_by_caid_prov(ushort caid, ulong provid, SIDTAB *sidtab);
@@ -1385,7 +1377,6 @@ extern void cs_ddump_mask(unsigned short, const uchar *, int, char *, ...);
 #endif
 extern void cs_close_log(void);
 extern int  cs_init_statistics(char *);
-extern void cs_statistics(int);
 extern void cs_dump(const uchar *, int, char *, ...);
 
 // oscam-aes
@@ -1422,6 +1413,19 @@ extern void clear_reader_stat(int ridx);
 // reader-pcsc
 extern void pcsc_close(struct s_reader *pcsc_reader);
 #endif
+
+void reader_nagra();
+void reader_irdeto();
+void reader_cryptoworks();
+void reader_viaccess();
+void reader_conax();
+void reader_seca();
+void reader_videoguard1();
+void reader_videoguard2();
+void reader_videoguard12();
+void reader_dre();
+void reader_tongfang();
+void reader_streamguard();
 
 // protocol modules
 extern int  monitor_send_idx(int, char *);

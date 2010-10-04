@@ -1,3 +1,6 @@
+#ifndef OSCAM_CONFIG_H_
+#define OSCAM_CONFIG_H_
+
 // ADDONS
 #ifndef WEBIF
 //#define WEBIF
@@ -5,7 +8,7 @@
 
 #ifndef HAVE_DVBAPI
 #if !defined(OS_CYGWIN32) && !defined(OS_HPUX) && !defined(OS_FREEBSD) && !defined(OS_MACOSX)
-#define HAVE_DVBAPI
+//#define HAVE_DVBAPI
 #endif
 #endif
 
@@ -111,8 +114,6 @@
 #endif
 #endif
 
-
-
 #define CS_LOGHISTORY
 
 #ifdef OS_FREEBSD
@@ -133,6 +134,9 @@
 #  define NO_FTIME
 #  if !defined(COOL) && !defined(ST_LINUX)
 #    define SCI_DEV 1
+#  endif
+#  ifndef HAVE_DVBAPI
+#    define HAVE_DVBAPI
 #  endif
 #endif
 
@@ -185,3 +189,5 @@
 //#ifdef ALIGNMENT
 //#  define STRUCTS_PACKED
 //#endif
+
+#endif //OSCAM_CONFIG_H_

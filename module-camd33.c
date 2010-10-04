@@ -82,12 +82,12 @@ static void camd33_auth_client()
   }
   for (rc=-1, account=cfg->account; (usr) && (account) && (rc<0); account=account->next)
     if ((!strcmp((char *)usr, account->usr)) && (!strcmp((char *)pwd, account->pwd)))
-      rc=cs_auth_client(account, NULL);
+      rc=cs_auth_client(&client[cs_idx], account, NULL);
   if (!rc)
     camd33_request_emm();
   else
   {
-    if (rc<0) cs_auth_client(0, usr ? "invalid account" : "no user given");
+    if (rc<0) cs_auth_client(&client[cs_idx], 0, usr ? "invalid account" : "no user given");
     cs_exit(0);
   }
 }
@@ -162,7 +162,7 @@ static void camd33_process_ecm(uchar *buf, int l)
   er->l=l-7;
   er->caid=b2i(2, buf+1);
   memcpy(er->ecm , buf+7, er->l);
-  get_cw(er);
+  get_cw(&client[cs_idx], er);
 }
 
 static void camd33_process_emm(uchar *buf, int l)
@@ -208,7 +208,7 @@ static void * camd33_server(void* cli)
         cs_debug("unknown command !");
     }
   }
-  cs_disconnect_client();
+  cs_disconnect_client(client);
   return NULL;
 }
 

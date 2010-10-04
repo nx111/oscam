@@ -438,7 +438,7 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
   //cs_log("hallo idx:%d rc:%d caid:%04X",er->idx,er->rc,er->caid);
   if ((er->rc<10) )
     {
-      send_dcw(er);
+      send_dcw(&client[reader->cidx], er);
       return;
     }
   
@@ -572,7 +572,7 @@ static int reader_do_emm(struct s_reader * reader, EMM_PACKET *ep)
     cs_ftime(&tpe);
 
     cs_log("%s emmtype=%s, len=%d, idx=%d, cnt=%d: %s (%d ms) by %s",
-           username(ep->cidx), typedesc[client[cs_idx].emmcache[i].type], ep->emm[2],
+           username(&client[ep->cidx]), typedesc[client[cs_idx].emmcache[i].type], ep->emm[2],
            i, no, rtxt[rc], 1000*(tpe.time-tps.time)+tpe.millitm-tps.millitm, reader->label);
   }
 

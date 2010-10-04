@@ -487,7 +487,7 @@ static void viaccess_get_emm_filter(struct s_reader * rdr, uchar *filter)
 static int viaccess_do_emm(struct s_reader * reader, EMM_PACKET *ep)
 {
   def_resp;
-  static const unsigned char insa4[] = { 0xca,0xa4,0x04,0x00,0x03 }; // set provider id
+  // static const unsigned char insa4[] = { 0xca,0xa4,0x04,0x00,0x03 }; // set provider id
   unsigned char insf0[] = { 0xca,0xf0,0x00,0x01,0x22 }; // set adf
   unsigned char insf4[] = { 0xca,0xf4,0x00,0x01,0x00 }; // set adf, encrypted
   unsigned char ins18[] = { 0xca,0x18,0x01,0x01,0x00 }; // set subscription
@@ -797,5 +797,6 @@ void reader_viaccess(struct s_cardsystem *ph)
 	ph->card_info=viaccess_card_info;
 	ph->card_init=viaccess_card_init;
 	ph->get_emm_type=viaccess_get_emm_type;
+	ph->get_emm_filter=viaccess_get_emm_filter;
 	ph->caids[0]=0x05;
 }
