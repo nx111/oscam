@@ -1,5 +1,6 @@
 //FIXME Not checked on threadsafety yet; not necessary if only 1 dvbapi running; after checking please remove this line
 #include "globals.h"
+#include <errno.h>
 
 #ifdef HAVE_DVBAPI
 
@@ -51,8 +52,14 @@ int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uc
 #endif
 	int ret=-1,n=-1,i;
 
-	for (i=0; i<MAX_FILTER && demux[demux_id].demux_fd[i].pid!=pid; i++);
-	if(i<MAX_FILTER)return 0;	//always has a filter for this pid
+	for (i=0; i<MAX_FILTER ;i++ ){
+		if(demux[demux_id].demux_fd[i].fd > 0 &&
+		   demux[demux_id].demux_fd[i].pid==pid && 
+		   demux[demux_id].demux_fd[i].pidindex==pidindex &&
+		   demux[demux_id].demux_fd[i].type == type &&
+		   demux[demux_id].demux_fd[i].status > 0 )
+			return 0;	//always has a filter for this pidindex
+	}
 
 	for (i=0; i<MAX_FILTER && demux[demux_id].demux_fd[i].fd>0; i++);
 
@@ -238,7 +245,9 @@ int dvbapi_stop_filter(int demux_index, int type) {
 
 int dvbapi_stop_filternum(int demux_index, int num) {
 	int ret=-1;
-	if (demux[demux_index].demux_fd[num].status) {
+	errno=0;
+	if (demux[demux_index].demux_fd[num].fd >0 &&
+	   demux[demux_index].demux_fd[num].status) {
 #ifdef WITH_STAPI
 		ret=stapi_remove_filter(demux_index, num);
 #else	
@@ -246,10 +255,10 @@ int dvbapi_stop_filternum(int demux_index, int num) {
 		close(demux[demux_index].demux_fd[num].fd);
 #endif
 		demux[demux_index].demux_fd[num].fd=0;
-		if(ret == -1)
-			cs_log("stop filter failed,demux %d filter %d!",demux_index,num);
-		else		
+		if(ret == 0 )
 			demux[demux_index].demux_fd[num].status = 0;
+		else		
+			cs_debug_mask(D_TRACE,"stop filter failed,demux:%d filter:%d  errno:%d",demux_index,num,errno);
 
 	}
 
@@ -740,7 +749,7 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 	epg.l=len;
 	memcpy(epg.emm, buffer, epg.l);
 
-	do_emm(&epg);
+	do_emm(&client[cs_idx], &epg);
 }
 
 void dvbapi_adjust_prioritytab(int demux_index){

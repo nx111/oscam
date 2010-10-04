@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/3364/trunk
+/svn/oscam/!svn/ver/3372/trunk
 END
 module-cccam.h
 K 25
@@ -19,7 +19,7 @@ module-camd35.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3363/trunk/module-camd35.c
+/svn/oscam/!svn/ver/3372/trunk/module-camd35.c
 END
 reader-viaccess.c
 K 25
@@ -31,7 +31,7 @@ module-newcamd.c
 K 25
 svn:wc:ra_dav:version-url
 V 47
-/svn/oscam/!svn/ver/3363/trunk/module-newcamd.c
+/svn/oscam/!svn/ver/3372/trunk/module-newcamd.c
 END
 VERSION
 K 25
@@ -97,7 +97,7 @@ module-dvbapi.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3363/trunk/module-dvbapi.c
+/svn/oscam/!svn/ver/3372/trunk/module-dvbapi.c
 END
 oscam-nano.c
 K 25
@@ -151,7 +151,7 @@ oscam.c
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/3363/trunk/oscam.c
+/svn/oscam/!svn/ver/3372/trunk/oscam.c
 END
 module-stat.h
 K 25
@@ -223,7 +223,7 @@ reader-videoguard2.c
 K 25
 svn:wc:ra_dav:version-url
 V 51
-/svn/oscam/!svn/ver/3354/trunk/reader-videoguard2.c
+/svn/oscam/!svn/ver/3366/trunk/reader-videoguard2.c
 END
 README
 K 25
@@ -235,7 +235,7 @@ oscam-simples.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3228/trunk/oscam-simples.c
+/svn/oscam/!svn/ver/3370/trunk/oscam-simples.c
 END
 module-radegast.c
 K 25
@@ -271,13 +271,13 @@ globals.h
 K 25
 svn:wc:ra_dav:version-url
 V 40
-/svn/oscam/!svn/ver/3363/trunk/globals.h
+/svn/oscam/!svn/ver/3372/trunk/globals.h
 END
 reader-common.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3312/trunk/reader-common.c
+/svn/oscam/!svn/ver/3369/trunk/reader-common.c
 END
 reader-nagra.c
 K 25
@@ -289,7 +289,7 @@ module-cccam.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/3364/trunk/module-cccam.c
+/svn/oscam/!svn/ver/3372/trunk/module-cccam.c
 END
 reader-videoguard12.c
 K 25
@@ -301,7 +301,7 @@ module-camd33.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3363/trunk/module-camd33.c
+/svn/oscam/!svn/ver/3372/trunk/module-camd33.c
 END
 reader-common.h
 K 25

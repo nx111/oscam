@@ -29,6 +29,8 @@ pthread_mutex_t gethostbyname_lock;
 struct s_acasc ac_stat[CS_MAXPID];
 #endif
 
+int reader_tongfang_idx=-1;
+time_t tongfang_last_started=(time_t)0;
 /*****************************************************************************
         Shared Memory
 *****************************************************************************/
@@ -568,7 +570,6 @@ int cs_fork(in_addr_t ip, in_port_t port) {
 		client[i].login=client[i].last=time((time_t *)0);
 		client[i].pid=pid;    // MUST be last -> wait4master()
 		cs_last_idx=i;
-
 		
 	} else {
 		cs_log("max connections reached -> reject client %s", cs_inet_ntoa(ip));
@@ -976,11 +977,14 @@ static void init_cardreader() {
 	for (reader_idx=0; reader_idx<CS_MAXREADER; reader_idx++) {
 		if ((reader[reader_idx].device[0]) && (reader[reader_idx].enable == 1)) {
 			restart_cardreader(reader_idx, 0);
+
+			if ( reader[reader_idx].caid[0] == 0x4A02 )
+				reader_tongfang_idx=reader_idx;
 		}
 	}
 }
 
-static void cs_fake_client(char *usr, int uniq, in_addr_t ip)
+static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr_t ip)
 {
     /* Uniq = 1: only one connection per user
      *
@@ -1009,8 +1013,8 @@ static void cs_fake_client(char *usr, int uniq, in_addr_t ip)
 			}
 			else
 			{
-				client[cs_idx].dup = 1;
-				client[cs_idx].au = -1;
+				client->dup = 1;
+				client->au = -1;
 				cs_log("client(%d) duplicate user '%s' from %s set to fake (uniq=%d)", cs_idx, usr, cs_inet_ntoa(ip), uniq);
 				break;
 			}
@@ -1078,7 +1082,7 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 				client->c35_sleepsend = account->c35_sleepsend;
 				memcpy(&client->ctab, &account->ctab, sizeof(client->ctab));
 				if (account->uniq)
-					cs_fake_client(account->usr, account->uniq, client->ip);
+					cs_fake_client(client, account->usr, account->uniq, client->ip);
 				client->ftab  = account->ftab;   // IDENT filter
 				client->cltab = account->cltab;  // CLASS filter
 				client->fchid = account->fchid;  // CHID filter
@@ -1238,8 +1242,8 @@ void store_logentry(char *txt)
 	ptr=(char *)(loghist+(*loghistidx*CS_LOGHISTSIZE));
 	ptr[0]='\1';    // make username unusable
 	ptr[1]='\0';
-	if ((client[cs_idx].typ=='c') || (client[cs_idx].typ=='m'))
-		cs_strncpy(ptr, client[cs_idx].usr, 31);
+	if ((client[0].typ=='c') || (client[0].typ=='m')) //FIXME this cannot work since store_logentry only runs in master thread ...
+		cs_strncpy(ptr, client->usr, 31);
 	cs_strncpy(ptr+32, txt, CS_LOGHISTSIZE-33);
 	*loghistidx=(*loghistidx+1) % CS_MAXLOGHIST;
 
@@ -2250,16 +2254,16 @@ void log_emm_request(int auidx)
 			reader[auidx].auprovid ? reader[auidx].auprovid : b2i(4, reader[auidx].prid[0]));
 }
 
-void do_emm(EMM_PACKET *ep)
+void do_emm(struct s_client * client, EMM_PACKET *ep)
 {
 	int au;
 	char *typtext[]={"unknown", "unique", "shared", "global"};
 
-	au = client[cs_idx].au;
+	au = client->au;
 	cs_ddump_mask(D_ATR, ep->emm, ep->l, "emm:");
 
 	//Unique Id matching for pay-per-view channels:
-	if (client[cs_idx].autoau) {
+	if (client->autoau) {
 		int i;
 		for (i=0;i<CS_MAXREADER;i++) {
 			if (reader[i].card_system>0 && !reader[i].audisabled) {
@@ -2301,7 +2305,7 @@ void do_emm(EMM_PACKET *ep)
 	cs_ddump_mask(D_EMM, ep->hexserial, 8, "emm UA/SA:");
 	cs_ddump_mask(D_EMM, ep->emm, ep->l, "emm:");
 
-	client[cs_idx].last=time((time_t)0);
+	client->last=time((time_t)0);
 	if (reader[au].b_nano[ep->emm[0]] & 0x02) //should this nano be saved?
 	{
 		char token[256];
@@ -2368,7 +2372,7 @@ void do_emm(EMM_PACKET *ep)
 		 of EMM log is done. */
 		if (reader[au].logemm & 0x08)  {
 			cs_log("%s emmtype=%s, len=%d, idx=0, cnt=%d: blocked (0 ms) by %s",
-					client[cs_idx].usr,
+					client->usr,
 					typtext[ep->type],
 					ep->emm[2],
 					is_blocked,
@@ -2378,14 +2382,14 @@ void do_emm(EMM_PACKET *ep)
 	}
 
 
-	client[cs_idx].lastemm = time((time_t)0);
+	client->lastemm = time((time_t)0);
 
 	if (reader[au].card_system > 0) {
 		if (!check_emm_cardsystem(&reader[au], ep)) {   // wrong caid
-			client[cs_idx].emmnok++;
+			client->emmnok++;
 			return;
 		}
-		client[cs_idx].emmok++;
+		client->emmok++;
 	}
 	ep->cidx = cs_idx;
 	cs_debug_mask(D_EMM, "emm is being sent to reader %s.", reader[au].label);
@@ -2938,6 +2942,7 @@ int main (int argc, char *argv[])
 
   cs_log("auth size=%d", sizeof(struct s_auth));
 
+  init_rnd();
   init_sidtab();
   init_readerdb();
   init_userdb(&cfg->account);
@@ -3043,6 +3048,7 @@ int main (int argc, char *argv[])
 				ph[i].s_handler(i);
 
 	//cs_close_log();
+	tongfang_last_started=time((time_t)0);
 	while (1) {
 		fd_set fds;
 
@@ -3056,6 +3062,14 @@ int main (int argc, char *argv[])
 							FD_SET(ph[i].ptab->ports[j].fd, &fds);
 			errno=0;
 			select(gfd, &fds, 0, 0, 0);
+
+			// for tongfan auto restart 
+			if(tongfang_last_started+2*60 < time((time_t) 0) && 
+			   reader_tongfang_idx != -1 && cs_last_idx > 3 ){
+				restart_cardreader(reader_tongfang_idx,1);
+				tongfang_last_started=time((time_t) 0);
+			}
+
 		} while (errno==EINTR);
 
 		client[0].last=time((time_t *)0);
