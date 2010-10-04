@@ -29,8 +29,6 @@ pthread_mutex_t gethostbyname_lock;
 struct s_acasc ac_stat[CS_MAXPID];
 #endif
 
-int reader_tongfang_idx=-1;
-time_t tongfang_last_started=(time_t)0;
 /*****************************************************************************
         Shared Memory
 *****************************************************************************/
@@ -977,9 +975,6 @@ static void init_cardreader() {
 	for (reader_idx=0; reader_idx<CS_MAXREADER; reader_idx++) {
 		if ((reader[reader_idx].device[0]) && (reader[reader_idx].enable == 1)) {
 			restart_cardreader(reader_idx, 0);
-
-			if ( reader[reader_idx].caid[0] == 0x4A02 )
-				reader_tongfang_idx=reader_idx;
 		}
 	}
 }
@@ -3048,7 +3043,6 @@ int main (int argc, char *argv[])
 				ph[i].s_handler(i);
 
 	//cs_close_log();
-	tongfang_last_started=time((time_t)0);
 	while (1) {
 		fd_set fds;
 
@@ -3062,13 +3056,6 @@ int main (int argc, char *argv[])
 							FD_SET(ph[i].ptab->ports[j].fd, &fds);
 			errno=0;
 			select(gfd, &fds, 0, 0, 0);
-
-			// for tongfan auto restart 
-			if(tongfang_last_started+2*60 < time((time_t) 0) && 
-			   reader_tongfang_idx != -1 && cs_last_idx > 3 ){
-				restart_cardreader(reader_tongfang_idx,1);
-				tongfang_last_started=time((time_t) 0);
-			}
 
 		} while (errno==EINTR);
 
