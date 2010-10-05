@@ -7,17 +7,17 @@ static int radegast_send(uchar *buf)
   return(send(client[cs_idx].pfd, buf, l, 0));
 }
 
-static int radegast_recv(uchar *buf, int l)
+static int radegast_recv(struct s_client *client, uchar *buf, int l)
 {
   int n;
-  if (!client[cs_idx].pfd) return(-1);
-  if (client[cs_idx].is_server) {  // server code
-    if ((n=recv(client[cs_idx].pfd, buf, l, 0))>0)
-      client[cs_idx].last=time((time_t *) 0);
+  if (!client->pfd) return(-1);
+  if (client->is_server) {  // server code
+    if ((n=recv(client->pfd, buf, l, 0))>0)
+      client->last=time((time_t *) 0);
   } else {  // client code
-    if ((n=recv(client[cs_idx].pfd, buf, l, 0))>0) {
+    if ((n=recv(client->pfd, buf, l, 0))>0) {
       cs_ddump(buf, n, "radegast: received %d bytes from %s", n, remote_txt());
-      client[cs_idx].last = time((time_t *) 0);
+      client->last = time((time_t *) 0);
 
       if (buf[0] == 2) {  // dcw received
         if (buf[3] != 0x10) {  // dcw ok
@@ -87,7 +87,7 @@ static int get_request(uchar *buf)
   return(rc);
 }
 
-static void radegast_send_dcw(ECM_REQUEST *er)
+static void radegast_send_dcw(struct s_client *client, ECM_REQUEST *er)
 {
   uchar mbuf[1024];
   mbuf[0]=0x02;		// DCW
@@ -176,7 +176,7 @@ static void * radegast_server(void *cli)
   return NULL;
 }
 
-static int radegast_send_ecm(ECM_REQUEST *er)
+static int radegast_send_ecm(struct s_client *client, ECM_REQUEST *er)
 {
   int n;
   uchar provid_buf[8];
@@ -207,8 +207,8 @@ static int radegast_send_ecm(ECM_REQUEST *er)
   memcpy(ecmbuf + 8 + sizeof(header), er->ecm, er->l);
   ecmbuf[4] = er->caid >> 8;
 
-  reader[client[cs_idx].ridx].msg_idx = er->idx;
-  n = send(client[cs_idx].pfd, ecmbuf, er->l + 30, 0);
+  reader[client->ridx].msg_idx = er->idx;
+  n = send(client->pfd, ecmbuf, er->l + 30, 0);
 
   cs_log("radegast: sending ecm");
   cs_ddump(ecmbuf, er->l + 30, "ecm:");
@@ -218,7 +218,7 @@ static int radegast_send_ecm(ECM_REQUEST *er)
   return 0;
 }
 
-int radegast_cli_init(void)
+int radegast_cli_init(struct s_client *cl)
 {
   struct sockaddr_in loc_sa;
   struct protoent *ptrp;

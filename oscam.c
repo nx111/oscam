@@ -143,7 +143,7 @@ void cs_add_violation(uint ip) {
 /*****************************************************************************
         Statics
 *****************************************************************************/
-static  int cs_last_idx=0;    // client index of last fork (master only)
+int cs_last_idx=0;    // client index of last fork (master only)
 static const char *logo = "  ___  ____   ___                \n / _ \\/ ___| / __|__ _ _ __ ___  \n| | | \\___ \\| |  / _` | '_ ` _ \\ \n| |_| |___) | |_| (_| | | | | | |\n \\___/|____/ \\___\\__,_|_| |_| |_|\n";
 
 static void usage()
@@ -346,7 +346,6 @@ static void cs_master_alarm()
 
 static void cs_sigpipe()
 {
-
   cs_log("Got sigpipe signal -> captured");
 }
 
@@ -575,6 +574,7 @@ int cs_fork(in_addr_t ip, in_port_t port) {
 	}
 	return(i);
 }
+
 
 static void init_signal()
 {
@@ -1749,7 +1749,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 	}
 #endif
 	
-	ph[client->ctyp].send_dcw(er);
+	ph[client->ctyp].send_dcw(client, er);
 	return 0;
 }
 
@@ -2543,13 +2543,13 @@ int process_input(uchar *buf, int l, int timeout)
 
 		if (FD_ISSET(cl->fd_m2c_c, &fds)) { // read from pipe
 			if (process_client_pipe(cl, buf, l)==PIP_ID_UDP) {
-				rc=ph[cl->ctyp].recv(buf, l);
+				rc=ph[cl->ctyp].recv(cl, buf, l);
 				break;
 			}
 		}
 
 		if (cl->pfd && FD_ISSET(cl->pfd, &fds)) { // read from client
-			rc=ph[cl->ctyp].recv(buf, l);
+			rc=ph[cl->ctyp].recv(cl, buf, l);
 			break;
 		}
 
@@ -2574,12 +2574,6 @@ static void restart_clients()
 }
 
 
-void send_clear_reader_stat(int ridx)
-{
-  write_to_pipe(client[0].fd_m2c, PIP_ID_RES, (uchar*)&ridx, sizeof(ridx)); 
-}
-
-
 static void process_master_pipe(int mfdr)
 {
   int n;
@@ -2590,11 +2584,8 @@ static void process_master_pipe(int mfdr)
     case PIP_ID_KCL: //Kill all clients
     	restart_clients();
     	break;
-    case PIP_ID_RES: //Reset reader statistics
-    	clear_reader_stat(*(int*)ptr);
-    	break;
     default:
-       cs_log("unhandled pipe message %d", n);
+       cs_log("unhandled pipe message %d (master pipe)", n);
        break;
   }
   if (ptr) free(ptr);
@@ -2620,7 +2611,7 @@ int process_client_pipe(struct s_client *cl, uchar *buf, int l) {
 			}
 			break;
 		default:
-			cs_log("unhandled pipe message %d", pipeCmd);
+			cs_log("unhandled pipe message %d (client %s)", pipeCmd, cl->usr);
 			break;
 	}
 	if (ptr) free(ptr);

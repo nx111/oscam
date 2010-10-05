@@ -1752,7 +1752,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 		restart_cardreader(atoi(getParam(params, "ridx")), 1);
 
 	if (strcmp(getParam(params, "action"), "resetstat") == 0)
-		send_clear_reader_stat(atoi(getParam(params, "ridx")));
+		clear_reader_stat(atoi(getParam(params, "ridx")));
 
 	char *debuglvl = getParam(params, "debug");
 	if(strlen(debuglvl) > 0)
@@ -2316,7 +2316,7 @@ void send_oscam_failban(struct templatevars *vars, FILE *f, struct uriparams *pa
 				st->tm_year%100, st->tm_hour,
 				st->tm_min, st->tm_sec);
 
-		tpl_printf(vars, 0, "LEFTTIME", "%u", (cfg->failbantime * 60) - (now - v_ban_entry->v_time));
+		tpl_printf(vars, 0, "LEFTTIME", "%u", ((cfg->failbantime * 60) - (now - v_ban_entry->v_time))/60);
 		tpl_printf(vars, 0, "INTIP", "%u", v_ban_entry->v_ip);
 		tpl_addVar(vars, 1, "FAILBANROW", tpl_getTpl(vars, "FAILBANBIT"));
 		v_ban_entry = llist_itr_next(&itr);

@@ -613,7 +613,7 @@ int cc_send_cli_data() {
 
 	//Partner Detection:
 	uint16 sum = 0x1234; //This is our checksum 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 6; i++) {
 		cc->node_id[i] = fast_rnd();
 		sum += cc->node_id[i];
 	}
@@ -897,9 +897,8 @@ int cc_UA_valid(uint8 *ua) {
  * reader
  * sends a ecm request to the connected CCCam Server
  */
-int cc_send_ecm(ECM_REQUEST *er, uchar *buf) {
+int cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 	cs_debug_mask(D_FUT, "cc_send_ecm in");
-	struct s_client *cl = &client[cs_idx];
 	struct s_reader *rdr = &reader[cl->ridx];
 	
 	//cs_debug_mask(D_TRACE, "%s cc_send_ecm", getprefix());
@@ -1887,7 +1886,7 @@ int cc_parse_msg(uint8 *buf, int l) {
 			pthread_mutex_unlock(&cc->ecm_busy);
 		}
 
-		cc_send_ecm(NULL, NULL);
+		cc_send_ecm(cl, NULL, NULL);
 
 		break;
 	case MSG_CW_ECM:
@@ -1986,7 +1985,7 @@ int cc_parse_msg(uint8 *buf, int l) {
 
 			//cc_abort_user_ecms();
 
-			cc_send_ecm(NULL, NULL);
+			cc_send_ecm(cl, NULL, NULL);
 
 			if (cc->max_ecms)
 				cc->ecm_counter++;
@@ -2087,7 +2086,7 @@ int cc_parse_msg(uint8 *buf, int l) {
 				rdr->available = 1;
 				pthread_mutex_unlock(&cc->ecm_busy);
 			}
-			cc_send_ecm(NULL, NULL);
+			cc_send_ecm(cl, NULL, NULL);
 		}
 		break;
 	}
@@ -2154,9 +2153,8 @@ int cc_recv_chk(uchar *dcw, int *rc, uchar *buf) {
 /**
  * Server: send DCW to client
  */
-void cc_send_dcw(ECM_REQUEST *er) {
+void cc_send_dcw(struct s_client *cl, ECM_REQUEST *er) {
 	cs_debug_mask(D_FUT, "cc_send_dcw in");
-	struct s_client *cl = &client[cs_idx];
 	uchar buf[16];
 	struct cc_data *cc = cl->cc;
 
@@ -2195,8 +2193,7 @@ void cc_send_dcw(ECM_REQUEST *er) {
 	cs_debug_mask(D_FUT, "cc_send_dcw out");
 }
 
-int cc_recv(uchar *buf, int l) {
-	struct s_client *cl = &client[cs_idx];
+int cc_recv(struct s_client *cl, uchar *buf, int l) {
 	int n;
 	uchar *cbuf;
 	struct cc_data *cc = cl->cc;
@@ -3278,8 +3275,7 @@ int cc_cli_init_int() {
 	return res;
 }
 
-int cc_cli_init() {
-	struct s_client *cl = &client[cs_idx];
+int cc_cli_init(struct s_client *cl) {
 	if (!cl->cc)
 		cc_cli_init_int();
 		

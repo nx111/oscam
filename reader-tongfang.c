@@ -80,7 +80,6 @@ static int tongfang_card_init(struct s_reader *reader, ATR newatr)
             reader->caid[0], b2ll(6, reader->hexserial), reader->hexserial[2],
             reader->hexserial[3], reader->hexserial[4], reader->hexserial[5],
             boxID[0], boxID[1], boxID[2], boxID[3]);
-
   return OK;
 }
 

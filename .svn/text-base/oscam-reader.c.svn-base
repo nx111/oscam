@@ -86,16 +86,17 @@ int casc_recv_timer(struct s_reader * reader, uchar *buf, int l, int msec)
   struct timeval tv;
   fd_set fds;
   int rc;
+  struct s_client *cl = &client[reader->cidx];
 
-  if (!client[cs_idx].pfd) return(-1);
+  if (!cl->pfd) return(-1);
   tv.tv_sec = msec/1000;
   tv.tv_usec = (msec%1000)*1000;
   FD_ZERO(&fds);
-  FD_SET(client[cs_idx].pfd, &fds);
-  select(client[cs_idx].pfd+1, &fds, 0, 0, &tv);
+  FD_SET(cl->pfd, &fds);
+  select(cl->pfd+1, &fds, 0, 0, &tv);
   rc=0;
-  if (FD_ISSET(client[cs_idx].pfd, &fds))
-    if (!(rc=reader->ph.recv(buf, l)))
+  if (FD_ISSET(cl->pfd, &fds))
+    if (!(rc=reader->ph.recv(cl, buf, l)))
       rc=-1;
 
   return(rc);
@@ -235,7 +236,8 @@ int network_tcp_connection_open()
 void network_tcp_connection_close(struct s_reader * reader, int fd)
 {
   cs_debug("tcp_conn_close(): fd=%d, client[cs_idx].is_server=%d", fd, client[cs_idx].is_server);
-  close(fd);
+  if (fd)
+    close(fd);
   client[cs_idx].udp_fd = 0;
 
   if (!client[cs_idx].is_server)
@@ -254,7 +256,7 @@ void network_tcp_connection_close(struct s_reader * reader, int fd)
     reader->ncd_msgid=0;
     reader->last_s=reader->last_g=0;
 
-    if (reader->ph.c_init()) {
+    if (reader->ph.c_init(&client[cs_idx])) {
          cs_debug("network_tcp_connection_close() exit(1);");
 
        if (reader->ph.cleanup)
@@ -405,7 +407,7 @@ int casc_process_ecm(struct s_reader * reader, ECM_REQUEST *er)
   rc=0;
   if (sflag)
   {
-    if ((rc=reader->ph.c_send_ecm(&client[cs_idx].ecmtask[n], buf)))
+    if ((rc=reader->ph.c_send_ecm(&client[cs_idx], &client[cs_idx].ecmtask[n], buf)))
       casc_check_dcw(reader, n, 0, client[cs_idx].ecmtask[n].cw);  // simulate "not found"
     else
       client[cs_idx].last_idx = client[cs_idx].ecmtask[n].idx;
@@ -615,7 +617,7 @@ static int reader_listen(struct s_reader * reader, int fd1, int fd2)
       if(client[cs_idx].ecmtask[x].rc == 10 && ms > cfg->ctimeout && client[cs_idx].ridx == client[cs_idx].ecmtask[x].gbxRidx) {
         //cs_log("hello rc=%d idx:%d x:%d ridx%d ridx:%d",client[cs_idx].ecmtask[x].rc,client[cs_idx].ecmtask[x].idx,x,ridx,client[cs_idx].ecmtask[x].gbxRidx);
         client[cs_idx].ecmtask[x].rc=5;
-        send_dcw(&client[cs_idx].ecmtask[x]);
+        send_dcw(&client[cs_idx], &client[cs_idx].ecmtask[x]);
       }
     }
   }
@@ -717,7 +719,7 @@ static void reader_do_pipe(struct s_reader * reader)
       reader_do_card_info(reader);
       break;
     default:
-       cs_log("unhandled pipe message %d", pipeCmd);
+       cs_log("unhandled pipe message %d (reader %s)", pipeCmd, reader->label);
        break;
   }
   if (ptr) free(ptr);
@@ -762,7 +764,7 @@ void * start_cardreader(void * rdr)
       cs_exit(1);
     }
     
-    if (reader->ph.c_init()) {
+    if (reader->ph.c_init(&client[cs_idx])) {
     	 if (reader->ph.cleanup) 
     	 	  reader->ph.cleanup();
     	 if (client[cs_idx].typ != 'p')

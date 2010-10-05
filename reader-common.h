@@ -10,14 +10,6 @@
 
 #include "atr.h"
 
-// reader streamguard
-int streamguard_card_init(struct s_reader * reader, ATR atr);
-int streamguard_do_ecm(struct s_reader * reader, ECM_REQUEST *);
-int streamguard_do_emm(struct s_reader * reader, EMM_PACKET *);
-int streamguard_get_emm_type(EMM_PACKET *, struct s_reader *);
-int streamguard_card_info(struct s_reader * reader);
-void streamguard_get_emm_filter(struct s_reader * rdr, uchar *filter);
-
 int check_emm_cardsystem(struct s_reader * rdr, EMM_PACKET *ep);
 void reader_device_close(struct s_reader * reader);
 

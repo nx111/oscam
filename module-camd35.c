@@ -64,25 +64,25 @@ static int camd35_auth_client(uchar *ucrc)
   return(rc);
 }
 
-static int camd35_recv(uchar *buf, int l)
+static int camd35_recv(struct s_client *client, uchar *buf, int l)
 {
   int rc, s, rs, n=0;
   unsigned char recrc[4];
   for (rc=rs=s=0; !rc; s++) switch(s)
   {
     case 0:
-      if (client[cs_idx].is_server)
+      if (client->is_server)
       {
-        if (!client[cs_idx].udp_fd) return(-9);
-        if (client[cs_idx].is_udp)
+        if (!client->udp_fd) return(-9);
+        if (client->is_udp)
           rs=recv_from_udpipe(buf);
         else
-          rs=recv(client[cs_idx].udp_fd, buf, l, 0);
+          rs=recv(client->udp_fd, buf, l, 0);
       }
       else
       {
-        if (!client[cs_idx].udp_fd) return(-9);
-        rs = recv(client[cs_idx].udp_fd, buf, l, 0);
+        if (!client->udp_fd) return(-9);
+        rs = recv(client->udp_fd, buf, l, 0);
       }
       if (rs < 24) rc = -1;
       break;
@@ -122,12 +122,12 @@ static int camd35_recv(uchar *buf, int l)
   {
     cs_ddump(buf, rs, "received %d bytes from %s (native)", rs, remote_txt);
   }
-  client[cs_idx].last=time((time_t *) 0);
+  client->last=time((time_t *) 0);
   switch(rc)
   {
     case -1: cs_log("packet to small (%d bytes)", rs);
              break;
-    case -2: cs_auth_client(&client[cs_idx], 0, "unknown user");
+    case -2: cs_auth_client(client, 0, "unknown user");
              break;
     case -3: cs_log("incomplete request !");
              break;
@@ -223,10 +223,10 @@ static void camd35_request_emm(ECM_REQUEST *er)
 	camd35_send(mbuf);		// send with data-len 112 for camd3 < 3.890
 }
 
-static void camd35_send_dcw(ECM_REQUEST *er)
+static void camd35_send_dcw(struct s_client *client, ECM_REQUEST *er)
 {
 	uchar *buf;
-	buf = client[cs_idx].req + (er->cpti * REQ_SIZE);	// get orig request
+	buf = client->req + (er->cpti * REQ_SIZE);	// get orig request
 
 	if (((er->rcEx > 0) || (er->rc == 8)) && !client[cs_idx].c35_suppresscmd08)
 	{
@@ -244,8 +244,8 @@ static void camd35_send_dcw(ECM_REQUEST *er)
 		 * whoever knows the camd3 protocol related to CMD08 - please help!
 		 * on tests this don't work with native camd3
 		 */
-		buf[21] = client[cs_idx].c35_sleepsend;
-		cs_log("%s stop request send", client[cs_idx].usr);
+		buf[21] = client->c35_sleepsend;
+		cs_log("%s stop request send", client->usr);
 	}
 	else
 	{
@@ -351,26 +351,26 @@ static void casc_set_account()
   client[cs_idx].crypted=1;
 }
 
-int camd35_client_init()
+int camd35_client_init(struct s_client *client)
 {
   struct sockaddr_in loc_sa;
   struct protoent *ptrp;
   int p_proto;//, sock_type;
   char ptxt[16];
 
-  client[cs_idx].pfd=0;
-  if (reader[client[cs_idx].ridx].r_port<=0)
+  client->pfd=0;
+  if (reader[client->ridx].r_port<=0)
   {
-    cs_log("invalid port %d for server %s", reader[client[cs_idx].ridx].r_port, reader[client[cs_idx].ridx].device);
+    cs_log("invalid port %d for server %s", reader[client->ridx].r_port, reader[client->ridx].device);
     return(1);
   }
-  client[cs_idx].is_udp=(reader[client[cs_idx].ridx].typ==R_CAMD35);
-  if( (ptrp=getprotobyname(client[cs_idx].is_udp ? "udp" : "tcp")) )
+  client->is_udp=(reader[client->ridx].typ==R_CAMD35);
+  if( (ptrp=getprotobyname(client->is_udp ? "udp" : "tcp")) )
     p_proto=ptrp->p_proto;
   else
-    p_proto=(client[cs_idx].is_udp) ? 17 : 6;	// use defaults on error
+    p_proto=(client->is_udp) ? 17 : 6;	// use defaults on error
 
-  client[cs_idx].ip=0;
+  client->ip=0;
   memset((char *)&loc_sa,0,sizeof(loc_sa));
   loc_sa.sin_family = AF_INET;
 #ifdef LALL
@@ -379,9 +379,9 @@ int camd35_client_init()
   else
 #endif
     loc_sa.sin_addr.s_addr = INADDR_ANY;
-  loc_sa.sin_port = htons(reader[client[cs_idx].ridx].l_port);
+  loc_sa.sin_port = htons(reader[client->ridx].l_port);
 
-  if ((client[cs_idx].udp_fd=socket(PF_INET, client[cs_idx].is_udp ? SOCK_DGRAM : SOCK_STREAM, p_proto))<0)
+  if ((client->udp_fd=socket(PF_INET, client->is_udp ? SOCK_DGRAM : SOCK_STREAM, p_proto))<0)
   {
     cs_log("Socket creation failed (errno=%d)", errno);
     cs_exit(1);
@@ -389,33 +389,33 @@ int camd35_client_init()
 
 #ifdef SO_PRIORITY
   if (cfg->netprio)
-    setsockopt(client[cs_idx].udp_fd, SOL_SOCKET, SO_PRIORITY, (void *)&cfg->netprio, sizeof(ulong));
+    setsockopt(client->udp_fd, SOL_SOCKET, SO_PRIORITY, (void *)&cfg->netprio, sizeof(ulong));
 #endif
 
-  if (reader[client[cs_idx].ridx].l_port>0)
+  if (reader[client->ridx].l_port>0)
   {
-    if (bind(client[cs_idx].udp_fd, (struct sockaddr *)&loc_sa, sizeof (loc_sa))<0)
+    if (bind(client->udp_fd, (struct sockaddr *)&loc_sa, sizeof (loc_sa))<0)
     {
       cs_log("bind failed (errno=%d)", errno);
-      close(client[cs_idx].udp_fd);
+      close(client->udp_fd);
       return(1);
     }
-    sprintf(ptxt, ", port=%d", reader[client[cs_idx].ridx].l_port);
+    sprintf(ptxt, ", port=%d", reader[client->ridx].l_port);
   }
   else
     ptxt[0]='\0';
 
   casc_set_account();
-  memset((char *)&client[cs_idx].udp_sa, 0, sizeof(client[cs_idx].udp_sa));
-  client[cs_idx].udp_sa.sin_family=AF_INET;
-  client[cs_idx].udp_sa.sin_port=htons((u_short)reader[client[cs_idx].ridx].r_port);
+  memset((char *)&client->udp_sa, 0, sizeof(client->udp_sa));
+  client->udp_sa.sin_family=AF_INET;
+  client->udp_sa.sin_port=htons((u_short)reader[client->ridx].r_port);
 
   cs_log("proxy %s:%d (fd=%d%s)",
-         reader[client[cs_idx].ridx].device, reader[client[cs_idx].ridx].r_port,
-         client[cs_idx].udp_fd, ptxt);
+         reader[client->ridx].device, reader[client->ridx].r_port,
+         client->udp_fd, ptxt);
 
-  if (client[cs_idx].is_udp) {
-  	client[cs_idx].pfd=client[cs_idx].udp_fd;
+  if (client->is_udp) {
+  	client->pfd=client->udp_fd;
   }
 
   return(0);
@@ -480,34 +480,34 @@ static int tcp_connect()
   return(1);
 }
 
-static int camd35_send_ecm(ECM_REQUEST *er, uchar *buf)
+static int camd35_send_ecm(struct s_client *client, ECM_REQUEST *er, uchar *buf)
 {
-	char *typtext[]={"ok", "invalid", "sleeping"};
+	static const char *typtext[]={"ok", "invalid", "sleeping"};
 
-	if (client[cs_idx].stopped) {
-		if (er->srvid == client[cs_idx].lastsrvid && er->caid == client[cs_idx].lastcaid && er->pid == client[cs_idx].lastpid){
+	if (client->stopped) {
+		if (er->srvid == client->lastsrvid && er->caid == client->lastcaid && er->pid == client->lastpid){
 			cs_log("%s is stopped - requested by server (%s)",
-					reader[client[cs_idx].ridx].label, typtext[client[cs_idx].stopped]);
+					reader[client->ridx].label, typtext[client->stopped]);
 			return(-1);
 		}
 		else {
-			client[cs_idx].stopped = 0;
+			client->stopped = 0;
 		}
 	}
 	
-	client[cs_idx].lastsrvid = er->srvid;
-	client[cs_idx].lastcaid = er->caid;
-	client[cs_idx].lastpid = er->pid;
+	client->lastsrvid = er->srvid;
+	client->lastcaid = er->caid;
+	client->lastpid = er->pid;
 
-	if (client[cs_idx].is_udp) {
-	   if (!client[cs_idx].udp_sa.sin_addr.s_addr || reader[client[cs_idx].ridx].last_s-reader[client[cs_idx].ridx].last_g > reader[client[cs_idx].ridx].tcp_rto)
-	      if (!hostResolve(client[cs_idx].ridx)) return -1;
+	if (client->is_udp) {
+	   if (!client->udp_sa.sin_addr.s_addr || reader[client->ridx].last_s-reader[client->ridx].last_g > reader[client->ridx].tcp_rto)
+	      if (!hostResolve(client->ridx)) return -1;
 	}
         else {
   	   if (!tcp_connect()) return -1;
         }
 	
-	reader[client[cs_idx].ridx].card_status = CARD_INSERTED; //for udp
+	reader[client->ridx].card_status = CARD_INSERTED; //for udp
 	
 	memset(buf, 0, 20);
 	memset(buf + 20, 0xff, er->l+15);

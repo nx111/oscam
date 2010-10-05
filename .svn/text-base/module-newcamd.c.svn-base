@@ -416,29 +416,29 @@ static int newcamd_send(uchar *buf, int ml, ushort sid)
          buf, ml, reader[client[cs_idx].ridx].ncd_skey, COMMTYPE_CLIENT, sid, NULL));
 }
 
-static int newcamd_recv(uchar *buf)
+static int newcamd_recv(struct s_client *client, uchar *buf, int l)
 {
   int rc, rs;
 
-  if (client[cs_idx].is_server)
+  if (client->is_server)
   {
-    rs=network_message_receive(client[cs_idx].udp_fd, 
-                               &client[cs_idx].ncd_msgid, buf, 
-                               client[cs_idx].ncd_skey, COMMTYPE_SERVER);
+    rs=network_message_receive(client->udp_fd, 
+                               &client->ncd_msgid, buf, 
+                               client->ncd_skey, COMMTYPE_SERVER);
   }
   else
   {
-    if (!client[cs_idx].udp_fd) return(-1);
-    rs=network_message_receive(client[cs_idx].udp_fd, 
-                               &reader[client[cs_idx].ridx].ncd_msgid,buf, 
-                               reader[client[cs_idx].ridx].ncd_skey, COMMTYPE_CLIENT);
+    if (!client->udp_fd) return(-1);
+    rs=network_message_receive(client->udp_fd, 
+                               &reader[client->ridx].ncd_msgid,buf, 
+                               reader[client->ridx].ncd_skey, COMMTYPE_CLIENT);
   }
 
   if (rs<5) rc=(-1);
   else rc=rs;
 
   cs_ddump(buf, rs, "received %d bytes from %s", rs, remote_txt());
-  client[cs_idx].last = time((time_t *) 0);
+  client->last = time((time_t *) 0);
 
   if( rc==-1 )
   {
@@ -934,19 +934,19 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
     }
 }
 
-static void newcamd_send_dcw(ECM_REQUEST *er)
+static void newcamd_send_dcw(struct s_client *client, ECM_REQUEST *er)
 {
   int len;
   ushort cl_msgid;
   uchar mbuf[1024];
   
-  if (!client[cs_idx].udp_fd) {
-    cs_debug("ncd_send_dcw: error: client[cs_idx].udp_fd=%d", client[cs_idx].udp_fd);
+  if (!client->udp_fd) {
+    cs_debug("ncd_send_dcw: error: client[cs_idx].udp_fd=%d", client->udp_fd);
     return;  
   }
-  memcpy(&cl_msgid, client[cs_idx].req+(er->cpti*REQ_SIZE), 2);	// get client ncd_msgid + 0x8x
+  memcpy(&cl_msgid, client->req+(er->cpti*REQ_SIZE), 2);	// get client ncd_msgid + 0x8x
   mbuf[0] = er->ecm[0];
-  if( client[cs_idx].ftab.filts[0].nprids==0 || er->rc>3 /*not found*/) 
+  if( client->ftab.filts[0].nprids==0 || er->rc>3 /*not found*/) 
   {
     len=3;
     mbuf[1] = mbuf[2] = 0x00;
@@ -960,8 +960,8 @@ static void newcamd_send_dcw(ECM_REQUEST *er)
 
   cs_debug("ncd_send_dcw: er->cpti=%d, cl_msgid=%d, %02X", er->cpti, cl_msgid, mbuf[0]);
 
-  network_message_send(client[cs_idx].udp_fd, &cl_msgid, mbuf, len, 
-                       client[cs_idx].ncd_skey, COMMTYPE_SERVER, 0, NULL);
+  network_message_send(client->udp_fd, &cl_msgid, mbuf, len, 
+                       client->ncd_skey, COMMTYPE_SERVER, 0, NULL);
 }
 
 static void newcamd_process_ecm(uchar *buf)
@@ -1168,17 +1168,17 @@ static void * newcamd_server(void *cli)
 *	client functions
 */
 
-int newcamd_client_init()
+int newcamd_client_init(struct s_client *client)
 {
   struct sockaddr_in loc_sa;
   struct protoent *ptrp;
   int p_proto;
   char ptxt[16];
 
-  client[cs_idx].pfd=0;
-  if (reader[client[cs_idx].ridx].r_port<=0)
+  client->pfd=0;
+  if (reader[client->ridx].r_port<=0)
   {
-    cs_log("invalid port %d for server %s", reader[client[cs_idx].ridx].r_port, reader[client[cs_idx].ridx].device);
+    cs_log("invalid port %d for server %s", reader[client->ridx].r_port, reader[client->ridx].device);
     return(1);
   }
   if( (ptrp=getprotobyname("tcp")) )
@@ -1186,7 +1186,7 @@ int newcamd_client_init()
   else
     p_proto=6;
 
-  client[cs_idx].ip=0;
+  client->ip=0;
   memset((char *)&loc_sa,0,sizeof(loc_sa));
   loc_sa.sin_family = AF_INET;
 #ifdef LALL
@@ -1195,9 +1195,9 @@ int newcamd_client_init()
   else
 #endif
     loc_sa.sin_addr.s_addr = INADDR_ANY;
-  loc_sa.sin_port = htons(reader[client[cs_idx].ridx].l_port);
+  loc_sa.sin_port = htons(reader[client->ridx].l_port);
 
-  if ((client[cs_idx].udp_fd=socket(PF_INET, SOCK_STREAM, p_proto))<0)
+  if ((client->udp_fd=socket(PF_INET, SOCK_STREAM, p_proto))<0)
   {
     cs_log("Socket creation failed (errno=%d)", errno);
     cs_exit(1);
@@ -1205,49 +1205,50 @@ int newcamd_client_init()
 
 #ifdef SO_PRIORITY
   if (cfg->netprio)
-    setsockopt(client[cs_idx].udp_fd, SOL_SOCKET, SO_PRIORITY, 
+    setsockopt(client->udp_fd, SOL_SOCKET, SO_PRIORITY, 
                (void *)&cfg->netprio, sizeof(ulong));
 #endif
-  if (!reader[client[cs_idx].ridx].tcp_ito) { 
-    ulong keep_alive = reader[client[cs_idx].ridx].tcp_ito?1:0;
-    setsockopt(client[cs_idx].udp_fd, SOL_SOCKET, SO_KEEPALIVE, 
+  if (!reader[client->ridx].tcp_ito) { 
+    ulong keep_alive = reader[client->ridx].tcp_ito?1:0;
+    setsockopt(client->udp_fd, SOL_SOCKET, SO_KEEPALIVE, 
     (void *)&keep_alive, sizeof(ulong));
   }
 
-  if (reader[client[cs_idx].ridx].l_port>0)
+  if (reader[client->ridx].l_port>0)
   {
-    if (bind(client[cs_idx].udp_fd, (struct sockaddr *)&loc_sa, sizeof (loc_sa))<0)
+    if (bind(client->udp_fd, (struct sockaddr *)&loc_sa, sizeof (loc_sa))<0)
     {
       cs_log("bind failed (errno=%d)", errno);
-      close(client[cs_idx].udp_fd);
+      close(client->udp_fd);
       return(1);
     }
-    sprintf(ptxt, ", port=%d", reader[client[cs_idx].ridx].l_port);
+    sprintf(ptxt, ", port=%d", reader[client->ridx].l_port);
   }
   else
     ptxt[0]='\0';
 
-  memset((char *)&client[cs_idx].udp_sa,0,sizeof(client[cs_idx].udp_sa));
-  client[cs_idx].udp_sa.sin_family = AF_INET;
-  client[cs_idx].udp_sa.sin_port = htons((u_short)reader[client[cs_idx].ridx].r_port);
+  memset((char *)&client->udp_sa,0,sizeof(client->udp_sa));
+  client->udp_sa.sin_family = AF_INET;
+  client->udp_sa.sin_port = htons((u_short)reader[client->ridx].r_port);
 
   cs_log("proxy %s:%d newcamd52%d (fd=%d%s)",
-          reader[client[cs_idx].ridx].device, reader[client[cs_idx].ridx].r_port,
-          (reader[client[cs_idx].ridx].ncd_proto==NCD_525)?5:4, client[cs_idx].udp_fd, ptxt);
+          reader[client->ridx].device, reader[client->ridx].r_port,
+          (reader[client->ridx].ncd_proto==NCD_525)?5:4, client->udp_fd, ptxt);
 
   return(0);
 }
 
-static int newcamd_send_ecm(ECM_REQUEST *er, uchar *buf)
+static int newcamd_send_ecm(struct s_client *client, ECM_REQUEST *er, uchar *buf)
 {
 //  if (!client[cs_idx].udp_sa.sin_addr.s_addr)
 //    return(-1);
+  struct s_reader *rdr = &reader[client->ridx];
 
   if(!newcamd_connect())
     return (-1);
 
   // check server filters
-  if(!chk_rsfilter(&reader[client[cs_idx].ridx], er, reader[client[cs_idx].ridx].ncd_disable_server_filt))
+  if(!chk_rsfilter(rdr, er))
     return(-1);
 
   memcpy(buf, er->ecm, er->l);

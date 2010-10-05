@@ -55,55 +55,56 @@ int constcw_analyse_file(ushort c_caid, uint c_prid, ushort c_sid, uchar *dcw)
 //************************************************************************************************************************
 //* client/server common functions
 //************************************************************************************************************************
-static int constcw_recv(uchar *buf, int l)
+static int constcw_recv(struct s_client *client, uchar *buf, int l)
 {
     int ret;
 
-    if (!client[cs_idx].udp_fd) return(-9);
-    ret = read(client[cs_idx].udp_fd, buf, l);
+    if (!client->udp_fd) return(-9);
+    ret = read(client->udp_fd, buf, l);
     if (ret < 1) return(-1);
-    client[cs_idx].last = time(NULL);
+    client->last = time(NULL);
     return(ret);
 }
 
 //************************************************************************************************************************
 //*       client functions
 //************************************************************************************************************************
-int constcw_client_init()
+int constcw_client_init(struct s_client *client)
 {
     int fdp[2];
     
-    client[cs_idx].pfd = 0;
+    client->pfd = 0;
     if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fdp))
     {
 	cs_log("Socket creation failed (%s)", strerror(errno));
 	cs_exit(1);
     }
-    client[cs_idx].udp_fd =fdp[0];
+    client->udp_fd =fdp[0];
     pserver = fdp[1];
 
-    memset((char *) &client[cs_idx].udp_sa, 0, sizeof(client[cs_idx].udp_sa));
-    client[cs_idx].udp_sa.sin_family = AF_INET;
+    memset((char *) &client->udp_sa, 0, sizeof(client->udp_sa));
+    client->udp_sa.sin_family = AF_INET;
 
     // Oscam has no reader.au in s_reader like ki's mpcs ;)
     // reader[ridx].au = 0;
     // cs_log("local reader: %s (file: %s) constant cw au=0", reader[ridx].label, reader[ridx].device);
-    cs_log("local reader: %s (file: %s) constant cw", reader[client[cs_idx].ridx].label, reader[client[cs_idx].ridx].device);
+    cs_log("local reader: %s (file: %s) constant cw", reader[client->ridx].label, reader[client->ridx].device);
 
-    client[cs_idx].pfd = client[cs_idx].udp_fd;
+    client->pfd = client->udp_fd;
     
     if (constcw_file_available())
     {
-	reader[client[cs_idx].ridx].tcp_connected = 2;
-        reader[client[cs_idx].ridx].card_status = CARD_INSERTED;
+	reader[client->ridx].tcp_connected = 2;
+        reader[client->ridx].card_status = CARD_INSERTED;
     }
 
     return(0);
 }
 
-static int constcw_send_ecm(ECM_REQUEST *er, uchar *msgbuf)
+static int constcw_send_ecm(struct s_client *client, ECM_REQUEST *er, uchar *msgbuf)
 {
     time_t t;
+    struct s_reader *rdr = &reader[client->ridx];
 
     // FIXME
     msgbuf = msgbuf;
@@ -120,10 +121,10 @@ static int constcw_send_ecm(ECM_REQUEST *er, uchar *msgbuf)
     }
 
     //cs_sleepms(50);
-    write_ecm_answer(&reader[client[cs_idx].ridx], client[0].fd_m2c, er);
+    write_ecm_answer(reader, client[0].fd_m2c, er);
     
-    client[cs_idx].last = t;
-    reader[client[cs_idx].ridx].last_g = t;
+    client->last = t;
+    rdr->last_g = t;
     return(0);
 }
 
