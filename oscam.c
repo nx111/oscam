@@ -567,6 +567,7 @@ int cs_fork(in_addr_t ip, in_port_t port) {
 		client[i].login=client[i].last=time((time_t *)0);
 		client[i].pid=pid;    // MUST be last -> wait4master()
 		cs_last_idx=i;
+
 		
 	} else {
 		cs_log("max connections reached -> reject client %s", cs_inet_ntoa(ip));
@@ -574,7 +575,6 @@ int cs_fork(in_addr_t ip, in_port_t port) {
 	}
 	return(i);
 }
-
 
 static void init_signal()
 {
@@ -3047,7 +3047,6 @@ int main (int argc, char *argv[])
 							FD_SET(ph[i].ptab->ports[j].fd, &fds);
 			errno=0;
 			select(gfd, &fds, 0, 0, 0);
-
 		} while (errno==EINTR);
 
 		client[0].last=time((time_t *)0);
