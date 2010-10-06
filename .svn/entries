@@ -1,15 +1,15 @@
 10
 
 dir
-3391
+3395
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-10-06T06:41:07.192443Z
-3391
-rebdog
+2010-10-06T09:27:27.913183Z
+3395
+dingo35
 has-props
 
 
@@ -106,11 +106,11 @@ file
 
 
 
-2010-10-06T07:03:23.057438Z
-d4c607a34de369b858796d2809c68cac
-2010-10-06T06:31:37.143797Z
-3388
-schlocke
+2010-10-06T09:42:48.592397Z
+20e8a3f5d67f3e8fdadd45e9777b15f2
+2010-10-06T09:27:27.913183Z
+3395
+dingo35
 
 
 
@@ -132,7 +132,7 @@ schlocke
 
 
 
-20251
+19690
 
 reader-viaccess.c
 file
@@ -174,11 +174,11 @@ file
 
 
 
-2010-10-05T00:21:21.856338Z
-da580a7abec17b03a976295030073845
-2010-10-04T20:18:38.498367Z
-3380
-_network
+2010-10-06T09:42:48.592397Z
+13ee1f1cfb3f8b69551e310e81e5b140
+2010-10-06T07:59:26.118359Z
+3392
+dingo35
 
 
 
@@ -200,7 +200,7 @@ _network
 
 
 
-39016
+39145
 
 VERSION
 file
@@ -381,10 +381,10 @@ file
 
 
 
-2010-10-03T23:07:44.692684Z
-318d0a0fbf4902d62580a37022fe602b
-2010-10-03T13:27:43.539484Z
-3355
+2010-10-06T09:42:48.592397Z
+15f23b0c3bdbd62f4475065610945dfd
+2010-10-06T08:39:14.038637Z
+3394
 dingo35
 
 
@@ -407,7 +407,10 @@ dingo35
 
 
 
-9718
+9643
+
+toolchains
+dir
 
 module-obj-llist.c
 file
@@ -442,9 +445,6 @@ has-props
 
 
 2855
-
-toolchains
-dir
 
 oscam-ac.c
 file
@@ -555,10 +555,10 @@ file
 
 
 
-7958956fd188b19f31f3721234a028cd
-2010-10-06T06:33:25.841737Z
-3390
-schlocke
+16c861e06761c8b7ce2648168b551d9c
+2010-10-06T08:39:14.038637Z
+3394
+dingo35
 
 oscam-nano.c
 file
@@ -594,6 +594,40 @@ rebdog
 
 1625
 
+CMakeLists.txt
+file
+
+
+
+
+2010-09-29T23:29:55.652806Z
+e598b2c665cbec980f3efe73acade49b
+2010-09-25T00:06:46.773431Z
+3241
+rorothetroll
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+27460
+
 Makefile
 file
 
@@ -628,39 +662,17 @@ merek
 
 25029
 
-CMakeLists.txt
+module-dvbapi.h
 file
 
 
 
 
-2010-09-29T23:29:55.652806Z
-e598b2c665cbec980f3efe73acade49b
-2010-09-25T00:06:46.773431Z
-3241
-rorothetroll
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-27460
+de0a19873e5df0dc71b84bdcd29b8f3a
+2010-10-01T17:48:11.863312Z
+3333
+alno
 
 config.sh
 file
@@ -696,18 +708,6 @@ has-props
 
 4056
 
-module-dvbapi.h
-file
-
-
-
-
-
-de0a19873e5df0dc71b84bdcd29b8f3a
-2010-10-01T17:48:11.863312Z
-3333
-alno
-
 module-stat.c
 file
 
@@ -742,16 +742,28 @@ dingo35
 
 14836
 
-module-serial.c
+oscam.c
 file
 
 
 
 
-2010-10-04T18:31:35.280684Z
-91c288990bb15ac4c1fc56c445ae3708
-2010-10-04T16:16:11.933124Z
-3376
+
+05478a44cf8df650e1a2147fc8b63831
+2010-10-06T08:39:14.038637Z
+3394
+dingo35
+
+oscam-reader.c
+file
+
+
+
+
+2010-10-06T09:42:48.592397Z
+ddb22d1d2d42b5da3b49d308ae0d18cf
+2010-10-06T09:27:27.913183Z
+3395
 dingo35
 
 
@@ -774,19 +786,19 @@ dingo35
 
 
 
-27816
+21732
 
-oscam-reader.c
+module-serial.c
 file
 
 
 
 
-2010-10-05T00:21:21.856338Z
-c54df7306345a998f4988300ded77b70
-2010-10-04T21:49:26.057289Z
-3382
-schlocke
+2010-10-06T09:42:48.592397Z
+c7bdea381d7947ab32687ab2e2594816
+2010-10-06T08:39:14.038637Z
+3394
+dingo35
 
 
 
@@ -808,19 +820,41 @@ schlocke
 
 
 
-21716
+28069
 
-oscam.c
+module-constcw.c
 file
 
 
 
 
+2010-10-06T09:42:48.596397Z
+2c2adff9d640b11bbcf7d7847a3037d5
+2010-10-06T07:59:26.118359Z
+3392
+dingo35
 
-efb9255d047a3efe6e2c439f5bc59b5b
-2010-10-04T21:49:26.057289Z
-3382
-schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+4308
 
 module-stat.h
 file
@@ -855,40 +889,6 @@ alno
 
 
 569
-
-module-constcw.c
-file
-
-
-
-
-2010-10-04T18:31:35.280684Z
-356340a112fac05b348008feab8b954d
-2010-10-04T16:16:11.933124Z
-3376
-dingo35
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-4260
 
 reader-tongfang.c
 file
@@ -1047,10 +1047,10 @@ file
 
 
 
-2010-10-04T18:31:35.280684Z
-70033cea8e40a85d3a177474968ce516
-2010-10-04T16:06:14.704052Z
-3375
+2010-10-06T09:42:48.596397Z
+5a5a7dae9b248ef726db8b9ae96be90f
+2010-10-06T08:39:14.038637Z
+3394
 dingo35
 
 
@@ -1073,7 +1073,7 @@ dingo35
 
 
 
-21474
+21396
 
 oscam-config.h
 file
@@ -1266,11 +1266,11 @@ file
 
 
 
-2010-10-05T00:21:21.856338Z
-bb9cedcaf80131dcaa579d545ee27509
-2010-10-04T20:18:38.498367Z
-3380
-_network
+2010-10-06T09:42:48.596397Z
+f086216cc081b4eb8946c4914a8611e4
+2010-10-06T08:39:14.038637Z
+3394
+dingo35
 
 
 
@@ -1292,7 +1292,7 @@ _network
 
 
 
-7860
+7922
 
 cygwin
 dir
@@ -1443,10 +1443,10 @@ file
 
 
 
-c25a937f7ca401472d367209e4e083d3
-2010-10-06T06:33:25.841737Z
-3390
-schlocke
+f11f3223d193db7ecbbb62ed79821cd2
+2010-10-06T09:27:27.913183Z
+3395
+dingo35
 
 reader-common.c
 file
@@ -1523,10 +1523,10 @@ file
 
 
 
-2e7ed34d9890f456d9cba7a82b7e6ca9
-2010-10-06T06:32:18.480415Z
-3389
-schlocke
+2bf8b8aeac5b3b2b4023e7b68e4a1f03
+2010-10-06T07:59:26.118359Z
+3392
+dingo35
 has-props
 
 reader-videoguard12.c
