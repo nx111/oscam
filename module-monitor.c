@@ -12,12 +12,12 @@ static void monitor_check_ip()
 	int ok=0;
 	struct s_ip *p_ip;
 
-	if (client[cs_idx].auth) return;
+	if (cur_client()->auth) return;
 	for (p_ip=cfg->mon_allowed; (p_ip) && (!ok); p_ip=p_ip->next)
-		ok=((client[cs_idx].ip>=p_ip->ip[0]) && (client[cs_idx].ip<=p_ip->ip[1]));
+		ok=((cur_client()->ip>=p_ip->ip[0]) && (cur_client()->ip<=p_ip->ip[1]));
 	if (!ok)
 	{
-		cs_auth_client(&client[cs_idx], (struct s_auth *)0, "invalid ip");
+		cs_auth_client(cur_client(), (struct s_auth *)0, "invalid ip");
 		cs_exit(0);
 	}
 }
@@ -26,25 +26,25 @@ static void monitor_auth_client(char *usr, char *pwd)
 {
 	struct s_auth *account;
 
-	if (client[cs_idx].auth) return;
+	if (cur_client()->auth) return;
 	if ((!usr) || (!pwd))
 	{
-		cs_auth_client(&client[cs_idx], (struct s_auth *)0, NULL);
+		cs_auth_client(cur_client(), (struct s_auth *)0, NULL);
 		cs_exit(0);
 	}
-	for (account=cfg->account, client[cs_idx].auth=0; (account) && (!client[cs_idx].auth);)
+	for (account=cfg->account, cur_client()->auth=0; (account) && (!cur_client()->auth);)
 	{
 		if (account->monlvl)
-			client[cs_idx].auth=!(strcmp(usr, account->usr) | strcmp(pwd, account->pwd));
-		if (!client[cs_idx].auth)
+			cur_client()->auth=!(strcmp(usr, account->usr) | strcmp(pwd, account->pwd));
+		if (!cur_client()->auth)
 			account=account->next;
 	}
-	if (!client[cs_idx].auth)
+	if (!cur_client()->auth)
 	{
-		cs_auth_client(&client[cs_idx], (struct s_auth *)0, "invalid account");
+		cs_auth_client(cur_client(), (struct s_auth *)0, "invalid account");
 		cs_exit(0);
 	}
-	if (cs_auth_client(&client[cs_idx], account, NULL))
+	if (cs_auth_client(cur_client(), account, NULL))
 		cs_exit(0);
 }
 
@@ -53,60 +53,60 @@ static int secmon_auth_client(uchar *ucrc)
 	ulong crc;
 	struct s_auth *account;
 
-	if (client[cs_idx].auth)
+	if (cur_client()->auth)
 	{
-		int s=memcmp(client[cs_idx].ucrc, ucrc, 4);
+		int s=memcmp(cur_client()->ucrc, ucrc, 4);
 		if (s)
 			cs_log("wrong user-crc or garbage !?");
 		return(!s);
 	}
-	client[cs_idx].crypted=1;
+	cur_client()->crypted=1;
 	crc=(ucrc[0]<<24) | (ucrc[1]<<16) | (ucrc[2]<<8) | ucrc[3];
-	for (account=cfg->account; (account) && (!client[cs_idx].auth); account=account->next)
+	for (account=cfg->account; (account) && (!cur_client()->auth); account=account->next)
 		if ((account->monlvl) &&
-				(crc==crc32(0L, MD5((unsigned char *)account->usr, strlen(account->usr), client[cs_idx].dump), 16)))
+				(crc==crc32(0L, MD5((unsigned char *)account->usr, strlen(account->usr), cur_client()->dump), 16)))
 		{
-			memcpy(client[cs_idx].ucrc, ucrc, 4);
-			aes_set_key((char *)MD5((unsigned char *)account->pwd, strlen(account->pwd), client[cs_idx].dump));
-			if (cs_auth_client(&client[cs_idx], account, NULL))
+			memcpy(cur_client()->ucrc, ucrc, 4);
+			aes_set_key((char *)MD5((unsigned char *)account->pwd, strlen(account->pwd), cur_client()->dump));
+			if (cs_auth_client(cur_client(), account, NULL))
 				cs_exit(0);
-			client[cs_idx].auth=1;
+			cur_client()->auth=1;
 		}
-	if (!client[cs_idx].auth)
+	if (!cur_client()->auth)
 	{
-		cs_auth_client(&client[cs_idx], (struct s_auth *)0, "invalid user");
+		cs_auth_client(cur_client(), (struct s_auth *)0, "invalid user");
 		cs_exit(0);
 	}
-	return(client[cs_idx].auth);
+	return(cur_client()->auth);
 }
 
-int monitor_send_idx(int idx, char *txt)
+int monitor_send_idx(struct s_client *cl, char *txt)
 {
 	int l;
 	unsigned char buf[256+32];
-	if (!client[idx].udp_fd)
+	if (!cl->udp_fd)
 		return(-1);
 	struct timespec req_ts;
 	req_ts.tv_sec = 0;
 	req_ts.tv_nsec = 500000;
 	nanosleep (&req_ts, NULL);//avoid lost udp-pakkets
-	if (!client[idx].crypted)
-		return(sendto(client[idx].udp_fd, txt, strlen(txt), 0,
-				(struct sockaddr *)&client[idx].udp_sa,
-				sizeof(client[idx].udp_sa)));
+	if (!cl->crypted)
+		return(sendto(cl->udp_fd, txt, strlen(txt), 0,
+				(struct sockaddr *)&cl->udp_sa,
+				sizeof(cl->udp_sa)));
 	buf[0]='&';
 	buf[9]=l=strlen(txt);
 	l=boundary(4, l+5)+5;
-	memcpy(buf+1, client[idx].ucrc, 4);
+	memcpy(buf+1, cl->ucrc, 4);
 	strcpy((char *)buf+10, txt);
 	memcpy(buf+5, i2b(4, crc32(0L, buf+10, l-10)), 4);
-	aes_encrypt_idx(idx, buf+5, l-5);
-	return(sendto(client[idx].udp_fd, buf, l, 0,
-			(struct sockaddr *)&client[idx].udp_sa,
-			sizeof(client[idx].udp_sa)));
+	aes_encrypt_idx(cl, buf+5, l-5);
+	return(sendto(cl->udp_fd, buf, l, 0,
+			(struct sockaddr *)&cl->udp_sa,
+			sizeof(cl->udp_sa)));
 }
 
-#define monitor_send(t) monitor_send_idx(cs_idx, t)
+#define monitor_send(t) monitor_send_idx(cur_client(), t)
 
 static int monitor_recv(struct s_client * client, uchar *buf, int l)
 {
@@ -231,29 +231,15 @@ static void monitor_send_info(char *txt, int last)
 	btxt[0]=0;
 }
 
-int cs_idx2ridx(int idx){
-	int i;
 
-	for (i = 0; i < CS_MAXREADER; i++)
-		if (reader[i].cidx==idx)
-			return(i);
-	return(-1);
-}
-
-
-
-char *monitor_get_proto(int idx)
+char *monitor_get_proto(struct s_client *cl)
 {
-	int i;
 	char *ctyp;
-	switch(client[idx].typ) {
+	switch(cl->typ) {
 	case 's'	: ctyp = "server"   ; break;
 	case 'p'	:
 	case 'r'	:
-		if ((i = cs_idx2ridx(idx)) < 0)	// should never happen
-			ctyp = (client[idx].typ == 'p') ? "proxy" : "reader";
-		else {
-			switch(reader[i].typ) {	/* TODO like ph*/
+			switch(reader[cl->ridx].typ) {	/* TODO like ph*/
 			case R_MOUSE	: ctyp = "mouse";		break;
 			case R_INTERNAL	: ctyp = "intern";		break;
 			case R_SMART	: ctyp = "smartreader";	break;
@@ -268,19 +254,18 @@ char *monitor_get_proto(int idx)
 #ifdef HAVE_PCSC
 			case R_PCSC		: ctyp = "pcsc";		break;
 #endif
-			case R_CCCAM	: ctyp = client[idx].cc_extended_ecm_mode?"cccam ext":"cccam";	break;
+			case R_CCCAM	: ctyp = cl->cc_extended_ecm_mode?"cccam ext":"cccam";	break;
 			case R_CONSTCW	: ctyp = "constcw";		break;
 			case R_CS378X	: ctyp = "cs378x";		break;
 			case R_DB2COM1	: ctyp = "dbox COM1";	break;
 			case R_DB2COM2	: ctyp = "dbox COM2";   break;
 			default			: ctyp = "unknown";		break;
 			}
-		}
 		break;
-	default		: if (client[idx].cc_extended_ecm_mode)
+	default		: if (cl->cc_extended_ecm_mode)
 				ctyp = "cccam ext";
 			else
-				ctyp = ph[client[idx].ctyp].desc;
+				ctyp = ph[cl->ctyp].desc;
 	}
 	return(ctyp);
 }
@@ -304,7 +289,7 @@ static char *monitor_client_info(char id, int i){
 			lsec=now-client[i].login;
 			isec=now-client[i].last;
 			usr=client[i].usr;
-			if (((client[i].typ == 'r') || (client[i].typ == 'p')) && (con=cs_idx2ridx(i)) >= 0)
+			if (((client[i].typ == 'r') || (client[i].typ == 'p')) && (con=client[i].ridx) >= 0)
 				usr=reader[con].label;
 			if (client[i].dup)
 				con=2;
@@ -320,7 +305,7 @@ static char *monitor_client_info(char id, int i){
 					cau=-cau;
 			if( client[i].typ == 'r')
 			{
-			    lrt = cs_idx2ridx(i);
+			    lrt = client[i].ridx;
 			    if( lrt >= 0 )
                     lrt = 10 + reader[lrt].card_status;
 			}
@@ -331,7 +316,7 @@ static char *monitor_client_info(char id, int i){
 			sprintf(ltime, "%02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
                         sprintf(sbuf, "[%c--CCC]%d|%c|%d|%s|%d|%d|%s|%d|%s|%s|%s|%d|%04X:%04X|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d\n",    
 					id, client[i].pid, client[i].typ, cnr, usr, cau, client[i].crypted,
-					cs_inet_ntoa(client[i].ip), client[i].port, monitor_get_proto(i),
+					cs_inet_ntoa(client[i].ip), client[i].port, monitor_get_proto(&client[i]),
 					ldate, ltime, lsec, client[i].last_caid, client[i].last_srvid,
 					get_servicename(client[i].last_srvid, client[i].last_caid), isec, con,
                                         client[i].cwfound, client[i].cwnot, client[i].cwcache, client[i].cwignored,
@@ -351,8 +336,8 @@ static void monitor_process_info(){
 				( now-client[i].lastemm < cfg->mon_hideclient_to) ||
 				( client[i].typ != 'c')){
 			if (client[i].pid) {
-				if ((client[cs_idx].monlvl < 2) && (client[i].typ != 's')) {
-					if 	((strcmp(client[cs_idx].usr, client[i].usr)) ||
+				if ((cur_client()->monlvl < 2) && (client[i].typ != 's')) {
+					if 	((strcmp(cur_client()->usr, client[i].usr)) ||
 							((client[i].typ != 'c') && (client[i].typ != 'm')))
 						continue;
 				}
@@ -363,9 +348,9 @@ static void monitor_process_info(){
 	monitor_send_info(NULL, 1);
 }
 
-static void monitor_send_details(char *txt, int pid){
+static void monitor_send_details(char *txt, unsigned long tid){
 	char buf[256];
-	snprintf(buf, 255, "[D-----]%d|%s\n", pid, txt);
+	snprintf(buf, 255, "[D-----]%lu|%s\n", tid, txt);
 	monitor_send_info(buf, 0);
 }
 
@@ -440,47 +425,47 @@ static void monitor_process_details_master(char *buf, int pid){
 }
 
 
-static void monitor_process_details_reader(int pid, int idx) {
-	int r_idx;
+static void monitor_process_details_reader(unsigned long tid) {
 
-	if ((r_idx=cs_idx2ridx(idx))>=0 && cfg->saveinithistory) {
+	if (cfg->saveinithistory) {
 		FILE *fp;
 		char filename[32];
 		char buffer[128];
-		sprintf(filename, "%s/reader%d", get_tmp_dir(), client[cs_idx].ridx);
+		sprintf(filename, "%s/reader%d", get_tmp_dir(), cur_client()->ridx);
 		fp = fopen(filename, "r");
 
 		if (fp) {
 			while(fgets(buffer, 128, fp) != NULL) {
-				monitor_send_details(buffer, pid);
+				monitor_send_details(buffer, tid);
 			}
 			fclose(fp);
 		}
 	} else {
-		monitor_send_details("Missing reader index or entitlement not saved!", pid);
+		monitor_send_details("Missing reader index or entitlement not saved!", tid);
 	}
 
 }
 
 
 static void monitor_process_details(char *arg){
-	int pid, idx;
+	unsigned long tid; //using threadid 8 positions hex see oscam-log.c //FIXME untested but pid isnt working anyway with threading
+	struct s_client *cl;
 	char sbuf[256];
 	if (!arg) return;
-	if ((idx = idx_from_pid(pid = atoi(arg))) < 0)
-		monitor_send_details("Invalid PID", pid);
-	else
+		cl = idx_from_tid(client[0].thread); //FIXME (*cl = idx_from_tid(tid = atoi(arg))) //FIXME tid should be derived from arg
+//		monitor_send_details("Invalid TID", tid); //thread is always valid, so no need for testing
+//	else
 	{
-		monitor_send_info(monitor_client_info('D', idx), 0);
-		switch(client[idx].typ)
+//		monitor_send_info(monitor_client_info('D', idx), 0); //FIXME
+		switch(cl->typ)
 		{
 		case 's':
-			monitor_process_details_master(sbuf, pid);
+			monitor_process_details_master(sbuf, cl->thread);
 			break;
 		case 'c': case 'm':
 			break;
 		case 'r':
-			monitor_process_details_reader(pid, idx);
+			monitor_process_details_reader(tid);//with client->typ='r' client->ridx is always filled and valid, so no need checking
 			break;
 		case 'p':
 			break;
@@ -491,8 +476,8 @@ static void monitor_process_details(char *arg){
 
 static void monitor_send_login(void){
 	char buf[64];
-	if (client[cs_idx].auth)
-		sprintf(buf, "[A-0000]1|%s logged in\n", client[cs_idx].usr);
+	if (cur_client()->auth)
+		sprintf(buf, "[A-0000]1|%s logged in\n", cur_client()->usr);
 	else
 		strcpy(buf, "[A-0000]0|not logged in\n");
 	monitor_send_info(buf, 1);
@@ -515,12 +500,12 @@ static void monitor_logsend(char *flag){
 #endif
 	if (strcmp(flag, "on")) {
 		if (strcmp(flag, "onwohist")) {
-			client[cs_idx].log=0;
+			cur_client()->log=0;
 			return;
 		}
 	}
 
-	if (client[cs_idx].log)	// already on
+	if (cur_client()->log)	// already on
 		return;
 #ifdef CS_LOGHISTORY
 	if (!strcmp(flag, "on")){
@@ -528,17 +513,17 @@ static void monitor_logsend(char *flag){
 			char *p_usr, *p_txt;
 			p_usr=(char *)(loghist+(i*CS_LOGHISTSIZE));
 			p_txt = p_usr + 32;
-			if ((p_txt[0]) && ((client[cs_idx].monlvl > 1) || (!strcmp(p_usr, client[cs_idx].usr)))) {
+			if ((p_txt[0]) && ((cur_client()->monlvl > 1) || (!strcmp(p_usr, cur_client()->usr)))) {
 				char sbuf[8];
-				sprintf(sbuf, "%03d", client[cs_idx].logcounter);
-				client[cs_idx].logcounter=(client[cs_idx].logcounter + 1) % 1000;
+				sprintf(sbuf, "%03d", cur_client()->logcounter);
+				cur_client()->logcounter=(cur_client()->logcounter + 1) % 1000;
 				memcpy(p_txt + 4, sbuf, 3);
 				monitor_send(p_txt);
 			}
 		}
 	}
 #endif
-	client[cs_idx].log=1;
+	cur_client()->log=1;
 }
 
 static void monitor_set_debuglevel(char *flag){
@@ -726,7 +711,7 @@ static int monitor_process_request(char *req)
 
 	if( (arg = strchr(req, ' ')) ) { *arg++ = 0; trim(arg); }
 	//trim(req);
-	if ((!client[cs_idx].auth) && (strcmp(req, cmd[0])))	monitor_login(NULL);
+	if ((!cur_client()->auth) && (strcmp(req, cmd[0])))	monitor_login(NULL);
 
 	for (rc=1, i = 0; i < cmdcnt; i++)
 		if (!strcmp(req, cmd[i])) {
@@ -735,16 +720,16 @@ static int monitor_process_request(char *req)
 			case  1:	rc=0; break;	// exit
 			case  2:	monitor_logsend(arg); break;	// log
 			case  3:	monitor_process_info(); break;	// status
-			case  4:	if (client[cs_idx].monlvl > 3) cs_exit(SIGQUIT); break;	// shutdown
-			case  5:	if (client[cs_idx].monlvl > 2) kill(client[0].pid, SIGHUP); break;	// reload
+			case  4:	if (cur_client()->monlvl > 3) cs_exit(SIGQUIT); break;	// shutdown
+			case  5:	if (cur_client()->monlvl > 2) kill(client[0].pid, SIGHUP); break;	// reload
 			case  6:	monitor_process_details(arg); break;	// details
 			case  7:	monitor_send_details_version(); break;	// version
-			case  8:	if (client[cs_idx].monlvl > 3) monitor_set_debuglevel(arg); break;	// debuglevel
-			case  9:	if (client[cs_idx].monlvl > 3) monitor_get_account(); break;	// getuser
-			case 10:	if (client[cs_idx].monlvl > 3) monitor_set_account(arg); break;	// setuser
-			case 11:	if (client[cs_idx].monlvl > 3) monitor_set_server(arg); break;	// setserver
-			case 12:	if (client[cs_idx].monlvl > 3) monitor_list_commands(cmd, cmdcnt); break;	// list commands
-			case 13:	if (client[cs_idx].monlvl > 3) monitor_send_keepalive_ack(); break;	// keepalive
+			case  8:	if (cur_client()->monlvl > 3) monitor_set_debuglevel(arg); break;	// debuglevel
+			case  9:	if (cur_client()->monlvl > 3) monitor_get_account(); break;	// getuser
+			case 10:	if (cur_client()->monlvl > 3) monitor_set_account(arg); break;	// setuser
+			case 11:	if (cur_client()->monlvl > 3) monitor_set_server(arg); break;	// setserver
+			case 12:	if (cur_client()->monlvl > 3) monitor_list_commands(cmd, cmdcnt); break;	// list commands
+			case 13:	if (cur_client()->monlvl > 3) monitor_send_keepalive_ack(); break;	// keepalive
 			case 14:	{ char buf[64];sprintf(buf, "[S-0000]reread\n");monitor_send_info(buf, 1); kill(client[0].pid, SIGUSR2); break; } // reread
 			default:	continue;
 			}
@@ -759,6 +744,7 @@ static void * monitor_server(void *cli){
 
 	struct s_client * client = (struct s_client *) cli;
 	client->thread=pthread_self();
+	pthread_setspecific(getclient, cli);
 	client->typ='m';
 	while (((n = process_input(mbuf, sizeof(mbuf), cfg->cmaxidle)) >= 0) && monitor_process_request((char *)mbuf));
 	cs_disconnect_client(cli);

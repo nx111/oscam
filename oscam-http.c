@@ -1587,7 +1587,7 @@ void send_oscam_user_config(struct templatevars *vars, FILE *f, struct uriparams
 			if ((now - client[i].lastecm) < hideclient) {
 				status = "<b>online</b>"; classname="online";
 				isonline = 1;
-				proto = monitor_get_proto(i);
+				proto = monitor_get_proto(&client[i]);
 				lastchan = get_servicename(client[i].last_srvid, client[i].last_caid);
 				lastresponsetm = client[i].cwlastresptime;
 				isec = now - client[i].last;
@@ -1679,9 +1679,25 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 				LLIST_ITR itr;
 				card = llist_itr_init(rcc->cards, &itr);
 				while (card) {
+					char *node_str = malloc(llist_count(card->remote_nodes)*16+2);
+					char *node_ptr = node_str;
+					LLIST_ITR nitr;
+					uint8 *node = llist_itr_init(card->remote_nodes, &nitr);
+					while (node) {
+						if (node_ptr != node_str) {
+							strcat(node_ptr, ",");
+							node_ptr++;
+						}
+						sprintf(node_ptr, "%02X%02X%02X%02X%02X%02X%02X%02X", 
+							node[0], node[1], node[2], node[3], node[4], node[5], node[6], node[7]);
+						node_ptr += 16;
+						node = llist_itr_next(&nitr);
+					}
 
 					tpl_printf(vars, 1, "LOGHISTORY",
-							"caid: %04X hop: %d<BR>\n", card->caid, card->hop);
+							"caid: %04X hop: %d reshare: %d remote nodes: %s<BR>\n", 
+							card->caid, card->hop, card->maxdown, node_str);
+					free(node_str);
 
 					int provcount = 0;
 					LLIST_ITR pitr;
@@ -1792,7 +1808,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			isec=now-client[i].last;
 			usr=client[i].usr;
 
-			if (((client[i].typ=='r') || (client[i].typ=='p')) && (con=cs_idx2ridx(i))>=0) usr=reader[con].label;
+			if (((client[i].typ=='r') || (client[i].typ=='p')) && (con=client[i].ridx)>=0) usr=reader[con].label;
 
 			if (((client[i].typ!='r') || (client[i].typ!='p')) && (client[i].lastreader[0]))
 				tpl_printf(vars, 0, "CLIENTLBVALUE", "%s", client[i].lastreader);
@@ -1828,7 +1844,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			tpl_printf(vars, 0, "CLIENTCRYPTED", "%d", client[i].crypted);
 			tpl_printf(vars, 0, "CLIENTIP", "%s", cs_inet_ntoa(client[i].ip));
 			tpl_printf(vars, 0, "CLIENTPORT", "%d", client[i].port);
-			tpl_addVar(vars, 0, "CLIENTPROTO", monitor_get_proto(i));
+			tpl_addVar(vars, 0, "CLIENTPROTO", monitor_get_proto(&client[i]));
 			tpl_printf(vars, 0, "CLIENTLOGINDATE", "%02d.%02d.%02d", lt->tm_mday, lt->tm_mon+1, lt->tm_year%100);
 			tpl_printf(vars, 0, "CLIENTLOGINTIME", "%02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
 
@@ -2316,7 +2332,25 @@ void send_oscam_failban(struct templatevars *vars, FILE *f, struct uriparams *pa
 				st->tm_year%100, st->tm_hour,
 				st->tm_min, st->tm_sec);
 
-		tpl_printf(vars, 0, "LEFTTIME", "%u", ((cfg->failbantime * 60) - (now - v_ban_entry->v_time))/60);
+		int lsec = (cfg->failbantime * 60) - (now - v_ban_entry->v_time);
+		int secs = 0, fullmins =0, mins =0, fullhours =0, hours =0, days =0;
+		if(lsec > 0) {
+			secs = lsec % 60;
+			if (lsec > 60) {
+				fullmins = lsec / 60;
+				mins = fullmins % 60;
+				if(fullmins > 60) {
+					fullhours = fullmins / 60;
+					hours = fullhours % 24;
+					days = fullhours / 24;
+				}
+			}
+		}
+		if(days == 0)
+			tpl_printf(vars, 0, "LEFTTIME", "%02d:%02d:%02d", hours, mins, secs);
+		else
+			tpl_printf(vars, 0, "LEFTTIME", "%02dd %02d:%02d:%02d", days, hours, mins, secs);
+
 		tpl_printf(vars, 0, "INTIP", "%u", v_ban_entry->v_ip);
 		tpl_addVar(vars, 1, "FAILBANROW", tpl_getTpl(vars, "FAILBANBIT"));
 		v_ban_entry = llist_itr_next(&itr);
@@ -2327,7 +2361,7 @@ void send_oscam_failban(struct templatevars *vars, FILE *f, struct uriparams *pa
 
 int process_request(FILE *f, struct in_addr in) {
 
-	client[cs_idx].last = time((time_t)0); //reset last busy time
+	cur_client()->last = time((time_t)0); //reset last busy time
 
 	int ok=0;
 	struct s_ip *p_ip;
@@ -2547,7 +2581,9 @@ int process_request(FILE *f, struct in_addr in) {
 	return 0;
 }
 
-void http_srv() {
+void http_srv(struct s_client *cl) {
+	cl->thread = pthread_self();
+	pthread_setspecific(getclient, cl);
 	int i,sock, reuse = 1;
 	struct sockaddr_in sin;
 	struct sockaddr_in remote;

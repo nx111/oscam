@@ -493,7 +493,7 @@ static int viaccess_do_emm(struct s_reader * reader, EMM_PACKET *ep)
   unsigned char ins18[] = { 0xca,0x18,0x01,0x01,0x00 }; // set subscription
   unsigned char ins1c[] = { 0xca,0x1c,0x01,0x01,0x00 }; // set subscription, encrypted
   static const unsigned char insc8[] = { 0xca,0xc8,0x00,0x00,0x02 }; // read extended status
-  static const unsigned char insc8Data[] = { 0x00,0x00 }; // data for read extended status
+  // static const unsigned char insc8Data[] = { 0x00,0x00 }; // data for read extended status
 
   int emmLen=SCT_LEN(ep->emm)-7;
   int rc=0;
@@ -503,6 +503,7 @@ static int viaccess_do_emm(struct s_reader * reader, EMM_PACKET *ep)
   int emmUpToEnd;
   uchar *emmParsed = ep->emm+7;
   int provider_ok = 0;
+  unsigned int emm_provid;
   uchar keynr = 0;
   int ins18Len = 0;
   uchar ins18Data[512];
@@ -525,6 +526,7 @@ static int viaccess_do_emm(struct s_reader * reader, EMM_PACKET *ep)
             soid[i]=ident[i]=emmParsed[2+i];
         }
         ident[2]&=0xF0;
+        emm_provid=b2i(3, ident);
         keynr=soid[2]&0x0F;
         if (chk_prov(reader, ident, keynr)) {
             provider_ok = 1;
@@ -535,7 +537,7 @@ static int viaccess_do_emm(struct s_reader * reader, EMM_PACKET *ep)
         }
         
         // check if the provider changes. If yes, set the new one. If not, don't .. card will return an error if we do.
-        if( memcmp(&reader->last_geo.provid,ident,3)) {
+        if( reader->last_geo.provid != emm_provid ) {
             write_cmd(insa4, ident);             
             if( cta_res[cta_lr-2]!=0x90 || cta_res[cta_lr-1]!=0x00 ) {
                 cs_dump(insa4, 5, "set provider cmd:");
@@ -660,24 +662,24 @@ static int viaccess_do_emm(struct s_reader * reader, EMM_PACKET *ep)
     memcpy (insData + nano92Data[1] + 2, nano81Data, nano81Data[1] + 2);
     memcpy (insData + nano92Data[1] + 2 + nano81Data[1] + 2, nanoF0Data, nanoF0Data[1] + 2);
     write_cmd(ins1c, insData); 
-    if( (cta_res[cta_lr-2]!=0x90 && cta_res[cta_lr-2]!=0x91) || cta_res[cta_lr-1]!=0x00 ) {
-      /* maybe a 2nd level status, so read it */
-      ///cs_dump(ins1c, 5, "set subscription encrypted cmd:");
-      ///cs_dump(insData, ins1c[4], "set subscription encrypted data:");
-      ///cs_log("[viaccess-reader] update error: %02X %02X", cta_res[cta_lr-2], cta_res[cta_lr-1]);
-
-      write_cmd(insc8, insc8Data); 
-      if( cta_res[0] != 0x00 || cta_res[1] != 00 || cta_res[cta_lr-2]!=0x90 || cta_res[cta_lr-1]!=0x00 ) {
-        ///cs_dump(cta_res, cta_lr, "extended status error:");
-        return ERROR;
-      } else {
-        cs_debug("[viaccess-reader] update successfully written (with extended status OK)");
+    
+    if( (cta_res[cta_lr-2]==0x90 && cta_res[cta_lr-1]==0x00) ) {
+        cs_log("[viaccess-reader] update successfully written");
         rc=1; // written
-      }
-    } else {
-      cs_debug("[viaccess-reader] update successfully written");
-      rc=1; // written
+    } 
+    else {
+        if( cta_res[cta_lr-2]&0x1 )
+            cs_log("[viaccess-reader] update not written. Data already exists or unknown address");
+    
+        if( cta_res[cta_lr-2]&0x8 ) {
+            write_cmd(insc8, NULL);
+            if( (cta_res[cta_lr-2]==0x90 && cta_res[cta_lr-1]==0x00) ) {
+                cs_log("[viaccess-reader] extended status  %02X %02X", cta_res[0], cta_res[1]);
+            }
+        } 
+      return ERROR;
     }
+
   }
 
   /*

@@ -24,6 +24,7 @@ char  cs_confdir[128]=CS_CONFDIR;
 int cs_dblevel=0;   // Debug Level (TODO !!)
 char  cs_tmpdir[200]={0x00};
 pthread_mutex_t gethostbyname_lock;
+pthread_key_t getclient;
 
 #ifdef CS_ANTICASC
 struct s_acasc ac_stat[CS_MAXPID];
@@ -85,6 +86,12 @@ int get_csidx() {
 	return 0; // main process
 }
 
+struct s_client * cur_client(void) 
+{
+	struct s_client *cl = (struct s_client *) pthread_getspecific(getclient);
+	return cl;
+}
+
 int cs_check_violation(uint ip) {
 	if (cfg->failbantime) {
 
@@ -100,8 +107,8 @@ int cs_check_violation(uint ip) {
 					llist_itr_remove(&itr);
 					return 0;
 				}
-				cs_debug("banned ip %u - %ld seconds left",
-						v_ban_entry->v_ip,(cfg->failbantime * 60) - (now - v_ban_entry->v_time));
+				cs_debug_mask(D_TRACE, "failban: banned ip %s - %ld seconds left",
+						cs_inet_ntoa(v_ban_entry->v_ip),(cfg->failbantime * 60) - (now - v_ban_entry->v_time));
 				return 1;
 			}
 			v_ban_entry = llist_itr_next(&itr);
@@ -121,7 +128,7 @@ void cs_add_violation(uint ip) {
 		V_BAN *v_ban_entry = llist_itr_init(cfg->v_list, &itr);
 		while (v_ban_entry) {
 			if (ip == v_ban_entry->v_ip) {
-				cs_debug("banned ip %u - already exist in list", v_ban_entry->v_ip);
+				cs_debug_mask(D_TRACE, "failban: banned ip %s - already exist in list", cs_inet_ntoa(v_ban_entry->v_ip));
 				return ;
 			}
 			v_ban_entry = llist_itr_next(&itr);
@@ -135,7 +142,7 @@ void cs_add_violation(uint ip) {
 
 		llist_append(cfg->v_list, v_ban_entry);
 
-		cs_debug("ban ip: %u timestamp: %d", v_ban_entry->v_ip, v_ban_entry->v_time);
+		cs_debug_mask(D_TRACE, "failban: ban ip %s with timestamp %d", cs_inet_ntoa(v_ban_entry->v_ip), v_ban_entry->v_time);
 
 	}
 }
@@ -282,13 +289,13 @@ static int idx_from_ip(in_addr_t ip, in_port_t port)
   return(idx);
 }
 
-int idx_from_pid(pid_t pid)
+struct s_client * idx_from_tid(unsigned long tid) //FIXME untested!! no longer pid in output...
 {
   int i, idx;
   for (i=0, idx=(-1); (i<CS_MAXPID) && (idx<0); i++)
-    if (client[i].pid==pid)
+    if (client[i].thread==tid)
       idx=i;
-  return(idx);
+  return &client[idx];
 }
 
 static long chk_caid(ushort caid, CAIDTAB *ctab)
@@ -346,7 +353,9 @@ static void cs_master_alarm()
 
 static void cs_sigpipe()
 {
-  cs_log("Got sigpipe signal -> captured");
+  //cs_log("Got sigpipe signal -> captured");
+  cs_log("Got sigpipe signal --> closing!");
+  cs_exit(1);
 }
 
 void cs_exit(int sig)
@@ -367,7 +376,7 @@ void cs_exit(int sig)
 	update_priority_config();
 #endif
 
-  struct s_client *cl = &client[cs_idx];
+  struct s_client *cl = cur_client();
   
   switch(cl->typ)
   {
@@ -444,7 +453,7 @@ void cs_reinit_clients()
 				if (!strcmp(client[i].usr, account->usr))
 					break;
 
-			if (account && client[i].pcrc == crc32(0L, MD5((uchar *)account->pwd, strlen(account->pwd), client[cs_idx].dump), 16)) {
+			if (account && client[i].pcrc == crc32(0L, MD5((uchar *)account->pwd, strlen(account->pwd), cur_client()->dump), 16)) {
 				client[i].grp		= account->grp;
 				client[i].au		= account->au;
 				client[i].autoau	= account->autoau;
@@ -643,6 +652,12 @@ static void init_shm()
   client[0].ip=cs_inet_addr("127.0.0.1");
   client[0].typ='s';
   client[0].au=(-1);
+  client[0].thread=pthread_self();
+  if (pthread_setspecific(getclient, &client[0])) {
+    fprintf(stderr, "Could not setspecific getclient in master process, exiting...");
+  exit(1);
+  }
+
 
   // get username master running under
   struct passwd *pwd;
@@ -839,7 +854,7 @@ static void start_thread(void * startroutine, char * nameroutine, char typ) {
 	client[o].ip=client[0].ip;
 	strcpy(client[o].usr, client[0].usr);
 
-	i=pthread_create(&client[o].thread, (pthread_attr_t *)0, startroutine, (void *) 0);
+	i=pthread_create(&client[o].thread, (pthread_attr_t *)0, startroutine, (void *) &client[o]);
 
 	if (i)
 		cs_log("ERROR: can't create %s thread (err=%d)", i, nameroutine);
@@ -873,10 +888,11 @@ void kill_thread(int cidx) {
 }
 
 #ifdef CS_ANTICASC
-void start_anticascader()
+void start_anticascader(struct s_client *cl)
 {
   set_signal_handler(SIGHUP, 1, ac_init_stat);
-
+	cl->thread = pthread_self();
+  pthread_setspecific(getclient, cl);
   ac_init_stat();
   while(1)
   {
@@ -1464,12 +1480,12 @@ static int cs_read_timer(int fd, uchar *buf, int l, int msec)
   tv.tv_sec = msec / 1000;
   tv.tv_usec = (msec % 1000) * 1000;
   FD_ZERO(&fds);
-  FD_SET(client[cs_idx].pfd, &fds);
+  FD_SET(cur_client()->pfd, &fds);
 
   select(fd+1, &fds, 0, 0, &tv);
 
   rc=0;
-  if (FD_ISSET(client[cs_idx].pfd, &fds))
+  if (FD_ISSET(cur_client()->pfd, &fds))
     if (!(rc=read(fd, buf, l)))
       rc=-1;
 
@@ -1481,28 +1497,28 @@ ECM_REQUEST *get_ecmtask()
 	int i, n;
 	ECM_REQUEST *er=0;
 
-	if (!client[cs_idx].ecmtask)
+	if (!cur_client()->ecmtask)
 	{
-		n=(ph[client[cs_idx].ctyp].multi)?CS_MAXPENDING:1;
-		if( (client[cs_idx].ecmtask=(ECM_REQUEST *)malloc(n*sizeof(ECM_REQUEST))) )
-			memset(client[cs_idx].ecmtask, 0, n*sizeof(ECM_REQUEST));
+		n=(ph[cur_client()->ctyp].multi)?CS_MAXPENDING:1;
+		if( (cur_client()->ecmtask=(ECM_REQUEST *)malloc(n*sizeof(ECM_REQUEST))) )
+			memset(cur_client()->ecmtask, 0, n*sizeof(ECM_REQUEST));
 	}
 
 	n=(-1);
-	if (!client[cs_idx].ecmtask)
+	if (!cur_client()->ecmtask)
 	{
 		cs_log("Cannot allocate memory (errno=%d)", errno);
 		n=(-2);
 	}
 	else
-		if (ph[client[cs_idx].ctyp].multi)
+		if (ph[cur_client()->ctyp].multi)
 		{
 			for (i=0; (n<0) && (i<CS_MAXPENDING); i++)
-				if (client[cs_idx].ecmtask[i].rc<100)
-					er=&client[cs_idx].ecmtask[n=i];
+				if (cur_client()->ecmtask[i].rc<100)
+					er=&cur_client()->ecmtask[n=i];
 		}
 		else
-			er=&client[cs_idx].ecmtask[n=0];
+			er=&cur_client()->ecmtask[n=0];
 
 	if (n<0)
 		cs_log("WARNING: ecm pending table overflow !");
@@ -1884,7 +1900,7 @@ void cs_betatunnel(ECM_REQUEST *er)
 	int n;
 	ulong mask_all = 0xFFFF;
 	TUNTAB *ttab;
-	ttab = &client[cs_idx].ttab;
+	ttab = &cur_client()->ttab;
 	for (n = 0; (n < CS_MAXTUNTAB); n++) {
 		if ((er->caid==ttab->bt_caidfrom[n]) && ((er->srvid==ttab->bt_srvid[n]) || (ttab->bt_srvid[n])==mask_all)) {
 			uchar hack_n3[13] = {0x70, 0x51, 0xc7, 0x00, 0x00, 0x00, 0x01, 0x10, 0x10, 0x00, 0x87, 0x12, 0x07};
@@ -1904,7 +1920,7 @@ void cs_betatunnel(ECM_REQUEST *er)
 			er->l += 10;
 			er->ecm[2] = er->l-3;
 			er->btun = 1;
-			client[cs_idx].cwtun++;
+			cur_client()->cwtun++;
 			cs_debug("ECM converted from: 0x%X to BetaCrypt: 0x%X for service id:0x%X",
 				ttab->bt_caidfrom[n], ttab->bt_caidto[n], ttab->bt_srvid[n]);
 		}
@@ -2011,7 +2027,7 @@ void recv_best_reader(ECM_REQUEST *er, int *reader_avail)
 	grs.cidx = cs_idx;
 	memcpy(grs.ecmd5, er->ecmd5, sizeof(er->ecmd5));
 	memcpy(grs.reader_avail, reader_avail, sizeof(int)*CS_MAXREADER);
-	cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X", username(&client[cs_idx]), grs.caid, grs.prid, grs.srvid);
+	cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X", username(cur_client()), grs.caid, grs.prid, grs.srvid);
 
         get_best_reader(&grs, reader_avail);
 }
@@ -2240,7 +2256,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 void log_emm_request(int auidx)
 {
 	cs_log("%s emm-request sent (reader=%s, caid=%04X, auprovid=%06lX)",
-			username(&client[cs_idx]), reader[auidx].label, reader[auidx].caid[0],
+			username(cur_client()), reader[auidx].label, reader[auidx].caid[0],
 			reader[auidx].auprovid ? reader[auidx].auprovid : b2i(4, reader[auidx].prid[0]));
 }
 
@@ -2405,7 +2421,7 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 	cs_ftime(&tpn);
 	tpe=tp_ctimeout;    // latest delay -> disconnect
 
-	struct s_client *cl = &client[cs_idx];
+	struct s_client *cl = cur_client();
 
 	if (cl->ecmtask)
 		i=(ph[cl->ctyp].multi)?CS_MAXPENDING:1;
@@ -2517,7 +2533,7 @@ int process_input(uchar *buf, int l, int timeout)
 	fd_set fds;
 	struct timeb tp;
 
-	struct s_client *cl = &client[cs_idx];
+	struct s_client *cl = cur_client();
 
 	cs_ftime(&tp);
 	tp.time+=timeout;
@@ -2579,6 +2595,9 @@ static void process_master_pipe(int mfdr)
     case PIP_ID_KCL: //Kill all clients
     	restart_clients();
     	break;
+    case PIP_ID_ERR: 
+        cs_exit(1); //better than reading from dead pipe!
+        break;
     default:
        cs_log("unhandled pipe message %d (master pipe)", n);
        break;
@@ -2604,6 +2623,9 @@ int process_client_pipe(struct s_client *cl, uchar *buf, int l) {
 			if (n+3<=l) {
 				memcpy(buf, ptr, n+3);
 			}
+			break;
+		case PIP_ID_ERR:
+			cs_exit(1);
 			break;
 		default:
 			cs_log("unhandled pipe message %d (client %s)", pipeCmd, cl->usr);
@@ -2781,6 +2803,11 @@ char * get_tmp_dir()
                                                                             
 int main (int argc, char *argv[])
 {
+
+if (pthread_key_create(&getclient, NULL)) {
+  fprintf(stderr, "Could not create getclient, exiting...");
+  exit(1);
+}
 
 #ifdef CS_LED
   cs_switch_led(LED1A, LED_DEFAULT);
