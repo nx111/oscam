@@ -849,8 +849,6 @@ static void start_thread(void * startroutine, char * nameroutine, char typ) {
 	if (o<0) return;
 
 	client[o].typ=typ; //'h' or 'a'
-	client[o].is_server=0;
-
 	client[o].ip=client[0].ip;
 	strcpy(client[o].usr, client[0].usr);
 
@@ -952,7 +950,6 @@ void restart_cardreader(int reader_idx, int restart) {
 		reader[reader_idx].client=&client[i];
 
 		client[i].typ='r';
-		client[i].is_server=0;
 		//client[i].ctyp=99;
 		pthread_create(&client[i].thread, NULL, start_cardreader, (void *)&reader[reader_idx]);
 		pthread_detach(client[i].thread);
@@ -2701,8 +2698,6 @@ int accept_connection(int i, int j) {
 				o=cs_fork(cs_inet_order(cad.sin_addr.s_addr));
 				if (o<0) return 0;
 
-				client[o].is_server=1;
-
 				client[o].ctyp=i;
 				client[o].port_idx=j;
 				client[o].udp_fd=ph[i].ptab->ports[j].fd;
@@ -2736,8 +2731,6 @@ int accept_connection(int i, int j) {
 			client[o].port_idx=j;
 
 			client[o].pfd=pfd3;
-
-			client[o].is_server=1;
 
 			client[o].ip=cs_inet_order(cad.sin_addr.s_addr);
 			client[o].port=ntohs(cad.sin_port);
