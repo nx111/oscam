@@ -75,7 +75,7 @@ static void casc_check_dcw(struct s_reader * reader, int idx, int rc, uchar *cw)
       }
       else
         cur_client()->ecmtask[i].rc=0;    
-      write_ecm_answer(reader, client[0].fd_m2c, &cur_client()->ecmtask[i]);
+      write_ecm_answer(reader, &cur_client()->ecmtask[i]);
       cur_client()->ecmtask[i].idx=0;
     }
   }
@@ -86,7 +86,7 @@ int casc_recv_timer(struct s_reader * reader, uchar *buf, int l, int msec)
   struct timeval tv;
   fd_set fds;
   int rc;
-  struct s_client *cl = &client[reader->cidx];
+  struct s_client *cl = reader->client;
 
   if (!cl->pfd) return(-1);
   tv.tv_sec = msec/1000;
@@ -296,7 +296,7 @@ static void casc_do_sock(struct s_reader * reader, int w)
   int i, n, idx, rc, j;
   uchar buf[1024];
   uchar dcw[16];
-  struct s_client *cl = &client[reader->cidx]; 
+  struct s_client *cl = reader->client; 
 
   if ((n=casc_recv_timer(reader, buf, sizeof(buf), w))<=0)
   {
@@ -441,7 +441,7 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
   //cs_log("hallo idx:%d rc:%d caid:%04X",er->idx,er->rc,er->caid);
   if ((er->rc<10) )
     {
-      send_dcw(&client[reader->cidx], er);
+      send_dcw(reader->client, er);
       return;
     }
   
@@ -451,14 +451,14 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
     cs_debug("caid %04X filtered", er->caid);
     er->rcEx=E2_CAID;
     er->rc=0;
-    write_ecm_answer(reader, client[0].fd_m2c, er);
+    write_ecm_answer(reader, er);
     return;
   }
   // cache2
-  if (check_ecmcache2(er, client[er->cidx].grp))
+  if (check_ecmcache2(er, er->client->grp))
   {
     er->rc=2;
-    write_ecm_answer(reader, client[0].fd_m2c, er);
+    write_ecm_answer(reader, er);
     return;
   }
   if (reader->typ & R_IS_CASCADING)
@@ -497,7 +497,7 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
 		int clcw;
 		for (clcw=0;clcw<16;clcw++) er->cw[clcw]=(uchar)0;
 		snprintf( er->msglog, MSGLOGSIZE, "ECMratelimit no space for srvid" );
-		write_ecm_answer(reader, client[0].fd_m2c, er);
+		write_ecm_answer(reader, er);
 		return;
 	} else {
 		reader->rlecmh[foundspace].last=time(NULL);
@@ -508,7 +508,7 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
   cs_ddump_mask(D_ATR, er->ecm, er->l, "ecm:");
   er->msglog[0] = 0;
   er->rc=reader_ecm(reader, er);
-  write_ecm_answer(reader, client[0].fd_m2c, er);
+  write_ecm_answer(reader, er);
   reader_post_process(reader);
 #endif
   //fixme re-activated code for testing
@@ -575,8 +575,8 @@ static int reader_do_emm(struct s_reader * reader, EMM_PACKET *ep)
     cs_ftime(&tpe);
 
     cs_log("%s emmtype=%s, len=%d, idx=%d, cnt=%d: %s (%d ms) by %s",
-           username(&client[ep->cidx]), typedesc[cur_client()->emmcache[i].type], ep->emm[2],
-           i, no, rtxt[rc], 1000*(tpe.time-tps.time)+tpe.millitm-tps.millitm, reader->label);
+           username(ep->client), typedesc[cur_client()->emmcache[i].type], ep->emm[2],
+           i, no, rtxt[rc], 1000*(tpe.time-tps.time)+tpe.millitm-tps.millitm, reader->label); //FIXME not sure why emmtyp must come from ep->client and typedesc can be of cur_client
   }
 
 #ifdef WEBIF
@@ -739,7 +739,7 @@ static void reader_main(struct s_reader * reader)
 {
   while (1)
   {
-    switch(reader_listen(reader, client[reader->cidx].fd_m2c_c, cur_client()->pfd))
+    switch(reader_listen(reader, reader->client->fd_m2c_c, cur_client()->pfd))
     {
       case 0: reader_do_idle(reader); break;
       case 1: reader_do_pipe(reader)  ; break;
@@ -753,8 +753,8 @@ void * start_cardreader(void * rdr)
 {
 	struct s_reader * reader = (struct s_reader *) rdr; //FIXME can be made simpler
 
-	client[reader->cidx].thread=pthread_self();
-	pthread_setspecific(getclient, &client[reader->cidx]);
+	reader->client->thread=pthread_self();
+	pthread_setspecific(getclient, reader->client);
 	cur_client()->cs_ptyp=D_READER;
 
   if (reader->typ & R_IS_CASCADING)

@@ -1670,7 +1670,7 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 			char *provider = "";
 
 			struct cc_card *card;
-			struct s_client *rc = &client[reader[ridx].cidx];
+			struct s_client *rc = reader[ridx].client;
 			struct cc_data *rcc = rc->cc;
 
 			if (rcc && reader[ridx].tcp_connected == 2 && rcc->cards) {
@@ -1679,7 +1679,7 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 				LLIST_ITR itr;
 				card = llist_itr_init(rcc->cards, &itr);
 				while (card) {
-					char *node_str = malloc(llist_count(card->remote_nodes)*16+2);
+					char *node_str = malloc(llist_count(card->remote_nodes)*(16+2));
 					char *node_ptr = node_str;
 					LLIST_ITR nitr;
 					uint8 *node = llist_itr_init(card->remote_nodes, &nitr);

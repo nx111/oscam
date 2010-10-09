@@ -412,7 +412,7 @@ void cs_exit(int sig)
 	}
 
 	// this is very important - do not remove
-	if (cs_idx>0) {
+	if (cl->typ != 's') {
 		if(cl->ecmtask) 	free(cl->ecmtask);
 		if(cl->emmcache) 	free(cl->emmcache);
 		if(cl->req) 		free(cl->req);
@@ -422,7 +422,7 @@ void cs_exit(int sig)
 		if(cl->fd_m2c_c)	close(cl->fd_m2c_c); //Closing client read fd
 		if(cl->fd_m2c)	close(cl->fd_m2c); //Closing client read fd
 
-		cs_log("thread %d ended!", cs_idx);
+		cs_log("thread %08lX ended!", pthread_self());
 		cl->pid=0;
 
 		pthread_exit(NULL);
@@ -862,7 +862,7 @@ static void start_thread(void * startroutine, char * nameroutine, char typ) {
 void kill_thread(int cidx) {
 
 	if (client[cidx].pid==0) return;
-	if (cs_idx==cidx) return; //cant kill yourself
+	if (pthread_equal(client[cidx].thread, pthread_self())) return; //cant kill yourself
 
 	pthread_cancel(client[cidx].thread);
 
@@ -937,14 +937,14 @@ void restart_cardreader(int reader_idx, int restart) {
 
 		reader[reader_idx].fd=client[i].fd_m2c;
 		client[i].ridx=reader_idx;
-		cs_log("creating thread for device %s slot %i with ridx %i cs_idx %i", reader[reader_idx].device, reader[reader_idx].slot, reader_idx, i);
+		cs_log("creating thread for device %s slot %i with ridx %i", reader[reader_idx].device, reader[reader_idx].slot, reader_idx);
              	
 		client[i].sidtabok=reader[reader_idx].sidtabok;
 		client[i].sidtabno=reader[reader_idx].sidtabno;
    
 		reader[reader_idx].pid=getpid();
 
-		reader[reader_idx].cidx=i;
+		reader[reader_idx].client=&client[i];
 
 		client[i].typ='r';
 		client[i].is_server=0;
@@ -1010,13 +1010,13 @@ static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr
 			{
 				client[i].dup = 1;
 				client[i].au = -1;
-				cs_log("client(%d) duplicate user '%s' from %s set to fake (uniq=%d)", i, usr, cs_inet_ntoa(ip), uniq);
+				cs_log("client(%08lX) duplicate user '%s' from %s set to fake (uniq=%d)", client[i].thread, usr, cs_inet_ntoa(ip), uniq);
 			}
 			else
 			{
 				client->dup = 1;
 				client->au = -1;
-				cs_log("client(%d) duplicate user '%s' from %s set to fake (uniq=%d)", cs_idx, usr, cs_inet_ntoa(ip), uniq);
+				cs_log("client(%08lX) duplicate user '%s' from %s set to fake (uniq=%d)", pthread_self(), usr, cs_inet_ntoa(ip), uniq);
 				break;
 			}
 
@@ -1273,7 +1273,7 @@ int write_to_pipe(int fd, int id, uchar *data, int n)
 		return -1;
 	}
 
-	cs_debug("write to pipe %d (%s) cs_idx: %d to %d", fd, PIP_ID_TXT[id], cs_idx, get_thread_by_pipefd(fd));
+	cs_debug("write to pipe %d (%s) thread: %08lX to %d", fd, PIP_ID_TXT[id], pthread_self(), get_thread_by_pipefd(fd));
 
 	uchar buf[3+sizeof(void*)];
 
@@ -1328,7 +1328,7 @@ int read_from_pipe(int fd, uchar **data, int redir)
 	memcpy(id, buf, 3);
 	id[3]='\0';
 
-	cs_debug("read from pipe %d (%s) cs_idx: %d", fd, id, cs_idx);
+	cs_debug("read from pipe %d (%s) thread: %08lX", fd, id, pthread_self());
 
 	int l;
 	for (l=0; (rc<0) && (PIP_ID_TXT[l]); l++)
@@ -1426,7 +1426,7 @@ void logCWtoFile(ECM_REQUEST *er)
 	fclose(pfCWL);
 }
 
-int write_ecm_answer(struct s_reader * reader, int fd, ECM_REQUEST *er)
+int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
 {
   int i;
   uchar c;
@@ -1440,7 +1440,7 @@ int write_ecm_answer(struct s_reader * reader, int fd, ECM_REQUEST *er)
     }
   }
 
-  er->reader[0]=client[reader->cidx].ridx;
+  er->reader[0]=reader->client->ridx;
 //cs_log("answer from reader %d (rc=%d)", er->reader[0], er->rc);
   er->caid=er->ocaid;
 
@@ -1456,12 +1456,11 @@ int write_ecm_answer(struct s_reader * reader, int fd, ECM_REQUEST *er)
     logCWtoFile(er);
   }
 
-  if( er->cidx && client[er->cidx].fd_m2c ) {
+  if( er->client && er->client->fd_m2c )
 	//fixme
-	fd=client[er->cidx].fd_m2c;
-  }
-
-  return(write_ecm_request(fd, er));
+    return(write_ecm_request(er->client->fd_m2c, er));
+  else
+    return(write_ecm_request(client[0].fd_m2c, er)); //does this ever happen?
 }
 
   /*
@@ -1522,7 +1521,7 @@ ECM_REQUEST *get_ecmtask()
 		memset(er, 0, sizeof(ECM_REQUEST));
 		er->rc=100;
 		er->cpti=n;
-		er->cidx=cs_idx;
+		er->client=cur_client();
 		cs_ftime(&er->tps);
 	}
 	return(er);
@@ -2019,7 +2018,7 @@ void recv_best_reader(ECM_REQUEST *er, int *reader_avail)
 	grs.caid = er->caid;
 	grs.prid = er->prid;
 	grs.srvid = er->srvid;
-	grs.cidx = cs_idx;
+	grs.client = cur_client();
 	memcpy(grs.ecmd5, er->ecmd5, sizeof(er->ecmd5));
 	memcpy(grs.reader_avail, reader_avail, sizeof(int)*CS_MAXREADER);
 	cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X", username(cur_client()), grs.caid, grs.prid, grs.srvid);
@@ -2141,7 +2140,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 
 				case 2:
 					// invalid (srvid)
-					if (!chk_srvid(er, cs_idx))
+					if (!chk_srvid(client, er))
 					{
 						er->rc = 8;
 					    snprintf( er->msglog, MSGLOGSIZE, "invalid SID" );
@@ -2392,7 +2391,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 		}
 		client->emmok++;
 	}
-	ep->cidx = cs_idx;
+	ep->client = cur_client();
 	cs_debug_mask(D_EMM, "emm is being sent to reader %s.", reader[au].label);
 	write_to_pipe(reader[au].fd, PIP_ID_EMM, (uchar *) ep, sizeof(EMM_PACKET));
 }
