@@ -455,23 +455,17 @@ void dvbapi_stop_descrambling(int demux_id) {
 
 void dvbapi_start_descrambling(int demux_id) {
 	int i;
-	int j,k,l=0;
-	unsigned char ar[8];
+	int j,k;
+	
 	cs_log("Start descrambling PID #%d (CAID: %04X)", demux[demux_id].curindex, demux[demux_id].ECMpids[demux[demux_id].curindex].CAID);
 
 	i=demux[demux_id].curindex;
 	demux[demux_id].pidindex=i;
-	if (demux[demux_id].ECMpids[i].sflag == 0) ar[l++]=i;
-	else 
-	{
-		for (j=0; j<demux[demux_id].ECMpidcount; j++)
-			if (demux[demux_id].ECMpids[j].checked>0 && demux[demux_id].ECMpids[i].CAID == demux[demux_id].ECMpids[j].CAID && demux[demux_id].ECMpids[i].PROVID == demux[demux_id].ECMpids[j].PROVID ) ar[l++]=j;
-	}
-	for (i=0;i<l;i++)
-		for (j=0; j<demux[demux_id].ECMpids[ar[i]].slen; j++)
-			if (demux[demux_id].ECMpids[ar[i]].stream[j]!=(char)-1) dvbapi_set_pid(demux_id, demux[demux_id].ECMpids[ar[i]].stream[j],demux[demux_id].ECMpids[ar[i]].index);
-			else for (k=0;k<demux[demux_id].STREAMpidcount;k++) dvbapi_set_pid(demux_id, k,demux[demux_id].ECMpids[ar[i]].index);
-
+	if (demux[demux_id].ECMpids[i].sflag == 0) 	for (k=0;k<demux[demux_id].STREAMpidcount;k++) dvbapi_set_pid(demux_id, k,demux[demux_id].ECMpids[i].index);
+	else for (j=0; j<demux[demux_id].ECMpidcount; j++)
+			if (demux[demux_id].ECMpids[j].checked>0 && demux[demux_id].ECMpids[i].CAID == demux[demux_id].ECMpids[j].CAID && demux[demux_id].ECMpids[i].PROVID == demux[demux_id].ECMpids[j].PROVID ) 
+				for (k=0; k<demux[demux_id].ECMpids[j].slen; k++)	 dvbapi_set_pid(demux_id, demux[demux_id].ECMpids[j].stream[k],demux[demux_id].ECMpids[j].index);
+			
 	if (cfg->dvbapi_au==1)
 		dvbapi_start_filter(demux_id, demux[demux_id].pidindex, 0x001, 0x01, 0xFF, 0, TYPE_EMM); //CAT
 }
@@ -523,14 +517,18 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 					if (buffer[3] == 0x90 && buffer[4] == 0x03) {
 						provid = buffer[5] << 16 | buffer[6] << 8 | (buffer[7] & 0xFE);
 					}
-					else // we should get there but just to make sure we're not sending crap.
+					else // we should never get there but just to make sure we're not sending crap.
 					   provid=0;
 					break;
 
 				case 0x8a:
 				case 0x8b:
 					// emm-g
-					return;
+					if (buffer[3] == 0x90 && buffer[4] == 0x03) {
+						provid = buffer[5] << 16 | buffer[6] << 8 | (buffer[7] & 0xFE);
+					}
+					else // we should never get there but just to make sure we're not sending crap.
+					   provid=0;
 					break;
                     
 				case 0x8c:
@@ -566,7 +564,7 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 					if (emm_global[3] == 0x90 && emm_global[4] == 0x03) {
 						provid = emm_global[5] << 16 | emm_global[6] << 8 | (emm_global[7] & 0xFE);
 					}
-					else // we should get there but just to make sure we're not sending crap.
+					else // we should never get there but just to make sure we're not sending crap.
 					   provid=0;
 					   
 					memcpy(emmbuf, buffer, 7);
@@ -613,15 +611,17 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 			if (len>500) return;
 			switch (buffer[0]) {
 				case 0x84:
-				    cs_log("cryptoworks shared emm (EMM-SH): %s" , cs_hexdump(1, buffer, len));
+				    // cs_log("cryptoworks shared emm (EMM-SH): %s" , cs_hexdump(1, buffer, len));
 					if (!memcmp(emm_global, buffer, len)) return;
 					//cs_log("provider %06X - %02X", provider , buffer[7]);
 					memcpy(emm_global, buffer, len);
 					emm_global_len=len;
 					return;
 				case 0x86:
-				    cs_log("cryptoworks shared emm (EMM-SB): %s" , cs_hexdump(1, buffer, len));
 					if (!emm_global_len) return;
+
+				    // cs_log("cryptoworks shared emm (EMM-SB): %s" , cs_hexdump(1, buffer, len));
+					// not sure about this one, need more doc.
                     provid=buffer[7];
                     
 					// we keep the first 12 bytes of the 0x84 emm (EMM-SH)
@@ -651,10 +651,10 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 				    free(tmp);
 				    free(assembled_EMM);
 				    emm_global_len=0;
-				    cs_log("cryptoworks shared emm (assembled): %s" , cs_hexdump(1, buffer, emm_len+12));
+				    // cs_log("cryptoworks shared emm (assembled): %s" , cs_hexdump(1, buffer, emm_len+12));
                     if(assembled_EMM[11]!=emm_len) { // sanity check
                         // error in emm assembly
-                        cs_log("Error assembling Cryptoworks EMM-S");
+                        // cs_log("Error assembling Cryptoworks EMM-S");
                         return;
                     }
 
@@ -668,8 +668,13 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 
 	memset(&epg, 0, sizeof(epg));
 
-	memcpy(&epg.caid, &demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID, 2);
-	memcpy(&epg.provid, &provid, 4);
+	epg.caid[0] = (uchar)(demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID>>8); 
+	epg.caid[1] = (uchar)(demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID); 
+
+	epg.provid[0] = (uchar)(provid>>24); 
+	epg.provid[1] = (uchar)(provid>>16); 
+	epg.provid[2] = (uchar)(provid>>8); 
+	epg.provid[3] = (uchar)(provid); 
 
 	epg.l=len;
 	memcpy(epg.emm, buffer, epg.l);

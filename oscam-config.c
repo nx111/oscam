@@ -1748,6 +1748,15 @@ void chk_account(char *token, char *value, struct s_auth *account)
 		return;
 	}
 
+	if (!strcmp(token, "failban")) {
+		if(strlen(value) == 0) {
+			account->failban = 0;
+			return;
+		} else {
+			account->failban = atoi(value);
+			return;
+		}
+	}
 
 #ifdef CS_ANTICASC
 	if( !strcmp(token, "numusers") ) {
@@ -2367,6 +2376,9 @@ int write_userdb(struct s_auth *authptr)
 
 		if (account->c35_sleepsend)
 			fprintf_conf(f, CONFVARWIDTH, "sleepsend", "%d\n", account->c35_sleepsend);
+
+		if (account->failban)
+			fprintf_conf(f, CONFVARWIDTH, "failban", "%d\n", account->failban);
 
 		fprintf_conf(f, CONFVARWIDTH, "keepalive", "%d\n", account->ncd_keepalive);
 
