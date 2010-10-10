@@ -140,8 +140,8 @@
 #define CS_ECMCACHESIZE   CS_MAXPID
 #define CS_EMMCACHESIZE   (CS_MAXPID<<1)
 #else
-#define CS_MAXPID   512
-#define CS_MAXREADER    (CS_MAXPID>>2)
+#define CS_MAXPID   2048
+#define CS_MAXREADER    128
 #define CS_MAXPENDING   (CS_MAXPID<<1)
 #define CS_ECMCACHESIZE   CS_MAXPID
 #define CS_EMMCACHESIZE   (CS_MAXPID<<1)
@@ -632,6 +632,7 @@ struct s_client
 
   //failban value set bitwise - compared with BAN_
   int failban;
+  struct s_client *next; //make client a linked list
 };
 
 
@@ -742,8 +743,6 @@ struct s_reader  //contains device info, reader info and card info
   char      cc_build[5];    // cccam build number
   int       cc_maxhop;      // cccam max distance
   int       cc_currenthops; // number of hops for CCCam
-  int       cc_disable_retry_ecm; //Schlocke
-  int       cc_disable_auto_block; //Schlocke
   int       cc_want_emu; //Schlocke: Client want to have EMUs, 0 - NO; 1 - YES
   uint32    cc_id;
   int       cc_keepalive;
@@ -1206,9 +1205,9 @@ extern uchar fast_rnd(void);
 extern void init_rnd(void);
 
 extern int get_csidx();
-#define cs_idx		get_csidx()
 extern pthread_key_t getclient;
 extern struct s_client * cur_client(void);
+extern struct s_client *first_client;
 
 // oscam variables
 
@@ -1241,7 +1240,7 @@ extern char* username(struct s_client *);
 extern struct s_client * idx_from_tid(unsigned long);
 extern int chk_bcaid(ECM_REQUEST *, CAIDTAB *);
 extern void cs_exit(int sig);
-extern int cs_fork(in_addr_t);
+extern struct s_client * cs_fork(in_addr_t);
 extern int cs_auth_client(struct s_client *, struct s_auth *, const char*);
 extern void cs_disconnect_client(struct s_client *);
 extern int check_ecmcache1(ECM_REQUEST *, ulong);
@@ -1281,7 +1280,8 @@ extern void clear_reader_stat(int ridx);
 extern int chk_ctab(ushort caid, CAIDTAB *ctab);
 extern int chk_srvid_match_by_caid_prov(ushort caid, ulong provid, SIDTAB *sidtab);
 extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid);
-extern void kill_thread(int cidx);
+extern void kill_thread(struct s_client *cl);
+extern int get_threadnum(struct s_client *client);
                  
 #ifdef CS_ANTICASC
 //extern void start_anticascader(void);

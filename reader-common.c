@@ -273,20 +273,14 @@ static int reader_reset(struct s_reader * reader)
     }
   } else {
 #endif
-  int i;
   unsigned short int deprecated;
-	for (i = 0; i < 4; i++) {
-		cs_log("Card activation attempt %d...", i+1);
-		for (deprecated = reader->deprecated; deprecated < 2; deprecated++) {
-			if (!reader_activate_card(reader, &atr, deprecated)) return(0);
-			ret = reader_get_cardsystem(reader, atr);
-			if (ret)
-				break;
-			if (!deprecated)
-				cs_log("Normal mode failed, reverting to Deprecated Mode");
-		}
+	for (deprecated = reader->deprecated; deprecated < 2; deprecated++) {
+		if (!reader_activate_card(reader, &atr, deprecated)) return(0);
+		ret = reader_get_cardsystem(reader, atr);
 		if (ret)
 			break;
+		if (!deprecated)
+			cs_log("Normal mode failed, reverting to Deprecated Mode");
 	}
 #ifdef AZBOX
   }
@@ -337,13 +331,6 @@ int reader_checkhealth(struct s_reader * reader)
         cur_client()->au = cur_client()->ridx;
         reader_card_info(reader);
         reader->card_status = CARD_INSERTED;
-      }
-
-      int i;
-      for( i=1; i<CS_MAXPID; i++ ) {
-        if( client[i].pid && client[i].typ=='c' && client[i].usr[0] && ph[client[i].ctyp].type & MOD_CONN_NET) {
-          //kill(client[i].pid, SIGQUIT);
-        }
       }
     }
   }

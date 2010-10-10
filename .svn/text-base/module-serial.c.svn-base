@@ -902,23 +902,21 @@ void * init_oscam_ser(int ctyp)
 		*p = 0;
 		if ((!p + 1) || (!(p + 1)[0])) return NULL;
 		if (!oscam_ser_parse_url(p + 1)) return NULL;
-		int i=cs_fork(0);
-		client[i].typ='c';
-		client[i].ip=0;
-		client[i].ctyp=ctyp;
-		pthread_create(&client[i].thread, NULL, oscam_ser_fork, (void *) p + 1); //FIXME value of p does not survive thread
-		pthread_detach(client[i].thread);
+		struct s_client *cl=cs_fork(0);
+		cl->typ='c';
+		cl->ctyp=ctyp;
+		pthread_create(&cl->thread, NULL, oscam_ser_fork, (void *) p + 1); //FIXME value of p does not survive thread
+		pthread_detach(cl->thread);
 	}
 
 	if (!sdevice[0]) return NULL;
 	if (!oscam_ser_parse_url(sdevice)) return NULL;
 
-	int i=cs_fork(0);
-	client[i].typ='c';
-	client[i].ip=0;
-	client[i].ctyp=ctyp;
-	pthread_create(&client[i].thread, NULL, oscam_ser_fork, (void *) sdevice);
-	pthread_detach(client[i].thread);
+	struct s_client *cl=cs_fork(0);
+	cl->typ='c';
+	cl->ctyp=ctyp;
+	pthread_create(&cl->thread, NULL, oscam_ser_fork, (void *) sdevice);
+	pthread_detach(cl->thread);
 	return NULL;
 }
 
@@ -1020,6 +1018,7 @@ static void oscam_ser_process_dcw(uchar *dcw, int *rc, uchar *buf, int l)
 
 static int oscam_ser_recv_chk(struct s_client *client, uchar *dcw, int *rc, uchar *buf, int n)
 {
+  *client = *client; //prevent compiler message
   *rc=(-1);
   switch (buf[0]>>4)
   {

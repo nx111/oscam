@@ -18,7 +18,7 @@ extern void cs_statistics(struct s_client * client);
 *****************************************************************************/
 struct s_module ph[CS_MAX_MOD]; // Protocols
 struct s_cardsystem cardsystem[CS_MAX_MOD]; // Protocols
-
+struct s_client * first_client = NULL; //Pointer to clients list, first client is master
 ushort  len4caid[256];    // table for guessing caid (by len)
 char  cs_confdir[128]=CS_CONFDIR;
 int cs_dblevel=0;   // Debug Level (TODO !!)
@@ -74,15 +74,26 @@ static const int  shmsize =  CS_ECMCACHESIZE*(sizeof(struct s_ecm)) +
 char  cs_memfile[128]=CS_MMAPFILE;
 #endif
 
+int get_threadnum(struct s_client *client) {
+	struct s_client *prev, *cl;
+	int count=0;
+
+	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next) {
+		if (cl->typ==client->typ)
+			count++;
+		if(cl==client)
+			return count;
+	}
+	return 0;
+}
+
 int get_csidx() {
 	int i;
+	struct s_client *prev, *cl;
 
-	for (i=1; i<CS_MAXPID; i++) {
-		if (pthread_equal(client[i].thread, pthread_self())) {
+	for (prev=first_client, cl=first_client->next, i=1; prev->next != NULL; prev=prev->next, cl=cl->next, i++)
+		if (pthread_equal(cl->thread, pthread_self()))
 			return i;
-		}
-	}
-	
 	return 0; // main process
 }
 
@@ -150,7 +161,6 @@ void cs_add_violation(uint ip) {
 /*****************************************************************************
         Statics
 *****************************************************************************/
-static  int cs_last_idx=0;    // client index of last fork (master only)
 static const char *logo = "  ___  ____   ___                \n / _ \\/ ___| / __|__ _ _ __ ___  \n| | | \\___ \\| |  / _` | '_ ` _ \\ \n| |_| |___) | |_| (_| | | | | | |\n \\___/|____/ \\___\\__,_|_| |_| |_|\n";
 
 static void usage()
@@ -280,22 +290,22 @@ char *username(struct s_client * client)
     return("anonymous");
 }
 
-static int idx_from_ip(in_addr_t ip, in_port_t port)
+static struct s_client * idx_from_ip(in_addr_t ip, in_port_t port) //warning: does not search master process!!!
 {
-  int i, idx;
-  for (i=idx=0; (i<CS_MAXPID) && (!idx); i++)
-    if (client[i].pid && (client[i].ip==ip) && (client[i].port==port) && ((client[i].typ=='c') || (client[i].typ=='m')))
-      idx=i;
-  return(idx);
+  struct s_client *prev, *cl; 
+  for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
+    if (cl->pid && (cl->ip==ip) && (cl->port==port) && ((cl->typ=='c') || (cl->typ=='m')))
+      return cl;
+  return NULL;
 }
 
 struct s_client * idx_from_tid(unsigned long tid) //FIXME untested!! no longer pid in output...
 {
-  int i, idx;
-  for (i=0, idx=(-1); (i<CS_MAXPID) && (idx<0); i++)
-    if (client[i].thread==tid)
-      idx=i;
-  return &client[idx];
+  struct s_client *prev, *cl; 
+  for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next) //warning does not search master process!!!
+    if (cl->thread==tid)
+      return cl;
+  return NULL;
 }
 
 static long chk_caid(ushort caid, CAIDTAB *ctab)
@@ -358,6 +368,15 @@ static void cs_sigpipe()
   cs_exit(1);
 }
 
+void nullclose(int *fd)
+{
+	//if closing an already closed pipe, we get a sigpipe signal, and this causes a cs_exit
+	//and this causes a close and this causes a sigpipe...and so on
+	int f = *fd;
+	*fd = 0; //so first null client-fd
+	close(f); //then close fd
+}
+
 void cs_exit(int sig)
 {
 	set_signal_handler(SIGCHLD, 1, SIG_IGN);
@@ -418,9 +437,9 @@ void cs_exit(int sig)
 		if(cl->req) 		free(cl->req);
 		if(cl->cc) 		free(cl->cc);
 
-		if(cl->pfd)		close(cl->pfd); //Closing Network socket
-		if(cl->fd_m2c_c)	close(cl->fd_m2c_c); //Closing client read fd
-		if(cl->fd_m2c)	close(cl->fd_m2c); //Closing client read fd
+		if(cl->pfd)		nullclose(&cl->pfd); //Closing Network socket
+		if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
+		if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
 
 		cs_log("thread %08lX ended!", pthread_self());
 		cl->pid=0;
@@ -439,51 +458,51 @@ void cs_exit(int sig)
 
 void cs_reinit_clients()
 {
-	int i;
 	struct s_auth *account;
 
-	for( i = 1; i < CS_MAXPID; i++ )
-		if( client[i].pid && client[i].typ == 'c' && client[i].usr[0] ) {
+	struct s_client *prev, *cl;
+	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
+		if( cl->pid && cl->typ == 'c' && cl->usr[0] ) {
 			for (account = cfg->account; (account) ; account = account->next)
-				if (!strcmp(client[i].usr, account->usr))
+				if (!strcmp(cl->usr, account->usr))
 					break;
 
-			if (account && client[i].pcrc == crc32(0L, MD5((uchar *)account->pwd, strlen(account->pwd), cur_client()->dump), 16)) {
-				client[i].grp		= account->grp;
-				client[i].au		= account->au;
-				client[i].autoau	= account->autoau;
-				client[i].expirationdate = account->expirationdate;
-				client[i].allowedtimeframe[0] = account->allowedtimeframe[0];
-				client[i].allowedtimeframe[1] = account->allowedtimeframe[1];
-				client[i].ncd_keepalive = account->ncd_keepalive;
-				client[i].c35_suppresscmd08 = account->c35_suppresscmd08;
-				client[i].tosleep	= (60*account->tosleep);
-				client[i].c35_sleepsend = account->c35_sleepsend;
-				client[i].monlvl	= account->monlvl;
-				client[i].disabled	= account->disabled;
-				client[i].fchid		= account->fchid;  // CHID filters
-				client[i].cltab		= account->cltab;  // Class
+			if (account && cl->pcrc == crc32(0L, MD5((uchar *)account->pwd, strlen(account->pwd), cur_client()->dump), 16)) {
+				cl->grp		= account->grp;
+				cl->au		= account->au;
+				cl->autoau	= account->autoau;
+				cl->expirationdate = account->expirationdate;
+				cl->allowedtimeframe[0] = account->allowedtimeframe[0];
+				cl->allowedtimeframe[1] = account->allowedtimeframe[1];
+				cl->ncd_keepalive = account->ncd_keepalive;
+				cl->c35_suppresscmd08 = account->c35_suppresscmd08;
+				cl->tosleep	= (60*account->tosleep);
+				cl->c35_sleepsend = account->c35_sleepsend;
+				cl->monlvl	= account->monlvl;
+				cl->disabled	= account->disabled;
+				cl->fchid		= account->fchid;  // CHID filters
+				cl->cltab		= account->cltab;  // Class
 
 				// newcamd module dosent like ident reloading
-				if(!client[i].ncd_server)
-					client[i].ftab	= account->ftab;   // Ident
+				if(!cl->ncd_server)
+					cl->ftab	= account->ftab;   // Ident
 
-				client[i].sidtabok	= account->sidtabok;   // services
-				client[i].sidtabno	= account->sidtabno;   // services
-				client[i].failban	= account->failban;
+				cl->sidtabok	= account->sidtabok;   // services
+				cl->sidtabno	= account->sidtabno;   // services
+				cl->failban	= account->failban;
 
-				memcpy(&client[i].ctab, &account->ctab, sizeof(client[i].ctab));
-				memcpy(&client[i].ttab, &account->ttab, sizeof(client[i].ttab));
+				memcpy(&cl->ctab, &account->ctab, sizeof(cl->ctab));
+				memcpy(&cl->ttab, &account->ttab, sizeof(cl->ttab));
 
 #ifdef CS_ANTICASC
-				client[i].ac_idx	= account->ac_idx;
-				client[i].ac_penalty= account->ac_penalty;
-				client[i].ac_limit	= (account->ac_users * 100 + 80) * cfg->ac_stime;
+				cl->ac_idx	= account->ac_idx;
+				cl->ac_penalty= account->ac_penalty;
+				cl->ac_limit	= (account->ac_users * 100 + 80) * cfg->ac_stime;
 #endif
 			} else {
-				if (ph[client[i].ctyp].type & MOD_CONN_NET) {
-					cs_debug("client '%s', pid=%d not found in db (or password changed)", client[i].usr, client[i].pid);
-					kill_thread(i);
+				if (ph[cl->ctyp].type & MOD_CONN_NET) {
+					cs_debug("client '%s', pid=%d not found in db (or password changed)", cl->usr, cl->pid);
+					kill_thread(cl);
 				}
 			}
 		}
@@ -494,13 +513,10 @@ static void cs_accounts_chk()
   init_userdb(&cfg->account);
   cs_reinit_clients();
 #ifdef CS_ANTICASC
-  int i;
-  for (i=0; i<CS_MAXPID; i++)
-    if (client[i].typ=='a')
-    {
-      //kill(client[i].pid, SIGHUP);
+	struct s_client *prev, *cl;
+	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
+    if (cl->typ=='a')
       break;
-    }
 #endif
 }
 
@@ -532,24 +548,27 @@ static void cs_debug_level()
 static void cs_card_info(int i)
 {
   uchar dummy[1]={0x00};
-
-  for( i=1; i<CS_MAXPID; i++ )
-    if( client[i].pid && client[i].typ=='r' && client[i].fd_m2c ){
-      write_to_pipe(client[i].fd_m2c, PIP_ID_CIN, dummy, 1);
-    }
-
+	i=i; //suppress compiler warning
+	struct s_client *prev, *cl;
+	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
+    if( cl->pid && cl->typ=='r' && cl->fd_m2c )
+      write_to_pipe(cl->fd_m2c, PIP_ID_CIN, dummy, 1);
       //kill(client[i].pid, SIGUSR2);
 }
 
-int cs_fork(in_addr_t ip) {
-	int i;
+struct s_client * cs_fork(in_addr_t ip) {
+	int i=1;
+	struct s_client *cl;
 
 	pid_t pid=getpid();
-	for (i=1; (i<CS_MAXPID) && (client[i].pid); i++); //find next available client index i
+	for (cl=first_client; cl->next != NULL; cl=cl->next) i++; //ends with cl on last usable client and i to next empty slot
 	if (i<CS_MAXPID) {
+		cl->next = &client[i]; //here new created s_client malloc should be linked
+		cl = cl->next; //move to next empty slot
+		cl->next = NULL;
 		int fdp[2];
-		memset(&client[i], 0, sizeof(struct s_client));
-		client[i].au=(-1);
+		memset(cl, 0, sizeof(struct s_client));
+		cl->au=(-1);
 		if (pipe(fdp)) {
 			cs_log("Cannot create pipe (errno=%d)", errno);
 			cs_exit(1);
@@ -558,23 +577,21 @@ int cs_fork(in_addr_t ip) {
 
 		//make_non_blocking(fdp[0]);
 		//make_non_blocking(fdp[1]);
-		client[i].cs_ptyp=D_CLIENT;
-		client[i].fd_m2c_c = fdp[0]; //store client read fd
-		client[i].fd_m2c = fdp[1]; //store client read fd
+		cl->cs_ptyp=D_CLIENT;
+		cl->fd_m2c_c = fdp[0]; //store client read fd
+		cl->fd_m2c = fdp[1]; //store client read fd
+		cl->ip=ip;
 
 		//master part
-		client[i].stat=1;
+		cl->stat=1;
 
-		client[i].login=client[i].last=time((time_t *)0);
-		client[i].pid=pid;    // MUST be last -> wait4master()
-		cs_last_idx=i;
-
-		
+		cl->login=cl->last=time((time_t *)0);
+		cl->pid=pid;
 	} else {
 		cs_log("max connections reached -> reject client %s", cs_inet_ntoa(ip));
-		i=(-1);
+		return NULL;
 	}
-	return(i);
+	return(cl);
 }
 
 static void init_signal()
@@ -643,13 +660,15 @@ static void init_shm()
 
   *ecmidx=0;
   *oscam_sem=0;
-  client[0].pid=getpid();
-  client[0].login=time((time_t *)0);
-  client[0].ip=cs_inet_addr("127.0.0.1");
-  client[0].typ='s';
-  client[0].au=(-1);
-  client[0].thread=pthread_self();
-  if (pthread_setspecific(getclient, &client[0])) {
+  first_client = &client[0]; //here first client should be linked after creation with malloc
+  first_client->next = NULL; //terminate clients list with NULL
+  first_client->pid=getpid();
+  first_client->login=time((time_t *)0);
+  first_client->ip=cs_inet_addr("127.0.0.1");
+  first_client->typ='s';
+  first_client->au=(-1);
+  first_client->thread=pthread_self();
+  if (pthread_setspecific(getclient, first_client)) {
     fprintf(stderr, "Could not setspecific getclient in master process, exiting...");
   exit(1);
   }
@@ -658,9 +677,9 @@ static void init_shm()
   // get username master running under
   struct passwd *pwd;
   if ((pwd = getpwuid(getuid())) != NULL)
-    strcpy(client[0].usr, pwd->pw_name);
+    strcpy(first_client->usr, pwd->pw_name);
   else
-    strcpy(client[0].usr, "root");
+    strcpy(first_client->usr, "root");
 
   pthread_mutex_init(&gethostbyname_lock, NULL); 
 
@@ -838,45 +857,42 @@ int cs_user_resolve(struct s_auth *account)
 }
 #if defined(CS_ANTICASC) || defined(WEBIF) 
 static void start_thread(void * startroutine, char * nameroutine, char typ) {
-	int i,o;
+	int i;
 
-	o=cs_fork(0);
+	struct s_client * cl = cs_fork(first_client->ip);
+	if (cl == NULL) return;
+	cl->typ=typ; //'h' or 'a'
+	strcpy(cl->usr, first_client->usr);
 
-	if (o<0) return;
-
-	client[o].typ=typ; //'h' or 'a'
-	client[o].ip=client[0].ip;
-	strcpy(client[o].usr, client[0].usr);
-
-	i=pthread_create(&client[o].thread, (pthread_attr_t *)0, startroutine, (void *) &client[o]);
+	i=pthread_create(&cl->thread, (pthread_attr_t *)0, startroutine, (void *) cl);
 
 	if (i)
 		cs_log("ERROR: can't create %s thread (err=%d)", i, nameroutine);
 	else {
 		cs_log("%s thread started", nameroutine);
-		pthread_detach(client[o].thread);
+		pthread_detach(cl->thread);
 	}
 }
 #endif
-void kill_thread(int cidx) {
+void kill_thread(struct s_client *cl) {
 
-	if (client[cidx].pid==0) return;
-	if (pthread_equal(client[cidx].thread, pthread_self())) return; //cant kill yourself
+	if (cl->pid==0) return;
+	if (pthread_equal(cl->thread, pthread_self())) return; //cant kill yourself
 
-	pthread_cancel(client[cidx].thread);
+	pthread_cancel(cl->thread);
 
-	if(client[cidx].ecmtask) 	free(client[cidx].ecmtask);
-	if(client[cidx].emmcache) 	free(client[cidx].emmcache);
-	if(client[cidx].req) 	free(client[cidx].req);
-	if(client[cidx].cc) 		free(client[cidx].cc);
+	if(cl->ecmtask) 	free(cl->ecmtask);
+	if(cl->emmcache) 	free(cl->emmcache);
+	if(cl->req) 	free(cl->req);
+	if(cl->cc) 		free(cl->cc);
 
-	if(client[cidx].pfd)		close(client[cidx].pfd); //Closing Network socket
-	if(client[cidx].fd_m2c_c)	close(client[cidx].fd_m2c_c); //Closing client read fd
-	if(client[cidx].fd_m2c)	close(client[cidx].fd_m2c); //Closing client read fd
+	if(cl->pfd)		close(cl->pfd); //Closing Network socket
+	if(cl->fd_m2c_c)	close(cl->fd_m2c_c); //Closing client read fd
+	if(cl->fd_m2c)	close(cl->fd_m2c); //Closing client read fd
 
-	client[cidx].pid=0;
+	cl->pid=0;
 
-	cs_log("thread %d killed!", cidx);
+	cs_log("thread %08lX killed!", cl->thread);
 
 	return;
 }
@@ -897,13 +913,15 @@ void start_anticascader(struct s_client *cl)
 #endif
 
 void restart_cardreader(int reader_idx, int restart) {
-	int i,n;
-	if (restart) //kill old thread, even when .deleted flag is set
-		for (i=1; i<CS_MAXPID; i++)
-			if (client[i].ridx==reader_idx) {
-				kill_thread(i);
+	int n;
+	if (restart) {//kill old thread, even when .deleted flag is set
+	  struct s_client *prev, *cl;
+		for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
+			if (cl->ridx==reader_idx) {
+				kill_thread(cl);
 				break;
 			}
+	}
 
 	if ((reader[reader_idx].device[0]) && (reader[reader_idx].enable == 1) && (!reader[reader_idx].deleted)) {
 
@@ -914,6 +932,7 @@ void restart_cardreader(int reader_idx, int restart) {
 
 		if ((reader[reader_idx].typ & R_IS_CASCADING)) {
 			n=0;
+			int i;
 			for (i=0; i<CS_MAX_MOD; i++) {
 				if (ph[i].num) {
 					if (reader[reader_idx].typ==ph[i].num) {
@@ -930,27 +949,27 @@ void restart_cardreader(int reader_idx, int restart) {
 			}
 		}
 
-		i=cs_fork(0);
+		struct s_client * cl = cs_fork(first_client->ip);
+		if (cl == NULL) return;
 
-		if (i<0) return;
 
-		reader[reader_idx].fd=client[i].fd_m2c;
-		client[i].ridx=reader_idx;
+		reader[reader_idx].fd=cl->fd_m2c;
+		cl->ridx=reader_idx;
 		cs_log("creating thread for device %s slot %i with ridx %i", reader[reader_idx].device, reader[reader_idx].slot, reader_idx);
              	
-		client[i].sidtabok=reader[reader_idx].sidtabok;
-		client[i].sidtabno=reader[reader_idx].sidtabno;
+		cl->sidtabok=reader[reader_idx].sidtabok;
+		cl->sidtabno=reader[reader_idx].sidtabno;
    
 		reader[reader_idx].pid=getpid();
 
-		reader[reader_idx].client=&client[i];
+		reader[reader_idx].client=cl;
 
-		client[i].typ='r';
+		cl->typ='r';
 		//client[i].ctyp=99;
-		pthread_create(&client[i].thread, NULL, start_cardreader, (void *)&reader[reader_idx]);
-		pthread_detach(client[i].thread);
+		pthread_create(&cl->thread, NULL, start_cardreader, (void *)&reader[reader_idx]);
+		pthread_detach(cl->thread);
 
-       	if (reader[reader_idx].r_port)
+		if (reader[reader_idx].r_port)
 			cs_log("proxy thread started (pid=%d, server=%s)",reader[reader_idx].pid, reader[reader_idx].device);
 		else {
 			switch(reader[reader_idx].typ) {
@@ -968,8 +987,7 @@ void restart_cardreader(int reader_idx, int restart) {
 				default:
 					cs_log("reader thread started (pid=%d, device=%s)",reader[reader_idx].pid, reader[reader_idx].device);
 			}
-			client[i].ip=client[0].ip;
-			strcpy(client[i].usr, client[0].usr);
+			strcpy(cl->usr, first_client->usr);
 		}  
 	}
 }
@@ -998,17 +1016,17 @@ static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr
      *           different, but only the last login will survive
      */
 
-	int i;
-	for (i=1; i<CS_MAXPID; i++)
+	struct s_client *prev, *cl;
+	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
 	{
-		if (client[i].pid && (client[i].typ == 'c') && !client[i].dup && !strcmp(client[i].usr, usr)
-		   && (uniq < 5) && ((uniq % 2) || (client[i].ip != ip)))
+		if (cl->pid && (cl->typ == 'c') && !cl->dup && !strcmp(cl->usr, usr)
+		   && (uniq < 5) && ((uniq % 2) || (cl->ip != ip)))
 		{
 			if (uniq  == 3 || uniq == 4)
 			{
-				client[i].dup = 1;
-				client[i].au = -1;
-				cs_log("client(%08lX) duplicate user '%s' from %s set to fake (uniq=%d)", client[i].thread, usr, cs_inet_ntoa(ip), uniq);
+				cl->dup = 1;
+				cl->au = -1;
+				cs_log("client(%08lX) duplicate user '%s' from %s set to fake (uniq=%d)", cl->thread, usr, cs_inet_ntoa(ip), uniq);
 			}
 			else
 			{
@@ -1198,7 +1216,7 @@ int check_ecmcache1(ECM_REQUEST *er, ulong grp)
 int check_ecmcache2(ECM_REQUEST *er, ulong grp)
 {
 	// disable cache2
-	if (!reader[client[get_csidx()].ridx].cachecm) return(0);
+	if (!reader[cur_client()->ridx].cachecm) return(0);
 	
 	int i;
 	//cs_ddump(ecmd5, CS_ECMSTORESIZE, "ECM search");
@@ -1242,7 +1260,7 @@ void store_logentry(char *txt)
 	ptr=(char *)(loghist+(*loghistidx*CS_LOGHISTSIZE));
 	ptr[0]='\1';    // make username unusable
 	ptr[1]='\0';
-	if ((client[0].typ=='c') || (client[0].typ=='m')) //FIXME this cannot work since store_logentry only runs in master thread ...
+	if ((first_client->typ=='c') || (first_client->typ=='m')) //FIXME this cannot work since store_logentry only runs in master thread ...
 		cs_strncpy(ptr, client->usr, 31);
 	cs_strncpy(ptr+32, txt, CS_LOGHISTSIZE-33);
 	*loghistidx=(*loghistidx+1) % CS_MAXLOGHIST;
@@ -1250,15 +1268,13 @@ void store_logentry(char *txt)
 }
 #endif
 // only for debug
-int get_thread_by_pipefd(int fd) {
-	int i;
-
-	for (i=0;i<CS_MAXPID;i++) {
-		if (fd==client[i].fd_m2c || fd==client[i].fd_m2c_c)
-			return i;
-
-	}
-	return -1;
+static struct s_client * get_thread_by_pipefd(int fd)
+{
+	struct s_client *prev, *cl;
+	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
+		if (fd==cl->fd_m2c || fd==cl->fd_m2c_c)
+			return cl;
+	return first_client; //master process
 }
 
 /*
@@ -1272,7 +1288,7 @@ int write_to_pipe(int fd, int id, uchar *data, int n)
 		return -1;
 	}
 
-	cs_debug("write to pipe %d (%s) thread: %08lX to %d", fd, PIP_ID_TXT[id], pthread_self(), get_thread_by_pipefd(fd));
+	cs_debug("write to pipe %d (%s) thread: %08lX to %08lX", fd, PIP_ID_TXT[id], pthread_self(), get_thread_by_pipefd(fd)->thread);
 
 	uchar buf[3+sizeof(void*)];
 
@@ -1459,7 +1475,7 @@ int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
 	//fixme
     return(write_ecm_request(er->client->fd_m2c, er));
   else
-    return(write_ecm_request(client[0].fd_m2c, er)); //does this ever happen?
+    return(write_ecm_request(first_client->fd_m2c, er)); //does this ever happen?
 }
 
   /*
@@ -2093,7 +2109,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 	if(client->disabled != 0) {
 		if (client->failban & BAN_DISABLED){
 			cs_add_violation(client->ip);
-			cs_exit(SIGQUIT);
+			cs_exit(SIGQUIT); // don't know whether this is best way to kill the thread
 		}
 		er->rc = 12;
 	}
@@ -2117,7 +2133,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 
 			if (client->failban & BAN_SLEEPING) {
 				cs_add_violation(client->ip);
-				cs_exit(SIGQUIT);
+				cs_exit(SIGQUIT); // todo don't know whether this is best way to kill the thread
 			}
 
 			if (client->c35_sleepsend != 0) {
@@ -2579,14 +2595,13 @@ int process_input(uchar *buf, int l, int timeout)
 
 static void restart_clients()
 {
-	int i;
 	cs_log("restarting clients");
-	for (i=0; i<CS_MAXPID; i++) {
-		if (client[i].pid && client[i].typ=='c' && ph[client[i].ctyp].type & MOD_CONN_NET) {
-			kill_thread(i);
-			cs_log("killing client c%02d pid %d", i, client[i].pid);
+	struct s_client *prev, *cl;
+	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
+		if (cl->pid && cl->typ=='c' && ph[cl->ctyp].type & MOD_CONN_NET) {
+			kill_thread(cl);
+			cs_log("killing client c%08lX pid %d", cl->thread, cl->pid);
 		}
-	}
 }
 
 
@@ -2684,44 +2699,43 @@ void cs_waitforcardinit()
 
 int accept_connection(int i, int j) {
 	struct   sockaddr_in cad;
-	int scad,n,o;
+	int scad,n;
 	scad = sizeof(cad);
 	uchar    buf[2048];
 
 	if (ph[i].type==MOD_CONN_UDP) {
 
 		if ((n=recvfrom(ph[i].ptab->ports[j].fd, buf+3, sizeof(buf)-3, 0, (struct sockaddr *)&cad, (socklen_t *)&scad))>0) {
-			int idx;
-			idx=idx_from_ip(cs_inet_order(cad.sin_addr.s_addr), ntohs(cad.sin_port));
+			struct s_client *cl;
+			cl=idx_from_ip(cs_inet_order(cad.sin_addr.s_addr), ntohs(cad.sin_port));
 
 			unsigned short rl;
 			rl=n;
 			buf[0]='U';
 			memcpy(buf+1, &rl, 2);
 
-			if (!idx) {
+			if (!cl) {
 				if (cs_check_violation((uint)cs_inet_order(cad.sin_addr.s_addr)))
 					return 0;
 				//printf("IP: %s - %d\n", inet_ntoa(*(struct in_addr *)&cad.sin_addr.s_addr), cad.sin_addr.s_addr);
 
-				o=cs_fork(cs_inet_order(cad.sin_addr.s_addr));
-				if (o<0) return 0;
+				cl = cs_fork(cs_inet_order(cad.sin_addr.s_addr));
+				if (!cl) return 0;
 
-				client[o].ctyp=i;
-				client[o].port_idx=j;
-				client[o].udp_fd=ph[i].ptab->ports[j].fd;
-				client[o].udp_sa=cad;
+				cl->ctyp=i;
+				cl->port_idx=j;
+				cl->udp_fd=ph[i].ptab->ports[j].fd;
+				cl->udp_sa=cad;
 
-             	       	client[o].ip=cs_inet_order(cad.sin_addr.s_addr);
-				client[o].port=ntohs(cad.sin_port);
-				client[o].typ='c';
+				cl->port=ntohs(cad.sin_port);
+				cl->typ='c';
 
-				write_to_pipe(client[o].fd_m2c, PIP_ID_UDP, (uchar*)&buf, n+3);
+				write_to_pipe(cl->fd_m2c, PIP_ID_UDP, (uchar*)&buf, n+3);
 
-				pthread_create(&client[o].thread, NULL, ph[i].s_handler, (void *) &client[o]); //pass client[o] since o is local variable that will not survive the thread
-				pthread_detach(client[o].thread);
+				pthread_create(&cl->thread, NULL, ph[i].s_handler, (void *) cl);
+				pthread_detach(cl->thread);
 			} else {
-				write_to_pipe(client[idx].fd_m2c, PIP_ID_UDP, (uchar*)&buf, n+3);
+				write_to_pipe(cl->fd_m2c, PIP_ID_UDP, (uchar*)&buf, n+3);
 			}
 		}
 	} else { //TCP
@@ -2732,21 +2746,19 @@ int accept_connection(int i, int j) {
 			if (cs_check_violation((uint)cs_inet_order(cad.sin_addr.s_addr)))
 				return 0;
 
-			o=cs_fork(cs_inet_order(cad.sin_addr.s_addr));
-			if (o<0) return 0;			
+			struct s_client * cl = cs_fork(cs_inet_order(cad.sin_addr.s_addr));
+			if (cl == NULL) return 0;
 
-			client[o].ctyp=i;
-			client[o].udp_fd=pfd3;
-			client[o].port_idx=j;
+			cl->ctyp=i;
+			cl->udp_fd=pfd3;
+			cl->port_idx=j;
 
-			client[o].pfd=pfd3;
+			cl->pfd=pfd3;
+			cl->port=ntohs(cad.sin_port);
+			cl->typ='c';
 
-			client[o].ip=cs_inet_order(cad.sin_addr.s_addr);
-			client[o].port=ntohs(cad.sin_port);
-			client[o].typ='c';
-
-			pthread_create(&client[o].thread, NULL, ph[i].s_handler, (void*) &client[o]);
-			pthread_detach(client[o].thread);
+			pthread_create(&cl->thread, NULL, ph[i].s_handler, (void*) cl);
+			pthread_detach(cl->thread);
 		}
 	}
 	return 0;
@@ -2973,8 +2985,8 @@ if (pthread_key_create(&getclient, NULL)) {
   fd_c2m=fdp[1];
   gfd=mfdr+1;
 
-  client[0].fd_m2c=fd_c2m;
-  client[0].fd_m2c_c=mfdr;
+  first_client->fd_m2c=fd_c2m;
+  first_client->fd_m2c_c=mfdr;
 
 #ifdef OS_MACOSX
   if (bg && daemon_compat(1,0))
@@ -3018,7 +3030,7 @@ if (pthread_key_create(&getclient, NULL)) {
       }
 
 	//set time for server to now to avoid 0 in monitor/webif
-	client[0].last=time((time_t *)0);
+	first_client->last=time((time_t *)0);
 
 #ifdef WEBIF
   if(cfg->http_port == 0) 
@@ -3067,7 +3079,7 @@ if (pthread_key_create(&getclient, NULL)) {
 			select(gfd, &fds, 0, 0, 0);
 		} while (errno==EINTR);
 
-		client[0].last=time((time_t *)0);
+		first_client->last=time((time_t *)0);
 		
 		if (FD_ISSET(mfdr, &fds)) {
 			process_master_pipe(mfdr);

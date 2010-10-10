@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 51
-/svn/oscam/!svn/ver/3410/trunk/Distribution/doc/man
+/svn/oscam/!svn/ver/3453/trunk/Distribution/doc/man
 END
 oscam.1
 K 25
@@ -31,7 +31,7 @@ oscam.user.5
 K 25
 svn:wc:ra_dav:version-url
 V 64
-/svn/oscam/!svn/ver/3264/trunk/Distribution/doc/man/oscam.user.5
+/svn/oscam/!svn/ver/3453/trunk/Distribution/doc/man/oscam.user.5
 END
 oscam.ac.5
 K 25
@@ -67,7 +67,7 @@ oscam.server.5
 K 25
 svn:wc:ra_dav:version-url
 V 66
-/svn/oscam/!svn/ver/3332/trunk/Distribution/doc/man/oscam.server.5
+/svn/oscam/!svn/ver/3452/trunk/Distribution/doc/man/oscam.server.5
 END
 oscam.tiers.5
 K 25

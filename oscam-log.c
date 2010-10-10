@@ -113,7 +113,16 @@ int cs_init_log(char *file)
 static char *get_log_header(int m, char *txt)
 {
 	if(m) {
-		sprintf(txt, "%c %08lX ", cur_client()->typ, (unsigned long) pthread_self());
+		switch (cur_client()->typ) {
+			case 'r':
+			case 'c':
+			case 'p':
+				sprintf(txt, "%c %8d ", cur_client()->typ, get_threadnum(cur_client()));
+				break;
+			default:
+				sprintf(txt, "%c          ", cur_client()->typ);
+				break;
+		}
 	} else
 		sprintf(txt, "%-11.11s", "");
 
@@ -124,7 +133,6 @@ static void write_to_log(int flag, char *txt)
 {
 	//flag = -1 is old behaviour, before implementation of debug_nolf (=debug no line feed)
 	//
-	int i;
 	time_t t;
 	struct tm *lt;
 	char sbuf[16];
@@ -166,21 +174,20 @@ static void write_to_log(int flag, char *txt)
 #ifdef CS_LOGHISTORY
 	store_logentry(log_buf);
 #endif
-	for (i = 0; i < CS_MAXPID; i++)	// monitor-clients
+	if ((cur_client()->typ != 'c') && (cur_client()->typ != 'm'))
+		return;
+	struct s_client *prev, *cl;
+	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
 	{
-		if ((client[i].pid) && (client[i].log))
+		if ((cl->pid) && (cl->log))
 		{
-			if (client[i].monlvl<2)
-			{
-				if ((cur_client()->typ != 'c') && (cur_client()->typ != 'm'))
+			if (cl->monlvl<2)
+				if (strcmp(cur_client()->usr, cl->usr))
 					continue;
-				if (strcmp(cur_client()->usr, client[i].usr))
-					continue;
-			}
-			sprintf(sbuf, "%03d", client[i].logcounter);
-			client[i].logcounter = (client[i].logcounter+1) % 1000;
+			sprintf(sbuf, "%03d", cl->logcounter);
+			cl->logcounter = (cl->logcounter+1) % 1000;
 			memcpy(log_buf + 4, sbuf, 3);
-			monitor_send_idx(&client[i], log_buf);
+			monitor_send_idx(cl, log_buf);
 		}
 	}
 }
@@ -198,7 +205,6 @@ void cs_log(const char *fmt,...)
 
 void cs_close_log(void)
 {
-	cs_log("LOG CLOSED");
 	if (use_stdout || use_syslog || !fp) return;
 	fclose(fp);
 	fp=(FILE *)0;

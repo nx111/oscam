@@ -818,7 +818,7 @@ void dvbapi_resort_ecmpids(int demux_index) {
 			}
 		}
 
-		if (!client[cs_idx].sidtabok && !client[cs_idx].sidtabno) continue;
+		if (!cur_client()->sidtabok && !cur_client()->sidtabno) continue;
 
 		int nr;
 		SIDTAB *sidtab;
@@ -829,11 +829,11 @@ void dvbapi_resort_ecmpids(int demux_index) {
 
 		for (nr=0, sidtab=cfg->sidtab; sidtab; sidtab=sidtab->next, nr++) {
 			if (sidtab->num_caid | sidtab->num_provid | sidtab->num_srvid) {
-				if ((client[cs_idx].sidtabno&((SIDTABBITS)1<<nr)) && (chk_srvid_match(&er, sidtab))) {
+				if ((cur_client()->sidtabno&((SIDTABBITS)1<<nr)) && (chk_srvid_match(&er, sidtab))) {
 					demux[demux_index].ECMpids[n].status = -1; //ignore
 					cs_debug("[IGNORE PID %d] %04X:%06X (service %s) pos %d", n, demux[demux_index].ECMpids[n].CAID, demux[demux_index].ECMpids[n].PROVID, sidtab->label, nr);
 				}
-				if ((client[cs_idx].sidtabok&((SIDTABBITS)1<<nr)) && (chk_srvid_match(&er, sidtab))) {
+				if ((cur_client()->sidtabok&((SIDTABBITS)1<<nr)) && (chk_srvid_match(&er, sidtab))) {
 					demux[demux_index].ECMpids[n].status = nr+1; //priority
 					demux[demux_index].max_status = (nr+1 > demux[demux_index].max_status) ? nr+1 : demux[demux_index].max_status;
 					cs_debug("[PRIORITIZE PID %d] %04X:%06X (service: %s position: %d)", n, demux[demux_index].ECMpids[n].CAID, demux[demux_index].ECMpids[n].PROVID, sidtab->label, demux[demux_index].ECMpids[n].status);
@@ -1752,16 +1752,15 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 static void * dvbapi_handler(int ctyp) {
 	//cs_log("dvbapi loaded fd=%d", idx);
 	if (cfg->dvbapi_enabled == 1) {
-		int i=cs_fork(0);
-		client[i].typ='c';
-		client[i].ip=0;
-		client[i].ctyp=ctyp;
+		struct s_client * cl = cs_fork(0); // or should it be cs_fork(first_client->ip)  ??
+		cl->typ='c';
+		cl->ctyp=ctyp;
 #ifdef AZBOX
-		pthread_create(&client[i].thread, NULL, azbox_main, (void*) &client[i]);
+		pthread_create(&cl->thread, NULL, azbox_main, (void*) cl);
 #else
-		pthread_create(&client[i].thread, NULL, dvbapi_main_local, (void*) &client[i]);
+		pthread_create(&cl->thread, NULL, dvbapi_main_local, (void*) cl);
 #endif
-		pthread_detach(client[i].thread);
+		pthread_detach(cl->thread);
 	}
 
 	return NULL;
