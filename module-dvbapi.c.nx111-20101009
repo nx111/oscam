@@ -988,7 +988,7 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
 	unsigned int i, demux_id;
 	unsigned short ca_mask=0x01, demux_index=0x00;
 
-	//int ca_pmt_list_management = buffer[0];
+	int ca_pmt_list_management = buffer[0];
 	unsigned int program_number = (buffer[1] << 8) | buffer[2];
 	unsigned int program_info_length = ((buffer[4] & 0x0F) << 8) | buffer[5];
 
@@ -1021,13 +1021,17 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
 	dvbapi_stop_filter(demux_id, TYPE_ECM);
 	dvbapi_stop_filter(demux_id, TYPE_EMM);
 
-	memset(&demux[demux_id], 0, sizeof(demux[demux_id]));
+	if(ca_pmt_list_management == 1 || ca_pmt_list_management == 3 || ca_pmt_list_management == 5){
+		memset(&demux[demux_id], 0, sizeof(demux[demux_id]));
+	}
+
 	demux[demux_id].program_number=((buffer[1] << 8) | buffer[2]);
 	demux[demux_id].demux_index=demux_index;
 	demux[demux_id].ca_mask=ca_mask;
 	demux[demux_id].socket_fd=connfd;
 	demux[demux_id].rdr=NULL;
 	demux[demux_id].pidindex=-1;
+	memset(&demux[demux_id].valid_ECMpids,-1,sizeof(demux[demux_id].valid_ECMpids));
 
 	cs_debug("id: %d\tdemux_index: %d\tca_mask: %02x\tprogram_info_length: %d", demux_id, demux[demux_id].demux_index, demux[demux_id].ca_mask, program_info_length);
 
@@ -1677,6 +1681,7 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 			}
 
 			if (er->rc > 3) {
+				cs_debug("send_dcw: er->rc=%d",er->rc);
 				dvbapi_try_next_caid(i);
 				return;
 			}
