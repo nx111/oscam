@@ -903,8 +903,7 @@ void dvbapi_try_next_caid(int demux_id) {
 
 		num=demux[demux_id].valid_ECMpids[s];
 
-		if( num == -1 || demux[demux_id].ECMpids[num].status == -1 ){
-
+		if( num == -1){
 			demux[demux_id].curindex[s]=-1;
 
 			int valid_ecm_s=0;

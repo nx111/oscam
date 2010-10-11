@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/3467/trunk
+/svn/oscam/!svn/ver/3471/trunk
 END
 module-cccam.h
 K 25
@@ -97,7 +97,7 @@ module-dvbapi.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3466/trunk/module-dvbapi.c
+/svn/oscam/!svn/ver/3470/trunk/module-dvbapi.c
 END
 oscam-nano.c
 K 25
@@ -121,7 +121,7 @@ module-dvbapi.h
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3466/trunk/module-dvbapi.h
+/svn/oscam/!svn/ver/3470/trunk/module-dvbapi.h
 END
 config.sh
 K 25
@@ -151,7 +151,7 @@ oscam.c
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/3467/trunk/oscam.c
+/svn/oscam/!svn/ver/3471/trunk/oscam.c
 END
 module-stat.h
 K 25
