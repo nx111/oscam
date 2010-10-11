@@ -36,7 +36,6 @@ struct s_acasc ac_stat[CS_MAXPID];
 int     *ecmidx;  // Shared Memory
 int     *oscam_sem; // sem (multicam.o)
 struct  s_ecm     *ecmcache;  // Shared Memory
-struct  s_client  *client;    // Shared Memory
 struct  s_reader  *reader;    // Shared Memory
 
 #ifdef CS_WITH_GBOX
@@ -55,7 +54,6 @@ char    *loghist;     // ptr of log-history
 #endif
 
 static const int  shmsize =  CS_ECMCACHESIZE*(sizeof(struct s_ecm)) +
-                        CS_MAXPID*(sizeof(struct s_client)) +
                         CS_MAXREADER*(sizeof(struct s_reader)) +
 #ifdef CS_WITH_GBOX
                         CS_MAXCARDS*(sizeof(struct card_struct))+
@@ -363,12 +361,22 @@ static void cs_master_alarm()
 
 static void cs_sigpipe()
 {
-  //cs_log("Got sigpipe signal -> captured");
-  cs_log("Got sigpipe signal --> closing!");
-  cs_exit(1);
+  cs_log("Got sigpipe signal -> captured");
 }
 
-void nullclose(int *fd)
+static void cs_accounts_chk()
+{
+  init_userdb(&cfg->account);
+  cs_reinit_clients();
+#ifdef CS_ANTICASC
+	struct s_client *prev, *cl;
+	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
+    if (cl->typ=='a')
+      break;
+#endif
+}
+
+static void nullclose(int *fd)
 {
 	//if closing an already closed pipe, we get a sigpipe signal, and this causes a cs_exit
 	//and this causes a close and this causes a sigpipe...and so on
@@ -377,10 +385,34 @@ void nullclose(int *fd)
 	close(f); //then close fd
 }
 
+static void cleanup_thread(struct s_client *cl)
+{
+	if(cl->ecmtask) 	free(cl->ecmtask);
+	if(cl->emmcache) 	free(cl->emmcache);
+	if(cl->req) 		free(cl->req);
+	if(cl->cc) 		free(cl->cc);
+
+	if(cl->pfd)		nullclose(&cl->pfd); //Closing Network socket
+	if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
+	if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
+	cl->pid=0;
+
+	struct s_client *prev, *cl2;
+	for (prev=first_client, cl2=first_client->next; prev->next != NULL; prev=prev->next, cl2=cl2->next)
+		if (cl == cl2)
+			break;
+	if (cl != cl2)
+		cs_log("FATAL ERROR: could not find client to remove from list.");
+	else
+		prev->next = cl2->next; //remove client from list
+	if (cl) free (cl);
+}
+
 void cs_exit(int sig)
 {
 	set_signal_handler(SIGCHLD, 1, SIG_IGN);
 	set_signal_handler(SIGHUP , 1, SIG_IGN);
+	set_signal_handler(SIGPIPE, 1, SIG_IGN);
 
 	if (sig==SIGALRM) {
 		cs_debug("thread %d: SIGALRM, skipping", get_csidx());
@@ -437,27 +469,12 @@ void cs_exit(int sig)
 
 	// this is very important - do not remove
 	if (cl->typ != 's') {
-		if(cl->ecmtask) 	free(cl->ecmtask);
-		if(cl->emmcache) 	free(cl->emmcache);
-		if(cl->req) 		free(cl->req);
-		if(cl->cc) 		free(cl->cc);
-
-		if(cl->pfd)		nullclose(&cl->pfd); //Closing Network socket
-		if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
-		if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
-
 		cs_log("thread %08lX ended!", pthread_self());
-		cl->pid=0;
-		//free client FIXME
-		struct s_client *prev, *cl2;
-		for (prev=first_client, cl2=first_client->next; prev->next != NULL; prev=prev->next, cl2=cl2->next)
-			if (cl == cl2)
-				break;
-		if (cl != cl2)
-			cs_log("FATAL ERROR: could not find client to remove from list.");
-		else
-			prev->next = cl2->next; //remove client from list
-
+		cleanup_thread(cl);
+		//Restore signals before exiting thread
+		set_signal_handler(SIGPIPE , 0, cs_sigpipe);
+		set_signal_handler(SIGHUP  , 1, cs_accounts_chk);
+		
 		pthread_exit(NULL);
 		return;
 	}
@@ -466,6 +483,7 @@ void cs_exit(int sig)
 	cs_close_log();
 
 	if (ecmcache) free((void *)ecmcache);
+	if (cl) free(cl);
 
 	exit(sig);  //clears all threads
 }
@@ -522,18 +540,6 @@ void cs_reinit_clients()
 		}
 }
 
-static void cs_accounts_chk()
-{
-  init_userdb(&cfg->account);
-  cs_reinit_clients();
-#ifdef CS_ANTICASC
-	struct s_client *prev, *cl;
-	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
-    if (cl->typ=='a')
-      break;
-#endif
-}
-
 static void cs_debug_level()
 {
 	//switch debuglevel forward one step if not set from outside
@@ -571,17 +577,16 @@ static void cs_card_info(int i)
 }
 
 struct s_client * cs_fork(in_addr_t ip) {
-	int i=1;
 	struct s_client *cl;
 
 	pid_t pid=getpid();
-	for (cl=first_client; cl->next != NULL; cl=cl->next) i++; //ends with cl on last usable client and i to next empty slot
-	if (i<CS_MAXPID) {
-		cl->next = &client[i]; //here new created s_client malloc should be linked
+	for (cl=first_client; cl->next != NULL; cl=cl->next); //ends with cl on last usable client
+	cl->next = malloc(sizeof(struct s_client));
+	if (cl->next) {
 		cl = cl->next; //move to next empty slot
+		memset(cl, 0, sizeof(struct s_client));
 		cl->next = NULL;
 		int fdp[2];
-		memset(cl, 0, sizeof(struct s_client));
 		cl->au=(-1);
 		if (pipe(fdp)) {
 			cs_log("Cannot create pipe (errno=%d)", errno);
@@ -656,8 +661,7 @@ static void init_shm()
   ecmidx=(int *)&ecmcache[CS_ECMCACHESIZE];
 #endif
   oscam_sem=(int *)((void *)ecmidx+sizeof(int));
-  client=(struct s_client *)((void *)oscam_sem+sizeof(int));
-  reader=(struct s_reader *)&client[CS_MAXPID];
+  reader=(struct s_reader *)((void *)oscam_sem+sizeof(int));
 #ifdef CS_WITH_GBOX
   Cards=(struct card_struct*)&reader[CS_MAXREADER];
   IgnoreList=(unsigned long*)&Cards[CS_MAXCARDS];
@@ -674,7 +678,11 @@ static void init_shm()
 
   *ecmidx=0;
   *oscam_sem=0;
-  first_client = &client[0]; //here first client should be linked after creation with malloc
+  first_client = malloc(sizeof(struct s_client));
+	if (!first_client) {
+    fprintf(stderr, "Could not allocate memory for master client, exiting...");
+  exit(1);
+  }
   first_client->next = NULL; //terminate clients list with NULL
   first_client->pid=getpid();
   first_client->login=time((time_t *)0);
@@ -870,12 +878,11 @@ int cs_user_resolve(struct s_auth *account)
     return result;
 }
 #if defined(CS_ANTICASC) || defined(WEBIF) 
-static void start_thread(void * startroutine, char * nameroutine, char typ) {
+static void start_thread(void * startroutine, char * nameroutine) {
 	int i;
 
 	struct s_client * cl = cs_fork(first_client->ip);
 	if (cl == NULL) return;
-	cl->typ=typ; //'h' or 'a'
 	strcpy(cl->usr, first_client->usr);
 
 	i=pthread_create(&cl->thread, (pthread_attr_t *)0, startroutine, (void *) cl);
@@ -888,26 +895,14 @@ static void start_thread(void * startroutine, char * nameroutine, char typ) {
 	}
 }
 #endif
-void kill_thread(struct s_client *cl) {
+void kill_thread(struct s_client *cl) { //cs_exit is used to let thread kill itself, this routine is for a thread to kill other thread
 
 	if (cl->pid==0) return;
 	if (pthread_equal(cl->thread, pthread_self())) return; //cant kill yourself
 
 	pthread_cancel(cl->thread);
-
-	if(cl->ecmtask) 	free(cl->ecmtask);
-	if(cl->emmcache) 	free(cl->emmcache);
-	if(cl->req) 	free(cl->req);
-	if(cl->cc) 		free(cl->cc);
-
-	if(cl->pfd)		close(cl->pfd); //Closing Network socket
-	if(cl->fd_m2c_c)	close(cl->fd_m2c_c); //Closing client read fd
-	if(cl->fd_m2c)	close(cl->fd_m2c); //Closing client read fd
-
-	cl->pid=0;
-
 	cs_log("thread %08lX killed!", cl->thread);
-
+	cleanup_thread(cl); //FIXME what about when cancellation was not granted immediately?
 	return;
 }
 
@@ -917,6 +912,7 @@ void start_anticascader(struct s_client *cl)
   set_signal_handler(SIGHUP, 1, ac_init_stat);
 	cl->thread = pthread_self();
   pthread_setspecific(getclient, cl);
+  cl->typ = 'a';
   ac_init_stat();
   while(1)
   {
@@ -3053,7 +3049,7 @@ if (pthread_key_create(&getclient, NULL)) {
   if(cfg->http_port == 0) 
     cs_log("http disabled"); 
   else 
-    start_thread((void *) &http_srv, "http", 'h');
+    start_thread((void *) &http_srv, "http");
 #endif
 
 	init_cardreader();
@@ -3070,7 +3066,7 @@ if (pthread_key_create(&getclient, NULL)) {
 		cs_log("anti cascading disabled");
 	else {
 		init_ac();
-		start_thread((void *) &start_anticascader, "anticascader", 'a'); // 96
+		start_thread((void *) &start_anticascader, "anticascader"); // 96
 		
 	}
 #endif
