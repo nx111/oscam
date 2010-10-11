@@ -5,7 +5,7 @@
 #else
 #  define CS_VERSION_X  CS_VERSION
 #endif
-extern struct s_reader *reader;
+extern struct  s_reader  reader[CS_MAXREADER];
 
 static void monitor_check_ip()
 {
@@ -418,11 +418,6 @@ static void monitor_process_details_master(char *buf, int pid){
 	sprintf(buf, "Nice=%d", cfg->nice);
 	monitor_send_details(buf, pid);
 
-	//#ifdef CS_NOSHM
-	//  sprintf(buf, "shared memory initialized (size=%d, fd=%d)", shmsize, shmid);
-	//#else
-	//  sprintf(buf, "shared memory initialized (size=%d, id=%d)", shmsize, shmid);
-	//#endif
 	//  monitor_send_details(buf, pid);
 }
 
@@ -512,7 +507,7 @@ static void monitor_logsend(char *flag){
 		return;
 #ifdef CS_LOGHISTORY
 	if (!strcmp(flag, "on")){
-		for (i = (*loghistidx + 3) % CS_MAXLOGHIST; i != *loghistidx; i = (i + 1) % CS_MAXLOGHIST){
+		for (i = (loghistidx + 3) % CS_MAXLOGHIST; i != loghistidx; i = (i + 1) % CS_MAXLOGHIST){
 			char *p_usr, *p_txt;
 			p_usr=(char *)(loghist+(i*CS_LOGHISTSIZE));
 			p_txt = p_usr + 32;
