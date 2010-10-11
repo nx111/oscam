@@ -1,6 +1,5 @@
 //FIXME Not checked on threadsafety yet; not necessary if only 1 dvbapi running; after checking please remove this line
 #include "globals.h"
-#include <errno.h>
 
 #ifdef HAVE_DVBAPI
 
@@ -37,11 +36,12 @@ int disable_pmt_files=0;
 int dir_fd=-1, pausecam=0;
 unsigned short global_caid_list[MAX_CAID];
 DEMUXTYPE demux[MAX_DEMUX];
-
 int ca_fd[8];
 
 #define DESCRAMBLER_COUNT     8
 int descramblers[DESCRAMBLER_COUNT];
+
+
 
 int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uchar *mask, int timeout, int pidindex, int count, int type) {
 #ifdef AZBOX
@@ -224,10 +224,8 @@ int dvbapi_open_device(int type, int num) {
 		cs_debug("error opening device %s (Errno: %d)", device_path, errno);
 		return -1;
 	}
-	
+
 	cs_debug("DEVICE open (%s) fd %d", device_path, dmx_fd);
-
-
 	return dmx_fd;
 }
 
@@ -245,9 +243,7 @@ int dvbapi_stop_filter(int demux_index, int type) {
 
 int dvbapi_stop_filternum(int demux_index, int num) {
 	int ret=-1;
-	errno=0;
-	if (demux[demux_index].demux_fd[num].fd >0 &&
-	   demux[demux_index].demux_fd[num].status) {
+	if (demux[demux_index].demux_fd[num].fd>0) {
 #ifdef WITH_STAPI
 		ret=stapi_remove_filter(demux_index, num);
 #else	
@@ -255,13 +251,7 @@ int dvbapi_stop_filternum(int demux_index, int num) {
 		close(demux[demux_index].demux_fd[num].fd);
 #endif
 		demux[demux_index].demux_fd[num].fd=0;
-		if(ret == 0 )
-			demux[demux_index].demux_fd[num].status = 0;
-		else		
-			cs_debug_mask(D_TRACE,"stop filter failed,demux:%d filter:%d  errno:%d",demux_index,num,errno);
-
 	}
-
 	return ret;
 }
 
@@ -375,7 +365,6 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 		demux[demux_id].ECMpids[ecmidx].STREAMpids[demux[demux_id].ECMpids[ecmidx].STREAMpidcount]=STREAMpid;
 		demux[demux_id].ECMpids[ecmidx].STREAMpidcount++;
 	}
-
 }
 
 void dvbapi_add_emmpid(int demux_id, ushort caid, ushort emmpid, ulong provid) {
@@ -383,7 +372,7 @@ void dvbapi_add_emmpid(int demux_id, ushort caid, ushort emmpid, ulong provid) {
 	for (j=0;j<demux[demux_id].ECMpidcount;j++) {
 		if (demux[demux_id].ECMpids[j].CAID==caid && (demux[demux_id].ECMpids[j].PROVID == provid || provid == 0)) {
 			demux[demux_id].ECMpids[j].EMM_PID=emmpid;
-			cs_debug_mask(D_EMM,"[ADD EMMPID %d]  CAID:%04X  EMM_PID:%04X  PROVID:%06X", j, caid, emmpid, provid);
+			cs_debug("[ADD EMMPID %d] CAID: %04X\tEMM_PID: %04X\tPROVID: %06X", j, caid, emmpid, provid);
 		}
 	}	
 }
@@ -444,7 +433,7 @@ void dvbapi_set_pid(int demux_id, int num, int index) {
 		default:
 			for (i=0;i<8;i++) {
 				if (demux[demux_id].ca_mask & (1 << i)) {
-					if(ca_fd[i]<=0)
+					if (ca_fd[i]<=0)
 						ca_fd[i]=dvbapi_open_device(1, i);
 					if (ca_fd[i]>0) {
 						ca_pid_t ca_pid2;
@@ -574,7 +563,8 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 	static int emm_global_len = 0;
 	int pos, emm_len = 0, k;
 	uchar emmbuf[512];
-
+    unsigned long provid=0;
+    
 	if (demux[demux_index].pidindex==-1) return;
 
 	ulong provider = demux[demux_index].ECMpids[demux[demux_index].pidindex].PROVID;
@@ -585,6 +575,11 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 			switch(buffer[0]) {
 				case 0x88:
 					// emm-u
+					if (buffer[3] == 0x90 && buffer[4] == 0x03) {
+						provid = buffer[5] << 16 | buffer[6] << 8 | (buffer[7] & 0xFE);
+					}
+					else // we should get there but just to make sure we're not sending crap.
+					   provid=0;
 					break;
 
 				case 0x8a:
@@ -608,6 +603,7 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 					if (emm_provid!=provider)
 						return;
 
+                    provid=emm_provid;
 					//cs_log("viaccess global emm_provid: %06X provid: %06X", emm_provid, provider);
 
 					// copy first part of the emm-s
@@ -622,6 +618,12 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 
 					if (buffer[6]!=0x00) return;
 
+					if (emm_global[3] == 0x90 && emm_global[4] == 0x03) {
+						provid = emm_global[5] << 16 | emm_global[6] << 8 | (emm_global[7] & 0xFE);
+					}
+					else // we should get there but just to make sure we're not sending crap.
+					   provid=0;
+					   
 					memcpy(emmbuf, buffer, 7);
 					pos=7;
 
@@ -675,7 +677,8 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 				case 0x86:
 				    cs_log("cryptoworks shared emm (EMM-SB): %s" , cs_hexdump(1, buffer, len));
 					if (!emm_global_len) return;
-
+                    provid=buffer[7];
+                    
 					// we keep the first 12 bytes of the 0x84 emm (EMM-SH)
 					// now we need to append the payload of the 0x86 emm (EMM-SB)
 					// starting after the header (&buffer[5])
@@ -719,37 +722,19 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 	cs_ddump(buffer, len, "emm from fd %d:", demux[demux_index].demux_fd[filter_num].fd);
 
 	memset(&epg, 0, sizeof(epg));
-	epg.caid[0] = (uchar)(demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID>>8);
-	epg.caid[1] = (uchar)(demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID);
 
-    // This will only works on some emm as each emm set the provider id differently.
-    // at this point buffer contains the current emm, which can be for any of the provider we're supporting
-    // and each emm has a different structure depending on the CA system and store the provider ID at a different
-    // position. So extracting it like this will probably only work for 1 CA (viaccess, nds, conax, seca, ....).
-    // As we get the provide from the demux above, why are we doing this ? the provider ID for this emm should be the
-    // one from : ulong provider = demux[demux_index].ECMpids[demux[demux_index].pidindex].PROVID;
-    // and below, after defining it with (buffer[10] << 8) | buffer[11];, it's potentialy overwriten by :
-    // provid = (cfg->dvbapi_prioritytab.cmap[pid] << 8 | cfg->dvbapi_prioritytab.mask[pid]);
-    //  but if we don't find it in there we endup with a provider id which can be completely wrong !!!
-    // So I think the line bellow should be :
-    // unsigned long provid = provider;
-    //
-	unsigned long provid = (buffer[10] << 8) | buffer[11];
-	
-	int pid = dvbapi_check_array(cfg->dvbapi_prioritytab.caid, CS_MAXCAIDTAB, demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID);
-	if (pid>=0) {
-		if (cfg->dvbapi_prioritytab.mask[pid] != 0xFFFF)
-			provid = (cfg->dvbapi_prioritytab.cmap[pid] << 8 | cfg->dvbapi_prioritytab.mask[pid]);
-	}
+	epg.caid[0] = (uchar)(demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID>>8); 
+	epg.caid[1] = (uchar)(demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID); 
 
-	epg.provid[1] = (uchar)(provid>>16);
-	epg.provid[2] = (uchar)(provid>>8);
-	epg.provid[3] = (uchar)(provid);
+	epg.provid[0] = (uchar)(provid>>24); 
+	epg.provid[1] = (uchar)(provid>>16); 
+	epg.provid[2] = (uchar)(provid>>8); 
+	epg.provid[3] = (uchar)(provid); 
 
 	epg.l=len;
 	memcpy(epg.emm, buffer, epg.l);
 
-	do_emm(&client[cs_idx], &epg);
+	do_emm(cur_client(), &epg);
 }
 
 void dvbapi_adjust_prioritytab(int demux_index){
@@ -829,7 +814,7 @@ void dvbapi_resort_ecmpids(int demux_index) {
 			}
 		}
 
-		if (!client[cs_idx].sidtabok && !client[cs_idx].sidtabno) continue;
+		if (!cur_client()->sidtabok && !cur_client()->sidtabno) continue;
 
 		int nr;
 		SIDTAB *sidtab;
@@ -840,11 +825,11 @@ void dvbapi_resort_ecmpids(int demux_index) {
 
 		for (nr=0, sidtab=cfg->sidtab; sidtab; sidtab=sidtab->next, nr++) {
 			if (sidtab->num_caid | sidtab->num_provid | sidtab->num_srvid) {
-				if ((client[cs_idx].sidtabno&((SIDTABBITS)1<<nr)) && (chk_srvid_match(&er, sidtab))) {
+				if ((cur_client()->sidtabno&((SIDTABBITS)1<<nr)) && (chk_srvid_match(&er, sidtab))) {
 					demux[demux_index].ECMpids[n].status = -1; //ignore
 					cs_debug("[IGNORE PID %d] %04X:%06X (service %s) pos %d", n, demux[demux_index].ECMpids[n].CAID, demux[demux_index].ECMpids[n].PROVID, sidtab->label, nr);
 				}
-				if ((client[cs_idx].sidtabok&((SIDTABBITS)1<<nr)) && (chk_srvid_match(&er, sidtab))) {
+				if ((cur_client()->sidtabok&((SIDTABBITS)1<<nr)) && (chk_srvid_match(&er, sidtab))) {
 					demux[demux_index].ECMpids[n].status = nr+1; //priority
 					demux[demux_index].max_status = (nr+1 > demux[demux_index].max_status) ? nr+1 : demux[demux_index].max_status;
 					cs_debug("[PRIORITIZE PID %d] %04X:%06X (service: %s position: %d)", n, demux[demux_index].ECMpids[n].CAID, demux[demux_index].ECMpids[n].PROVID, sidtab->label, demux[demux_index].ECMpids[n].status);
@@ -1012,7 +997,6 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
 	unsigned short ca_mask=0x01, demux_index=0x00;
 
 	int ca_pmt_list_management = buffer[0];
-
 	unsigned int program_number = (buffer[1] << 8) | buffer[2];
 	unsigned int program_info_length = ((buffer[4] & 0x0F) << 8) | buffer[5];
 
@@ -1025,8 +1009,8 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
 	cs_ddump(buffer, length, "capmt:");
 	
 	for (i = 0; i < MAX_DEMUX; i++) {
-		if (demux[i].demux_index == demux_index && demux[i].program_number == program_number && ca_pmt_list_management==3 ) {
-			return -1; //same pmt on same demux,if not changed, exit
+		if (demux[i].demux_index == demux_index && demux[i].program_number == program_number && ca_pmt_list_management==3) {
+			return -1; //same pmt on same demux, exit
 		}
 	}
 
@@ -1037,7 +1021,6 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
 		return -1;
 	}
 	
-
 	if (cfg->dvbapi_boxtype == BOXTYPE_IPBOX_PMT) {
 		ca_mask = demux_id + 1;
 		demux_index = demux_id;
@@ -1051,12 +1034,13 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
 	if(ca_pmt_list_management == 1 || ca_pmt_list_management == 3 || ca_pmt_list_management == 5){
 		memset(&demux[demux_id], 0, sizeof(demux[demux_id]));
 	}
-	demux[demux_id].rdr=NULL;
-	demux[demux_id].pidindex=-1;
+
 	demux[demux_id].program_number=((buffer[1] << 8) | buffer[2]);
 	demux[demux_id].demux_index=demux_index;
 	demux[demux_id].ca_mask=ca_mask;
 	demux[demux_id].socket_fd=connfd;
+	demux[demux_id].rdr=NULL;
+	demux[demux_id].pidindex=-1;
 	memset(&demux[demux_id].valid_ECMpids,-1,sizeof(demux[demux_id].valid_ECMpids));
 
 	cs_debug("id: %d\tdemux_index: %d\tca_mask: %02x\tprogram_info_length: %d", demux_id, demux[demux_id].demux_index, demux[demux_id].ca_mask, program_info_length);
@@ -1079,7 +1063,7 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
 
 		if (es_info_length != 0 && es_info_length < length) {
 			//int offset = (cfg->dvbapi_boxtype == BOXTYPE_IPBOX_PMT) ? i - 1 : i;         
-			dvbapi_parse_descriptor(demux_id, es_info_length, buffer+i+5,elementary_pid); 
+			dvbapi_parse_descriptor(demux_id, es_info_length, buffer+i+5,elementary_pid);  
 		}
 	}
 	cs_debug("Found %d ECMpids and %d STREAMpids in PMT", demux[demux_id].ECMpidcount, demux[demux_id].STREAMpidcount);
@@ -1101,10 +1085,10 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
 			dvbapi_try_next_caid(demux_id);
 	} else {
 		// set channel srvid+caid
-		client[cs_idx].last_srvid = demux[demux_id].program_number;
-		client[cs_idx].last_caid = 0;
+		cur_client()->last_srvid = demux[demux_id].program_number;
+		cur_client()->last_caid = 0;
 		// reset idle-Time
-		client[cs_idx].last=time((time_t)0);
+		cur_client()->last=time((time_t)0);
 	}
 
 	return demux_id;
@@ -1381,8 +1365,9 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 			if (demux[demux_id].irdeto_numchids != buffer[5]) {
 				cs_log("IRDETO ECM CHIDs: %d", buffer[5]);
 				//TODO: remove no longer used chids
+				unsigned short pid= demux[demux_id].ECMpids[demux[demux_id].demux_fd[filter_num].pidindex].ECM_PID;
 				for (i=1;i<=buffer[5];i++) {
-					dvbapi_add_ecmpid(demux_id, caid, demux[demux_id].ECMpids[demux[demux_id].demux_fd[filter_num].pidindex].ECM_PID, provid, i,0);
+					dvbapi_add_ecmpid(demux_id, caid, pid, provid, i,0);
 				}
 				demux[demux_id].irdeto_numchids = buffer[5];
 				//demux[demux_id].irdeto_curchid = 0;
@@ -1423,7 +1408,7 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 		memcpy(er->ecm, buffer, er->l);
 
 		cs_debug("request cw for caid %04X provid %06X srvid %04X pid %04X chid %02X", er->caid, er->prid, er->srvid, er->pid, (caid >> 8) == 0x06 ? buffer[7] : 0);
-		get_cw(&client[cs_idx], er);
+		get_cw(cur_client(), er);
 	}
 
 	if (demux[demux_id].demux_fd[filter_num].type==TYPE_EMM) {
@@ -1449,6 +1434,7 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 void * dvbapi_main_local(void *cli) {
 	struct s_client * client = (struct s_client *) cli;
 	client->thread=pthread_self();
+	pthread_setspecific(getclient, cli);
 
 	int maxpfdsize=(MAX_DEMUX*MAX_FILTER)+MAX_DEMUX+2;
 	struct pollfd pfd2[maxpfdsize];
@@ -1729,17 +1715,13 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 						break;
 			if (j==demux[i].ECMpidcount) continue;
 
-			int n,ci=-1;
-			for(n=0;n<demux[i].ECMpidcount;n++)
-				if(er->pid==demux[i].ECMpids[n].ECM_PID && demux[i].ECMpids[n].descrambler != -1){
-					ci=demux[i].ECMpids[n].descrambler;
-					break;
-				}	
+			int ci=demux[i].ECMpids[j].descrambler;
+			if (ci == -1) continue;
 
 #ifdef WITH_STAPI
 			stapi_write_cw(i, er->cw);
 #else
-			dvbapi_write_cw(i,ci,er->cw);
+			dvbapi_write_cw(i,ci, er->cw);
 #endif
 			// reset idle-Time
 			client->last=time((time_t)0);
@@ -1756,8 +1738,8 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 				fprintf(ecmtxt, "protocol: %s\n", reader[er->reader[0]].ph.desc);
 				fprintf(ecmtxt, "hops: %d\n", reader[er->reader[0]].cc_currenthops);
 				fprintf(ecmtxt, "ecm time: %.3f\n", (float) client->cwlastresptime/1000);
-				fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[i].lastcw[0+ci*2],8));
-				fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[i].lastcw[1+ci*2],8));
+				fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[i].lastcw[0+2*ci],8));
+				fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[i].lastcw[1+2*ci],8));
 				fclose(ecmtxt);
 				ecmtxt = NULL;
 			}
@@ -1772,7 +1754,6 @@ static void * dvbapi_handler(int ctyp) {
 		client[i].typ='c';
 		client[i].ip=0;
 		client[i].ctyp=ctyp;
-		client[i].is_server=1;
 #ifdef AZBOX
 		pthread_create(&client[i].thread, NULL, azbox_main, (void*) &client[i]);
 #else
@@ -1808,7 +1789,7 @@ void azbox_openxcas_ecm_callback(int stream_id, unsigned int seq, int cipher_ind
 	memcpy(er->ecm, ecm_data, er->l);
 
 	cs_debug("request cw for caid %04X provid %06X srvid %04X pid %04X", er->caid, er->prid, er->srvid, er->pid);
-	get_cw(&client[cs_idx], er);
+	get_cw(cur_client(), er);
 
 	//openxcas_stop_filter(openxcas_stream_id, OPENXCAS_FILTER_ECM);
 	//openxcas_remove_filter(openxcas_stream_id, OPENXCAS_FILTER_ECM);
@@ -1820,7 +1801,7 @@ void azbox_openxcas_ecm_callback(int stream_id, unsigned int seq, int cipher_ind
 	tp.time+=500;
 
 	struct pollfd pfd;
-	pfd.fd = client[cs_idx].fd_m2c_c;
+	pfd.fd = cur_client()->fd_m2c_c;
 	pfd.events = POLLIN | POLLPRI;
 /*
 	while(1) {
@@ -1835,7 +1816,7 @@ void azbox_openxcas_ecm_callback(int stream_id, unsigned int seq, int cipher_ind
 		}
 
 		if (pfd.revents & (POLLIN | POLLPRI)) {
-			chk_dcw(client[cs_idx].fd_m2c_c);
+			chk_dcw(cur_client()->fd_m2c_c);
 			break;
 		}
 	}*/
@@ -1862,7 +1843,7 @@ void azbox_openxcas_ex_callback(int stream_id, unsigned int seq, int idx, unsign
 	memcpy(er->ecm, ecm_data, er->l);
 
 	cs_debug("request cw for caid %04X provid %06X srvid %04X pid %04X", er->caid, er->prid, er->srvid, er->pid);
-	get_cw(&client[cs_idx], er);
+	get_cw(cur_client(), er);
 	 
 	if (openxcas_stop_filter_ex(stream_id, seq, openxcas_filter_idx) < 0)
 		cs_log("openxcas: unable to stop ex filter");
@@ -1874,7 +1855,7 @@ void azbox_openxcas_ex_callback(int stream_id, unsigned int seq, int idx, unsign
 	tp.time+=500;
 
 	chk_pending(tp);
-	process_client_pipe(&client[cs_idx], NULL, 0);
+	process_client_pipe(cur_client(), NULL, 0);
 
 	unsigned char mask[12];
 	unsigned char comp[12];
@@ -1893,6 +1874,7 @@ void azbox_openxcas_ex_callback(int stream_id, unsigned int seq, int idx, unsign
 void * azbox_main(void *cli) {
 	struct s_client * client = (struct s_client *) cli;
 	client->thread=pthread_self();
+	pthread_setspecific(getclient, cli);
 	struct timeb tp;
 	cs_ftime(&tp);
 	tp.time+=500;

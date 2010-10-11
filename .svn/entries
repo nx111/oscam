@@ -1,15 +1,15 @@
 10
 
 dir
-3465
+3466
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-10-10T21:17:59.518367Z
-3465
-dingo35
+2010-10-11T01:16:13.301698Z
+3466
+Gorlan.Ng
 has-props
 
 
@@ -409,6 +409,9 @@ _network
 
 9509
 
+toolchains
+dir
+
 module-obj-llist.c
 file
 
@@ -442,9 +445,6 @@ has-props
 
 
 2855
-
-toolchains
-dir
 
 oscam-ac.c
 file
@@ -555,10 +555,10 @@ file
 
 
 
-aa90def15fdd12518815e7f6dff7e345
-2010-10-10T20:08:21.756755Z
-3460
-dingo35
+844a4fcad78077949d858073b15c435b
+2010-10-11T01:16:13.301698Z
+3466
+Gorlan.Ng
 
 oscam-nano.c
 file
@@ -594,6 +594,40 @@ rebdog
 
 1625
 
+CMakeLists.txt
+file
+
+
+
+
+2010-10-09T02:33:55.208356Z
+96f76a4d442de3a550dc4a16ce7f528f
+2010-10-08T16:30:01.672289Z
+3416
+rorothetroll
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+27602
+
 Makefile
 file
 
@@ -628,39 +662,17 @@ merek
 
 25029
 
-CMakeLists.txt
+module-dvbapi.h
 file
 
 
 
 
-2010-10-09T02:33:55.208356Z
-96f76a4d442de3a550dc4a16ce7f528f
-2010-10-08T16:30:01.672289Z
-3416
-rorothetroll
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-27602
+d27b81406e5428c2f53409a14a0ce843
+2010-10-11T01:16:13.301698Z
+3466
+Gorlan.Ng
 
 config.sh
 file
@@ -696,18 +708,6 @@ has-props
 
 4056
 
-module-dvbapi.h
-file
-
-
-
-
-
-b7e9852a4b34c1b138a259d55a9b1733
-2010-10-10T19:16:42.681947Z
-3458
-_network
-
 module-stat.c
 file
 
@@ -742,39 +742,17 @@ dingo35
 
 14814
 
-module-serial.c
+oscam.c
 file
 
 
 
 
-2010-10-10T23:30:31.878694Z
-2ec0eee32ffb391ca4619f3c992d96cc
-2010-10-10T09:41:04.210967Z
-3437
-dingo35
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-28088
+48f2084d25568b45a8cb03bfedffeb90
+2010-10-10T19:14:50.041770Z
+3457
+_network
 
 oscam-reader.c
 file
@@ -810,29 +788,17 @@ dingo35
 
 21513
 
-oscam.c
+module-serial.c
 file
 
 
 
 
-
-48f2084d25568b45a8cb03bfedffeb90
-2010-10-10T19:14:50.041770Z
-3457
-_network
-
-module-stat.h
-file
-
-
-
-
-2010-09-29T23:29:55.664806Z
-fcdf1dddd5198274183d2eb5da54676a
-2010-09-26T16:12:04.606400Z
-3261
-alno
+2010-10-10T23:30:31.878694Z
+2ec0eee32ffb391ca4619f3c992d96cc
+2010-10-10T09:41:04.210967Z
+3437
+dingo35
 
 
 
@@ -854,7 +820,7 @@ alno
 
 
 
-569
+28088
 
 module-constcw.c
 file
@@ -889,6 +855,40 @@ dingo35
 
 
 4288
+
+module-stat.h
+file
+
+
+
+
+2010-09-29T23:29:55.664806Z
+fcdf1dddd5198274183d2eb5da54676a
+2010-09-26T16:12:04.606400Z
+3261
+alno
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+569
 
 reader-tongfang.c
 file
