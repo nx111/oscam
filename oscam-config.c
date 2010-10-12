@@ -2203,6 +2203,8 @@ void update_priority_config(){
 	char tmpfile[256];
 	char destfile[256];
 	char bakfile[256];
+	
+	if(!priority_is_changed)return;
 
 	snprintf(destfile, 255,"%s%s", cs_confdir, cs_conf);
 	snprintf(tmpfile, 255, "%s%s.tmp", cs_confdir, cs_conf);

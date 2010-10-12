@@ -38,9 +38,9 @@ unsigned short global_caid_list[MAX_CAID];
 DEMUXTYPE demux[MAX_DEMUX];
 int ca_fd[8];
 
-#define DESCRAMBLER_COUNT     8
-int descramblers[DESCRAMBLER_COUNT];
-
+unsigned int DESCR_NUM=8;
+unsigned long long descramblers_pool_mask=0;	//At most,it can handle 64 descramblers. 
+int priority_is_changed=0;
 
 
 int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uchar *mask, int timeout, int pidindex, int count, int type) {
@@ -464,11 +464,8 @@ void dvbapi_stop_descrambling(int demux_id) {
 	}
 
 	for (i=0;i<demux[demux_id].ECMpidcount;i++) {
-		if( demux[demux_id].ECMpids[i].descrambler>=0 
-		   && demux[demux_id].ECMpids[i].descrambler<DESCRAMBLER_COUNT)
-			descramblers[demux[demux_id].ECMpids[i].descrambler]=0;
-		else if(demux[demux_id].ECMpids[i].descrambler>=0 && demux[demux_id].ECMpids[i].descrambler<DESCRAMBLER_COUNT)
-			descramblers[demux[demux_id].ECMpids[i].descrambler]=-1;
+		if( demux[demux_id].ECMpids[i].descrambler >= 0 && demux[demux_id].ECMpids[i].descrambler < (int)DESCR_NUM)
+			descramblers_pool_mask &= ~(1 << demux[demux_id].ECMpids[i].descrambler);
 	}
 
 	memset(&demux[demux_id], 0 ,sizeof(DEMUXTYPE));
@@ -495,29 +492,31 @@ void dvbapi_start_descrambling(int demux_id) {
 
 	for(i=0; i<demux[demux_id].STREAMpidcount;i++){
 		int descrambler=-1;
-		int selectECM=demux[demux_id].curindex[i] ;
+		int pididx=demux[demux_id].curindex[i] ;
 
-		if (selectECM  == -1)
+		if (pididx  == -1)
 			continue;
 
-		demux[demux_id].valid_ECMpids[i]=selectECM;
+		demux[demux_id].valid_ECMpids[i]=pididx;
 
-		if(demux[demux_id].ECMpids[selectECM].descrambler == -1 ){
-			int j;
-			for(j=0;j<DESCRAMBLER_COUNT&& descramblers[j]==1;j++);	//search valid descrambler
-			if(j >= DESCRAMBLER_COUNT|| descramblers[j]==-1){
+		if(demux[demux_id].ECMpids[pididx].descrambler == -1 ){
+			unsigned int j;
+
+			//search valid descrambler
+			for(j=0; descramblers_pool_mask & (1 << j)  && j < sizeof(descramblers_pool_mask)*8 && j<DESCR_NUM; j++);
+			if( j == sizeof(descramblers_pool_mask)*8 || j == DESCR_NUM){
 				cs_log("error: no free descrambler");
 				break;
 			}
 			descrambler=j;
-			descramblers[j]=1;
-			demux[demux_id].ECMpids[selectECM].descrambler = descrambler;
+			descramblers_pool_mask |= 1 << j;
+			demux[demux_id].ECMpids[pididx].descrambler = descrambler;
 		}
 		else 
-			descrambler=demux[demux_id].ECMpids[selectECM].descrambler;
+			descrambler=demux[demux_id].ECMpids[pididx].descrambler;
 
 		cs_log("CA_SET_PID ECM_PID:%04X STREAMpid[%d]=%04X descrambler=%d",
-			demux[demux_id].ECMpids[selectECM].ECM_PID,
+			demux[demux_id].ECMpids[pididx].ECM_PID,
 			i,
 			demux[demux_id].STREAMpids[i],
 			descrambler );
@@ -753,6 +752,7 @@ void dvbapi_adjust_prioritytab(int demux_index){
 					cfg->dvbapi_prioritytab.caid[i]=0;
 					cfg->dvbapi_prioritytab.cmap[i]=0;
 					cfg->dvbapi_prioritytab.mask[i]=0;
+					priority_is_changed=1;
 				}
 			}
 		}
@@ -771,6 +771,8 @@ void dvbapi_adjust_prioritytab(int demux_index){
 				cfg->dvbapi_prioritytab.caid[freeItem]=demux[demux_index].ECMpids[n].CAID;
 				cfg->dvbapi_prioritytab.cmap[freeItem]=demux[demux_index].ECMpids[n].PROVID >> 8;
 				cfg->dvbapi_prioritytab.mask[freeItem]=demux[demux_index].ECMpids[n].PROVID;
+				priority_is_changed=1;
+
 			}
 		}
 	}
@@ -956,7 +958,7 @@ void dvbapi_try_next_caid(int demux_id) {
 					return;
 				cs_debug("APPEND PID %#x", demux[demux_id].ECMpids[n].ECM_PID);
 			}
-
+	
 			if(num == -1){
 				//search ECM which checked prviously for this stream
 				for(i=0;i<s;i++){
@@ -1463,13 +1465,25 @@ void * dvbapi_main_local(void *cli) {
 		demux[i].rdr=NULL;
 	}
 	memset(ca_fd, 0, sizeof(ca_fd));
-	memset(descramblers,0,sizeof(descramblers));
 
 	dvbapi_detect_api();
 
 	if (selected_box == -1 || selected_api==-1) {
 		cs_log("could not detect api version");
 		return NULL;
+	}
+
+	for (i=0;i<8;i++) {
+		if (demux[0].ca_mask & (1 << i)) {
+			if (ca_fd[i]<=0)
+				ca_fd[i]=dvbapi_open_device(1, i);
+			ca_caps_t cap;
+			if(ioctl(ca_fd[i],CA_GET_CAP,&cap) >=0)
+				DESCR_NUM=cap.descr_num;
+			if(ca_fd[i])
+				close(ca_fd[i]);
+			break;
+		}
 	}
 
 	if (cfg->dvbapi_pmtmode == 1)

@@ -19,7 +19,7 @@ void azbox_send_dcw(ECM_REQUEST *er);
 void * azbox_main(void * cli);
 #endif
 
-extern struct s_reader * reader;
+extern struct  s_reader  reader[CS_MAXREADER];
 
 const char *boxdesc[] = { "none", "dreambox", "duckbox", "ufs910", "dbox2", "ipbox", "ipbox-pmt", "dm7000" };
 
@@ -41,6 +41,8 @@ int ca_fd[8];
 #define DESCRAMBLER_COUNT     8
 int descramblers[DESCRAMBLER_COUNT];
 
+
+
 int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uchar *mask, int timeout, int pidindex, int count, int type) {
 #ifdef AZBOX
 	openxcas_caid = demux[demux_id].ECMpids[pidindex].CAID;
@@ -49,6 +51,15 @@ int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uc
  	return 1; 
 #endif
 	int ret=-1,n=-1,i;
+
+	for (i=0; i<MAX_FILTER ;i++ ){
+		if(demux[demux_id].demux_fd[i].fd > 0 &&
+		   demux[demux_id].demux_fd[i].pid==pid && 
+		   demux[demux_id].demux_fd[i].pidindex==pidindex &&
+		   demux[demux_id].demux_fd[i].type == type &&
+		   demux[demux_id].demux_fd[i].status > 0 )
+			return 0;	//always has a filter for this pidindex
+	}
 
 	for (i=0; i<MAX_FILTER && demux[demux_id].demux_fd[i].fd>0; i++);
 
@@ -232,10 +243,7 @@ int dvbapi_stop_filter(int demux_index, int type) {
 
 int dvbapi_stop_filternum(int demux_index, int num) {
 	int ret=-1;
-	errno=0;
-
-	if (demux[demux_index].demux_fd[num].fd >0 &&
-	   demux[demux_index].demux_fd[num].status) {
+	if (demux[demux_index].demux_fd[num].fd>0) {
 #ifdef WITH_STAPI
 		ret=stapi_remove_filter(demux_index, num);
 #else	
@@ -243,11 +251,6 @@ int dvbapi_stop_filternum(int demux_index, int num) {
 		close(demux[demux_index].demux_fd[num].fd);
 #endif
 		demux[demux_index].demux_fd[num].fd=0;
-
-		if(ret == 0 )
-			demux[demux_index].demux_fd[num].status = 0;
-		else		
-			cs_debug_mask(D_TRACE,"stop filter failed,demux:%d filter:%d  errno:%d",demux_index,num,errno);
 	}
 	return ret;
 }
@@ -320,10 +323,9 @@ void dvbapi_start_emm_filter(int demux_index) {
 	demux[demux_index].emm_filter=1;
 }
 
-void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid, int chid, int STREAMpid) {
+void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,int chid,int STREAMpid) {
 	int n,k,added_ECM=0,added_STREAM=0;
 	int ecmidx=0;
-
 	if (demux[demux_id].ECMpidcount>=ECM_PIDS)
 		return;
 
@@ -370,7 +372,7 @@ void dvbapi_add_emmpid(int demux_id, ushort caid, ushort emmpid, ulong provid) {
 	for (j=0;j<demux[demux_id].ECMpidcount;j++) {
 		if (demux[demux_id].ECMpids[j].CAID==caid && (demux[demux_id].ECMpids[j].PROVID == provid || provid == 0)) {
 			demux[demux_id].ECMpids[j].EMM_PID=emmpid;
-			cs_debug("[ADD EMMPID %d] CAID: %04X  EMM_PID: %04X  PROVID: %06X", j, caid, emmpid, provid);
+			cs_debug("[ADD EMMPID %d] CAID: %04X\tEMM_PID: %04X\tPROVID: %06X", j, caid, emmpid, provid);
 		}
 	}	
 }
@@ -576,18 +578,14 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 					if (buffer[3] == 0x90 && buffer[4] == 0x03) {
 						provid = buffer[5] << 16 | buffer[6] << 8 | (buffer[7] & 0xFE);
 					}
-					else // we should never get there but just to make sure we're not sending crap.
+					else // we should get there but just to make sure we're not sending crap.
 					   provid=0;
 					break;
 
 				case 0x8a:
 				case 0x8b:
 					// emm-g
-					if (buffer[3] == 0x90 && buffer[4] == 0x03) {
-						provid = buffer[5] << 16 | buffer[6] << 8 | (buffer[7] & 0xFE);
-					}
-					else // we should never get there but just to make sure we're not sending crap.
-					   provid=0;
+					return;
 					break;
                     
 				case 0x8c:
@@ -623,7 +621,7 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 					if (emm_global[3] == 0x90 && emm_global[4] == 0x03) {
 						provid = emm_global[5] << 16 | emm_global[6] << 8 | (emm_global[7] & 0xFE);
 					}
-					else // we should never get there but just to make sure we're not sending crap.
+					else // we should get there but just to make sure we're not sending crap.
 					   provid=0;
 					   
 					memcpy(emmbuf, buffer, 7);
@@ -670,17 +668,15 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 			if (len>500) return;
 			switch (buffer[0]) {
 				case 0x84:
-				    // cs_log("cryptoworks shared emm (EMM-SH): %s" , cs_hexdump(1, buffer, len));
+				    cs_log("cryptoworks shared emm (EMM-SH): %s" , cs_hexdump(1, buffer, len));
 					if (!memcmp(emm_global, buffer, len)) return;
 					//cs_log("provider %06X - %02X", provider , buffer[7]);
 					memcpy(emm_global, buffer, len);
 					emm_global_len=len;
 					return;
 				case 0x86:
+				    cs_log("cryptoworks shared emm (EMM-SB): %s" , cs_hexdump(1, buffer, len));
 					if (!emm_global_len) return;
-
-				    // cs_log("cryptoworks shared emm (EMM-SB): %s" , cs_hexdump(1, buffer, len));
-					// not sure about this one, need more doc.
                     provid=buffer[7];
                     
 					// we keep the first 12 bytes of the 0x84 emm (EMM-SH)
@@ -710,10 +706,10 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 				    free(tmp);
 				    free(assembled_EMM);
 				    emm_global_len=0;
-				    // cs_log("cryptoworks shared emm (assembled): %s" , cs_hexdump(1, buffer, emm_len+12));
+				    cs_log("cryptoworks shared emm (assembled): %s" , cs_hexdump(1, buffer, emm_len+12));
                     if(assembled_EMM[11]!=emm_len) { // sanity check
                         // error in emm assembly
-                        // cs_log("Error assembling Cryptoworks EMM-S");
+                        cs_log("Error assembling Cryptoworks EMM-S");
                         return;
                     }
 
@@ -844,6 +840,7 @@ void dvbapi_resort_ecmpids(int demux_index) {
 
 	return;
 }
+
 
 void dvbapi_parse_descriptor(int demux_id, unsigned int info_length, unsigned char *buffer,int STREAMpid) {
 	//int ca_pmt_cmd_id = buffer[i + 5];
@@ -1368,8 +1365,9 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 			if (demux[demux_id].irdeto_numchids != buffer[5]) {
 				cs_log("IRDETO ECM CHIDs: %d", buffer[5]);
 				//TODO: remove no longer used chids
+				unsigned short pid= demux[demux_id].ECMpids[demux[demux_id].demux_fd[filter_num].pidindex].ECM_PID;
 				for (i=1;i<=buffer[5];i++) {
-					dvbapi_add_ecmpid(demux_id, demux[demux_id].demux_fd[filter_num].pidindex, -1, 0, i,0);
+					dvbapi_add_ecmpid(demux_id, caid, pid, provid, i,0);
 				}
 				demux[demux_id].irdeto_numchids = buffer[5];
 				//demux[demux_id].irdeto_curchid = 0;
@@ -1387,7 +1385,7 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 
 		int pid = dvbapi_check_array(cfg->dvbapi_prioritytab.caid, CS_MAXCAIDTAB, caid);
 		if (pid>=0 && provid == 0) {
-			if (cfg->dvbapi_prioritytab.mask[pid]>0)
+			if (cfg->dvbapi_prioritytab.mask[pid] != 0xFFFF)
 				provid = (cfg->dvbapi_prioritytab.cmap[pid] << 8 | cfg->dvbapi_prioritytab.mask[pid]);
 		}
 
@@ -1465,6 +1463,7 @@ void * dvbapi_main_local(void *cli) {
 		demux[i].rdr=NULL;
 	}
 	memset(ca_fd, 0, sizeof(ca_fd));
+	memset(descramblers,0,sizeof(descramblers));
 
 	dvbapi_detect_api();
 
@@ -1692,7 +1691,6 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 			}
 
 			if (er->rc > 3) {
-				cs_debug("send_dcw: er->rc=%d",er->rc);
 				dvbapi_try_next_caid(i);
 				return;
 			}
@@ -1717,8 +1715,8 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 						break;
 			if (j==demux[i].ECMpidcount) continue;
 
-			int ci=-1;
-			if( (ci=demux[i].ECMpids[j].descrambler) == -1)continue;
+			int ci=demux[i].ECMpids[j].descrambler;
+			if (ci == -1) continue;
 
 #ifdef WITH_STAPI
 			stapi_write_cw(i, er->cw);
@@ -1740,8 +1738,8 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 				fprintf(ecmtxt, "protocol: %s\n", reader[er->reader[0]].ph.desc);
 				fprintf(ecmtxt, "hops: %d\n", reader[er->reader[0]].cc_currenthops);
 				fprintf(ecmtxt, "ecm time: %.3f\n", (float) client->cwlastresptime/1000);
-				fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[i].lastcw[0+ci*2],8));
-				fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[i].lastcw[1+ci*2],8));
+				fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[i].lastcw[0+2*ci],8));
+				fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[i].lastcw[1+2*ci],8));
 				fclose(ecmtxt);
 				ecmtxt = NULL;
 			}
@@ -1752,16 +1750,17 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 static void * dvbapi_handler(int ctyp) {
 	//cs_log("dvbapi loaded fd=%d", idx);
 	if (cfg->dvbapi_enabled == 1) {
-		int i=cs_fork(0);
-		client[i].typ='c';
-		client[i].ip=0;
-		client[i].ctyp=ctyp;
+		struct s_client * cl = cs_fork(0); 
+       cl->typ='c';  
+       cl->ctyp=ctyp;  
+	
 #ifdef AZBOX
-		pthread_create(&client[i].thread, NULL, azbox_main, (void*) &client[i]);
+		pthread_create(&cl->thread, NULL, azbox_main, (void*) cl); 
 #else
-		pthread_create(&client[i].thread, NULL, dvbapi_main_local, (void*) &client[i]);
+		pthread_create(&cl->thread, NULL, dvbapi_main_local, (void*) cl); 
 #endif
-		pthread_detach(client[i].thread);
+		pthread_detach(cl->thread); 
+		
 	}
 
 	return NULL;
