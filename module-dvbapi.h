@@ -76,7 +76,8 @@ typedef struct demux_s
 	int ECMpidcount;
 	ECMPIDSTYPE ECMpids[ECM_PIDS];
 	int pidindex;
-	int curindex[ECM_PIDS];
+	int curindex;
+	int try_ECMidx[ECM_PIDS];
 	int valid_ECMpids[ECM_PIDS];
 	int tries;
 	int max_status;

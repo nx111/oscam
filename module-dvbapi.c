@@ -478,21 +478,16 @@ void dvbapi_stop_descrambling(int demux_id) {
 
 void dvbapi_start_descrambling(int demux_id) {
 	int i;
-	for(i=0; i < demux[demux_id].STREAMpidcount; i++)
-		if(demux[demux_id].curindex[i] != -1)
-			break;
-	if(demux[demux_id].curindex[i]==-1)return;
-
-	cs_log("Start descrambling ECM_PID[%d]:%04X CAID: %04X PROVID:%06X", demux[demux_id].curindex[i],
-		demux[demux_id].ECMpids[demux[demux_id].curindex[i]].ECM_PID, 
-		demux[demux_id].ECMpids[demux[demux_id].curindex[i]].CAID,
-		demux[demux_id].ECMpids[demux[demux_id].curindex[i]].PROVID);
+	cs_log("Start descrambling ECM_PID[%d]:%04X CAID: %04X PROVID:%06X", demux[demux_id].curindex,
+		demux[demux_id].ECMpids[demux[demux_id].curindex].ECM_PID, 
+		demux[demux_id].ECMpids[demux[demux_id].curindex].CAID,
+		demux[demux_id].ECMpids[demux[demux_id].curindex].PROVID);
 	
-	demux[demux_id].pidindex=demux[demux_id].curindex[i];
+	demux[demux_id].pidindex=demux[demux_id].curindex;
 
 	for(i=0; i<demux[demux_id].STREAMpidcount;i++){
 		int descrambler=-1;
-		int pididx=demux[demux_id].curindex[i] ;
+		int pididx=demux[demux_id].try_ECMidx[i] ;
 
 		if (pididx  == -1)
 			continue;
@@ -561,6 +556,25 @@ static void dvbapi_sort_nanos(unsigned char *dest, const unsigned char *src, int
     }
 }
 
+static unsigned long dvbapi_get_cw_emm_provid(unsigned char *buffer, int len)
+{
+    unsigned long provid=0;
+    int i=0;
+    
+    for(i=0; i<len;) {
+        switch (buffer[i]) {
+            case 0x83:
+                provid=buffer[i+2];
+                return provid;
+                break;
+            default:
+                i+=buffer[i+1]+2;
+                break;
+        }
+        
+    }
+    return provid;
+}
 
 void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer, unsigned int len) {
 	EMM_PACKET epg;
@@ -717,7 +731,8 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
                         cs_log("Error assembling Cryptoworks EMM-S");
                         return;
                     }
-
+                    // get emm provid for the 0x83 nano
+                    provid=dvbapi_get_cw_emm_provid(assembled_EMM+12, emm_len);
 					break;
 			}
 			break;
@@ -912,7 +927,7 @@ void dvbapi_try_next_caid(int demux_id) {
 		num=demux[demux_id].valid_ECMpids[s];
 
 		if( num == -1){
-			demux[demux_id].curindex[s]=-1;
+			demux[demux_id].try_ECMidx[s]=-1;
 
 			int valid_ecm_s=0;
 			for(i=0;i<demux[demux_id].ECMpidcount;i++){
@@ -969,12 +984,12 @@ void dvbapi_try_next_caid(int demux_id) {
 				//search ECM which checked prviously for this stream
 				for(i=0;i<s;i++){
 					int k=0;
-					int ecmidx=demux[demux_id].curindex[i];
+					int ecmidx=demux[demux_id].try_ECMidx[i];
 					for(k=0;k<demux[demux_id].ECMpids[ecmidx].STREAMpidcount ;k++){
 					   if(demux[demux_id].ECMpids[ecmidx].STREAMpids[k]==demux[demux_id].STREAMpids[s]
 						|| demux[demux_id].ECMpids[ecmidx].STREAMpids[k] == 0 ){
 
-						    demux[demux_id].curindex[s]=ecmidx;
+						    demux[demux_id].try_ECMidx[s]=ecmidx;
 						    break;
 					    }
 					}
@@ -992,15 +1007,19 @@ void dvbapi_try_next_caid(int demux_id) {
 		openxcas_caid = demux[demux_id].ECMpids[num].CAID;
 		openxcas_ecm_pid = demux[demux_id].ECMpids[num].ECM_PID;
 	#endif
-		demux[demux_id].curindex[s]=num;
-
-		if(select_first_ECM !=num)continue;
-
-		cs_debug("[TRY PID %d] STREAM:%d CAID: %04X PROVID: %06X ECM_PID: %04X", num,s, demux[demux_id].ECMpids[num].CAID, demux[demux_id].ECMpids[num].PROVID, demux[demux_id].ECMpids[num].ECM_PID);
- 		//grep ecm
-		dvbapi_start_filter(demux_id, num, demux[demux_id].ECMpids[num].ECM_PID, 0x80, 0xF0, 3000, TYPE_ECM); //ECM
-		demux[demux_id].ECMpids[num].checked=1;
+		demux[demux_id].try_ECMidx[s]=num;
+		if(select_first_ECM ==num)
+			demux[demux_id].curindex=num;
 	}
+
+	num=demux[demux_id].curindex;
+	if(num==-1)return;
+
+	cs_debug("[TRY PID %d] STREAM:%d CAID: %04X PROVID: %06X ECM_PID: %04X", num,s, demux[demux_id].ECMpids[num].CAID, demux[demux_id].ECMpids[num].PROVID, demux[demux_id].ECMpids[num].ECM_PID);
+
+	//grep ecm
+	dvbapi_start_filter(demux_id, num, demux[demux_id].ECMpids[num].ECM_PID, 0x80, 0xF0, 3000, TYPE_ECM); //ECM
+	demux[demux_id].ECMpids[num].checked=1;
 }
 
 int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {

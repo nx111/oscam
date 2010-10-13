@@ -314,7 +314,7 @@ static char *monitor_client_info(char id, struct s_client *cl){
 			sprintf(ldate, "%02d.%02d.%02d", lt->tm_mday, lt->tm_mon+1, lt->tm_year % 100);
 			int cnr=get_threadnum(cl);
 			sprintf(ltime, "%02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
-                        sprintf(sbuf, "[%c--CCC]%08X|%c|%d|%s|%d|%d|%s|%d|%s|%s|%s|%d|%04X:%04X|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d\n",    
+                        sprintf(sbuf, "[%c--CCC]%08lX|%c|%d|%s|%d|%d|%s|%d|%s|%s|%s|%d|%04X:%04X|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d\n",
 					id, (unsigned long) cl->thread, cl->typ, cnr, usr, cau, cl->crypted,
 					cs_inet_ntoa(cl->ip), cl->port, monitor_get_proto(cl),
 					ldate, ltime, lsec, cl->last_caid, cl->last_srvid,
@@ -448,8 +448,17 @@ static void monitor_process_details(char *arg){
 	unsigned long tid = 0; //using threadid 8 positions hex see oscam-log.c //FIXME untested but pid isnt working anyway with threading
 	struct s_client *cl;
 	char sbuf[256];
-	if (!arg) return;
-	cl = idx_from_tid(first_client->thread); //FIXME (*cl = idx_from_tid(tid = atoi(arg))) //FIXME tid should be derived from arg
+
+	if (!arg) {
+		cl = first_client; // no arg - show master
+	} else {
+		tid = atoi(arg);
+		if (tid == first_client->thread)
+			cl = first_client; // idx_from_tid doesn't find master
+		else
+			cl = idx_from_tid(tid);
+	}
+
 	if (!cl)
 		monitor_send_details("Invalid TID", tid); //thread is always valid, so no need for testing
 	else
@@ -461,11 +470,13 @@ static void monitor_process_details(char *arg){
 			monitor_process_details_master(sbuf, cl->thread);
 			break;
 		case 'c': case 'm':
+			monitor_send_details(monitor_client_info(1, cl), cl->thread);
 			break;
 		case 'r':
 			monitor_process_details_reader(tid);//with client->typ='r' client->ridx is always filled and valid, so no need checking
 			break;
 		case 'p':
+			monitor_send_details(monitor_client_info(1, cl), cl->thread);
 			break;
 		}
 	}
