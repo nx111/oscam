@@ -497,6 +497,12 @@ void dvbapi_start_descrambling(int demux_id) {
 		if (pididx  == -1)
 			continue;
 
+		if(!demux[demux_id].ECMpids[pididx].checked){
+			dvbapi_start_filter(demux_id, pididx, demux[demux_id].ECMpids[pididx].ECM_PID, 0x80, 0xF0, 3000, TYPE_ECM); 
+			demux[demux_id].ECMpids[pididx].checked=1;
+			cs_debug("[TRY PID %d] STREAM:%d CAID: %04X PROVID: %06X ECM_PID: %04X", pididx,i, demux[demux_id].ECMpids[pididx].CAID, demux[demux_id].ECMpids[pididx].PROVID, demux[demux_id].ECMpids[pididx].ECM_PID);
+		}
+
 		demux[demux_id].valid_ECMpids[i]=pididx;
 
 		if(demux[demux_id].ECMpids[pididx].descrambler == -1 ){
@@ -892,7 +898,7 @@ void dvbapi_try_next_caid(int demux_id) {
 	int num=-1,i,s,n;
 	int valid_ecm=-1;
 	int select_first_ECM=-1;	//select ECM pidindex for first stream
-
+	
 	if (demux[demux_id].tries > 3) {
 		cs_log("can't decode channel");
 		dvbapi_stop_filter(demux_id, TYPE_ECM);
@@ -981,14 +987,17 @@ void dvbapi_try_next_caid(int demux_id) {
 
 			demux[demux_id].tries=0;
 		}
-		cs_debug("[TRY PID %d] STREAM:%d CAID: %04X PROVID: %06X ECM_PID: %04X", num,s, demux[demux_id].ECMpids[num].CAID, demux[demux_id].ECMpids[num].PROVID, demux[demux_id].ECMpids[num].ECM_PID);
 	#ifdef AZBOX
 		openxcas_provid = demux[demux_id].ECMpids[num].PROVID;
 		openxcas_caid = demux[demux_id].ECMpids[num].CAID;
 		openxcas_ecm_pid = demux[demux_id].ECMpids[num].ECM_PID;
 	#endif
 		demux[demux_id].curindex[s]=num;
-		//grep ecm
+
+		if(select_first_ECM !=num)continue;
+
+		cs_debug("[TRY PID %d] STREAM:%d CAID: %04X PROVID: %06X ECM_PID: %04X", num,s, demux[demux_id].ECMpids[num].CAID, demux[demux_id].ECMpids[num].PROVID, demux[demux_id].ECMpids[num].ECM_PID);
+ 		//grep ecm
 		dvbapi_start_filter(demux_id, num, demux[demux_id].ECMpids[num].ECM_PID, 0x80, 0xF0, 3000, TYPE_ECM); //ECM
 		demux[demux_id].ECMpids[num].checked=1;
 	}
