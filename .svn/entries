@@ -1,14 +1,14 @@
 10
 
 dir
-3497
+3498
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-10-12T21:50:48.007711Z
-3497
+2010-10-13T05:55:58.967378Z
+3498
 alno
 has-props
 
@@ -409,6 +409,9 @@ alno
 
 9555
 
+toolchains
+dir
+
 module-obj-llist.c
 file
 
@@ -442,9 +445,6 @@ has-props
 
 
 2855
-
-toolchains
-dir
 
 oscam-ac.c
 file
@@ -594,6 +594,40 @@ rebdog
 
 1625
 
+CMakeLists.txt
+file
+
+
+
+
+2010-10-13T00:53:55.680896Z
+f4908aadc860d23b4a4cf48cfacc7709
+2010-10-12T15:57:39.352895Z
+3493
+rorothetroll
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+27596
+
 Makefile
 file
 
@@ -628,39 +662,17 @@ dingo35
 
 25007
 
-CMakeLists.txt
+module-dvbapi.h
 file
 
 
 
 
-2010-10-13T00:53:55.680896Z
-f4908aadc860d23b4a4cf48cfacc7709
-2010-10-12T15:57:39.352895Z
-3493
-rorothetroll
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-27596
+d27b81406e5428c2f53409a14a0ce843
+2010-10-11T09:02:27.789550Z
+3474
+Gorlan.Ng
 
 config.sh
 file
@@ -696,18 +708,6 @@ has-props
 
 4056
 
-module-dvbapi.h
-file
-
-
-
-
-
-d27b81406e5428c2f53409a14a0ce843
-2010-10-11T09:02:27.789550Z
-3474
-Gorlan.Ng
-
 module-stat.c
 file
 
@@ -742,39 +742,17 @@ dingo35
 
 14814
 
-module-serial.c
+oscam.c
 file
 
 
 
 
-2010-10-11T12:51:14.995150Z
-c2ccf865ac6241ae688fbb605393a3ca
-2010-10-11T12:43:02.120964Z
-3483
-dingo35
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-28105
+be2342c47ef55a0e4ba5833e88bf9e17
+2010-10-12T19:49:07.116035Z
+3495
+schlocke
 
 oscam-reader.c
 file
@@ -810,26 +788,14 @@ dingo35
 
 21019
 
-oscam.c
-file
-
-
-
-
-
-be2342c47ef55a0e4ba5833e88bf9e17
-2010-10-12T19:49:07.116035Z
-3495
-schlocke
-
-module-stat.h
+module-serial.c
 file
 
 
 
 
 2010-10-11T12:51:14.995150Z
-b717200fab8d4d787ce86e8faf6bd366
+c2ccf865ac6241ae688fbb605393a3ca
 2010-10-11T12:43:02.120964Z
 3483
 dingo35
@@ -854,7 +820,7 @@ dingo35
 
 
 
-584
+28105
 
 module-constcw.c
 file
@@ -889,6 +855,40 @@ dingo35
 
 
 4303
+
+module-stat.h
+file
+
+
+
+
+2010-10-11T12:51:14.995150Z
+b717200fab8d4d787ce86e8faf6bd366
+2010-10-11T12:43:02.120964Z
+3483
+dingo35
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+584
 
 reader-tongfang.c
 file
@@ -1306,10 +1306,10 @@ file
 
 
 
-2010-10-13T00:53:55.680896Z
-b294d4d119b33917dc314b0b35775bae
-2010-10-12T21:50:48.007711Z
-3497
+2010-10-13T07:37:32.901016Z
+16c83b2bcda8c9cbc8a981744150ac87
+2010-10-13T05:55:58.967378Z
+3498
 alno
 
 
@@ -1332,7 +1332,7 @@ alno
 
 
 
-95716
+95781
 
 .gitignore
 file

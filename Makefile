@@ -29,7 +29,7 @@ std:	linux \
 	cross-mipsel-router-linux-uclibc929-static \
 	cross-mipsel-tuxbox-linux-glibc \
 	cross-mipsel-fonera2 \
-	cross-sh4-linux
+	cross-sh-linux
 
 all:	\
 	cross-sparc-sun-solaris2.7 \
@@ -290,7 +290,7 @@ cross-powerpc-405-linux:
 #	sh4 crosscompiler
 #
 ######################################################################
-cross-sh4-linux:
+cross-sh-linux:
 	@-$(MAKE) --no-print-directory \
 		-f Maketype TYP=$(subst cross-,,$@) \
 		OS_LIBS="-lcrypto -lm" \
@@ -300,13 +300,13 @@ cross-sh4-linux:
 		DS_CFLAGS="-c" \
 		DS_LDFLAGS="" \
 		DS_ARFLAGS="-rvsl" \
-		DS_CC=sh4-linux-gcc \
-		DS_AR=sh4-linux-ar \
-		DS_LD=sh4-linux-ld \
-		DS_RL=sh4-linux-ranlib \
-		DS_ST=sh4-linux-strip
+		DS_CC=sh-linux-gnu-gcc \
+		DS_AR=sh-linux-gnu-ar \
+		DS_LD=sh-linux-gnu-ld \
+		DS_RL=sh-linux-gnu-ranlib \
+		DS_ST=sh-linux-gnu-strip
 
-cross-sh4-linux-stapi:
+cross-sh-linux-stapi:
 	@-$(MAKE) --no-print-directory \
 		-f Maketype TYP=$(subst cross-,,$@) \
 		OS_LIBS="-lcrypto -lm -L./stapi -loscam_stapi" \
@@ -316,11 +316,11 @@ cross-sh4-linux-stapi:
 		DS_CFLAGS="-c" \
 		DS_LDFLAGS="" \
 		DS_ARFLAGS="-rvsl" \
-		DS_CC=sh4-linux-gcc \
-		DS_AR=sh4-linux-ar \
-		DS_LD=sh4-linux-ld \
-		DS_RL=sh4-linux-ranlib \
-		DS_ST=sh4-linux-strip
+		DS_CC=sh-linux-gnu-gcc \
+		DS_AR=sh-linux-gnu-ar \
+		DS_LD=sh-linux-gnu-ld \
+		DS_RL=sh-linux-gnu-ranlib \
+		DS_ST=sh-linux-gnu-strip
 
 ######################################################################
 #
