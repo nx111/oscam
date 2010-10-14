@@ -71,7 +71,7 @@ void cs_write_log(char *txt)
 			int use_stdout = (strcmp(cfg->logfile, "stdout"))?0:1;
 			if (fp && !use_stdout && strcmp(cfg->logfile, "syslog"))
 					switch_log(cfg->logfile, &fp, cs_init_log);
-			if ((fp || use_stdout) && (!cfg->disablelog)){
+			if ((fp) && (!cfg->disablelog)){
 					fprintf(fp, "%s", txt);
 					fflush(fp);
 			}
@@ -175,12 +175,18 @@ static void write_to_log(int flag, char *txt)
 
 	cs_write_log(log_buf + 8);
 #ifdef CS_LOGHISTORY
-	store_logentry(log_buf);
+	char *ptr=(char *)(loghist+(loghistidx*CS_LOGHISTSIZE));
+	ptr[0]='\1';    // make username unusable
+	ptr[1]='\0';
+	if ((cur_client()->typ=='c') || (cur_client()->typ=='m'))
+		cs_strncpy(ptr, cur_client()->usr, 31);
+	cs_strncpy(ptr+32, log_buf, CS_LOGHISTSIZE-33);
+	loghistidx=(++loghistidx < CS_MAXLOGHIST)?loghistidx:0;
 #endif
 	if ((cur_client()->typ != 'c') && (cur_client()->typ != 'm'))
 		return;
-	struct s_client *prev, *cl;
-	for (prev=first_client, cl=first_client->next; prev->next != NULL; prev=prev->next, cl=cl->next)
+	struct s_client *cl;
+	for (cl=first_client; cl ; cl=cl->next)
 	{
 		if ((cl->pid) && (cl->log))
 		{

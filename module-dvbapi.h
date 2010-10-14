@@ -46,10 +46,11 @@ typedef struct ECMPIDS
 	unsigned short STREAMpids[ECM_PIDS];
 	int STREAMpidcount;
 	int descrambler;
-	int irdeto_chid;
 	int checked;
 	int status;
 	unsigned char table;
+	int irdeto_numchids;
+	int irdeto_curchid;
 } ECMPIDSTYPE;
 
 typedef struct filter_s
@@ -89,7 +90,6 @@ typedef struct demux_s
 	struct s_reader *rdr;
 	char pmt_file[50];
 	int pmt_time;
-	int irdeto_numchids;
 #ifdef WITH_STAPI
 	uint STREAMhandle[ECM_PIDS];
 #endif
