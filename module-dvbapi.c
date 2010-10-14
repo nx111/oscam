@@ -495,7 +495,7 @@ void dvbapi_start_descrambling(int demux_id) {
 		if(!demux[demux_id].ECMpids[pididx].checked){
 			dvbapi_start_filter(demux_id, pididx, demux[demux_id].ECMpids[pididx].ECM_PID, 0x80, 0xF0, 3000, TYPE_ECM); 
 			demux[demux_id].ECMpids[pididx].checked=1;
-			cs_debug("[TRY PID %d] STREAM:%d CAID: %04X PROVID: %06X ECM_PID: %04X", pididx,i, demux[demux_id].ECMpids[pididx].CAID, demux[demux_id].ECMpids[pididx].PROVID, demux[demux_id].ECMpids[pididx].ECM_PID);
+			cs_debug("[Append PID %d] STREAM:%d CAID: %04X PROVID: %06X ECM_PID: %04X", pididx,i, demux[demux_id].ECMpids[pididx].CAID, demux[demux_id].ECMpids[pididx].PROVID, demux[demux_id].ECMpids[pididx].ECM_PID);
 		}
 
 		demux[demux_id].valid_ECMpids[i]=pididx;
@@ -814,7 +814,6 @@ void dvbapi_resort_ecmpids(int demux_index) {
 		}
 	}
 
-	demux[demux_index].max_status=0;
 	for (n=0; n<demux[demux_index].ECMpidcount; n++) {
 		demux[demux_index].ECMpids[n].status=0;
 		
@@ -832,7 +831,6 @@ void dvbapi_resort_ecmpids(int demux_index) {
 			if (cfg->dvbapi_prioritytab.caid[i] == demux[demux_index].ECMpids[n].CAID && 
 			    (provid == demux[demux_index].ECMpids[n].PROVID || cfg->dvbapi_prioritytab.mask[i] == 0xFFFF)) {
 				demux[demux_index].ECMpids[n].status = i+1; //priority
-				demux[demux_index].max_status = (i+1 > demux[demux_index].max_status) ? i+1 : demux[demux_index].max_status;
 				cs_debug("[PRIORITIZE PID %d] %04X:%06X (position: %d)", n, demux[demux_index].ECMpids[n].CAID, demux[demux_index].ECMpids[n].PROVID, demux[demux_index].ECMpids[n].status);
 			}
 		}
@@ -854,7 +852,6 @@ void dvbapi_resort_ecmpids(int demux_index) {
 				}
 				if ((cur_client()->sidtabok&((SIDTABBITS)1<<nr)) && (chk_srvid_match(&er, sidtab))) {
 					demux[demux_index].ECMpids[n].status = nr+1; //priority
-					demux[demux_index].max_status = (nr+1 > demux[demux_index].max_status) ? nr+1 : demux[demux_index].max_status;
 					cs_debug("[PRIORITIZE PID %d] %04X:%06X (service: %s position: %d)", n, demux[demux_index].ECMpids[n].CAID, demux[demux_index].ECMpids[n].PROVID, sidtab->label, demux[demux_index].ECMpids[n].status);
 				}
 			}
@@ -912,110 +909,109 @@ void dvbapi_parse_descriptor(int demux_id, unsigned int info_length, unsigned ch
 void dvbapi_try_next_caid(int demux_id) {
 	int num=-1,i,s,n;
 	int valid_ecm=-1;
-	int select_first_ECM=-1;	//select ECM pidindex for first stream
+	int tryIdx=-1;	//select ECM pidindex for first stream
 	
-	if (demux[demux_id].tries > 3) {
+	if (demux[demux_id].tries > 2) {
 		cs_log("can't decode channel");
 		dvbapi_stop_filter(demux_id, TYPE_ECM);
 		return;
 	}
 	
-	dvbapi_stop_filter(demux_id, TYPE_ECM);
-
 	for(s=0;s<demux[demux_id].STREAMpidcount;s++){
 
 		num=demux[demux_id].valid_ECMpids[s];
+		if( num != -1) return;
 
-		if( num == -1){
-			demux[demux_id].try_ECMidx[s]=-1;
+		demux[demux_id].try_ECMidx[s]=-1;
 
-			int valid_ecm_s=0;
-			for(i=0;i<demux[demux_id].ECMpidcount;i++){
-				int k;
+		int valid_ecm_s=0;
+		for(i=0;i<demux[demux_id].ECMpidcount;i++){
+			int k;
 
-				//skip that checked or ignored
-				if(demux[demux_id].ECMpids[i].checked !=0 || demux[demux_id].ECMpids[i].status == -1)
-					continue;
-
-				valid_ecm_s++;
-
-				//search ECM for this stream
-				for(k=0;k<demux[demux_id].ECMpids[i].STREAMpidcount ;k++){
-					if(  demux[demux_id].ECMpids[i].STREAMpids[k]==demux[demux_id].STREAMpids[s]
-					    || demux[demux_id].ECMpids[i].STREAMpids[k] == 0 )
-						break;
-				}
-				if(k>=demux[demux_id].ECMpids[i].STREAMpidcount)
-					continue;
-
-				//if it has same caid and provid to select ecm in first stream,use it
-				if(select_first_ECM != -1 && 
-				    (demux[demux_id].ECMpids[i].CAID != demux[demux_id].ECMpids[select_first_ECM].CAID ||
-				     demux[demux_id].ECMpids[i].PROVID != demux[demux_id].ECMpids[select_first_ECM].PROVID ||
-				     demux[demux_id].ECMpids[i].irdeto_chid != demux[demux_id].ECMpids[select_first_ECM].irdeto_chid ))
-					continue;
-
-				if(num==-1)
-					num=i;
-
-				//if it has higher priority
-				if(demux[demux_id].ECMpids[i].status > 0 
-				   && demux[demux_id].ECMpids[i].status < demux[demux_id].ECMpids[num].status )
-					num=i;
-				else if( demux[demux_id].ECMpids[i].status > 0 && demux[demux_id].ECMpids[num].status==0)
-					num=i;
-			}
-			if(valid_ecm == -1 || valid_ecm_s > valid_ecm)
-				valid_ecm=valid_ecm_s;
-
-			//if all checked and not select one,retry check from start
-			if (num == -1 && select_first_ECM == -1 && valid_ecm == 0){
-					demux[demux_id].tries++;
-					for (n=0; n<demux[demux_id].ECMpidcount; n++) {
-						if(demux[demux_id].ECMpids[n].checked != -1)
-							demux[demux_id].ECMpids[n].checked=0;
-					}
-					dvbapi_try_next_caid(demux_id);
-					return;
-				cs_debug("APPEND PID %#x", demux[demux_id].ECMpids[n].ECM_PID);
-			}
-	
-			if(num == -1){
-				//search ECM which checked prviously for this stream
-				for(i=0;i<s;i++){
-					int k=0;
-					int ecmidx=demux[demux_id].try_ECMidx[i];
-					for(k=0;k<demux[demux_id].ECMpids[ecmidx].STREAMpidcount ;k++){
-					   if(demux[demux_id].ECMpids[ecmidx].STREAMpids[k]==demux[demux_id].STREAMpids[s]
-						|| demux[demux_id].ECMpids[ecmidx].STREAMpids[k] == 0 ){
-
-						    demux[demux_id].try_ECMidx[s]=ecmidx;
-						    break;
-					    }
-					}
-				}
+			//skip that checked or ignored
+			if(demux[demux_id].ECMpids[i].checked !=0 || demux[demux_id].ECMpids[i].status == -1)
 				continue;
+
+			valid_ecm_s++;
+
+			//search ECM for this stream
+			for(k=0;k<demux[demux_id].ECMpids[i].STREAMpidcount; k++){
+				if(  demux[demux_id].ECMpids[i].STREAMpids[k] == demux[demux_id].STREAMpids[s]
+				    || demux[demux_id].ECMpids[i].STREAMpids[k] == 0 )
+					break;
 			}
+			if(k>=demux[demux_id].ECMpids[i].STREAMpidcount)
+				continue;
 
-			if(select_first_ECM == -1)
-					select_first_ECM=num;
+			//if it has same caid and provid to select ecm in first stream,use it
+			if(tryIdx != -1 && 
+			    (demux[demux_id].ECMpids[i].CAID != demux[demux_id].ECMpids[tryIdx].CAID ||
+			     demux[demux_id].ECMpids[i].PROVID != demux[demux_id].ECMpids[tryIdx].PROVID ||
+			     demux[demux_id].ECMpids[i].irdeto_chid != demux[demux_id].ECMpids[tryIdx].irdeto_chid ))
+				continue;
 
-			demux[demux_id].tries=0;
+			if(num == -1)
+				num=i;
+
+			//if it has higher priority
+			if(demux[demux_id].ECMpids[i].status > 0 
+			   && demux[demux_id].ECMpids[i].status < demux[demux_id].ECMpids[num].status )
+				num=i;
+			else if( demux[demux_id].ECMpids[i].status > 0 && demux[demux_id].ECMpids[num].status==0)
+				num=i;
 		}
-	#ifdef AZBOX
-		openxcas_provid = demux[demux_id].ECMpids[num].PROVID;
-		openxcas_caid = demux[demux_id].ECMpids[num].CAID;
-		openxcas_ecm_pid = demux[demux_id].ECMpids[num].ECM_PID;
-	#endif
+		if(valid_ecm == -1 || valid_ecm_s > valid_ecm)
+			valid_ecm=valid_ecm_s;
+
+		if(num == -1 && tryIdx != -1 ){
+			//search ECM which checked prviously for this stream
+			for(i=0;i<s;i++){
+				int k=0;
+				int ecmidx=demux[demux_id].try_ECMidx[i];
+				for(k=0;k<demux[demux_id].ECMpids[ecmidx].STREAMpidcount ;k++){
+				   if(demux[demux_id].ECMpids[ecmidx].STREAMpids[k]==demux[demux_id].STREAMpids[s]
+					|| demux[demux_id].ECMpids[ecmidx].STREAMpids[k] == 0 ){
+
+					    demux[demux_id].try_ECMidx[s]=ecmidx;
+					    break;
+				    }
+				}
+			}
+			continue;
+		}
+
+		if(tryIdx == -1)
+				tryIdx=num;
+
+
 		demux[demux_id].try_ECMidx[s]=num;
-		if(select_first_ECM ==num)
+		if(tryIdx == num)
 			demux[demux_id].curindex=num;
 	}
 
 	num=demux[demux_id].curindex;
-	if(num==-1)return;
+
+	//if all checked and not select one,retry check from start
+	if (num == -1){
+		demux[demux_id].tries++;
+		for (n=0; n<demux[demux_id].ECMpidcount; n++) {
+			if(demux[demux_id].ECMpids[n].checked != -1)
+				demux[demux_id].ECMpids[n].checked=0;
+		}
+		dvbapi_try_next_caid(demux_id);
+		return;
+	}
 
 	cs_debug("[TRY PID %d] STREAM:%d CAID: %04X PROVID: %06X ECM_PID: %04X", num,s, demux[demux_id].ECMpids[num].CAID, demux[demux_id].ECMpids[num].PROVID, demux[demux_id].ECMpids[num].ECM_PID);
+
+	demux[demux_id].tries=0;
+	dvbapi_stop_filter(demux_id, TYPE_ECM);
+
+#ifdef AZBOX
+	openxcas_provid = demux[demux_id].ECMpids[num].PROVID;
+	openxcas_caid = demux[demux_id].ECMpids[num].CAID;
+	openxcas_ecm_pid = demux[demux_id].ECMpids[num].ECM_PID;
+#endif
 
 	//grep ecm
 	dvbapi_start_filter(demux_id, num, demux[demux_id].ECMpids[num].ECM_PID, 0x80, 0xF0, 3000, TYPE_ECM); //ECM
@@ -1335,18 +1331,20 @@ void event_handler(int signal) {
 			cs_log("error parsing QboxHD pmt.tmp, incorrect length");
 			continue;
 		}
-
+		
 		for(j2=0,j1=0;j2<len;j2+=2,j1++) {
-			if (sscanf((char*)mbuf+j2, "%02X", dest+j1) != 1) {
+			int iPos;
+			if (sscanf((char*)mbuf+j2, "%02X", &iPos) != 1) {
 				cs_log("error parsing QboxHD pmt.tmp, data not valid in position %d",j2);
 				pthread_mutex_unlock(&event_handler_lock);	
 				return;
 			}
+			*(dest+j1)=iPos;
 		}
 
-		cs_ddump(dest,len/2,"QboxHD pmt.tmp:");
+		cs_ddump((unsigned char*)dest,len/2,"QboxHD pmt.tmp:");
 	
-		pmt_id = dvbapi_parse_capmt(dest+4, (len/2)-4, -1);
+		pmt_id = dvbapi_parse_capmt((unsigned char *)dest+4, (len/2)-4, -1);
 #else
 		if (len>sizeof(dest)) { 
 			cs_log("event_handler() dest buffer is to small for pmt data!");

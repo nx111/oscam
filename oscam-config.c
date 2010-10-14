@@ -1510,7 +1510,7 @@ int init_config()
 			fprintf(stderr, "Error allocating string for cfg->logfile\n");
 	}
 #endif
-	cs_init_statistics(cfg->usrfile);
+	cs_init_statistics();
 	cs_init_log();
 	if (cfg->ftimeout >= cfg->ctimeout) {
 		cfg->ftimeout = cfg->ctimeout - 100;
@@ -2225,8 +2225,9 @@ void update_priority_config(){
 	while (!eof) {
 		int i, l ,priokey=0;
 		char key[128],*p;
-		if(!fgets(token, sizeof(token), fi) && dvbapiKey == 1){
-			dvbapiKey=2;
+		if(!fgets(token, sizeof(token), fi)){
+			if(dvbapiKey == 1)
+				dvbapiKey=2;
 			eof=1;
 		}
 		else if ((l = strlen(trim(token))) >= 3){

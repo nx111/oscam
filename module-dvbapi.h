@@ -80,7 +80,6 @@ typedef struct demux_s
 	int try_ECMidx[ECM_PIDS];
 	int valid_ECMpids[ECM_PIDS];
 	int tries;
-	int max_status;
 	unsigned short program_number;
 	int STREAMpidcount;
 	unsigned short STREAMpids[ECM_PIDS];
