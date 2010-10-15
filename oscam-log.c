@@ -113,23 +113,12 @@ int cs_init_log(void)
 	}
 }
 
-static char *get_log_header(int m, char *txt)
+static void get_log_header(int m, char *txt)
 {
-	if(m) {
-		switch (cur_client()->typ) {
-			case 'r':
-			case 'c':
-			case 'p':
-				sprintf(txt, "%08lX %c%04d ",(unsigned long) cur_client()->thread, cur_client()->typ, get_threadnum(cur_client()));
-				break;
-			default:
-				sprintf(txt, "%c              ", cur_client()->typ);
-				break;
-		}
-	} else
+	if(m)
+		sprintf(txt, "%08lX %c%04d ",(unsigned long) cur_client()->thread, cur_client()->typ, get_threadnum(cur_client()));
+	else
 		sprintf(txt, "%-15.15s", "");
-
-	return(txt);
 }
 
 static void write_to_log(int flag, char *txt)
@@ -183,14 +172,14 @@ static void write_to_log(int flag, char *txt)
 	cs_strncpy(ptr+32, log_buf, CS_LOGHISTSIZE-33);
 	loghistidx=(++loghistidx < CS_MAXLOGHIST)?loghistidx:0;
 #endif
-	if ((cur_client()->typ != 'c') && (cur_client()->typ != 'm'))
-		return;
 	struct s_client *cl;
 	for (cl=first_client; cl ; cl=cl->next)
 	{
-		if ((cl->pid) && (cl->log))
+		if ((cl->pid) && (cl->log) && (cl->typ == 'm') && (cl->monlvl>0))
 		{
 			if (cl->monlvl<2)
+				if ((cur_client()->typ != 'c') && (cur_client()->typ != 'm'))
+					continue;
 				if (strcmp(cur_client()->usr, cl->usr))
 					continue;
 			sprintf(sbuf, "%03d", cl->logcounter);

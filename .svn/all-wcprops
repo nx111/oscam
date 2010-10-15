@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/3521/trunk
+/svn/oscam/!svn/ver/3537/trunk
 END
 module-cccam.h
 K 25
@@ -31,7 +31,7 @@ module-newcamd.c
 K 25
 svn:wc:ra_dav:version-url
 V 47
-/svn/oscam/!svn/ver/3504/trunk/module-newcamd.c
+/svn/oscam/!svn/ver/3532/trunk/module-newcamd.c
 END
 VERSION
 K 25
@@ -67,7 +67,7 @@ oscam-log.c
 K 25
 svn:wc:ra_dav:version-url
 V 42
-/svn/oscam/!svn/ver/3520/trunk/oscam-log.c
+/svn/oscam/!svn/ver/3537/trunk/oscam-log.c
 END
 module-obj-llist.c
 K 25
@@ -97,7 +97,7 @@ module-dvbapi.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3509/trunk/module-dvbapi.c
+/svn/oscam/!svn/ver/3527/trunk/module-dvbapi.c
 END
 oscam-nano.c
 K 25
@@ -121,7 +121,7 @@ module-dvbapi.h
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3474/trunk/module-dvbapi.h
+/svn/oscam/!svn/ver/3524/trunk/module-dvbapi.h
 END
 config.sh
 K 25
@@ -139,7 +139,7 @@ module-serial.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3503/trunk/module-serial.c
+/svn/oscam/!svn/ver/3533/trunk/module-serial.c
 END
 oscam-reader.c
 K 25
@@ -151,7 +151,7 @@ oscam.c
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/3521/trunk/oscam.c
+/svn/oscam/!svn/ver/3523/trunk/oscam.c
 END
 module-stat.h
 K 25
@@ -199,7 +199,7 @@ module-monitor.c
 K 25
 svn:wc:ra_dav:version-url
 V 47
-/svn/oscam/!svn/ver/3510/trunk/module-monitor.c
+/svn/oscam/!svn/ver/3535/trunk/module-monitor.c
 END
 oscam-config.h
 K 25
@@ -223,7 +223,7 @@ reader-videoguard2.c
 K 25
 svn:wc:ra_dav:version-url
 V 51
-/svn/oscam/!svn/ver/3462/trunk/reader-videoguard2.c
+/svn/oscam/!svn/ver/3536/trunk/reader-videoguard2.c
 END
 README
 K 25
@@ -247,7 +247,7 @@ oscam-http.c
 K 25
 svn:wc:ra_dav:version-url
 V 43
-/svn/oscam/!svn/ver/3514/trunk/oscam-http.c
+/svn/oscam/!svn/ver/3535/trunk/oscam-http.c
 END
 .gitignore
 K 25
@@ -271,7 +271,7 @@ globals.h
 K 25
 svn:wc:ra_dav:version-url
 V 40
-/svn/oscam/!svn/ver/3518/trunk/globals.h
+/svn/oscam/!svn/ver/3524/trunk/globals.h
 END
 reader-common.c
 K 25

@@ -1478,6 +1478,7 @@ int init_config()
 #endif
 #ifdef HAVE_DVBAPI
 	cfg->dvbapi_auto_priority = 1;
+	cfg->dvbapi_au = 1;
 #endif
 #ifdef MODULE_CCCAM
 	cfg->cc_update_interval = 240;
