@@ -19,6 +19,8 @@ extern void cs_statistics(struct s_client * client);
 struct s_module ph[CS_MAX_MOD]; // Protocols
 struct s_cardsystem cardsystem[CS_MAX_MOD]; // Protocols
 struct s_client * first_client = NULL; //Pointer to clients list, first client is master
+struct  s_reader  reader[CS_MAXREADER];
+struct s_reader * first_reader = &reader[0];
 
 ushort  len4caid[256];    // table for guessing caid (by len)
 char  cs_confdir[128]=CS_CONFDIR;
@@ -27,29 +29,29 @@ char  cs_tmpdir[200]={0x00};
 pthread_mutex_t gethostbyname_lock;
 pthread_key_t getclient;
 
-#ifdef CS_ANTICASC
-struct s_acasc ac_stat[CS_MAXPID];
-#endif
-
-
 struct  s_ecm     *ecmcache;
 struct  s_ecm     *ecmidx;
-struct  s_reader  reader[CS_MAXREADER];
 
 #ifdef CS_WITH_GBOX
 struct  card_struct Cards[CS_MAXCARDS];
-struct  idstore_struct  idstore[CS_MAXPID];
+//struct  idstore_struct  idstore[CS_MAXPID];
 unsigned long IgnoreList[CS_MAXIGNORE];
 #endif
 
 struct  s_config  *cfg;
-#ifdef CS_ANTICASC
-struct  s_acasc_shm   acasc[CS_MAXPID]; // anti-cascading table indexed by account.ac_idx
-#endif
 #ifdef CS_LOGHISTORY
 int     loghistidx;  // ptr to current entry
 char    loghist[CS_MAXLOGHIST*CS_LOGHISTSIZE];     // ptr of log-history
 #endif
+
+int get_ridx(struct s_reader *reader) {
+	int i;
+	struct s_reader *rdr;
+	for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)
+		if (reader == rdr)
+			return i;
+	return -1;
+}
 
 int get_threadnum(struct s_client *client) {
 	struct s_client *cl;
@@ -253,7 +255,7 @@ static struct s_client * idx_from_ip(in_addr_t ip, in_port_t port)
 {
   struct s_client *cl; 
   for (cl=first_client; cl ; cl=cl->next)
-    if (cl->pid && (cl->ip==ip) && (cl->port==port) && ((cl->typ=='c') || (cl->typ=='m')))
+    if ((cl->ip==ip) && (cl->port==port) && ((cl->typ=='c') || (cl->typ=='m')))
       return cl;
   return NULL;
 }
@@ -290,7 +292,7 @@ int chk_bcaid(ECM_REQUEST *er, CAIDTAB *ctab)
  * void set_signal_handler(int sig, int flags, void (*sighandler)(int))
  * flags: 1 = restart, 2 = don't modify if SIG_IGN, may be combined
  */
-void set_signal_handler(int sig, int flags, void (*sighandler)(int))
+void set_signal_handler(int sig, int flags, void (*sighandler))
 {
 #ifdef CS_SIGBSD
   if ((signal(sig, sighandler)==SIG_IGN) && (flags & 2))
@@ -325,15 +327,16 @@ static void cs_sigpipe()
   cs_log("Got sigpipe signal -> captured");
 }
 
-static void cs_accounts_chk()
+void cs_accounts_chk()
 {
   init_userdb(&cfg->account);
   cs_reinit_clients();
 #ifdef CS_ANTICASC
-	struct s_client *cl;
-	for (cl=first_client->next; cl ; cl=cl->next)
-    if (cl->typ=='a')
-      break;
+//	struct s_client *cl;
+//	for (cl=first_client->next; cl ; cl=cl->next)
+//    if (cl->typ=='a')
+//      break;
+  ac_clear();
 #endif
 }
 
@@ -348,8 +351,6 @@ static void nullclose(int *fd)
 
 static void cleanup_thread(struct s_client *cl)
 {
-	cl->pid=0;
-
 	struct s_client *prev, *cl2;
 	for (prev=first_client, cl2=first_client->next; prev->next != NULL; prev=prev->next, cl2=cl2->next)
 		if (cl == cl2)
@@ -360,33 +361,35 @@ static void cleanup_thread(struct s_client *cl)
 		prev->next = cl2->next; //remove client from list
 
 	cs_sleepms(2000); //wait some time before cleanup to prevent segfaults
-	if(cl->ecmtask) 	free(cl->ecmtask);
-	if(cl->emmcache) 	free(cl->emmcache);
-	if(cl->req) 		free(cl->req);
-	if(cl->cc) 		free(cl->cc);
+	if(ph[cl->ctyp].cleanup) ph[cl->ctyp].cleanup(cl);
+	NULLFREE(cl->ecmtask);
+	NULLFREE(cl->emmcache);
+	NULLFREE(cl->req);
+	NULLFREE(cl->cc);
 	if(cl->pfd)		nullclose(&cl->pfd); //Closing Network socket
 	if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
 	if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
 
-	if (cl) free (cl);
-	cl = NULL; //should prevent other threads for accessing this client
+	NULLFREE (cl);
 
   //decrease ecmcache
 	struct s_ecm *ecmc;
 	if (ecmcache->next != NULL) { //keep it at least on one entry big
-		for (ecmc=ecmcache; ecmc->next->next ; ecmc=ecmc->next);
-		if (ecmc->next) free(ecmc->next);
+		for (ecmc=ecmcache; ecmc->next->next ; ecmc=ecmc->next) ; //find last element
+		NULLFREE(ecmc->next); //free last element
 	}
 }
 
 void cs_exit(int sig)
 {
+	char targetfile[256];
+
 	set_signal_handler(SIGCHLD, 1, SIG_IGN);
 	set_signal_handler(SIGHUP , 1, SIG_IGN);
 	set_signal_handler(SIGPIPE, 1, SIG_IGN);
 
 	if (sig==SIGALRM) {
-		cs_debug("thread %08lX: SIGALRM, skipping", pthread_self());
+		cs_debug("thread %8X: SIGALRM, skipping", pthread_self());
 		return;
 	}
 
@@ -408,6 +411,7 @@ void cs_exit(int sig)
     	cl->last_srvid = 0xFFFF;
     	cs_statistics(cl);
     	break;
+
     case 'm': break;
     case 'r':
         // free AES entries allocated memory
@@ -417,30 +421,26 @@ void cs_exit(int sig)
         // close the device
         reader_device_close(&reader[cl->ridx]);
         break;
+
     case 'h':
     case 's':
 #ifdef CS_LED
-              cs_switch_led(LED1B, LED_OFF);
-              cs_switch_led(LED2, LED_OFF);
-              cs_switch_led(LED3, LED_OFF);
-              cs_switch_led(LED1A, LED_ON);
+	cs_switch_led(LED1B, LED_OFF);
+	cs_switch_led(LED2, LED_OFF);
+	cs_switch_led(LED3, LED_OFF);
+	cs_switch_led(LED1A, LED_ON);
 #endif
-			if (cfg->pidfile != NULL) {
-				if (unlink(cfg->pidfile) < 0)
-					cs_log("cannot remove pid file %s errno=(%d)", cfg->pidfile, errno);
-			}
 #ifndef OS_CYGWIN32
-			char targetfile[256];
-			snprintf(targetfile, 255,"%s%s", get_tmp_dir(), "/oscam.version");
- 			if (unlink(targetfile) < 0)
-				cs_log("cannot remove oscam version file %s errno=(%d)", targetfile, errno);
+	snprintf(targetfile, 255, "%s%s", get_tmp_dir(), "/oscam.version");
+	if (unlink(targetfile) < 0)
+		cs_log("cannot remove oscam version file %s errno=(%d)", targetfile, errno);
 #endif
-			break;
-	}
+	break;
+  }
 
 	// this is very important - do not remove
 	if (cl->typ != 's') {
-		cs_log("thread %08lX ended!", pthread_self());
+		cs_log("thread %8X ended!", pthread_self());
 		cleanup_thread(cl);
 		//Restore signals before exiting thread
 		set_signal_handler(SIGPIPE , 0, cs_sigpipe);
@@ -453,7 +453,7 @@ void cs_exit(int sig)
 	cs_log("cardserver down");
 	cs_close_log();
 
-	if (cl) free(cl);
+	NULLFREE(cl);
 
 	exit(sig);  //clears all threads
 }
@@ -464,7 +464,7 @@ void cs_reinit_clients()
 
 	struct s_client *cl;
 	for (cl=first_client->next; cl ; cl=cl->next)
-		if( cl->pid && cl->typ == 'c' && cl->usr[0] ) {
+		if( cl->typ == 'c' && cl->usr[0] ) {
 			for (account = cfg->account; (account) ; account = account->next)
 				if (!strcmp(cl->usr, account->usr))
 					break;
@@ -503,14 +503,14 @@ void cs_reinit_clients()
 #endif
 			} else {
 				if (ph[cl->ctyp].type & MOD_CONN_NET) {
-					cs_debug("client '%s', pid=%d not found in db (or password changed)", cl->usr, cl->pid);
+					cs_debug("client '%s', thread=%8X not found in db (or password changed)", cl->usr, cl->thread);
 					kill_thread(cl);
 				}
 			}
 		}
 }
 
-static void cs_debug_level()
+void cs_debug_level()
 {
 	//switch debuglevel forward one step if not set from outside
 	if(cfg->debuglvl == cs_dblevel) {
@@ -535,13 +535,12 @@ static void cs_debug_level()
 	cs_log("%sdebug_level=%d", "all", cs_dblevel);
 }
 
-static void cs_card_info(int i)
+void cs_card_info()
 {
   uchar dummy[1]={0x00};
-	i=i; //suppress compiler warning
 	struct s_client *cl;
 	for (cl=first_client->next; cl ; cl=cl->next)
-    if( cl->pid && cl->typ=='r' && cl->fd_m2c )
+    if( cl->typ=='r' && cl->fd_m2c )
       write_to_pipe(cl->fd_m2c, PIP_ID_CIN, dummy, 1);
       //kill(client[i].pid, SIGUSR2);
 }
@@ -549,7 +548,6 @@ static void cs_card_info(int i)
 struct s_client * cs_fork(in_addr_t ip) {
 	struct s_client *cl;
 
-	pid_t pid=getpid();
 	for (cl=first_client; cl->next != NULL; cl=cl->next); //ends with cl on last client
 	cl->next = malloc(sizeof(struct s_client));
 	if (cl->next) {
@@ -575,7 +573,6 @@ struct s_client * cs_fork(in_addr_t ip) {
 		cl->stat=1;
 
 		cl->login=cl->last=time((time_t *)0);
-		cl->pid=pid;
 		//increase ecmcache
 		struct s_ecm *ecmc;
 		for (ecmc=ecmcache; ecmc->next ; ecmc=ecmc->next); //ends on last ecmcache entry
@@ -635,7 +632,6 @@ static void init_shm()
   exit(1);
   }
   first_client->next = NULL; //terminate clients list with NULL
-  first_client->pid=getpid();
   first_client->login=time((time_t *)0);
   first_client->ip=cs_inet_addr("127.0.0.1");
   first_client->typ='s';
@@ -831,21 +827,26 @@ int cs_user_resolve(struct s_auth *account)
 #if defined(CS_ANTICASC) || defined(WEBIF) 
 static void start_thread(void * startroutine, char * nameroutine) {
 	pthread_t temp;
-	if (pthread_create(&temp, (pthread_attr_t *)0, startroutine, NULL))
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+//	pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
+
+	if (pthread_create(&temp, &attr, startroutine, NULL))
 		cs_log("ERROR: can't create %s thread", nameroutine);
 	else {
 		cs_log("%s thread started", nameroutine);
 		pthread_detach(temp);
 	}
+	pthread_attr_destroy(&attr);
 }
 #endif
 void kill_thread(struct s_client *cl) { //cs_exit is used to let thread kill itself, this routine is for a thread to kill other thread
 
-	if (cl->pid==0) return;
+	if (cl) return;
 	if (pthread_equal(cl->thread, pthread_self())) return; //cant kill yourself
 
 	pthread_cancel(cl->thread);
-	cs_log("thread %08lX killed!", cl->thread);
+	cs_log("thread %8X killed!", cl->thread);
 	cleanup_thread(cl); //FIXME what about when cancellation was not granted immediately?
 	return;
 }
@@ -870,32 +871,26 @@ void start_anticascader()
 }
 #endif
 
-void restart_cardreader(int reader_idx, int restart) {
+void restart_cardreader(struct s_reader *rdr, int restart) {
 	int n;
-	if (restart) {//kill old thread, even when .deleted flag is set
-		struct s_client *cl;
-		for (cl=first_client->next; cl ; cl=cl->next)
-			if (cl->ridx==reader_idx) {
-				kill_thread(cl);
-				break;
-			}
-	}
+	if (restart) //kill old thread, even when .deleted flag is set
+		kill_thread(rdr->client);
 
-	if ((reader[reader_idx].device[0]) && (reader[reader_idx].enable == 1) && (!reader[reader_idx].deleted)) {
+	if ((rdr->device[0]) && (rdr->enable == 1) && (!rdr->deleted)) {
 
 		if (restart) {
 			cs_sleepms(cfg->reader_restart_seconds * 1000); // SS: wait
-			cs_log("restarting reader %s (index=%d)", reader[reader_idx].label, reader_idx);
+			cs_log("restarting reader %s", rdr->label);
 		}
 
-		if ((reader[reader_idx].typ & R_IS_CASCADING)) {
+		if ((rdr->typ & R_IS_CASCADING)) {
 			n=0;
 			int i;
 			for (i=0; i<CS_MAX_MOD; i++) {
 				if (ph[i].num) {
-					if (reader[reader_idx].typ==ph[i].num) {
-						cs_debug("reader %s protocol: %s", reader[reader_idx].label, ph[i].desc);
-						reader[reader_idx].ph=ph[i];
+					if (rdr->typ==ph[i].num) {
+						cs_debug("reader %s protocol: %s", rdr->label, ph[i].desc);
+						rdr->ph=ph[i];
 						n=1;
 						break;
 					}
@@ -911,52 +906,32 @@ void restart_cardreader(int reader_idx, int restart) {
 		if (cl == NULL) return;
 
 
-		reader[reader_idx].fd=cl->fd_m2c;
-		cl->ridx=reader_idx;
-		cs_log("creating thread for device %s slot %i with ridx %i", reader[reader_idx].device, reader[reader_idx].slot, reader_idx);
+		rdr->fd=cl->fd_m2c;
+		cl->ridx=get_ridx(rdr);
+		cs_log("creating thread for device %s slot %i", rdr->device, rdr->slot);
              	
-		cl->sidtabok=reader[reader_idx].sidtabok;
-		cl->sidtabno=reader[reader_idx].sidtabno;
+		cl->sidtabok=rdr->sidtabok;
+		cl->sidtabno=rdr->sidtabno;
    
-		reader[reader_idx].pid=getpid();
-
-		reader[reader_idx].client=cl;
+		rdr->client=cl;
 
 		cl->typ='r';
 		//client[i].ctyp=99;
-		pthread_create(&cl->thread, NULL, start_cardreader, (void *)&reader[reader_idx]);
-		pthread_detach(cl->thread);
+		pthread_attr_t attr;
+		pthread_attr_init(&attr);
+//		pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
 
-		if (reader[reader_idx].r_port)
-			cs_log("proxy thread started (pid=%d, server=%s)",reader[reader_idx].pid, reader[reader_idx].device);
-		else {
-			switch(reader[reader_idx].typ) {
-				case R_MOUSE:
-				case R_SMART:
-					cs_log("reader thread started (pid=%d, device=%s, detect=%s%s, mhz=%d, cardmhz=%d)",reader[reader_idx].pid, 
-						reader[reader_idx].device,reader[reader_idx].detect&0x80 ? "!" : "",RDR_CD_TXT[reader[reader_idx].detect&0x7f],
-						reader[reader_idx].mhz,reader[reader_idx].cardmhz);
-					break;
-				case R_SC8in1:
-					cs_log("reader thread started (pid=%d, device=%s:%i, detect=%s%s, mhz=%d, cardmhz=%d)",reader[reader_idx].pid, 
-						reader[reader_idx].device,reader[reader_idx].slot,reader[reader_idx].detect&0x80 ? "!" : "",
-						RDR_CD_TXT[reader[reader_idx].detect&0x7f],reader[reader_idx].mhz,reader[reader_idx].cardmhz);
-					break;
-				default:
-					cs_log("reader thread started (pid=%d, device=%s)",reader[reader_idx].pid, reader[reader_idx].device);
-			}
-			strcpy(cl->usr, first_client->usr);
-		}  
+		pthread_create(&cl->thread, &attr, start_cardreader, (void *)rdr);
+		pthread_detach(cl->thread);
+		pthread_attr_destroy(&attr);
 	}
 }
 
 static void init_cardreader() {
-	int reader_idx;
-	for (reader_idx=0; reader_idx<CS_MAXREADER; reader_idx++) {
-		if ((reader[reader_idx].device[0]) && (reader[reader_idx].enable == 1)) {
-			restart_cardreader(reader_idx, 0);
-		}
-	}
+	struct s_reader *rdr;
+	for (rdr=first_reader; rdr ; rdr=rdr->next)
+		if ((rdr->device[0]) && (rdr->enable == 1))
+			restart_cardreader(rdr, 0);
 }
 
 static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr_t ip)
@@ -977,20 +952,20 @@ static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr
 	struct s_client *cl;
 	for (cl=first_client->next; cl ; cl=cl->next)
 	{
-		if (cl->pid && (cl->typ == 'c') && !cl->dup && !strcmp(cl->usr, usr)
+		if ((cl->typ == 'c') && !cl->dup && !strcmp(cl->usr, usr)
 		   && (uniq < 5) && ((uniq % 2) || (cl->ip != ip)))
 		{
 			if (uniq  == 3 || uniq == 4)
 			{
 				cl->dup = 1;
 				cl->au = -1;
-				cs_log("client(%08lX) duplicate user '%s' from %s set to fake (uniq=%d)", cl->thread, usr, cs_inet_ntoa(ip), uniq);
+				cs_log("client(%8X) duplicate user '%s' from %s set to fake (uniq=%d)", cl->thread, usr, cs_inet_ntoa(ip), uniq);
 			}
 			else
 			{
 				client->dup = 1;
 				client->au = -1;
-				cs_log("client(%08lX) duplicate user '%s' from %s set to fake (uniq=%d)", pthread_self(), usr, cs_inet_ntoa(ip), uniq);
+				cs_log("client(%8X) duplicate user '%s' from %s set to fake (uniq=%d)", pthread_self(), usr, cs_inet_ntoa(ip), uniq);
 				break;
 			}
 
@@ -1008,7 +983,8 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 	char *t_grant=" granted";
 	char *t_reject=" rejected";
 	char *t_msg[]= { buf, "invalid access", "invalid ip", "unknown reason" };
-	client->grp=0xffffffff;
+	memset(&client->grp, 0xff, sizeof(uint64));
+	//client->grp=0xffffffffffffff;
 	client->au=(-1);
 	switch((long)account)
 	{
@@ -1046,15 +1022,17 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 			{
 				client->last_caid = 0xFFFE;
 				client->last_srvid = 0xFFFE;
-				client->expirationdate=account->expirationdate;
-				client->disabled=account->disabled;
-				client->failban=account->failban;
+				client->expirationdate = account->expirationdate;
+				client->disabled = account->disabled;
+				client->allowedtimeframe[0] = account->allowedtimeframe[0];
+				client->allowedtimeframe[1] = account->allowedtimeframe[1];
+				client->failban = account->failban;
 				client->c35_suppresscmd08 = account->c35_suppresscmd08;
 				client->ncd_keepalive = account->ncd_keepalive;
-				client->grp=account->grp;
-				client->au=account->au;
-				client->autoau=account->autoau;
-				client->tosleep=(60*account->tosleep);
+				client->grp = account->grp;
+				client->au = account->au;
+				client->autoau = account->autoau;
+				client->tosleep = (60*account->tosleep);
 				client->c35_sleepsend = account->c35_sleepsend;
 				memcpy(&client->ctab, &account->ctab, sizeof(client->ctab));
 				if (account->uniq)
@@ -1087,14 +1065,12 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 				if(client->ncd_server)
 				{
 					int r=0;
-					for(r=0;r<CS_MAXREADER;r++)
-					{
-						if(reader[r].caid[0]==cfg->ncd_ptab.ports[client->port_idx].ftab.filts[0].caid)
-						{
+					struct s_reader *rdr;
+					for (r=0,rdr=first_reader; rdr ; rdr=rdr->next, r++)
+						if(rdr->caid[0]==cfg->ncd_ptab.ports[client->port_idx].ftab.filts[0].caid) {
 							client->au=r;
 							break;
 						}
-					}
 					if(client->au<0) sprintf(t_msg[0], "au(auto)=%d", client->au+1);
 					else sprintf(t_msg[0], "au(auto)=%s", reader[client->au].label);
 				}
@@ -1148,7 +1124,7 @@ void cs_disconnect_client(struct s_client * client)
  * cache 1: client-invoked
  * returns found ecm task index
  **/
-int check_ecmcache1(ECM_REQUEST *er, ulong grp)
+int check_ecmcache1(ECM_REQUEST *er, uint64 grp)
 {
 	//cs_ddump(ecmd5, CS_ECMSTORESIZE, "ECM search");
 	//cs_log("cache1 CHECK: grp=%lX", grp);
@@ -1170,7 +1146,7 @@ int check_ecmcache1(ECM_REQUEST *er, ulong grp)
  * cache 2: reader-invoked
  * returns 1 if found in cache. cw is copied to er
  **/
-int check_ecmcache2(ECM_REQUEST *er, ulong grp)
+int check_ecmcache2(ECM_REQUEST *er, uint64 grp)
 {
 	// disable cache2
 	if (!reader[cur_client()->ridx].cachecm) return(0);
@@ -1221,7 +1197,7 @@ int write_to_pipe(int fd, int id, uchar *data, int n)
 		return -1;
 	}
 
-	cs_debug("write to pipe %d (%s) thread: %08lX to %08lX", fd, PIP_ID_TXT[id], pthread_self(), get_thread_by_pipefd(fd)->thread);
+	cs_debug("write to pipe %d (%s) thread: %8X to %8X", fd, PIP_ID_TXT[id], pthread_self(), get_thread_by_pipefd(fd)->thread);
 
 	uchar buf[3+sizeof(void*)];
 
@@ -1276,7 +1252,7 @@ int read_from_pipe(int fd, uchar **data, int redir)
 	memcpy(id, buf, 3);
 	id[3]='\0';
 
-	cs_debug("read from pipe %d (%s) thread: %08lX", fd, id, pthread_self());
+	cs_debug("read from pipe %d (%s) thread: %9lX", fd, id, pthread_self());
 
 	int l;
 	for (l=0; (rc<0) && (PIP_ID_TXT[l]); l++)
@@ -1607,9 +1583,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 			client->au = er->reader[0]; // First chance - check whether actual reader can AU
 		} else {
 			int r=0;
-			for(r=0;r<CS_MAXREADER;r++) //second chance loop through all readers to find an AU reader
-			{
-				cur = &reader[r];
+			for (r=0,cur=first_reader; cur ; cur=cur->next, r++) { //second chance loop through all readers to find an AU reader
 				if (matching_reader(er, cur)) {
 					if (cur->typ == R_CCCAM && !cur->caid[0] && !cur->audisabled && 
 						cur->card_system == get_cardsystem(er->caid) && hexserialset(r))
@@ -1624,8 +1598,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 					}
 				}
 			}
-			if(r==CS_MAXREADER)
-			{
+			if(!cur) {
 				client->au=(-1);
 			}
 		}
@@ -1754,10 +1727,10 @@ void chk_dcw(struct s_client *cl, ECM_REQUEST *er)
 	//
     int i;
     ert->reader[er->reader[0]]=0;
-    for (i=0; (ert) && (i<CS_MAXREADER); i++)
-      if (ert->reader[i]) {// we have still another chance
+    struct s_reader *rdr;
+    for (i=0,rdr=first_reader; (ert) && rdr ; rdr=rdr->next, i++)
+      if (ert->reader[i]) // we have still another chance
         ert=(ECM_REQUEST *)0;
-      }
     if (ert) ert->rc=4;
     else send_reader_stat(save_ridx, save_ert, 4);
   }
@@ -1915,8 +1888,8 @@ void request_cw(ECM_REQUEST *er, int flag, int reader_types)
   if ((reader_types == 0) || (reader_types == 2))
     er->level=flag;
   flag=(flag)?3:1;    // flag specifies with/without fallback-readers
-  for (i=0; i<CS_MAXREADER; i++)
-  {
+	struct s_reader *rdr;
+	for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {	
 	    //if (reader[i].pid)
 	    //	  cs_log("active reader: %d pid %d fd %d", i, reader[i].pid, reader[i].fd);
       int status = 0;
@@ -1926,40 +1899,40 @@ void request_cw(ECM_REQUEST *er, int flag, int reader_types)
           default:
           case 0:
               if (er->reader[i]&flag){
-                  cs_debug_mask(D_TRACE, "request_cw1 to reader %s ridx=%d fd=%d", reader[i].label, i, reader[i].fd);
-                  status = write_ecm_request(reader[i].fd, er);
+                  cs_debug_mask(D_TRACE, "request_cw1 to reader %s ridx=%d fd=%d", rdr->label, i, rdr->fd);
+                  status = write_ecm_request(rdr->fd, er);
               }
               break;
               // only local cards
           case 1:
-              if (!(reader[i].typ & R_IS_NETWORK))
+              if (!(rdr->typ & R_IS_NETWORK))
                   if (er->reader[i]&flag) {
-                	  cs_debug_mask(D_TRACE, "request_cw2 to reader %s ridx=%d fd=%d", reader[i].label, i, reader[i].fd);
-                    status = write_ecm_request(reader[i].fd, er);
+                	  cs_debug_mask(D_TRACE, "request_cw2 to reader %s ridx=%d fd=%d", rdr->label, i, rdr->fd);
+                    status = write_ecm_request(rdr->fd, er);
                   }
               break;
               // only network
           case 2:
-        	  //cs_log("request_cw3 ridx=%d fd=%d", i, reader[i].fd);
-              if ((reader[i].typ & R_IS_NETWORK))
+        	  //cs_log("request_cw3 ridx=%d fd=%d", i, rdr->fd);
+              if ((rdr->typ & R_IS_NETWORK))
                   if (er->reader[i]&flag) {
-                	  cs_debug_mask(D_TRACE, "request_cw3 to reader %s ridx=%d fd=%d", reader[i].label, i, reader[i].fd);
-                    status = write_ecm_request(reader[i].fd, er);
+                	  cs_debug_mask(D_TRACE, "request_cw3 to reader %s ridx=%d fd=%d", rdr->label, i, rdr->fd);
+                    status = write_ecm_request(rdr->fd, er);
                   }
               break;
       }
       if (status == -1) {
-                cs_log("request_cw() failed on reader %s (%d) errno=%d, %s", reader[i].label, i, errno, strerror(errno));
-      		if (reader[i].fd) {
- 	     		reader[i].fd_error++;
-      			if (reader[i].fd_error > 5) {
-      				reader[i].fd_error = 0;
-      				restart_cardreader(i, 1); //Schlocke: This restarts the reader!
+                cs_log("request_cw() failed on reader %s (%d) errno=%d, %s", rdr->label, i, errno, strerror(errno));
+      		if (rdr->fd) {
+ 	     		rdr->fd_error++;
+      			if (rdr->fd_error > 5) {
+      				rdr->fd_error = 0;
+      				restart_cardreader(&reader[i], 1); //Schlocke: This restarts the reader!
       			} 
 		}
       }
       else
-      	reader[i].fd_error = 0;
+      	rdr->fd_error = 0;
   }
 }
 
@@ -2166,9 +2139,10 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 	if(er->rc > 99) {
 		er->reader_count=0;
 		er->reader_avail=0;
+		struct s_reader *rdr;
 		if (cfg->lb_mode) {
-			int reader_avail[CS_MAXREADER];
-			for (i =0; i < CS_MAXREADER; i++) {
+			int reader_avail[CS_MAXREADER]; //FIXME limits reader list!!!
+			for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {	
 				reader_avail[i] = matching_reader(er, &reader[i]);
 				if (reader_avail[i] == 1)
 					er->reader_avail++;
@@ -2176,7 +2150,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 				
 			recv_best_reader(er, reader_avail);
 				
-			for (i = m = 0; i < CS_MAXREADER; i++) {
+			for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {	
 				if (reader_avail[i]) {
 					m|=er->reader[i] = reader_avail[i];
 					if (reader_avail[i] == 1) // do not count fallback readers (==2: fallback)
@@ -2186,10 +2160,10 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		}
 		else
 		{
-			for (i = m = 0; i < CS_MAXREADER; i++)
-				if (matching_reader(er, &reader[i])) {
-					m|=er->reader[i] = (reader[i].fallback)? 2: 1;
-					if (!reader[i].fallback) { // do not count fallback readers
+			for (i=m=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)	
+				if (matching_reader(er, rdr)) {
+					m|=er->reader[i] = (rdr->fallback)? 2: 1;
+					if (!rdr->fallback) { // do not count fallback readers
 						er->reader_count++;
 						er->reader_avail++;
 					}
@@ -2206,7 +2180,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 				
 			// fallbacks only, switch them
 			case 2:
-				for (i = 0; i < CS_MAXREADER; i++)
+				for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)	
 					er->reader[i]>>=1;
 		}
 	}
@@ -2241,10 +2215,11 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 	//Unique Id matching for pay-per-view channels:
 	if (client->autoau) {
 		int i;
-		for (i=0;i<CS_MAXREADER;i++) {
-			if (reader[i].card_system>0 && !reader[i].audisabled) {
+		struct s_reader *rdr;
+		for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {	
+			if (rdr->card_system>0 && !rdr->audisabled) {
 				if (reader_get_emm_type(ep, &reader[i])) { //decodes ep->type and ep->hexserial from the EMM
-					if (memcmp(ep->hexserial, reader[i].hexserial, sizeof(ep->hexserial))==0) {
+					if (memcmp(ep->hexserial, rdr->hexserial, sizeof(ep->hexserial))==0) {
 						au = i;
 						break; //
 					}
@@ -2410,12 +2385,13 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 			tpc.time +=tt / 1000;
 			tpc.millitm += tt % 1000;
 			if (!er->stage) {
-				for (j=0, act=1; (act) && (j<CS_MAXREADER); j++) {
+				struct s_reader *rdr;
+				for (j=0, act=1, rdr=first_reader; (act) && rdr ; rdr=rdr->next, j++) {	
 					if (cfg->preferlocalcards && !er->locals_done) {
-						if ((er->reader[j]&1) && !(reader[j].typ & R_IS_NETWORK))
+						if ((er->reader[j]&1) && !(rdr->typ & R_IS_NETWORK))
 							act=0;
 					} else if (cfg->preferlocalcards && er->locals_done) {
-						if ((er->reader[j]&1) && (reader[j].typ & R_IS_NETWORK))
+						if ((er->reader[j]&1) && (rdr->typ & R_IS_NETWORK))
 							act=0;
 					} else {
 						if (er->reader[j]&1)
@@ -2431,10 +2407,10 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 					int inc_stage = 1;
 					if (cfg->preferlocalcards && !er->locals_done) {
 						er->locals_done = 1;
-						for (j = 0; j < CS_MAXREADER; j++) {
-							if (reader[j].typ & R_IS_NETWORK)
+						struct s_reader *rdr;
+						for (rdr=first_reader; rdr ; rdr=rdr->next)	
+							if (rdr->typ & R_IS_NETWORK)
 								inc_stage = 0;
-						}
 					}
 					unsigned int tt;
 					if (!inc_stage) {
@@ -2460,7 +2436,8 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 					er->rc=5; // timeout
 					if (cfg->lb_mode) {
 						int r;
-						for (r=0; r<CS_MAXREADER; r++)
+						struct s_reader *rdr;
+						for (r=0,rdr=first_reader; rdr ; rdr=rdr->next, r++)	
 							if (er->reader[r])
 								send_reader_stat(r, er, 5);
 					}
@@ -2540,9 +2517,9 @@ static void restart_clients()
 	cs_log("restarting clients");
 	struct s_client *cl;
 	for (cl=first_client->next; cl ; cl=cl->next)
-		if (cl->pid && cl->typ=='c' && ph[cl->ctyp].type & MOD_CONN_NET) {
+		if (cl->typ=='c' && ph[cl->ctyp].type & MOD_CONN_NET) {
 			kill_thread(cl);
-			cs_log("killing client c%08lX pid %d", cl->thread, cl->pid);
+			cs_log("killing client c%9lX", cl->thread);
 		}
 }
 
@@ -2622,16 +2599,16 @@ void cs_waitforcardinit()
 	if (cfg->waitforcards)
 	{
   		cs_log("waiting for local card init");
-		int card_init_done, i;
+		int card_init_done;
 		cs_sleepms(3000);  // short sleep for card detect to work proberly
 		do {
 			card_init_done = 1;
-			for (i = 0; i < CS_MAXREADER; i++) {
-				if (!(reader[i].typ & R_IS_CASCADING) && reader[i].card_status == CARD_NEED_INIT) {
+			struct s_reader *rdr;
+			for (rdr=first_reader; rdr ; rdr=rdr->next)	
+				if (!(rdr->typ & R_IS_CASCADING) && rdr->card_status == CARD_NEED_INIT) {
 					card_init_done = 0;
 					break;
 				}
-			}
 			cs_sleepms(300); // wait a little bit
 			//alarm(cfg->cmaxidle + cfg->ctimeout / 1000 + 1); 
 		} while (!card_init_done);
@@ -2674,8 +2651,13 @@ int accept_connection(int i, int j) {
 
 				write_to_pipe(cl->fd_m2c, PIP_ID_UDP, (uchar*)&buf, n+3);
 
-				pthread_create(&cl->thread, NULL, ph[i].s_handler, (void *) cl);
+				pthread_attr_t attr;
+				pthread_attr_init(&attr);
+//				pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
+
+				pthread_create(&cl->thread, &attr, ph[i].s_handler, (void *) cl);
 				pthread_detach(cl->thread);
+				pthread_attr_destroy(&attr);
 			} else {
 				write_to_pipe(cl->fd_m2c, PIP_ID_UDP, (uchar*)&buf, n+3);
 			}
@@ -2699,8 +2681,13 @@ int accept_connection(int i, int j) {
 			cl->port=ntohs(cad.sin_port);
 			cl->typ='c';
 
-			pthread_create(&cl->thread, NULL, ph[i].s_handler, (void*) cl);
+			pthread_attr_t attr;
+			pthread_attr_init(&attr);
+//			pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
+
+			pthread_create(&cl->thread, &attr, ph[i].s_handler, (void*) cl);
 			pthread_detach(cl->thread);
+			pthread_attr_destroy(&attr);
 		}
 	}
 	return 0;
@@ -2778,8 +2765,12 @@ if (pthread_key_create(&getclient, NULL)) {
   int      fdp[2];
   int      mfdr=0;     // Master FD (read)
   int      fd_c2m=0;
+
 	cfg = malloc(sizeof(struct s_config));
-  //uchar    buf[2048];
+	memset(cfg, 0, sizeof(struct s_config));
+
+	memset(reader, 0, sizeof(struct s_reader)*CS_MAXREADER);
+
   void (*mod_def[])(struct s_module *)=
   {
 #ifdef MODULE_MONITOR
@@ -2940,18 +2931,6 @@ if (pthread_key_create(&getclient, NULL)) {
   {
     cs_log("Error starting in background (errno=%d)", errno);
     cs_exit(1);
-  }
-
-  if (cfg->pidfile != NULL)
-  {
-    FILE *fp;
-    if (!(fp=fopen(cfg->pidfile, "w")))
-    {
-      cs_log("Cannot open pid-file (errno=%d)", errno);
-      cs_exit(1);
-    }
-    fprintf(fp, "%d\n", getpid());
-    fclose(fp);
   }
 
   write_versionfile();

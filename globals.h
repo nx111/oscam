@@ -133,14 +133,24 @@
 #define CS_LOGHISTSIZE    193 // 32+128+33: username + logline + channelname
 #define CS_MAXREADERCAID  16
 
+#ifndef PTHREAD_STACK_MIN
+#define PTHREAD_STACK_MIN 64000
+#endif
+
 #ifdef  CS_EMBEDDED
-#define CS_MAXPID   32
-#define CS_MAXREADER    (CS_MAXPID>>1)
-#define CS_MAXPENDING   CS_MAXPID
+//#define CS_MAXPID   32
+//#define CS_MAXREADER    (CS_MAXPID>>1)
+#define CS_MAXREADER    16
+//#define CS_MAXPENDING   CS_MAXPID
+#define CS_MAXPENDING   8
+#define PTHREAD_STACK_SIZE PTHREAD_STACK_MIN+8000
 #else
-#define CS_MAXPID   512
-#define CS_MAXREADER    (CS_MAXPID<<2)
-#define CS_MAXPENDING   (CS_MAXPID<<1)
+//#define CS_MAXPID   512
+//#define CS_MAXREADER    (CS_MAXPID<<2)
+#define CS_MAXREADER    256
+//#define CS_MAXPENDING   (CS_MAXPID<<1)
+#define CS_MAXPENDING   20
+#define PTHREAD_STACK_SIZE PTHREAD_STACK_MIN+10000
 #endif
 
 #define CS_EMMCACHESIZE  5 //nr of EMMs that each client will cache; cache is per client, so memory-expensive...
@@ -239,8 +249,6 @@ extern char *RDR_CD_TXT[];
 #define NCD_524     1
 #define NCD_525     2
 
-//#define CS_ANTICASC
-
 // moved from reader-common.h
 #define NO_CARD        0
 #define CARD_NEED_INIT 1
@@ -284,9 +292,9 @@ extern void cs_switch_led(int led, int action);
 #define BAN_DISABLED 2			//failban mask for disabled user
 #define BAN_SLEEPING 4			//failban mask for sleeping user
 
-#define free(a) \
-	free(a); \
-	a=NULL;
+
+//checking if (X) free(X) unneccessary since freeing a null pointer doesnt do anything
+#define NULLFREE(X) {if (X) {free(X); X = NULL; }}
 
 typedef struct s_classtab
 {
@@ -400,7 +408,7 @@ struct s_ecm
   uchar  	ecmd5[CS_ECMSTORESIZE];
   uchar  	cw[16];
   ushort 	caid;
-  ulong  	grp;
+  uint64  	grp;
   int 		reader;
   struct s_ecm *next;
   //int level;
@@ -524,7 +532,6 @@ typedef struct ecm_request_t
 
 struct s_client
 {
-  pid_t	pid;
   in_addr_t	ip;
   in_port_t	port;
   time_t	login;
@@ -538,7 +545,7 @@ struct s_client
   int		c35_sleepsend;
   int		ncd_keepalive;
   int		disabled;
-  ulong		grp;
+  uint64	grp;
   int		crypted;
   int		dup;
   int		au;
@@ -679,13 +686,12 @@ struct s_reader  //contains device info, reader info and card info
   int		audisabled; // exclude reader from auto AU
   int 		deleted; // if this flag is set the reader is not shown in webif and becomes not writte to oscam.server
   int		smargopatch;
-  int		pid;
   struct s_client * client; //pointer to 'r'client this reader is running in
   int       enable;
   int       available; //Schlocke: New flag for loadbalancing. Only reader if reader supports ph.c_available function
   int       fd_error;
   int       fd;
-  ulong     grp;
+  uint64    grp;
   int       fallback;
   int       typ;
   int       card_system;
@@ -853,6 +859,7 @@ struct s_reader  //contains device info, reader info and card info
 	int ratelimitecm;
 	int ratelimitseconds;
 	struct ecmrl    rlecmh[MAXECMRATELIMIT];
+	struct s_reader *next;
 };
 
 #ifdef CS_ANTICASC
@@ -886,7 +893,7 @@ struct s_auth
   int      au;
   int      autoau;
   int      monlvl;
-  ulong    grp;
+  uint64   grp;
   int      tosleep;
   CAIDTAB  ctab;
   SIDTABBITS   sidtabok;  // positiv services
@@ -967,7 +974,6 @@ struct s_config
 	int		clientdyndns;
 	int		tosleep;
 	in_addr_t	srvip;
-	char		*pidfile;
 	char		*usrfile;
 	char		*cwlogdir;
 	char		*logfile;
@@ -1197,6 +1203,7 @@ extern void create_rand_str(char *dst, int size);
 #endif
 extern void sidtabbits2bitchar(SIDTABBITS value, char *result);
 extern void long2bitchar(long value, char *result);
+extern void uint642bitchar(uint64 value, char *result);
 extern int file_exists(const char * filename);
 extern void clear_sip(struct s_ip **sip);
 extern void clear_ptab(struct s_ptab *ptab);
@@ -1216,6 +1223,7 @@ extern void init_rnd(void);
 extern pthread_key_t getclient;
 extern struct s_client * cur_client(void);
 extern struct s_client *first_client;
+extern struct s_reader *first_reader;
 
 // oscam variables
 
@@ -1224,7 +1232,7 @@ extern int cs_dblevel, loghistidx;
 extern ushort len4caid[256];
 
 extern struct card_struct *Cards;
-extern struct idstore_struct *idstore;
+//extern struct idstore_struct *idstore;
 extern unsigned long *IgnoreList;
 
 extern struct s_config *cfg;
@@ -1235,7 +1243,6 @@ extern struct s_cardsystem cardsystem[CS_MAX_MOD];
 //extern ECM_REQUEST *ecmtask;
 
 #ifdef CS_ANTICASC
-extern struct  s_acasc_shm   acasc[CS_MAXPID];
 extern FILE *fpa;
 #endif
 extern pthread_mutex_t gethostbyname_lock; 
@@ -1249,8 +1256,8 @@ extern void cs_exit(int sig);
 extern struct s_client * cs_fork(in_addr_t);
 extern int cs_auth_client(struct s_client *, struct s_auth *, const char*);
 extern void cs_disconnect_client(struct s_client *);
-extern int check_ecmcache1(ECM_REQUEST *, ulong);
-extern int check_ecmcache2(ECM_REQUEST *, ulong);
+extern int check_ecmcache1(ECM_REQUEST *, uint64);
+extern int check_ecmcache2(ECM_REQUEST *, uint64);
 extern int write_to_pipe(int, int, uchar *, int);
 extern int read_from_pipe(int, uchar **, int);
 extern int write_ecm_request(int, ECM_REQUEST *);
@@ -1275,7 +1282,7 @@ extern int chk_rfilter(ECM_REQUEST *, struct s_reader *);
 extern int chk_rsfilter(struct s_reader * reader, ECM_REQUEST *);
 extern int chk_avail_reader(ECM_REQUEST *, struct s_reader *);
 extern int matching_reader(ECM_REQUEST *, struct s_reader *);
-extern void set_signal_handler(int , int , void (*)(int));
+extern void set_signal_handler(int , int , void (*));
 extern void cs_log_config(void);
 extern void cs_waitforcardinit(void);
 extern void cs_reinit_clients(void);
@@ -1287,10 +1294,14 @@ extern int chk_srvid_match_by_caid_prov(ushort caid, ulong provid, SIDTAB *sidta
 extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid);
 extern void kill_thread(struct s_client *cl);
 extern int get_threadnum(struct s_client *client);
+extern void cs_card_info(void);
+extern void cs_debug_level(void);
                  
 #ifdef CS_ANTICASC
 extern void init_ac(void);
 extern void ac_init_stat();
+extern void ac_clear();
+extern void ac_done_stat();
 extern int  ac_init_log();
 extern void ac_do_stat(void);
 extern void ac_init_client(struct s_auth *);
@@ -1332,7 +1343,7 @@ extern void chk_t_serial(char *token, char *value);
 extern void chk_t_gbox(char *token, char *value);
 #endif
 extern void chk_t_cccam(char *token, char *value);
-extern void chk_t_global(char *token, char *value);
+extern void chk_t_global(const char *token, char *value);
 extern void chk_t_monitor(char *token, char *value);
 extern void chk_reader(char *token, char *value, struct s_reader *rdr);
 
@@ -1346,7 +1357,8 @@ void dvbapi_chk_caidtab(char *caidasc, CAIDTAB *ctab);
 extern void chk_t_webif(char *token, char *value);
 #endif
 
-extern void chk_account(char *token, char *value, struct s_auth *account);
+extern void cs_accounts_chk(void);
+extern void chk_account(const char *token, char *value, struct s_auth *account);
 extern void chk_sidtab(char *token, char *value, struct s_sidtab *sidtab);
 extern int write_services();
 extern int write_userdb(struct s_auth *authptr);
@@ -1355,7 +1367,7 @@ extern int write_server();
 extern void write_versionfile();
 extern char *mk_t_caidtab(CAIDTAB *ctab);
 extern char *mk_t_tuntab(TUNTAB *ttab);
-extern char *mk_t_group(ulong *grp);
+extern char *mk_t_group(uint64 grp);
 extern char *mk_t_ftab(FTAB *ftab);
 //Todo #ifdef CCCAM
 extern int init_provid();

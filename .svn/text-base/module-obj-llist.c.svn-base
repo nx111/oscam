@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "module-obj-llist.h"
+#include "globals.h"
 
 LLIST *llist_create(void)
 {
@@ -35,7 +36,19 @@ void llist_destroy(LLIST *l)
 	}
 	pthread_mutex_destroy(&l->lock);
 	free(l);
-	//  llist_itr_release(&itr);
+}
+
+void llist_clear(LLIST *l)
+{
+	LLIST_ITR itr;
+	if (!l)
+		return;
+	void *o = llist_itr_init(l, &itr);
+	while (o) {
+		free(o);
+		o = llist_itr_remove(&itr);
+	}
+	pthread_mutex_destroy(&l->lock);
 }
 
 void *llist_append(LLIST *l, void *o)

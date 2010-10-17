@@ -664,15 +664,20 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
             // 
 			if (len>500) return;
 			switch (buffer[0]) {
-				case 0x84:
-				    cs_log("cryptoworks shared emm (EMM-SH): %s" , cs_hexdump(1, buffer, len));
+                case 0x82 : // emm-u
+				    cs_debug("cryptoworks unique emm (EMM-U): %s" , cs_hexdump(1, buffer, len));
+                    provid=dvbapi_get_cw_emm_provid(buffer+12, len-12);
+                    break;
+                    
+				case 0x84: // emm-sh
+				    cs_debug("cryptoworks shared emm (EMM-SH): %s" , cs_hexdump(1, buffer, len));
 					if (!memcmp(emm_global, buffer, len)) return;
-					//cs_log("provider %06X - %02X", provider , buffer[7]);
 					memcpy(emm_global, buffer, len);
 					emm_global_len=len;
 					return;
-				case 0x86:
-				    cs_log("cryptoworks shared emm (EMM-SB): %s" , cs_hexdump(1, buffer, len));
+
+				case 0x86: // emm-sb
+				    cs_debug("cryptoworks shared emm (EMM-SB): %s" , cs_hexdump(1, buffer, len));
 					if (!emm_global_len) return;
                     provid=buffer[7];
                     
@@ -703,16 +708,23 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 				    free(tmp);
 				    free(assembled_EMM);
 				    emm_global_len=0;
-				    cs_log("cryptoworks shared emm (assembled): %s" , cs_hexdump(1, buffer, emm_len+12));
+				    cs_debug("cryptoworks shared emm (assembled): %s" , cs_hexdump(1, buffer, emm_len+12));
                     if(assembled_EMM[11]!=emm_len) { // sanity check
                         // error in emm assembly
-                        cs_log("Error assembling Cryptoworks EMM-S");
+                        cs_debug("Error assembling Cryptoworks EMM-S");
                         return;
                     }
-                    // get emm provid for the 0x83 nano
+                    // get emm provid from the 0x83 nano
                     provid=dvbapi_get_cw_emm_provid(assembled_EMM+12, emm_len);
 					break;
-			}
+				
+				case 0x88: // emm-g
+				case 0x89: // emm-g
+				    cs_debug("cryptoworks global emm (EMM-G): %s" , cs_hexdump(1, buffer, len));
+                    provid=dvbapi_get_cw_emm_provid(buffer+8, len-8);
+				    break;
+				
+			}    
 			break;
 	}
 		
@@ -724,6 +736,8 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 	epg.caid[0] = (uchar)(demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID>>8); 
 	epg.caid[1] = (uchar)(demux[demux_index].ECMpids[demux[demux_index].pidindex].CAID); 
 
+    cs_debug("setting epg.provid to %06x",provid);
+    
 	epg.provid[0] = (uchar)(provid>>24); 
 	epg.provid[1] = (uchar)(provid>>16); 
 	epg.provid[2] = (uchar)(provid>>8); 

@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/3485/trunk/csctapi
+/svn/oscam/!svn/ver/3569/trunk/csctapi
 END
 ifd_smartreader.h
 K 25
@@ -49,7 +49,7 @@ ifd_pcsc.c
 K 25
 svn:wc:ra_dav:version-url
 V 49
-/svn/oscam/!svn/ver/3290/trunk/csctapi/ifd_pcsc.c
+/svn/oscam/!svn/ver/3549/trunk/csctapi/ifd_pcsc.c
 END
 ifd_mp35.h
 K 25
@@ -199,7 +199,7 @@ ifd_smartreader.c
 K 25
 svn:wc:ra_dav:version-url
 V 56
-/svn/oscam/!svn/ver/3360/trunk/csctapi/ifd_smartreader.c
+/svn/oscam/!svn/ver/3569/trunk/csctapi/ifd_smartreader.c
 END
 ifd_sc8in1.h
 K 25

@@ -17,8 +17,6 @@
 
 #include <pthread.h>
 
-#define NULLFREE(X) do { if (X) { free(X); X = NULL; } } while(0)
-
 struct llist_node {
 	void *obj;
 	struct llist_node *prv;
@@ -39,6 +37,7 @@ typedef struct llist_itr {
 
 LLIST *llist_create(void);                  // init linked list
 void llist_destroy(LLIST *l);               // de-init linked list - frees all objects on the list
+void llist_clear(LLIST *l);                 // frees all objects on the list
 
 void *llist_append(LLIST *l, void *o);       // append object onto bottom of list, returns ptr to obj
 void *llist_insert_first(LLIST *l, void *o);       // append object onto bottom of list, returns ptr to obj

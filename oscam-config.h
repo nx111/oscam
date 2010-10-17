@@ -13,7 +13,7 @@
 #endif
 
 #ifndef IRDETO_GUESSING
-//#define IRDETO_GUESSING
+#define IRDETO_GUESSING
 #endif
 
 #ifndef CS_ANTICASC
