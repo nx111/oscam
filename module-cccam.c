@@ -712,7 +712,7 @@ int get_UA_len(uint16 caid) {
 			len=5;
 			break;
 		case 0x4A: //DRE:
-			len=1;
+			len=4;
 			break;
 		case 0x01: //SECA:
 			len=6;
@@ -1147,14 +1147,14 @@ int cc_send_emm(EMM_PACKET *ep) {
 	}
 
 	if (!emm_card) { //Card for emm not found!
-		cs_log("%s emm for client %08lX not possible, no card found!",
+		cs_log("%s emm for client %8X not possible, no card found!",
 				getprefix(), ep->client->thread);
 		pthread_mutex_unlock(&cc->cards_busy);
 		return 0;
 	}
 
 	cs_debug_mask(D_EMM,
-			"%s emm received for client %08lX caid %04X for card %08X",
+			"%s emm received for client %8X caid %04X for card %08X",
 			getprefix(), ep->client->thread, caid, emm_card->id);
 
 	int size = ep->l + 12;
@@ -2838,7 +2838,7 @@ void * cc_srv_init(struct s_client *cl ) {
 	cs_disconnect_client(cl);
 
 	//cs_exit(1);
-	cc_cleanup();
+	cc_cleanup(cl);
 	cs_debug_mask(D_FUT, "cc_srv_init out");
 	return NULL; //suppress compiler warning
 }
@@ -3123,9 +3123,8 @@ void cc_card_info() {
 	cs_debug_mask(D_FUT, "cc_card_info out");
 }
 
-void cc_cleanup(void) {
+void cc_cleanup(struct s_client *cl) {
 	cs_debug_mask(D_FUT, "cc_cleanup in");
-	struct s_client *cl = cur_client();
 	if (cl->typ != 'c') {
 		cc_cli_close(cl); // we need to close open fd's 
 	}

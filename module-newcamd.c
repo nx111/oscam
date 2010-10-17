@@ -510,7 +510,7 @@ static FILTER mk_user_ftab()
   }
 
   // search CAID in client IDENT
-  cs_debug("client[%08lX].%s nfilts=%d, filt.caid=%04X", pthread_self(),
+  cs_debug("client[%8X].%s nfilts=%d, filt.caid=%04X", pthread_self(),
            cur_client()->usr, cur_client()->ftab.nfilts, filt.caid);
 
   if( !filt.caid && cur_client()->ftab.nfilts ) 
@@ -636,11 +636,7 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
       {
         cs_debug("expected MSG_CLIENT_2_SERVER_LOGIN (%02X), received %02X", 
         MSG_CLIENT_2_SERVER_LOGIN, mbuf[2]);
-        if(cur_client()->req)
-        {
-          free(cur_client()->req);
-          cur_client()->req=0;
-        }
+        NULLFREE(cur_client()->req);
         cs_exit(0);
       }
       usr=mbuf+5;
@@ -649,11 +645,7 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
     else
     {
       cs_debug("bad client login request");
-      if(cur_client()->req)
-      {
-        free(cur_client()->req);
-        cur_client()->req=0;
-      }
+      NULLFREE(cur_client()->req);
       cs_exit(0);
     }
 
@@ -745,9 +737,7 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
         {
           cs_debug("expected MSG_CARD_DATA_REQ (%02X), received %02X", 
                    MSG_CARD_DATA_REQ, mbuf[2]);
-          if(cur_client()->req)
-            free(cur_client()->req); cur_client()->req=0;
-
+          NULLFREE(cur_client()->req);
           cs_exit(0);
         }
 	
@@ -914,11 +904,7 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
         if( network_message_send(cur_client()->udp_fd, &cur_client()->ncd_msgid,
             mbuf, len, key, COMMTYPE_SERVER, 0, &cd) <0 )
         {
-          if(cur_client()->req)
-          {
-            free(cur_client()->req);
-            cur_client()->req=0;
-          }
+          NULLFREE(cur_client()->req);
           cs_exit(0);
         }
       }
@@ -926,11 +912,7 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
     else
     {
       cs_auth_client(cur_client(), 0, usr ? "login failure" : "no such user");
-      if(cur_client()->req)
-      {
-        free(cur_client()->req);
-          cur_client()->req=0;
-      }
+      NULLFREE(cur_client()->req);
       cs_exit(0);
     }
 }
@@ -1003,6 +985,12 @@ static void newcamd_process_emm(uchar *buf)
   caid = cur_client()->ftab.filts[0].caid;
   epg.caid[0] = (uchar)(caid>>8);
   epg.caid[1] = (uchar)(caid);
+  
+  epg.provid[0] = (uchar)(reader[au].auprovid>>24);
+  epg.provid[1] = (uchar)(reader[au].auprovid>>16);
+  epg.provid[2] = (uchar)(reader[au].auprovid>>8);
+  epg.provid[3] = (uchar)(reader[au].auprovid);
+    
 /*  if (caid == 0x0500)
   {
     ushort emm_head;
@@ -1156,12 +1144,7 @@ static void * newcamd_server(void *cli)
 		}
 	}
 	
-	if(client->req)
-	{ 
-		free(client->req); 
-		client->req=0;
-	}
-
+	NULLFREE(client->req);
 	cs_disconnect_client(client);
 	return NULL;
 }

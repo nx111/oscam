@@ -41,7 +41,7 @@ static void switch_log(char* file, FILE **f, int (*pfinit)(void))
 				}
 				else
 					if( pfinit())
-						fprintf(stderr, "Initialisation of log file failed, continuing without logging thread %08lX.", pthread_self());
+						fprintf(stderr, "Initialisation of log file failed, continuing without logging thread %8X.", (unsigned int)pthread_self());
 			}
 			else //I am not the first to detect a switchlog is needed, so I need to wait for the first thread to complete
 				pthread_mutex_lock(&switching_log); //wait on 1st thread
@@ -116,9 +116,9 @@ int cs_init_log(void)
 static void get_log_header(int m, char *txt)
 {
 	if(m)
-		sprintf(txt, "%08lX %c%04d ",(unsigned long) cur_client()->thread, cur_client()->typ, get_threadnum(cur_client()));
+		sprintf(txt, "%8X %c ",(unsigned int) cur_client()->thread, cur_client()->typ);
 	else
-		sprintf(txt, "%-15.15s", "");
+		sprintf(txt, "%-11.11s", "");
 }
 
 static void write_to_log(int flag, char *txt)
@@ -172,16 +172,17 @@ static void write_to_log(int flag, char *txt)
 	cs_strncpy(ptr+32, log_buf, CS_LOGHISTSIZE-33);
 	loghistidx=(++loghistidx < CS_MAXLOGHIST)?loghistidx:0;
 #endif
+	if ((cur_client()->typ != 'c') && (cur_client()->typ != 'm'))
+		return;
 	struct s_client *cl;
 	for (cl=first_client; cl ; cl=cl->next)
 	{
-		if ((cl->pid) && (cl->log) && (cl->typ == 'm') && (cl->monlvl>0))
+		if ((cl->log) && (cl->typ == 'm') && (cl->monlvl>0))
 		{
-			if (cl->monlvl<2)
-				if ((cur_client()->typ != 'c') && (cur_client()->typ != 'm'))
-					continue;
+			if (cl->monlvl<2) {
 				if (strcmp(cur_client()->usr, cl->usr))
 					continue;
+			}
 			sprintf(sbuf, "%03d", cl->logcounter);
 			cl->logcounter = (cl->logcounter+1) % 1000;
 			memcpy(log_buf + 4, sbuf, 3);
@@ -196,7 +197,7 @@ void cs_log(const char *fmt,...)
 	get_log_header(1, log_txt);
 	va_list params;
 	va_start(params, fmt);
-	vsprintf(log_txt+15, fmt, params);
+	vsprintf(log_txt+11, fmt, params);
 	va_end(params);
 	write_to_log(-1, log_txt);
 }
@@ -217,7 +218,7 @@ void cs_debug(const char *fmt,...)
 		get_log_header(1, log_txt);
 		va_list params;
 		va_start(params, fmt);
-		vsprintf(log_txt+15, fmt, params);
+		vsprintf(log_txt+11, fmt, params);
 		va_end(params);
 		write_to_log(-1, log_txt);
 	}
@@ -231,7 +232,7 @@ void cs_debug_mask(unsigned short mask, const char *fmt,...)
 		get_log_header(1, log_txt);
 		va_list params;
 		va_start(params, fmt);
-		vsprintf(log_txt+15, fmt, params);
+		vsprintf(log_txt+11, fmt, params);
 		va_end(params);
 		write_to_log(-1, log_txt);
 	}
@@ -265,7 +266,7 @@ void cs_dump(const uchar *buf, int n, char *fmt, ...)
 		get_log_header(1, log_txt);
 		va_list params;
 		va_start(params, fmt);
-		vsprintf(log_txt+15, fmt, params);
+		vsprintf(log_txt+11, fmt, params);
 		va_end(params);
 		write_to_log(-1, log_txt);
 		//printf("LOG: %s\n", txt); fflush(stdout);
@@ -290,7 +291,7 @@ void cs_ddump(const uchar *buf, int n, char *fmt, ...)
 		get_log_header(1, log_txt);
 		va_list params;
 		va_start(params, fmt);
-		vsprintf(log_txt+15, fmt, params);
+		vsprintf(log_txt+11, fmt, params);
 		va_end(params);
 		write_to_log(-1, log_txt);
 		//printf("LOG: %s\n", txt); fflush(stdout);
@@ -318,7 +319,7 @@ void cs_ddump_mask(unsigned short mask, const uchar *buf, int n, char *fmt, ...)
 		get_log_header(1, log_txt);
 		va_list params;
 		va_start(params, fmt);
-		vsprintf(log_txt+15, fmt, params);
+		vsprintf(log_txt+11, fmt, params);
 		va_end(params);
 		write_to_log(-1, log_txt);
 		//printf("LOG: %s\n", txt); fflush(stdout);

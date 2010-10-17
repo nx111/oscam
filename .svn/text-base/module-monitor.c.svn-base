@@ -263,7 +263,7 @@ static char *monitor_client_info(char id, struct s_client *cl){
 	static char sbuf[256];
 	sbuf[0] = '\0';
 
-	if (cl->pid){
+	if (cl){
 		char ldate[16], ltime[16], *usr;
 		int lsec, isec, con, cau, lrt;
 		time_t now;
@@ -303,8 +303,8 @@ static char *monitor_client_info(char id, struct s_client *cl){
 			sprintf(ldate, "%02d.%02d.%02d", lt->tm_mday, lt->tm_mon+1, lt->tm_year % 100);
 			int cnr=get_threadnum(cl);
 			sprintf(ltime, "%02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
-                        sprintf(sbuf, "[%c--CCC]%08lX|%c|%d|%s|%d|%d|%s|%d|%s|%s|%s|%d|%04X:%04X|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d\n",
-					id, (unsigned long) cl->thread, cl->typ, cnr, usr, cau, cl->crypted,
+                        sprintf(sbuf, "[%c--CCC]%8X|%c|%d|%s|%d|%d|%s|%d|%s|%s|%s|%d|%04X:%04X|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d\n",
+					id, (unsigned int) cl->thread, cl->typ, cnr, usr, cau, cl->crypted,
 					cs_inet_ntoa(cl->ip), cl->port, monitor_get_proto(cl),
 					ldate, ltime, lsec, cl->last_caid, cl->last_srvid,
 					get_servicename(cl->last_srvid, cl->last_caid), isec, con,
@@ -324,24 +324,20 @@ static void monitor_process_info(){
 				( now-cl->lastecm < cfg->mon_hideclient_to) ||
 				( now-cl->lastemm < cfg->mon_hideclient_to) ||
 				( cl->typ != 'c')){
-			if (cl->pid) {
-				if ((cur_client()->monlvl < 2) && (cl->typ != 's')) {
+			if ((cur_client()->monlvl < 2) && (cl->typ != 's')) {
 					if 	((strcmp(cur_client()->usr, cl->usr)) ||
 							((cl->typ != 'c') && (cl->typ != 'm')))
 						continue;
-				}
-				monitor_send_info(monitor_client_info('I', cl), 0);
 			}
+			monitor_send_info(monitor_client_info('I', cl), 0);
 		}
-	if (cl->next == NULL)
-		return;
 	}
 	monitor_send_info(NULL, 1);
 }
 
-static void monitor_send_details(char *txt, unsigned long tid){
+static void monitor_send_details(char *txt, unsigned int tid){
 	char buf[256];
-	snprintf(buf, 255, "[D-----]%lu|%s\n", tid, txt);
+	snprintf(buf, 255, "[D-----]%8X|%s\n", tid, txt);
 	monitor_send_info(buf, 0);
 }
 
@@ -357,14 +353,14 @@ static void monitor_send_keepalive_ack(){
 	monitor_send_info(buf, 1);
 }
 
-static void monitor_process_details_master(char *buf, int pid){
+static void monitor_process_details_master(char *buf, unsigned long pid){
 	sprintf(buf, "Version=%s#%s", CS_VERSION_X, CS_SVN_VERSION);
 	monitor_send_details(buf, pid);
 	sprintf(buf, "System=%s-%s-%s",  CS_OS_CPU, CS_OS_HW, CS_OS_SYS);
 	monitor_send_details(buf, pid);
 	sprintf(buf, "DebugLevel=%d", cfg->debuglvl);
 	monitor_send_details(buf, pid);
-	sprintf(buf, "MaxClients=%d", CS_MAXPID - 2);
+	sprintf(buf, "MaxClients=UNLIMITED");
 	monitor_send_details(buf, pid);
 	sprintf(buf, "ClientMaxIdle=%ld sec", cfg->cmaxidle);
 	monitor_send_details(buf, pid);
@@ -391,8 +387,6 @@ static void monitor_process_details_master(char *buf, int pid){
 	        monitor_send_details(buf, pid);
         }
 	sprintf(buf, "LogFile=%s", cfg->logfile);
-	monitor_send_details(buf, pid);
-	sprintf(buf, "PidFile=%s", cfg->pidfile);
 	monitor_send_details(buf, pid);
 	if( cfg->usrfile ) {
 	        sprintf(buf, "UsrFile=%s", cfg->usrfile);
@@ -438,18 +432,16 @@ static void monitor_process_details(char *arg){
 	struct s_client *cl;
 	char sbuf[256];
 
-	if (!arg) {
+	if (!arg)
 		cl = first_client; // no arg - show master
-	} else {
-		tid = atoi(arg);
-		if (tid == first_client->thread)
-			cl = first_client; // idx_from_tid doesn't find master
-		else
+	else
+		if (sscanf(arg,"%lX",&tid) == 1)
 			cl = idx_from_tid(tid);
-	}
+		else
+			cl = NULL;
 
 	if (!cl)
-		monitor_send_details("Invalid TID", tid); //thread is always valid, so no need for testing
+		monitor_send_details("Invalid TID", tid);
 	else
 	{
 		//monitor_send_info(monitor_client_info('D', idx), 0); //FIXME
@@ -526,7 +518,7 @@ static void monitor_logsend(char *flag){
 
 static void monitor_set_debuglevel(char *flag){
 	cfg->debuglvl = atoi(flag);
-	kill(first_client->pid, SIGUSR1);
+	cs_debug_level();
 }
 
 static void monitor_get_account(){
@@ -550,7 +542,7 @@ static void monitor_set_account(char *args){
 	char *ptr;
 	int argidx, i, found;
 	char *argarray[3];
-	char *token[]={"au", "sleep", "uniq", "monlevel", "group", "services", "betatunnel", "ident", "caid", "chid", "class", "hostname", "expdate", "keepalive", "disabled"};
+	static const char *token[]={"au", "sleep", "uniq", "monlevel", "group", "services", "betatunnel", "ident", "caid", "chid", "class", "hostname", "expdate", "keepalive", "disabled"};
 	int tokencnt = sizeof(token)/sizeof(char *);
 	char buf[256], tmp[64];
 
@@ -634,7 +626,7 @@ static void monitor_set_server(char *args){
 	char *ptr;
 	int argidx, i, found;
 	char *argarray[3];
-	char *token[]={"clienttimeout", "fallbacktimeout", "clientmaxidle", "cachedelay", "bindwait", "netprio", "resolvedelay", "sleep", "unlockparental", "serialreadertimeout", "maxlogsize", "showecmdw", "waitforcards", "preferlocalcards"};
+	static const char *token[]={"clienttimeout", "fallbacktimeout", "clientmaxidle", "cachedelay", "bindwait", "netprio", "resolvedelay", "sleep", "unlockparental", "serialreadertimeout", "maxlogsize", "showecmdw", "waitforcards", "preferlocalcards"};
 	char buf[256];
 
 	argidx=0;	found=0;
@@ -688,7 +680,7 @@ static void monitor_set_server(char *args){
 	//kill(first_client->pid, SIGUSR1);
 }
 
-static void monitor_list_commands(char *args[], int cmdcnt){
+static void monitor_list_commands(const char *args[], int cmdcnt){
 	int i;
 	for (i = 0; i < cmdcnt; i++) {
 		char buf[64];
@@ -703,7 +695,7 @@ static void monitor_list_commands(char *args[], int cmdcnt){
 static int monitor_process_request(char *req)
 {
 	int i, rc;
-	char *cmd[] = {"login", "exit", "log", "status", "shutdown", "reload", "details", "version", "debug", "getuser", "setuser", "setserver", "commands", "keepalive", "reread"};
+	static const char *cmd[] = {"login", "exit", "log", "status", "shutdown", "reload", "details", "version", "debug", "getuser", "setuser", "setserver", "commands", "keepalive", "reread"};
 	int cmdcnt = sizeof(cmd)/sizeof(char *);  // Calculate the amount of items in array
 	char *arg;
 
@@ -728,7 +720,7 @@ static int monitor_process_request(char *req)
 			case 11:	if (cur_client()->monlvl > 3) monitor_set_server(arg); break;	// setserver
 			case 12:	if (cur_client()->monlvl > 3) monitor_list_commands(cmd, cmdcnt); break;	// list commands
 			case 13:	if (cur_client()->monlvl > 3) monitor_send_keepalive_ack(); break;	// keepalive
-			case 14:	{ char buf[64];sprintf(buf, "[S-0000]reread\n");monitor_send_info(buf, 1); kill(first_client->pid, SIGUSR2); break; } // reread
+			case 14:	{ char buf[64];sprintf(buf, "[S-0000]reread\n");monitor_send_info(buf, 1); cs_card_info(); break; } // reread
 			default:	continue;
 			}
 			break;
