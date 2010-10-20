@@ -4,10 +4,11 @@
 #include <stdlib.h>
 
 #include "globals.h"
-#include "oscam-datastruct-llist.h"
+#include "module-datastruct-llist.h"
 
 static void _destroy(LLIST *l)
 {
+    if (!l) return;
     pthread_mutex_unlock(&l->lock);
     pthread_mutex_destroy(&l->lock);
 
@@ -25,6 +26,7 @@ LLIST *ll_create()
 
 void ll_destroy(LLIST *l)
 {
+    if (!l) return;
     ll_clear(l);
 
     _destroy(l);
@@ -32,6 +34,7 @@ void ll_destroy(LLIST *l)
 
 void ll_destroy_data(LLIST *l)
 {
+    if (!l) return;
     ll_clear_data(l);
 
     _destroy(l);
@@ -79,16 +82,21 @@ LL_ITER *ll_iter_create(LLIST *l)
     LL_ITER *it = malloc(sizeof(LL_ITER));
 
     it->l = l;
-    it->cur = l->initial;
+    if (l) {
+      it->cur = l->initial;
+      pthread_mutex_lock(&l->lock);
+    }
+    else
+      it->cur = NULL;
 
-    pthread_mutex_lock(&l->lock);
 
     return it;
 }
 
 void ll_iter_release(LL_ITER *it)
 {
-    pthread_mutex_unlock(&it->l->lock);
+    if(it->l)
+      pthread_mutex_unlock(&it->l->lock);
 
     NULLFREE(it);
 }
@@ -106,6 +114,23 @@ void *ll_iter_next(LL_ITER *it)
     }
 
     return NULL;
+}
+
+void *ll_iter_peek(LL_ITER *it, int offset)
+{
+    LL_NODE *n = it->cur;
+    int i;
+
+    for (i = 0; i < offset; i++)
+        if (n)
+            n = n->nxt;
+        else
+            return NULL;
+
+    if (!n)
+      return NULL;
+      
+    return n->obj;
 }
 
 void ll_iter_reset(LL_ITER *it)
@@ -185,9 +210,9 @@ void ll_insert_at(LLIST *l, void *obj, int pos)
     new->obj = obj;
     new->nxt = n;
 
-    if (n->prv) n->prv->nxt = new;
+    if (n && n->prv) n->prv->nxt = new;
     else l->initial = new;
     
-    n->prv = new;
+    if (n) n->prv = new;
 }
 

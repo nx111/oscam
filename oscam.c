@@ -421,11 +421,11 @@ void cs_exit(int sig)
     case 'm': break;
     case 'r':
         // free AES entries allocated memory
-        if(reader[cl->ridx].aes_list) {
-            aes_clear_entries(&reader[cl->ridx]);
+        if(cl->reader->aes_list) {
+            aes_clear_entries(cl->reader);
         }
         // close the device
-        reader_device_close(&reader[cl->ridx]);
+        reader_device_close(cl->reader);
         break;
 
     case 'h':
@@ -848,7 +848,7 @@ static void start_thread(void * startroutine, char * nameroutine) {
 #endif
 void kill_thread(struct s_client *cl) { //cs_exit is used to let thread kill itself, this routine is for a thread to kill other thread
 
-	if (cl) return;
+	if (!cl) return;
 	if (pthread_equal(cl->thread, pthread_self())) return; //cant kill yourself
 
 	pthread_cancel(cl->thread);
@@ -878,34 +878,31 @@ void start_anticascader()
 #endif
 
 void restart_cardreader(struct s_reader *rdr, int restart) {
-	int n;
+	int i;
 	if (restart) //kill old thread, even when .deleted flag is set
 		kill_thread(rdr->client);
 
-	if ((rdr->device[0]) && (rdr->enable == 1) && (!rdr->deleted)) {
+	rdr->tcp_connected = 0;
+	rdr->card_status = NO_CARD;
+	if (rdr->device[0] && (rdr->typ & R_IS_CASCADING)) {
+		for (i=0; i<CS_MAX_MOD; i++)
+			if (ph[i].num && rdr->typ==ph[i].num)
+				rdr->ph=ph[i];
 
+		if (!rdr->ph.num) {
+			cs_log("Protocol Support missing. (typ=%d)", rdr->typ);
+			return;
+		}
+		cs_debug("reader %s protocol: %s", rdr->label, rdr->ph.desc);
+	}
+
+	if (rdr->enable == 0)
+		return;
+
+	if ((rdr->device[0]) && (!rdr->deleted)) {
 		if (restart) {
 			cs_sleepms(cfg->reader_restart_seconds * 1000); // SS: wait
 			cs_log("restarting reader %s", rdr->label);
-		}
-
-		if ((rdr->typ & R_IS_CASCADING)) {
-			n=0;
-			int i;
-			for (i=0; i<CS_MAX_MOD; i++) {
-				if (ph[i].num) {
-					if (rdr->typ==ph[i].num) {
-						cs_debug("reader %s protocol: %s", rdr->label, ph[i].desc);
-						rdr->ph=ph[i];
-						n=1;
-						break;
-					}
-				}
-			}
-			if (!n) {
-				cs_log("Protocol Support missing.");
-				return;
-			}
 		}
 
 		struct s_client * cl = cs_fork(first_client->ip);
@@ -913,7 +910,7 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 
 
 		rdr->fd=cl->fd_m2c;
-		cl->ridx=get_ridx(rdr);
+		cl->reader=rdr;
 		cs_log("creating thread for device %s slot %i", rdr->device, rdr->slot);
              	
 		cl->sidtabok=rdr->sidtabok;
@@ -936,7 +933,7 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 static void init_cardreader() {
 	struct s_reader *rdr;
 	for (rdr=first_reader; rdr ; rdr=rdr->next)
-		if ((rdr->device[0]) && (rdr->enable == 1))
+		if (rdr->device[0])
 			restart_cardreader(rdr, 0);
 }
 
@@ -1155,7 +1152,7 @@ int check_ecmcache1(ECM_REQUEST *er, uint64 grp)
 int check_ecmcache2(ECM_REQUEST *er, uint64 grp)
 {
 	// disable cache2
-	if (!reader[cur_client()->ridx].cachecm) return(0);
+	if (!cur_client()->reader->cachecm) return(0);
 	int save = er->reader[0];
 	int rc = check_ecmcache1(er, grp);
 	er->reader[0] = save;
@@ -1370,7 +1367,7 @@ int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
     }
   }
 
-  er->reader[0]=reader->client->ridx;
+  er->reader[0]=get_ridx(reader);
 //cs_log("answer from reader %d (rc=%d)", er->reader[0], er->rc);
   er->caid=er->ocaid;
 
@@ -1466,15 +1463,7 @@ void send_reader_stat(int ridx9, ECM_REQUEST *er, int rc)
 	cs_ftime(&tpe);
 	int time = 1000*(tpe.time-er->tps.time)+tpe.millitm-er->tps.millitm;
 
-	ADD_READER_STAT add_stat;
-	memset(&add_stat, 0, sizeof(ADD_READER_STAT));
-	add_stat.ridx = ridx9;
-	add_stat.time = time;
-	add_stat.rc   = rc;
-	add_stat.caid = er->caid;
-	add_stat.prid = er->prid;
-	add_stat.srvid = er->srvid;
-	add_reader_stat(&add_stat);
+	add_stat(&reader[ridx9], er->caid, er->prid, er->srvid, time, rc);
 }
 
 int hexserialset(int ridx)
@@ -2157,7 +2146,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 				
 			recv_best_reader(er, reader_avail);
 				
-			for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {	
+			for (i=m=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {	
 				if (reader_avail[i]) {
 					m|=er->reader[i] = reader_avail[i];
 					if (reader_avail[i] == 1) // do not count fallback readers (==2: fallback)
@@ -2843,6 +2832,9 @@ if (pthread_key_create(&getclient, NULL)) {
 #endif
 #ifdef READER_DRE
 	reader_dre,
+#endif
+#ifdef READER_STREAMGUARD
+	reader_streamguard,
 #endif
 #ifdef READER_TONGFANG
 	reader_tongfang,

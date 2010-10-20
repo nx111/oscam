@@ -15,7 +15,8 @@
 #include "module-cccam.h"
 #include "module-stat.h"
 
-extern void restart_cardreader(int ridx, int restart);
+extern void restart_cardreader(struct s_reader *rdr, int restart);
+
 static int running = 1;
 
 #ifdef CS_ANTICASC
@@ -29,6 +30,15 @@ static void kill_ac_client(void)
 		}
 }
 #endif
+
+struct s_reader *get_reader_by_label(char *lbl){
+	struct s_reader *rdr;
+	for (rdr = first_reader; rdr ; rdr = rdr->next) {
+		if (strcmp(lbl, rdr->label) == 0)
+			return rdr;
+	}
+	return NULL;
+}
 
 void refresh_oscam(enum refreshtypes refreshtype, struct in_addr in) {
 
@@ -656,12 +666,14 @@ void send_oscam_config(struct templatevars *vars, FILE *f, struct uriparams *par
 }
 
 void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *params, struct in_addr in) {
-	int readeridx=0;
+	struct s_reader *rdr;
 	int i;
 	//uchar dummy[1]={0x00};
 
 	if (strcmp(getParam(params, "action"), "delete") == 0) {
-		reader[atoi(getParam(params, "reader"))].deleted = 1;
+		rdr = get_reader_by_label(getParam(params, "label"));
+		rdr->deleted = 1;
+
 		if(write_server()==0) {
 			refresh_oscam(REFR_READERS, in);
 			//printf("would kill now PID %d\n", reader[atoi(getParam(params, "reader"))].pid);
@@ -673,28 +685,27 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 	}
 
 	if (strcmp(getParam(params, "action"), "reread") == 0) {
-		readeridx = atoi(getParam(params, "ridx"));
+		rdr = get_reader_by_label(getParam(params, "label"));
+
 		//reset the counters
 		for (i = 0; i < 4; i++) {
-			reader[readeridx].emmerror[i] = 0;
-			reader[readeridx].emmwritten[i] = 0;
-			reader[readeridx].emmskipped[i] = 0;
-			reader[readeridx].emmblocked[i] = 0;
+			rdr->emmerror[i] = 0;
+			rdr->emmwritten[i] = 0;
+			rdr->emmskipped[i] = 0;
+			rdr->emmblocked[i] = 0;
 		}
 		//write_to_pipe(client[reader[readeridx].cs_idx)].fd_m2c, PIP_ID_CIN, dummy, 1); // do not work for whatever reason
 		refresh_oscam(REFR_READERS, in); // refresh all reader because  write pipe seams not work from here
 	}
 
-	struct s_reader *rdr;
-	for (i=0,rdr=first_reader; rdr && rdr->label[0]; rdr=rdr->next, i++);
+	for (i = 0, rdr = first_reader; rdr && rdr->label[0]; rdr = rdr->next, i++);
 	tpl_printf(vars, 0, "NEXTREADER", "Reader-%d", i); //Next Readername
 
-	for (readeridx=0,rdr=first_reader; rdr ; rdr=rdr->next, readeridx++) {
-		if(reader[readeridx].label[0] && reader[readeridx].typ && !reader[readeridx].deleted) {
+	for (rdr = first_reader; rdr ; rdr = rdr->next) {
+		if(rdr->label[0] && rdr->typ && !rdr->deleted) {
 
-			tpl_printf(vars, 0, "READERIDX", "%d", readeridx);
-			tpl_addVar(vars, 0, "READERNAME", reader[readeridx].label);
-			tpl_addVar(vars, 0, "READERNAMEENC", tpl_addTmp(vars, urlencode(reader[readeridx].label)));
+			tpl_addVar(vars, 0, "READERNAME", rdr->label);
+			tpl_addVar(vars, 0, "READERNAMEENC", tpl_addTmp(vars, urlencode(rdr->label)));
 
 			int isphysical = (rdr->typ & R_IS_NETWORK)?0:1;
 			char *ctyp ="";
@@ -705,35 +716,35 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 				ctyp = rdr->ph.desc;
 			if ((rdr->typ == R_NEWCAMD) && (rdr->ncd_proto == NCD_524))
 				ctyp = "newcamd524";
+			else if (rdr->client && rdr->client->cc && ((struct cc_data *)rdr->client->cc)->extended_mode)
+				ctyp = "cccam ext";
 
-			tpl_printf(vars, 0, "EMMERRORUK", "%d", reader[readeridx].emmerror[UNKNOWN]);
-			tpl_printf(vars, 0, "EMMERRORG", "%d", reader[readeridx].emmerror[GLOBAL]);
-			tpl_printf(vars, 0, "EMMERRORS", "%d", reader[readeridx].emmerror[SHARED]);
-			tpl_printf(vars, 0, "EMMERRORUQ", "%d", reader[readeridx].emmerror[UNIQUE]);
+			tpl_printf(vars, 0, "EMMERRORUK", "%d", rdr->emmerror[UNKNOWN]);
+			tpl_printf(vars, 0, "EMMERRORG", "%d", rdr->emmerror[GLOBAL]);
+			tpl_printf(vars, 0, "EMMERRORS", "%d", rdr->emmerror[SHARED]);
+			tpl_printf(vars, 0, "EMMERRORUQ", "%d", rdr->emmerror[UNIQUE]);
 
-			tpl_printf(vars, 0, "EMMWRITTENUK", "%d", reader[readeridx].emmwritten[UNKNOWN]);
-			tpl_printf(vars, 0, "EMMWRITTENG", "%d", reader[readeridx].emmwritten[GLOBAL]);
-			tpl_printf(vars, 0, "EMMWRITTENS", "%d", reader[readeridx].emmwritten[SHARED]);
-			tpl_printf(vars, 0, "EMMWRITTENUQ", "%d", reader[readeridx].emmwritten[UNIQUE]);
+			tpl_printf(vars, 0, "EMMWRITTENUK", "%d", rdr->emmwritten[UNKNOWN]);
+			tpl_printf(vars, 0, "EMMWRITTENG", "%d", rdr->emmwritten[GLOBAL]);
+			tpl_printf(vars, 0, "EMMWRITTENS", "%d", rdr->emmwritten[SHARED]);
+			tpl_printf(vars, 0, "EMMWRITTENUQ", "%d", rdr->emmwritten[UNIQUE]);
 
-			tpl_printf(vars, 0, "EMMSKIPPEDUK", "%d", reader[readeridx].emmskipped[UNKNOWN]);
-			tpl_printf(vars, 0, "EMMSKIPPEDG", "%d", reader[readeridx].emmskipped[GLOBAL]);
-			tpl_printf(vars, 0, "EMMSKIPPEDS", "%d", reader[readeridx].emmskipped[SHARED]);
-			tpl_printf(vars, 0, "EMMSKIPPEDUQ", "%d", reader[readeridx].emmskipped[UNIQUE]);
+			tpl_printf(vars, 0, "EMMSKIPPEDUK", "%d", rdr->emmskipped[UNKNOWN]);
+			tpl_printf(vars, 0, "EMMSKIPPEDG", "%d", rdr->emmskipped[GLOBAL]);
+			tpl_printf(vars, 0, "EMMSKIPPEDS", "%d", rdr->emmskipped[SHARED]);
+			tpl_printf(vars, 0, "EMMSKIPPEDUQ", "%d", rdr->emmskipped[UNIQUE]);
 
-			tpl_printf(vars, 0, "EMMBLOCKEDUK", "%d", reader[readeridx].emmblocked[UNKNOWN]);
-			tpl_printf(vars, 0, "EMMBLOCKEDG", "%d", reader[readeridx].emmblocked[GLOBAL]);
-			tpl_printf(vars, 0, "EMMBLOCKEDS", "%d", reader[readeridx].emmblocked[SHARED]);
-			tpl_printf(vars, 0, "EMMBLOCKEDUQ", "%d", reader[readeridx].emmblocked[UNIQUE]);
+			tpl_printf(vars, 0, "EMMBLOCKEDUK", "%d", rdr->emmblocked[UNKNOWN]);
+			tpl_printf(vars, 0, "EMMBLOCKEDG", "%d", rdr->emmblocked[GLOBAL]);
+			tpl_printf(vars, 0, "EMMBLOCKEDS", "%d", rdr->emmblocked[SHARED]);
+			tpl_printf(vars, 0, "EMMBLOCKEDUQ", "%d", rdr->emmblocked[UNIQUE]);
 
 			tpl_addVar(vars, 0, "DELICO", ICDEL);
 
 			//call stats
 			tpl_addVar(vars, 0, "STATICO", ICSTA);
-			tpl_printf(vars, 0, "READERID", "%d", readeridx);
 
 			if (isphysical == 1) {
-				tpl_printf(vars, 0, "RIDX", "%d", readeridx);
 				tpl_addVar(vars, 0, "REFRICO", ICREF);
 				tpl_addVar(vars, 0, "READERREFRESH", tpl_getTpl(vars, "READERREFRESHBIT"));
 
@@ -741,9 +752,8 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 				tpl_addVar(vars, 0, "ENTITLEMENT", tpl_getTpl(vars, "READERENTITLEBIT"));
 
 			} else {
-				tpl_printf(vars, 0, "RIDX", "");
 				tpl_addVar(vars, 0, "READERREFRESH","");
-				if (reader[readeridx].typ == R_CCCAM) {
+				if (rdr->typ == R_CCCAM) {
 					tpl_addVar(vars, 0, "ENTICO", ICENT);
 					tpl_addVar(vars, 0, "ENTITLEMENT", tpl_getTpl(vars, "READERENTITLEBIT"));
 				} else {
@@ -757,12 +767,16 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 			tpl_addVar(vars, 1, "READERLIST", tpl_getTpl(vars, "READERSBIT"));
 		}
 	}
+
+	//Todo: Disabled the Add Reader functionality temporarly
+	tpl_addVar(vars, 1, "BTNDISABLED", "DISABLED");
+
 	fputs(tpl_getTpl(vars, "READERS"), f);
 }
 
 void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uriparams *params, struct in_addr in) {
 	int i, ridx=0;
-	char *reader_ = getParam(params, "reader");
+	char *reader_ = getParam(params, "label");
 	char *value;
 
 	struct s_reader *rdr;
@@ -770,6 +784,9 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 
 	if(strcmp(getParam(params, "action"), "Add") == 0) {
 		// Add new reader
+		tpl_addVar(vars, 1, "MESSAGE", "<B>Add Reader is disabled and under construction</B><BR><BR>");
+		//Todo: Disabled the Add Reader functionality temporarly
+		/*
 		reader[ridx-1].next = rdr; //FIXME
 		rdr->next = NULL;
 		memset(&rdr, 0, sizeof(struct s_reader));
@@ -786,12 +803,14 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 		for (i = 1; i < CS_MAXCAIDTAB; rdr->ctab.mask[i++] = 0xffff);
 		for (i = 0; i < (*params).paramcount; ++i) {
 			if (strcmp((*params).params[i], "action"))
-				chk_reader((*params).params[i], (*params).values[i], &reader[ridx]);
+				chk_reader((*params).params[i], (*params).values[i], rdr);
 		}
 		reader_ = rdr->label;
+		*/
 
 	} else if(strcmp(getParam(params, "action"), "Save") == 0) {
-		for (ridx=0,rdr=first_reader; rdr  && strcmp(reader_, rdr->label); rdr=rdr->next, ++ridx);
+
+		rdr = get_reader_by_label(getParam(params, "label"));
 		char servicelabels[255]="";
 
 		clear_caidtab(&rdr->ctab);
@@ -806,7 +825,7 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 					snprintf(servicelabels + strlen(servicelabels), sizeof(servicelabels), "%s,", (*params).values[i]);
 				else
 					if(strlen((*params).values[i]) > 0)
-						chk_reader((*params).params[i], (*params).values[i], &reader[ridx]);
+						chk_reader((*params).params[i], (*params).values[i], rdr);
 			}
 			//printf("param %s value %s\n",(*params).params[i], (*params).values[i]);
 		}
@@ -827,8 +846,8 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 	tpl_printf(vars, 0, "ACCOUNT",  "%s", rdr->r_usr);
 
 #ifdef CS_WITH_GBOX
-	if (strlen(reader[i].gbox_pwd) > 0)
-		tpl_printf(vars, 0, "PASSWORD",  "%s", reader[i].gbox_pwd);
+	if (strlen(rdr->gbox_pwd) > 0)
+		tpl_printf(vars, 0, "PASSWORD",  "%s", rdr->gbox_pwd);
 	else if (strlen(rdr->r_pwd) > 0)
 		tpl_printf(vars, 0, "PASSWORD",  "%s", rdr->r_pwd);
 	else
@@ -1113,7 +1132,10 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 			}
 			break;
 		case R_CCCAM :
-			tpl_addVar(vars, 0, "PROTOCOL", "cccam");
+			if (rdr->client && rdr->client->cc && ((struct cc_data *)rdr->client->cc)->extended_mode)
+				tpl_addVar(vars, 0, "PROTOCOL", "cccam ext");
+			else
+				tpl_addVar(vars, 0, "PROTOCOL", "cccam");
 			tpl_addVar(vars, 1, "READERDEPENDINGCONFIG", tpl_getTpl(vars, "READERCONFIGCCCAMBIT"));
 			break;
 #ifdef CS_WITH_GBOX
@@ -1140,11 +1162,9 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 
 void send_oscam_reader_stats(struct templatevars *vars, FILE *f, struct uriparams *params) {
 
+	struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
 
-	int readeridx = atoi(getParam(params, "reader"));
-
-	tpl_printf(vars, 0, "READERID", "%d", readeridx);
-	tpl_printf(vars, 0, "READERNAME", "%s", reader[readeridx].label);
+	tpl_printf(vars, 0, "LABEL", "%s", rdr->label);
 
 	char *stxt[]={"found", "cache1", "cache2", "emu",
 			"not found", "timeout", "sleeping",
@@ -1155,35 +1175,36 @@ void send_oscam_reader_stats(struct templatevars *vars, FILE *f, struct uriparam
 	if (strlen(getParam(params, "hide")) > 0)
 			rc2hide = atoi(getParam(params, "hide"));
 
-	LLIST_D__ITR itr;
-	READER_STAT *stat = llist_itr_init(reader_stat[readeridx], &itr);
+	if (rdr->lb_stat) {
 
-	pthread_mutex_lock(&stat_busy);
-	if (stat) {
+		pthread_mutex_lock(&stat_busy);
+		LL_ITER *it = ll_iter_create(rdr->lb_stat);
+		READER_STAT *stat = ll_iter_next(it);
 		while (stat) {
 
 			if (!(stat->rc == rc2hide)) {
-
 				tpl_printf(vars, 0, "CHANNEL", "%04X:%06lX:%04X", stat->caid, stat->prid, stat->srvid);
 				tpl_printf(vars, 0, "CHANNELNAME","%s", get_servicename(stat->srvid, stat->caid));
 				tpl_printf(vars, 0, "RC", "%s", stxt[stat->rc]);
 				tpl_printf(vars, 0, "TIME", "%dms", stat->time_avg);
 				tpl_printf(vars, 0, "COUNT", "%d", stat->ecm_count);
-
 				if(stat->last_received) {
 					struct tm *lt = localtime(&stat->last_received);
 					tpl_printf(vars, 0, "LAST", "%02d.%02d.%02d %02d:%02d:%02d", lt->tm_mday, lt->tm_mon+1, lt->tm_year%100, lt->tm_hour, lt->tm_min, lt->tm_sec);
+
 				} else {
 					tpl_addVar(vars, 0, "LAST","never");
 				}
 				tpl_addVar(vars, 1, "READERSTATSROW", tpl_getTpl(vars, "READERSTATSBIT"));
 			}
 
-			stat = llist_itr_next(&itr);
+		stat = ll_iter_next(it);
 		}
+
+		ll_iter_release(it);
 		pthread_mutex_unlock(&stat_busy);
+
 	} else {
-		pthread_mutex_unlock(&stat_busy);
 		tpl_addVar(vars, 1, "READERSTATSROW","<TR><TD colspan=\"6\"> No statistics found </TD></TR>");
 	}
 
@@ -1584,67 +1605,63 @@ void send_oscam_user_config(struct templatevars *vars, FILE *f, struct uriparams
 
 void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams *params) {
 	/* build entitlements from reader init history */
-	int ridx;
-	char *reader_ = getParam(params, "reader");
+	char *reader_ = getParam(params, "label");
 
 	if (cfg->saveinithistory && strlen(reader_) > 0) {
-		struct s_reader *rdr;
-		for (ridx=0,rdr=first_reader; rdr  && strcmp(reader_, rdr->label); rdr=rdr->next, ridx++);
+		struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
 
-		if (reader[ridx].typ == R_CCCAM) {
+		if (rdr->typ == R_CCCAM) {
 
 			int caidcount = 0;
 
 			char *provider = "";
 
 			struct cc_card *card;
-			struct s_client *rc = reader[ridx].client;
+			struct s_client *rc = rdr->client;
 			struct cc_data *rcc = rc->cc;
 
-			if (rcc && reader[ridx].tcp_connected == 2 && rcc->cards) {
+			if (rcc && rdr->tcp_connected == 2 && rcc->cards) {
 				pthread_mutex_lock(&rcc->cards_busy);
 
-				LLIST_D__ITR itr;
-				card = llist_itr_init(rcc->cards, &itr);
-				while (card) {
-					char *node_str = malloc(llist_count(card->remote_nodes)*(16+2));
+                LL_ITER *it = ll_iter_create(rcc->cards);
+				while ((card = ll_iter_next(it))) {
+					char *node_str = malloc(ll_count(card->remote_nodes)*(16+2));
 					char *node_ptr = node_str;
-					LLIST_D__ITR nitr;
-					uint8 *node = llist_itr_init(card->remote_nodes, &nitr);
-					while (node) {
+                    LL_ITER *nit = ll_iter_create(card->remote_nodes);
+					uint8 *node;
+					while ((node = ll_iter_next(nit))) {
 						if (node_ptr != node_str) {
 							strcat(node_ptr, ",");
 							node_ptr++;
 						}
-						sprintf(node_ptr, "%02X%02X%02X%02X%02X%02X%02X%02X", 
+						sprintf(node_ptr, "%02X%02X%02X%02X%02X%02X%02X%02X",
 							node[0], node[1], node[2], node[3], node[4], node[5], node[6], node[7]);
 						node_ptr += 16;
-						node = llist_itr_next(&nitr);
 					}
+                    ll_iter_release(nit);
 
 					tpl_printf(vars, 1, "LOGHISTORY",
-							"caid: %04X hop: %d reshare: %d remote nodes: %s<BR>\n", 
+							"caid: %04X hop: %d reshare: %d remote nodes: %s<BR>\n",
 							card->caid, card->hop, card->maxdown, node_str);
 					free(node_str);
 
 					int provcount = 0;
-					LLIST_D__ITR pitr;
-					struct cc_provider *prov = llist_itr_init(card->providers,
-							&pitr);
-					while (prov) {
+                    LL_ITER *pit = ll_iter_create(card->providers);
+					struct cc_provider *prov;
+					while ((prov = ll_iter_next(pit))) {
 						provider = get_provider(card->caid, prov->prov);
 
 						provcount++;
 						tpl_printf(vars, 1, "LOGHISTORY",
 								"&nbsp;&nbsp;-- Provider %d: %06X -- %s<BR>\n",
 								provcount, prov->prov, provider);
-						prov = llist_itr_next(&pitr);
 					}
+                    ll_iter_release(pit);
 
 					tpl_addVar(vars, 1, "LOGHISTORY", "<BR>\n");
 					caidcount++;
-					card = llist_itr_next(&itr);
 				}
+                ll_iter_release(it);
 				pthread_mutex_unlock(&rcc->cards_busy);
 
 			if (caidcount)
@@ -1662,6 +1679,10 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 			FILE *fp;
 			char filename[256];
 			char buffer[128];
+
+			int ridx;
+			for (ridx=0,rdr=first_reader; rdr  && strcmp(reader_, rdr->label); rdr=rdr->next, ridx++);
+
 			snprintf(filename, sizeof(filename), "%s/reader%d", get_tmp_dir(), ridx);
 			fp = fopen(filename, "r");
 
@@ -1671,7 +1692,7 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 				}
 				fclose(fp);
 			}
-			tpl_addVar(vars, 0, "READERNAME", reader_);
+			tpl_addVar(vars, 0, "READERNAME", rdr->label);
 		}
 
 	} else {
@@ -1690,13 +1711,17 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 	struct tm *lt;
 
 	if (strcmp(getParam(params, "action"), "kill") == 0)
-		kill_thread((struct s_client *)atoi(getParam(params, "csidx"))); //FIXME untested
+		kill_thread((struct s_client *)atoi(getParam(params, "threadid"))); //FIXME untested
 
-	if (strcmp(getParam(params, "action"), "restart") == 0)
-		restart_cardreader(atoi(getParam(params, "ridx")), 1);
+	if (strcmp(getParam(params, "action"), "restart") == 0) {
+		struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
+		if(rdr)	restart_cardreader(rdr, 1);
+	}
 
-	if (strcmp(getParam(params, "action"), "resetstat") == 0)
-		clear_reader_stat(atoi(getParam(params, "ridx")));
+	if (strcmp(getParam(params, "action"), "resetstat") == 0) {
+		struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
+		if(rdr) clear_reader_stat(rdr);
+	}
 
 	char *debuglvl = getParam(params, "debug");
 	if(strlen(debuglvl) > 0)
@@ -1742,7 +1767,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			isec=now-cl->last;
 			usr=cl->usr;
 
-			if (((cl->typ=='r') || (cl->typ=='p')) && (con=cl->ridx)>=0) usr=reader[con].label;
+			if (((cl->typ=='r') || (cl->typ=='p')) && (con=get_ridx(cl->reader)>=0)) usr=cl->reader->label;
 
 			if (((cl->typ!='r') || (cl->typ!='p')) && (cl->lastreader[0]))
 				tpl_printf(vars, 0, "CLIENTLBVALUE", "%s", cl->lastreader);
@@ -1759,11 +1784,11 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			tpl_addVar(vars, 0, "HIDEICON", ICHID);
 			if(cl->typ == 'c' && !cfg->http_readonly) {
 				//tpl_printf(vars, 0, "CSIDX", "%d&nbsp;", i);
-				tpl_printf(vars, 0, "CSIDX", "<A HREF=\"status.html?action=kill&csidx=%d\" TITLE=\"Kill this client\"><IMG SRC=\"%s\" ALT=\"Kill\"></A>", cl, ICKIL);
+				tpl_printf(vars, 0, "CSIDX", "<A HREF=\"status.html?action=kill&threadid=%d\" TITLE=\"Kill this client\"><IMG SRC=\"%s\" ALT=\"Kill\"></A>", cl, ICKIL);
 			}
-			else if((cl->typ == 'r' || cl->typ == 'p') && !cfg->http_readonly) {
+			else if((cl->typ == 'p') && !cfg->http_readonly) {
 				//tpl_printf(vars, 0, "CLIENTPID", "%d&nbsp;", cl->ridx);
-				tpl_printf(vars, 0, "CSIDX", "<A HREF=\"status.html?action=restart&ridx=%d\" TITLE=\"Restart this reader/ proxy\"><IMG SRC=\"%s\" ALT=\"Restart\"></A>", cl->ridx, ICKIL);
+				tpl_printf(vars, 0, "CSIDX", "<A HREF=\"status.html?action=restart&label=%s\" TITLE=\"Restart this reader/ proxy\"><IMG SRC=\"%s\" ALT=\"Restart\"></A>", cl->reader->label, ICKIL);
 			}
 			else {
 				tpl_printf(vars, 0, "CSIDX", "%d&nbsp;", cl->thread);
@@ -1855,9 +1880,9 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 				char *txt = "OK";
 				if (cl->typ == 'r' || cl->typ == 'p') //reader or proxy
 				{
-					struct s_reader *rdr = &reader[cl->ridx];
+					struct s_reader *rdr = cl->reader;
 							if (rdr->lbvalue)
-								tpl_printf(vars, 0, "CLIENTLBVALUE", "<A HREF=\"status.html?action=resetstat&ridx=%d\" TITLE=\"Reset statistics for this reader/ proxy\">%d</A>", cl->ridx, rdr->lbvalue);
+								tpl_printf(vars, 0, "CLIENTLBVALUE", "<A HREF=\"status.html?action=resetstat&label=%s\" TITLE=\"Reset statistics for this reader/ proxy\">%d</A>", rdr->label, rdr->lbvalue);
 
 							switch(rdr->card_status)
 							{

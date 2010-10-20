@@ -5,6 +5,8 @@
 #else
 #  define CS_VERSION_X  CS_VERSION
 #endif
+#include "module-cccam.h"
+
 extern struct  s_reader  reader[CS_MAXREADER];
 
 static void monitor_check_ip()
@@ -239,7 +241,7 @@ char *monitor_get_proto(struct s_client *cl)
 	case 's'	: ctyp = "server"   ; break;
 	case 'p'	:
 	case 'r'	:
-			switch(reader[cl->ridx].typ) {	/* TODO like ph*/
+			switch(cl->reader->typ) {	/* TODO like ph*/
 			case R_MOUSE	: ctyp = "mouse";		break;
 			case R_INTERNAL	: ctyp = "intern";		break;
 			case R_SMART	: ctyp = "smartreader";	break;
@@ -248,13 +250,18 @@ char *monitor_get_proto(struct s_client *cl)
 #endif
 			case R_DB2COM1	: ctyp = "dbox COM1";	break;
 			case R_DB2COM2	: ctyp = "dbox COM2";   break;
-			default			: ctyp = reader[cl->ridx].ph.desc;   break;
+			case R_CCCAM    : {
+				if (cl->cc && ((struct cc_data *)cl->cc)->extended_mode)
+					ctyp = "cccam ext";
+				else
+					ctyp = ph[cl->ctyp].desc;
+				break;
+			}
+			
+			default			: ctyp = cl->reader->ph.desc;   break;
 			}
 		break;
-	default		: if (cl->cc_extended_ecm_mode)
-				ctyp = "cccam ext";
-			else
-				ctyp = ph[cl->ctyp].desc;
+	default		: ctyp = ph[cl->ctyp].desc;
 	}
 	return(ctyp);
 }
@@ -278,7 +285,7 @@ static char *monitor_client_info(char id, struct s_client *cl){
 			lsec=now-cl->login;
 			isec=now-cl->last;
 			usr=cl->usr;
-			if (((cl->typ == 'r') || (cl->typ == 'p')) && (con=cl->ridx) >= 0)
+			if (((cl->typ == 'r') || (cl->typ == 'p')) && (con=get_ridx(cl->reader)) >= 0)
 				usr=reader[con].label;
 			if (cl->dup)
 				con=2;
@@ -293,7 +300,7 @@ static char *monitor_client_info(char id, struct s_client *cl){
 					cau=-cau;
 			if( cl->typ == 'r')
 			{
-			    lrt = cl->ridx;
+			    lrt = get_ridx(cl->reader);
 			    if( lrt >= 0 )
                     lrt = 10 + reader[lrt].card_status;
 			}
@@ -411,7 +418,7 @@ static void monitor_process_details_reader(unsigned long tid) {
 		FILE *fp;
 		char filename[32];
 		char buffer[128];
-		sprintf(filename, "%s/reader%d", get_tmp_dir(), cur_client()->ridx);
+		sprintf(filename, "%s/reader%d", get_tmp_dir(), get_ridx(cur_client()->reader));
 		fp = fopen(filename, "r");
 
 		if (fp) {

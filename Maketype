@@ -45,6 +45,7 @@ OBJECTS1	= $(LIBFILE1)(oscam-simples.o) \
 		  $(LIBFILE1)(reader-conax.o) \
 		  $(LIBFILE1)(reader-dre.o) \
 		  $(LIBFILE1)(reader-nagra.o) \
+		  $(LIBFILE1)(reader-streamguard.o) \
 		  $(LIBFILE1)(reader-tongfang.o) \
 		  $(LIBFILE1)(module-camd33.o) \
 		  $(LIBFILE1)(module-camd35.o) \
@@ -57,6 +58,7 @@ OBJECTS1	= $(LIBFILE1)(oscam-simples.o) \
 		  $(LIBFILE1)(module-dvbapi.o) \
 		  $(LIBFILE1)(module-obj-llist.o) \
 		  $(LIBFILE1)(module-stat.o) \
+		  $(LIBFILE1)(module-datastruct-llist.o) \
 		  $(LIBFILE1)(oscam-nano.o) \
 		  $(LIBFILE1)(oscam-chk.o) \
 		  $(LIBFILE1)(oscam-http.o) \

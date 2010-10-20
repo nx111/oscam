@@ -281,13 +281,10 @@ static int NegotiateSessionKey_N3_NA(struct s_reader * reader, int keynr)
 	unsigned char idea2[16];
 	unsigned char sign1[8];
 	unsigned char sign2[8];
-	
-	if (!reader->has_dt08) // if we have no valid dt08 calc then we use rsa from config and hexserial for calc of sessionkey
-	{
-		memcpy(reader->plainDT08RSA, reader->rsa_mod, 64); 
-		memcpy(reader->signature,reader->nagra_boxkey, 8);
-	}
 
+  if(!do_cmd(reader, 0x29,0x02,0xA9,0x04, NULL,cta_res,&cta_lr))
+		return ERROR;
+	
    memcpy(tmp, reader->irdId, 4);
    tmp[4]=keynr;
    if(!do_cmd(reader, 0x26,0x07,0xa6, 0x42, tmp,cta_res,&cta_lr))	{
@@ -382,15 +379,21 @@ static int NegotiateSessionKey(struct s_reader * reader)
 		}
 		return OK;
 	}
+
+	if (!reader->has_dt08) // if we have no valid dt08 calc then we use rsa from config and hexserial for calc of sessionkey
+	{
+		memcpy(reader->plainDT08RSA, reader->rsa_mod, 64); 
+		memcpy(reader->signature,reader->nagra_boxkey, 8);
+	}
 	
 	if (reader->is_n3_na)
 	{
-		if (!NegotiateSessionKey_N3_NA(reader, 1))
+		if (!NegotiateSessionKey_N3_NA(reader, 0))
 		{
 			cs_debug("[nagra-reader] NegotiateSessionKey_N3_NA first time failed");
 			return ERROR;
 		}
-		if (!NegotiateSessionKey_N3_NA(reader, 0))
+		if (!NegotiateSessionKey_N3_NA(reader, 1))
 		{
 			cs_debug("[nagra-reader] NegotiateSessionKey_N3_NA second time failed");
 			return ERROR;
@@ -398,11 +401,6 @@ static int NegotiateSessionKey(struct s_reader * reader)
 		return OK;
 	}
 	
-	if (!reader->has_dt08) // if we have no valid dt08 calc then we use rsa from config and hexserial for calc of sessionkey
-	{
-		memcpy(reader->plainDT08RSA, reader->rsa_mod, 64); 
-		memcpy(reader->signature,reader->nagra_boxkey, 8);
-	}
 	if(!do_cmd(reader, 0x2a,0x02,0xaa,0x42,NULL,cta_res,&cta_lr))
 	{
 		cs_debug("[nagra-reader] CMD$2A failed");
@@ -780,18 +778,38 @@ static int nagra2_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
 	if (!reader->is_tiger)
 	{
 		int retry=0;
-		if(!do_cmd(reader, er->ecm[3],er->ecm[4]+2,0x87,0x02, er->ecm+3+2,cta_res,&cta_lr)) 
-		{
-			cs_debug("[nagra-reader] nagra2_do_ecm failed, retry");
-			cs_sleepms(10);
-			if(!do_cmd(reader, er->ecm[3],er->ecm[4]+2,0x87,0x02, er->ecm+3+2,cta_res,&cta_lr))
-			{
-				cs_debug("[nagra-reader] nagra2_do_ecm failed, retry failed!");
-				return ERROR;
+		if (reader->is_n3_na) {
+			unsigned char ecm_pkt[256+16];
+			memset(ecm_pkt, 0, sizeof(ecm_pkt));
+			memcpy(ecm_pkt, er->ecm+3+2, er->ecm[4]);
+			
+			while (!do_cmd(reader, er->ecm[3]+1,er->ecm[4]+5+2,0x88,0x04, ecm_pkt,cta_res,&cta_lr)) {
+				if (retry == 0)
+					cs_debug("[nagra-reader] nagra2_do_ecm (N3_NA) failed, retry");
+				else {
+					cs_debug("[nagra-reader] nagra2_do_ecm (N3_NA) failed, retry failed!");
+					return ERROR;
+				}
+				retry++;
+				cs_sleepms(10);
 			}
-	
+		}
+		else {
+			while (!do_cmd(reader, er->ecm[3],er->ecm[4]+2,0x87,0x02, er->ecm+3+2,cta_res,&cta_lr))
+			{
+				if (retry == 0)
+					cs_debug("[nagra-reader] nagra2_do_ecm failed, retry");
+				else {
+					cs_debug("[nagra-reader] nagra2_do_ecm failed, retry failed!");
+					return ERROR;
+				}
+				retry++;
+				cs_sleepms(10);
+			}
 		}
 		cs_sleepms(10);
+
+		retry=0;
 		while(!CamStateRequest(reader) && retry < 3)
 		{
 			cs_debug("[nagra-reader] CamStateRequest failed, try: %d", retry);
