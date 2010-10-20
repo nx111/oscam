@@ -1229,7 +1229,7 @@ void chk_t_dvbapi(char *token, char *value)
 		}
 		return;
 	}
-	
+
 	if (!strcmp(token, "pmt_mode")) {
 		if(strlen(value) == 0) {
 			cfg->dvbapi_pmtmode = 0;
@@ -1254,32 +1254,29 @@ void chk_t_dvbapi(char *token, char *value)
 		return;
 	}
 
-	if (!strcmp(token, "auto_priority")) {
-		if(strlen(value) == 0) {
-			cfg->dvbapi_auto_priority = 1;
-		} else {
-			cfg->dvbapi_auto_priority = atoi(value);
-		}
-		return;
-	}
-	
 	if (!strcmp(token, "user")) {
 		cs_strncpy(cfg->dvbapi_usr, value, sizeof(cfg->dvbapi_usr));
 		return;
 	}
 
+	if(!strcmp(token, "services")) {
+		chk_services(value, &cfg->dvbapi_sidtabok, &cfg->dvbapi_sidtabno);
+		return;
+	}
+
+	//obsolete
 	if (!strcmp(token, "priority")) {
-		dvbapi_chk_caidtab(value, &cfg->dvbapi_prioritytab);
+		dvbapi_chk_caidtab(value, 'p');
 		return;
 	}
 
 	if (!strcmp(token, "ignore")) {
-		dvbapi_chk_caidtab(value, &cfg->dvbapi_ignoretab);
+		dvbapi_chk_caidtab(value, 'i');
 		return;
 	}
 
 	if (!strcmp(token, "cw_delay")) {
-		dvbapi_chk_caidtab(value, &cfg->dvbapi_delaytab);
+		dvbapi_chk_caidtab(value, 'd');
 		return;
 	}
 
@@ -1453,10 +1450,6 @@ int init_config()
 	cfg->ac_denysamples = 8;
 	cfg->ac_fakedelay = 1000;
 	strcpy(cfg->ac_logfile, "./oscam_ac.log");
-#endif
-#ifdef HAVE_DVBAPI
-	cfg->dvbapi_auto_priority = 1;
-	cfg->dvbapi_au = 1;
 #endif
 #ifdef MODULE_CCCAM
 	cfg->cc_update_interval = 240;
@@ -2063,60 +2056,9 @@ int write_config()
 		fprintf(f,"[dvbapi]\n");
 		fprintf_conf(f, CONFVARWIDTH, "enabled", "%d\n", cfg->dvbapi_enabled);
 		fprintf_conf(f, CONFVARWIDTH, "au", "%d\n", cfg->dvbapi_au);
-		fprintf_conf(f, CONFVARWIDTH, "auto_priority", "%d\n", cfg->dvbapi_auto_priority);
 		fprintf_conf(f, CONFVARWIDTH, "boxtype", "%s\n", boxdesc[cfg->dvbapi_boxtype]);
 		fprintf_conf(f, CONFVARWIDTH, "user", "%s\n", cfg->dvbapi_usr);
-        fprintf_conf(f, CONFVARWIDTH, "pmt_mode", "%d\n", cfg->dvbapi_pmtmode);
-
-        ulong provid = 0;
-	int writePriorityKey=0;
-
-	for (i=0;i<CS_MAXCAIDTAB;i++) {
-        	if(cfg->dvbapi_prioritytab.caid[i]==0)continue;
-		if(!writePriorityKey){
-        		fprintf_conf(f, CONFVARWIDTH, "priority", "");
-			writePriorityKey=1;
-		       	dot = "";
-			}
-       		fprintf(f, "%s%04X", dot, cfg->dvbapi_prioritytab.caid[i]);
-       		if(cfg->dvbapi_prioritytab.mask[i] !=0xFFFF) {
-  			provid = (cfg->dvbapi_prioritytab.cmap[i] << 8 | cfg->dvbapi_prioritytab.mask[i]);
-       			fprintf(f, ":%06lX", provid);
-       		}
-       		dot = ",";
-        }
-        if(writePriorityKey)
-		fprintf(f,"\n");
-
-        if(cfg->dvbapi_ignoretab.caid[0]) {
-        	provid = 0;
-        	fprintf_conf(f, CONFVARWIDTH, "ignore", "");
-        	i = 0;
-        	dot = "";
-        	while(cfg->dvbapi_ignoretab.caid[i]) {
-        		fprintf(f, "%s%04X", dot, cfg->dvbapi_ignoretab.caid[i]);
-        		if(cfg->dvbapi_ignoretab.mask[i] != 0xFFFF) {
-        			provid = (cfg->dvbapi_ignoretab.cmap[i] << 8 | cfg->dvbapi_ignoretab.mask[i]);
-        			fprintf(f, ":%06lX", provid);
-        		}
-        		dot = ",";
-        		i++;
-        	}
-        	fprintf(f,"\n");
-        }
-
-        if(cfg->dvbapi_delaytab.caid[0]) {
-        	fprintf_conf(f, CONFVARWIDTH, "cw_delay", "");
-        	i = 0;
-        	dot = "";
-        	while(cfg->dvbapi_delaytab.caid[i]) {
-        		fprintf(f, "%s%04X", dot, cfg->dvbapi_delaytab.caid[i]);
-        		fprintf(f, ":%d", cfg->dvbapi_delaytab.mask[i]);
-        		dot = ",";
-        		i++;
-        	}
-        	fprintf(f,"\n");
-        }
+        	fprintf_conf(f, CONFVARWIDTH, "pmt_mode", "%d\n", cfg->dvbapi_pmtmode);
 
 		fputc((int)'\n', f);
 	}
@@ -2174,88 +2116,6 @@ int write_config()
 
 	return(safe_overwrite_with_bak(destfile, tmpfile, bakfile, 0));
 }
-
-#ifdef HAVE_DVBAPI
-void update_priority_config(){
-	FILE *fi,*fo;
-	char *dot = ""; //flags for delimiters
-	char tmpfile[256];
-	char destfile[256];
-	char bakfile[256];
-	
-	if(!priority_is_changed)return;
-
-	snprintf(destfile, 255,"%s%s", cs_confdir, cs_conf);
-	snprintf(tmpfile, 255, "%s%s.tmp", cs_confdir, cs_conf);
-	snprintf(bakfile, 255,"%s%s.bak", cs_confdir, cs_conf);
-
-	if (!(fi=fopen(destfile, "rt"))){
-		cs_log("Cannot open file \"%s\" (errno=%d)", destfile, errno);
-		return;
-	}
-	
-	if (!(fo=fopen(tmpfile, "wt"))){
-		cs_log("Cannot open file \"%s\" (errno=%d)", tmpfile, errno);
-		return;
-	}
-	
-	int dvbapiKey=0;
-	int eof=0;
-	while (!eof) {
-		int i, l ,priokey=0;
-		char key[128],*p;
-		if(!fgets(token, sizeof(token), fi)){
-			if(dvbapiKey == 1)
-				dvbapiKey=2;
-			eof=1;
-		}
-		else if ((l = strlen(trim(token))) >= 3){
-				if ((token[0] == '[') && (token[l-1] == ']')) {
-					if (!strncmp("dvbapi", strtolower(token+1),l-2))
-						dvbapiKey = 1;  //started dvbapi
-					else if(dvbapiKey == 1)
-						dvbapiKey = 2;	//done finished for dvbapi
-				}
-		}
-
-		if ( (p=strchr(token, '=')) != 0 && dvbapiKey == 1){
-			strncpy(key,token,p-token);
-			if(!strcmp("priority",trim(strtolower(key))))
-				priokey=1;
-		}
-//		cs_log("[update priority]dvbapiKey=%d token=%s",dvbapiKey,token);
-		if(dvbapiKey == 2 ){
-			ulong provid = 0;
-			int writePriorityKey=0;
-
-			for (i=0;i<CS_MAXCAIDTAB;i++) {
-				if(cfg->dvbapi_prioritytab.caid[i]==0)continue;
-				if(!writePriorityKey){
-					fprintf(fo, "priority\t= ");
-					writePriorityKey=1;
-				       	dot = "";
-					}
-		       		fprintf(fo, "%s%04X", dot, cfg->dvbapi_prioritytab.caid[i]);
-		       		if(cfg->dvbapi_prioritytab.mask[i] !=0xFFFF) {
-		  			provid = (cfg->dvbapi_prioritytab.cmap[i] << 8 | cfg->dvbapi_prioritytab.mask[i]);
-		       			fprintf(fo, ":%06lX", provid);
-		       		}
-		       		dot = ",";
-			}
-			if(writePriorityKey)
-				fprintf(fo,"\n");
-			
-		}	
-		if(!priokey && !eof )
-			fprintf(fo,"%s\n",token);
-	
-		
-	}
-	fclose(fo);
-	fclose(fi);
-	safe_overwrite_with_bak(destfile, tmpfile, bakfile, 0);
-}
-#endif
 
 int write_userdb(struct s_auth *authptr)
 {
@@ -2378,7 +2238,6 @@ int write_userdb(struct s_auth *authptr)
 int write_server()
 {
 	int j;
-	int isphysical = 0;
 	char *value;
 	FILE *f;
 
@@ -2401,63 +2260,21 @@ int write_server()
 	struct s_reader *rdr;
 	for (rdr=first_reader; rdr ; rdr=rdr->next) {
 		if ( rdr->label[0] && !rdr->deleted) {
-			isphysical = 0;
 			fprintf(f,"[reader]\n");
 
 			fprintf_conf(f, CONFVARWIDTH, "label", "%s\n", rdr->label);
 			fprintf_conf(f, CONFVARWIDTH, "enable", "%d\n", rdr->enable);
 
+			int isphysical = (rdr->typ & R_IS_NETWORK)?0:1;
 			char *ctyp ="";
-			switch(rdr->typ) {	/* TODO like ph*/
-				case R_MP35	:
-					ctyp = "mp35";
-					isphysical = 1;
-					break;
-				case R_MOUSE	:
-					ctyp = "mouse";
-					isphysical = 1;
-					break;
-				case R_INTERNAL	:
-					ctyp = "internal";
-					isphysical = 1;
-					break;
-				case R_SC8in1	:
-					ctyp = "sc8in1";
-					isphysical = 1;
-					break;
-				case R_SMART	:
-					ctyp = "smartreader";
-					isphysical = 1;
-					break;
-				case R_CAMD35	: ctyp = "camd35";	break;
-				case R_CAMD33	: ctyp = "camd33";	break;
-				case R_NEWCAMD	:
-					if (rdr->ncd_proto == NCD_524)
-						ctyp = "newcamd524";
-					else
-						ctyp = "newcamd";
-					break;
-				case R_RADEGAST	: ctyp = "radegast";	break;
-				case R_SERIAL	: ctyp = "serial";		break;
-#ifdef CS_WITH_GBOX
-				case R_GBOX		: ctyp = "gbox";		break;
-#endif
-#ifdef HAVE_PCSC
-				case R_PCSC		: ctyp = "pcsc";		break;
-#endif
-				case R_CCCAM	: ctyp = "cccam";		break;
-				case R_CONSTCW	: ctyp = "constcw";		break;
-				case R_CS378X	: ctyp = "cs378x";		break;
-				case R_DB2COM1	:
-					ctyp = "mouse";
-					isphysical = 1;
-					break;
-				case R_DB2COM2	:
-					ctyp = "mouse";
-					isphysical = 1;
-					break;
+			static char *typtxt[] = { "unknown", "mouse", "mouse", "sc8in1", "mp35", "mouse", "internal", "smartreader", "pcsc" };
+			if (isphysical)
+				ctyp = typtxt[rdr->typ];
+			else
+				ctyp = rdr->ph.desc;
+			if ((rdr->typ == R_NEWCAMD) && (rdr->ncd_proto == NCD_524))
+				ctyp = "newcamd524";
 
-			}
 			fprintf_conf(f, CONFVARWIDTH, "protocol", "%s\n", ctyp);
 
 			fprintf_conf(f, CONFVARWIDTH, "device", "%s", rdr->device);
@@ -2852,12 +2669,6 @@ void write_versionfile() {
 		  fprintf(fp, "Tongfang:         yes\n");
 	#else
 		  fprintf(fp, "Tongfang:         no\n");
-	#endif
-
-	#ifdef READER_STREAMGUARD
-		  fprintf(fp, "Streamguard:      yes\n");
-	#else
-		  fprintf(fp, "Streamguard:      no\n");
 	#endif
 #else
 	  fprintf(fp, "Cardreader:       no\n");
@@ -4129,7 +3940,6 @@ int init_readerdb()
 			reader[nr].cc_reshare = cfg->cc_reshare; //set global value as init value
 			reader[nr].cc_maxhop = 10;
 			reader[nr].lb_weight = 100;
-			reader[nr].cc_keepalive = 240;		//default set keepalive time interval to 240 + 55 second
 			strcpy(reader[nr].pincode, "none");
                         reader[nr].ndsversion = 0;
 			for (i=1; i<CS_MAXCAIDTAB; reader[nr].ctab.mask[i++]=0xffff);

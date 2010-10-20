@@ -53,6 +53,13 @@ int get_ridx(struct s_reader *reader) {
 	return -1;
 }
 
+int get_nr_of_readers() {
+	int i;
+	struct s_reader *rdr;
+	for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++);
+	return i;
+}
+
 int get_threadnum(struct s_client *client) {
 	struct s_client *cl;
 	int count=0;
@@ -75,7 +82,7 @@ int cs_check_violation(uint ip) {
 	if (cfg->failbantime) {
 
 		time_t now = time((time_t)0);
-		LLIST_ITR itr;
+		LLIST_D__ITR itr;
 		V_BAN *v_ban_entry = llist_itr_init(cfg->v_list, &itr);
 
 		while (v_ban_entry) {
@@ -103,7 +110,7 @@ void cs_add_violation(uint ip) {
 		if (!cfg->v_list)
 			cfg->v_list = llist_create();
 
-		LLIST_ITR itr;
+		LLIST_D__ITR itr;
 		V_BAN *v_ban_entry = llist_itr_init(cfg->v_list, &itr);
 		while (v_ban_entry) {
 			if (ip == v_ban_entry->v_ip) {
@@ -393,13 +400,12 @@ void cs_exit(int sig)
 		return;
 	}
 
+#ifdef HAVE_DVBAPI
+	dvbapi_main_exit();
+#endif
+
   if (sig && (sig!=SIGQUIT))
     cs_log("exit with signal %d", sig);
-
-#ifdef HAVE_DVBAPI
-  if(cfg->dvbapi_enabled == 1 && cfg->dvbapi_auto_priority == 1) 
-	update_priority_config();
-#endif
 
   struct s_client *cl = cur_client();
   
@@ -2142,6 +2148,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		struct s_reader *rdr;
 		if (cfg->lb_mode) {
 			int reader_avail[CS_MAXREADER]; //FIXME limits reader list!!!
+			memset(reader_avail, 0, sizeof(reader_avail));
 			for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {	
 				reader_avail[i] = matching_reader(er, &reader[i]);
 				if (reader_avail[i] == 1)
@@ -2839,9 +2846,6 @@ if (pthread_key_create(&getclient, NULL)) {
 #endif
 #ifdef READER_TONGFANG
 	reader_tongfang,
-#endif
-#ifdef READER_STREAMGUARD
-	reader_streamguard,
 #endif
 	0
   };

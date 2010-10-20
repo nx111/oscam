@@ -29,7 +29,7 @@ std:	linux \
 	cross-mipsel-router-linux-uclibc929-static \
 	cross-mipsel-tuxbox-linux-glibc \
 	cross-mipsel-fonera2 \
-	cross-sh-linux
+	cross-sh4-linux
 
 all:	\
 	cross-sparc-sun-solaris2.7 \
@@ -302,7 +302,7 @@ cross-powerpc-405-linux:
 #	sh4 crosscompiler
 #
 ######################################################################
-cross-sh-linux:
+cross-sh4-linux:
 	@-$(MAKE) --no-print-directory \
 		-f Maketype TYP=$(subst cross-,,$@) \
 		OS_LIBS="-lcrypto -lm" \
@@ -312,13 +312,13 @@ cross-sh-linux:
 		DS_CFLAGS="-c" \
 		DS_LDFLAGS="" \
 		DS_ARFLAGS="-rvsl" \
-		DS_CC=sh-linux-gnu-gcc \
-		DS_AR=sh-linux-gnu-ar \
-		DS_LD=sh-linux-gnu-ld \
-		DS_RL=sh-linux-gnu-ranlib \
-		DS_ST=sh-linux-gnu-strip
+		DS_CC=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-gcc \
+		DS_AR=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-ar \
+		DS_LD=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-ld \
+		DS_RL=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-ranlib \
+		DS_ST=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-strip
 
-cross-sh-linux-stapi:
+cross-sh4-linux-stapi:
 	@-$(MAKE) --no-print-directory \
 		-f Maketype TYP=$(subst cross-,,$@) \
 		OS_LIBS="-lcrypto -lm -L./stapi -loscam_stapi" \
@@ -328,11 +328,11 @@ cross-sh-linux-stapi:
 		DS_CFLAGS="-c" \
 		DS_LDFLAGS="" \
 		DS_ARFLAGS="-rvsl" \
-		DS_CC=sh-linux-gnu-gcc \
-		DS_AR=sh-linux-gnu-ar \
-		DS_LD=sh-linux-gnu-ld \
-		DS_RL=sh-linux-gnu-ranlib \
-		DS_ST=sh-linux-gnu-strip
+		DS_CC=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-gcc \
+		DS_AR=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-ar \
+		DS_LD=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-ld \
+		DS_RL=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-ranlib \
+		DS_ST=/opt/STM/STLinux-2.3/devkit/sh4/bin/sh4-linux-strip
 
 ######################################################################
 #

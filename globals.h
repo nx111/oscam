@@ -171,11 +171,11 @@
 #define R_MP35      0x4 // AD-Teknik Multiprogrammer 3.5 and 3.6 (only usb tested)
 #define R_MOUSE     0x5 // Reader smartcard mouse
 /////////////////// phoenix readers which need baudrate setting and timings need to be guarded by OSCam: BEFORE R_MOUSE
-#define R_INTERNAL  0x10 // Reader smartcard intern
+#define R_INTERNAL  0x6 // Reader smartcard intern
 /////////////////// internal readers (Dreambox, Coolstream, IPBox) are all R_INTERNAL, they are determined compile-time
 /////////////////// readers that do not reed baudrate setting and timings are guarded by reader itself (large buffer built in): AFTER R_SMART
-#define R_SMART     0x11 // Smartreader+
-#define R_PCSC      0x12 // PCSC
+#define R_SMART     0x7 // Smartreader+
+#define R_PCSC      0x8 // PCSC
 /////////////////// proxy readers after R_CS378X
 #define R_CAMD35    0x20  // Reader cascading camd 3.5x
 #define R_CAMD33    0x21  // Reader cascading camd 3.3x
@@ -215,8 +215,6 @@
 #define BOXTYPE_QBOXHD	8
 #define BOXTYPES		8
 extern const char *boxdesc[];
-extern int priority_is_changed;
-
 #endif
 
 #ifdef CS_CORE
@@ -1008,7 +1006,7 @@ struct s_config
 	uchar		http_dyndns[64];
 #endif
 	int			failbantime;
-	LLIST 		*v_list; //failban list
+	LLIST_D_ 		*v_list; //failban list
 	int		c33_port;
 	in_addr_t	c33_srvip;
 	uchar		c33_key[16];
@@ -1081,10 +1079,8 @@ struct s_config
 	char		dvbapi_usr[33];
 	int		dvbapi_boxtype;
 	int		dvbapi_pmtmode;
-	int 		dvbapi_auto_priority;
-	CAIDTAB	dvbapi_prioritytab;
-	CAIDTAB	dvbapi_ignoretab;
-	CAIDTAB	dvbapi_delaytab;
+	SIDTABBITS    dvbapi_sidtabok;	// positiv services
+	SIDTABBITS    dvbapi_sidtabno;	// negative services
 #endif
 
 #ifdef CS_ANTICASC
@@ -1294,6 +1290,8 @@ extern int chk_srvid_match_by_caid_prov(ushort caid, ulong provid, SIDTAB *sidta
 extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid);
 extern void kill_thread(struct s_client *cl);
 extern int get_threadnum(struct s_client *client);
+extern int get_nr_of_readers(void);
+
 extern void cs_card_info(void);
 extern void cs_debug_level(void);
                  
@@ -1349,8 +1347,8 @@ extern void chk_reader(char *token, char *value, struct s_reader *rdr);
 
 #ifdef HAVE_DVBAPI
 extern void chk_t_dvbapi(char *token, char *value);
-extern void update_priority_config();
-void dvbapi_chk_caidtab(char *caidasc, CAIDTAB *ctab);
+void dvbapi_chk_caidtab(char *caidasc, char type);
+extern void dvbapi_main_exit();
 #endif
 
 #ifdef WEBIF
@@ -1454,7 +1452,6 @@ void reader_videoguard2();
 void reader_videoguard12();
 void reader_dre();
 void reader_tongfang();
-void reader_streamguard();
 
 // protocol modules
 extern int  monitor_send_idx(struct s_client *, char *);

@@ -1,6 +1,5 @@
 //FIXME Not checked on threadsafety yet; after checking please remove this line
 #include <sys/time.h>
-#include <sys/stat.h>
 #include "globals.h"
 
 void aes_set_key(char *key)
@@ -790,14 +789,6 @@ void clear_tuntab(struct s_tuntab *ttab){
 }
 /* Overwrites destfile with tmpfile. If forceBakOverWrite = 0, the bakfile will not be overwritten if it exists, else it will be.*/
 int safe_overwrite_with_bak(char *destfile, char *tmpfile, char *bakfile, int forceBakOverWrite){
-	struct stat st;
-	int ret=stat(tmpfile,&st);
-	
-	if(ret < 0 || st.st_size < 8){
-		cs_log("File %s is not exists or is too small!",tmpfile);
-		return(1);
-	}
-
 	if (file_exists(destfile)) {
 		if(forceBakOverWrite != 0 && file_exists(bakfile)){
 			if(remove(bakfile) < 0) cs_log("Error removing backup conf file %s (errno=%d)! Will try to proceed nonetheless...", bakfile, errno);
