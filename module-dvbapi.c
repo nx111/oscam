@@ -628,6 +628,7 @@ void dvbapi_start_descrambling(int demux_id) {
 
 		if(!demux[demux_id].ECMpids[num].checked){
 			dvbapi_start_filter(demux_id, num, demux[demux_id].ECMpids[num].ECM_PID, 0x80, 0xF0, 3000, TYPE_ECM); 
+			demux[demux_id].ECMpids[num].irdeto_curchid =  demux[demux_id].ECMpids[demux[demux_id].pidindex].irdeto_curchid ;
 			demux[demux_id].ECMpids[num].checked=1;
 
 			cs_debug("[Start additional PID %d] CAID:%04X PROVID:%06X CA_PID:%04X", num, demux[demux_id].ECMpids[num].CAID, demux[demux_id].ECMpids[num].PROVID, demux[demux_id].ECMpids[num].ECM_PID);
@@ -684,7 +685,7 @@ static unsigned long dvbapi_get_cw_emm_provid(unsigned char *buffer, int len)
     for(i=0; i<len;) {
         switch (buffer[i]) {
             case 0x83:
-                provid=buffer[i+2];
+                provid=buffer[i+2] & 0xfc;
                 return provid;
                 break;
             default:

@@ -34,11 +34,6 @@ logging target, default: /var/log/oscam.log
 1 = avoid logging although \fBlogfile\fP is set, default:0
 .RE
 .PP
-\fBpidfile\fP = \fBfilename\fP
-.RS 3n
-PID file, default:no PID file
-.RE
-.PP
 \fBusrfile\fP = \fBfilename\fP
 .RS 3n
 log file for user logging, default:none
@@ -779,7 +774,6 @@ be a workaround, but also a small security risk.
  [global]
  logfile      = /var/log/oscam/oscam.log
  usrfile      = /var/log/oscam/oscamuser.log
- pidfile      = /var/run/oscam.pid
 
  waitforcards = 1
 
@@ -810,4 +804,4 @@ be a workaround, but also a small security risk.
  [cs378x]
  port         = 50000@0300:600000
 .SH "SEE ALSO"
-\fBlist_smargo\fR(1), \fBoscam\fR(1), \fBoscam.ac\fR(5), \fBoscam.cert\fR(5), \fBoscam.guess\fR(5), \fBoscam.ird\fR(5), \fBoscam.provid\fR(5), \fBoscam.server\fR(5), \fBoscam.services\fR(5), \fBoscam.srvid\fR(5), \fBoscam.tiers\fR(5), \fBoscam.user\fR(5)
+\fBlist_smargo\fR(1), \fBoscam\fR(1), \fBoscam.ac\fR(5), \fBoscam.cert\fR(5), \fBoscam.dvbapi\fR(5), \fBoscam.guess\fR(5), \fBoscam.ird\fR(5), \fBoscam.provid\fR(5), \fBoscam.server\fR(5), \fBoscam.services\fR(5), \fBoscam.srvid\fR(5), \fBoscam.tiers\fR(5), \fBoscam.user\fR(5)

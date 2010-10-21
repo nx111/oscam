@@ -1,83 +1,89 @@
 K 25
 svn:wc:ra_dav:version-url
 V 51
-/svn/oscam/!svn/ver/3453/trunk/Distribution/doc/man
+/svn/oscam/!svn/ver/3647/trunk/Distribution/doc/man
 END
 oscam.1
 K 25
 svn:wc:ra_dav:version-url
 V 59
-/svn/oscam/!svn/ver/3152/trunk/Distribution/doc/man/oscam.1
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.1
 END
 oscam.cert.5
 K 25
 svn:wc:ra_dav:version-url
 V 64
-/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/man/oscam.cert.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.cert.5
 END
 list_smargo.1
 K 25
 svn:wc:ra_dav:version-url
 V 65
-/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/man/list_smargo.1
+/svn/oscam/!svn/ver/3647/trunk/Distribution/doc/man/list_smargo.1
 END
 oscam.ird.5
 K 25
 svn:wc:ra_dav:version-url
 V 63
-/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/man/oscam.ird.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.ird.5
 END
 oscam.user.5
 K 25
 svn:wc:ra_dav:version-url
 V 64
-/svn/oscam/!svn/ver/3453/trunk/Distribution/doc/man/oscam.user.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.user.5
 END
 oscam.ac.5
 K 25
 svn:wc:ra_dav:version-url
 V 62
-/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/man/oscam.ac.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.ac.5
 END
 oscam.provid.5
 K 25
 svn:wc:ra_dav:version-url
 V 66
-/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/man/oscam.provid.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.provid.5
 END
 oscam.services.5
 K 25
 svn:wc:ra_dav:version-url
 V 68
-/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/man/oscam.services.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.services.5
 END
 oscam.conf.5
 K 25
 svn:wc:ra_dav:version-url
 V 64
-/svn/oscam/!svn/ver/3410/trunk/Distribution/doc/man/oscam.conf.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.conf.5
+END
+oscam.dvbapi.5
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.dvbapi.5
 END
 oscam.guess.5
 K 25
 svn:wc:ra_dav:version-url
 V 65
-/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/man/oscam.guess.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.guess.5
 END
 oscam.server.5
 K 25
 svn:wc:ra_dav:version-url
 V 66
-/svn/oscam/!svn/ver/3452/trunk/Distribution/doc/man/oscam.server.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.server.5
 END
 oscam.tiers.5
 K 25
 svn:wc:ra_dav:version-url
 V 65
-/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/man/oscam.tiers.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.tiers.5
 END
 oscam.srvid.5
 K 25
 svn:wc:ra_dav:version-url
 V 65
-/svn/oscam/!svn/ver/2989/trunk/Distribution/doc/man/oscam.srvid.5
+/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/man/oscam.srvid.5
 END

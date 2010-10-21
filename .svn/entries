@@ -1,15 +1,15 @@
 10
 
 dir
-3640
+3648
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-10-19T23:41:29.194180Z
-3640
-rorothetroll
+2010-10-20T22:52:27.812815Z
+3648
+alno
 has-props
 
 
@@ -418,9 +418,6 @@ dingo35
 
 10487
 
-toolchains
-dir
-
 module-obj-llist.c
 file
 
@@ -454,6 +451,9 @@ has-props
 
 
 3091
+
+toolchains
+dir
 
 oscam-ac.c
 file
@@ -564,10 +564,10 @@ file
 
 
 
-724f4b350e8d05d83e1fca2f4d9aa38c
-2010-10-18T09:01:21.494952Z
-3608
-_network
+ac3bc27353486977461f222919501025
+2010-10-20T18:36:20.879544Z
+3644
+rorothetroll
 
 oscam-nano.c
 file
@@ -603,40 +603,6 @@ rebdog
 
 1625
 
-Makefile
-file
-
-
-
-
-2010-10-17T11:25:54.090009Z
-5d11f2e372352e703a6ef0d3144e9d1f
-2010-10-15T22:02:50.939387Z
-3542
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-25451
-
 CMakeLists.txt
 file
 
@@ -671,17 +637,17 @@ rorothetroll
 
 27596
 
-module-dvbapi.h
+Makefile
 file
 
 
 
 
 2010-10-17T11:25:54.090009Z
-18821fefce17881555a67e07e18c41a4
-2010-10-17T09:43:45.562133Z
-3581
-_network
+5d11f2e372352e703a6ef0d3144e9d1f
+2010-10-15T22:02:50.939387Z
+3542
+schlocke
 
 
 
@@ -703,7 +669,7 @@ _network
 
 
 
-4426
+25451
 
 config.sh
 file
@@ -739,6 +705,40 @@ has-props
 
 4135
 
+module-dvbapi.h
+file
+
+
+
+
+2010-10-17T11:25:54.090009Z
+18821fefce17881555a67e07e18c41a4
+2010-10-17T09:43:45.562133Z
+3581
+_network
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+4426
+
 module-stat.c
 file
 
@@ -772,52 +772,6 @@ schlocke
 
 
 14593
-
-module-serial.c
-file
-
-
-
-
-2010-10-20T07:15:08.162486Z
-522ab3d87e88e3664164eb18388cfdb8
-2010-10-18T13:32:35.481234Z
-3614
-dingo35
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-28245
-
-oscam.c
-file
-
-
-
-
-
-3673b81700ebffe2726bf8ec162b6d59
-2010-10-19T16:14:04.543711Z
-3631
-schlocke
 
 oscam-reader.c
 file
@@ -853,17 +807,29 @@ dingo35
 
 21690
 
-reader-tongfang.c
+oscam.c
 file
 
 
 
 
-2010-10-12T10:29:04.193627Z
-e07a0b2fa854eaff20660514ef248726
-2010-10-03T08:23:50.350077Z
-3349
-lattjo
+
+3673b81700ebffe2726bf8ec162b6d59
+2010-10-19T16:14:04.543711Z
+3631
+schlocke
+
+module-serial.c
+file
+
+
+
+
+2010-10-20T07:15:08.162486Z
+522ab3d87e88e3664164eb18388cfdb8
+2010-10-18T13:32:35.481234Z
+3614
+dingo35
 
 
 
@@ -885,7 +851,7 @@ lattjo
 
 
 
-5068
+28245
 
 module-stat.h
 file
@@ -920,6 +886,40 @@ schlocke
 
 
 562
+
+reader-tongfang.c
+file
+
+
+
+
+2010-10-12T10:29:04.193627Z
+e07a0b2fa854eaff20660514ef248726
+2010-10-03T08:23:50.350077Z
+3349
+lattjo
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+5068
 
 module-constcw.c
 file
@@ -1375,10 +1375,10 @@ file
 
 
 
-2010-10-20T07:15:08.166486Z
-addee2b697dc27e73b660f539d8e67c9
-2010-10-19T21:46:21.355168Z
-3639
+2010-10-21T03:50:41.519217Z
+7876500a5bbdbe0140e7b59fcef9be6e
+2010-10-20T22:52:27.812815Z
+3648
 alno
 
 
@@ -1401,7 +1401,7 @@ alno
 
 
 
-93343
+94051
 
 utils
 dir
@@ -1415,10 +1415,10 @@ file
 
 
 
-2010-10-20T07:15:08.170486Z
-d9d6dbeb0bbe5e79fd3ed67923dd0eb5
-2010-10-19T20:57:09.727998Z
-3638
+2010-10-21T03:50:41.523217Z
+2c331ab1f686b22606a7fe3336bfa8af
+2010-10-20T17:44:45.366423Z
+3643
 alno
 
 
@@ -1441,7 +1441,7 @@ alno
 
 
 
-77814
+77813
 
 .gitignore
 file
@@ -1551,10 +1551,10 @@ file
 
 
 
-2010-10-20T07:15:08.174486Z
-ff40102849d18aa0c6f86215ffa23a64
-2010-10-19T12:53:47.329742Z
-3629
+2010-10-21T03:50:41.523217Z
+6619aff065f6a2fe3ae667083699a348
+2010-10-20T09:35:26.639595Z
+3641
 dingo35
 
 
@@ -1577,7 +1577,7 @@ dingo35
 
 
 
-28991
+26159
 
 reader-common.c
 file
@@ -1632,10 +1632,10 @@ file
 
 
 
-7504f5db1f531b484cfc861366ac586e
-2010-10-19T19:57:55.912728Z
-3636
-schlocke
+e2bdad5d2df0ee816d114c53989be721
+2010-10-20T15:09:24.550559Z
+3642
+rorothetroll
 has-props
 
 module-datastruct-llist.h

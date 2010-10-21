@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 55
-/svn/oscam/!svn/ver/3603/trunk/Distribution/doc/example
+/svn/oscam/!svn/ver/3645/trunk/Distribution/doc/example
 END
 oscam.ird
 K 25
@@ -37,7 +37,7 @@ oscam.conf
 K 25
 svn:wc:ra_dav:version-url
 V 66
-/svn/oscam/!svn/ver/1884/trunk/Distribution/doc/example/oscam.conf
+/svn/oscam/!svn/ver/3645/trunk/Distribution/doc/example/oscam.conf
 END
 oscam.dvbapi
 K 25
