@@ -1643,15 +1643,15 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 
 	if (!strcmp(token, "au")) {
 		//set default values for usage during runtime from Webif
-		account->au = -1;
+		account->aureader = NULL;
 		account->autoau=0;
 
 		if(value && value[0] == '1')
 			account->autoau = 1;
 		struct s_reader *rdr;
-		for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)
+		for (rdr=first_reader; rdr ; rdr=rdr->next)
 			if ((rdr->label[0]) && (!strncmp(rdr->label, value, strlen(rdr->label))))
-				account->au = i;
+				account->aureader = rdr;
 		return;
 	}
 
@@ -2170,9 +2170,8 @@ int write_userdb(struct s_auth *authptr)
 		fprintf_conf(f, CONFVARWIDTH, "sleep", "%d\n", account->tosleep);
 		fprintf_conf(f, CONFVARWIDTH, "monlevel", "%d\n", account->monlvl);
 
-		if (account->au > -1)
-			if (account->au < CS_MAXREADER)
-				fprintf_conf(f, CONFVARWIDTH, "au", "%s\n", reader[account->au].label);
+		if (account->aureader)
+				fprintf_conf(f, CONFVARWIDTH, "au", "%s\n", account->aureader->label);
 		if (account->autoau == 1) fprintf_conf(f, CONFVARWIDTH, "au", "1\n");
 
 		fprintf_conf(f, CONFVARWIDTH, "services", "");
@@ -2264,16 +2263,7 @@ int write_server()
 
 			fprintf_conf(f, CONFVARWIDTH, "label", "%s\n", rdr->label);
 			fprintf_conf(f, CONFVARWIDTH, "enable", "%d\n", rdr->enable);
-
-			int isphysical = (rdr->typ & R_IS_NETWORK)?0:1;
-			char *ctyp ="";
-			static char *typtxt[] = { "unknown", "mouse", "mouse", "sc8in1", "mp35", "mouse", "internal", "smartreader", "pcsc" };
-			if (isphysical)
-				ctyp = typtxt[rdr->typ];
-			else
-				ctyp = rdr->ph.desc;
-			if ((rdr->typ == R_NEWCAMD) && (rdr->ncd_proto == NCD_524))
-				ctyp = "newcamd524";
+			char *ctyp = reader_get_type_desc(rdr);
 
 			fprintf_conf(f, CONFVARWIDTH, "protocol", "%s\n", ctyp);
 
@@ -2294,6 +2284,7 @@ int write_server()
 				fprintf(f, "\n");
 			}
 
+			int isphysical = (rdr->typ & R_IS_NETWORK)?0:1;
 			if (rdr->r_usr[0] && !isphysical)
 				fprintf_conf(f, CONFVARWIDTH, "account", "%s\n", rdr->r_usr);
 
@@ -2731,7 +2722,7 @@ int init_userdb(struct s_auth **authptr_org)
 			memset(account, 0, sizeof(struct s_auth));
 			account->allowedtimeframe[0] = 0;
 			account->allowedtimeframe[1] = 0;
-			account->au = (-1);
+			account->aureader = NULL;
 			account->monlvl = cfg->mon_level;
 			account->tosleep = cfg->tosleep;
 			account->c35_suppresscmd08 = cfg->c35_suppresscmd08;
@@ -3482,7 +3473,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 		}
 #endif
 
-		if (!strcmp(value, "cccam")) {
+		if (!strcmp(value, "cccam") || !strcmp(value, "cccam ext")) {
 			rdr->typ = R_CCCAM;
 			//strcpy(value, "1");
 			//chk_caidtab(value, &rdr->ctab); 
@@ -3928,6 +3919,7 @@ int init_readerdb()
 		return(1);
 	}
 	nr = 0;
+	struct s_reader *rdr = first_reader;
 	while (fgets(token, sizeof(token), fp)) {
 		int i, l;
 		if ((l = strlen(trim(token))) < 3)
@@ -3936,23 +3928,24 @@ int init_readerdb()
 			token[l-1] = 0;
 			tag = (!strcmp("reader", strtolower(token+1)));
 			if (reader[nr].label[0] && reader[nr].typ) nr++;
-			memset(&reader[nr], 0, sizeof(struct s_reader));
-			reader[nr].next = &reader[nr+1]; //FIXME
-			reader[nr].enable = 1;
-			reader[nr].tcp_rto = 30;
-			reader[nr].show_cls = 10;
-			reader[nr].maxqlen = CS_MAXQLEN;
-			reader[nr].mhz = 357;
-			reader[nr].cardmhz = 357;
-			reader[nr].deprecated = 0;
-			reader[nr].force_irdeto = 0;
-			reader[nr].cachecm = 1;
-			reader[nr].cc_reshare = cfg->cc_reshare; //set global value as init value
-			reader[nr].cc_maxhop = 10;
-			reader[nr].lb_weight = 100;
-			strcpy(reader[nr].pincode, "none");
-                        reader[nr].ndsversion = 0;
-			for (i=1; i<CS_MAXCAIDTAB; reader[nr].ctab.mask[i++]=0xffff);
+			rdr = &reader[nr];//FIXME
+			memset(rdr, 0, sizeof(struct s_reader));
+			rdr->next = &reader[nr+1]; //FIXME
+			rdr->enable = 1;
+			rdr->tcp_rto = 30;
+			rdr->show_cls = 10;
+			rdr->maxqlen = CS_MAXQLEN;
+			rdr->mhz = 357;
+			rdr->cardmhz = 357;
+			rdr->deprecated = 0;
+			rdr->force_irdeto = 0;
+			rdr->cachecm = 1;
+			rdr->cc_reshare = cfg->cc_reshare; //set global value as init value
+			rdr->cc_maxhop = 10;
+			rdr->lb_weight = 100;
+			strcpy(rdr->pincode, "none");
+			rdr->ndsversion = 0;
+			for (i=1; i<CS_MAXCAIDTAB; rdr->ctab.mask[i++]=0xffff);
 			continue;
 		}
 
@@ -3961,10 +3954,10 @@ int init_readerdb()
 		if (!(value=strchr(token, '=')))
 			continue;
 		*value++ ='\0';
-		chk_reader(trim(strtolower(token)), trim(value), &reader[nr]);
+		chk_reader(trim(strtolower(token)), trim(value), rdr);
 	}
 	fclose(fp);
-	reader[nr].next = NULL; //FIXME terminate reader list
+	rdr->next = NULL; //FIXME terminate reader list
 	return(0);
 }
 

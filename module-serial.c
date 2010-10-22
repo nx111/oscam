@@ -1,7 +1,6 @@
 //FIXME Not threadsafe & running multiple instances !!!
 #include "globals.h"
 #include <termios.h>
-extern struct  s_reader  reader[CS_MAXREADER];
 
 #define HSIC_CRC 0xA5
 #define SSSP_MAX_PID 8
@@ -887,7 +886,7 @@ static void * oscam_ser_fork(void *url2)
 
   while(1)
   {
-    cur_client()->au=(-1);
+    cur_client()->aureader=NULL;
     cur_client()->usr[0]='\0';
     cur_client()->login=time((time_t *)0);
     cur_client()->pfd=init_oscam_ser_device(oscam_ser_device);

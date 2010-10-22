@@ -124,7 +124,7 @@
 #define CS_MAXIGNORE      1024
 #define CS_MAXLOCALS      16
 #define CS_ECMSTORESIZE   16  // use MD5()
-#define CS_EMMSTORESIZE   270
+#define CS_EMMSTORESIZE   16  // use MD5()
 #define CS_CLIENT_TIMEOUT 5000
 #define CS_CLIENT_MAXIDLE 120
 #define CS_BIND_TIMEOUT   120
@@ -143,18 +143,18 @@
 //#define CS_MAXREADER    (CS_MAXPID>>1)
 #define CS_MAXREADER    16
 //#define CS_MAXPENDING   CS_MAXPID
-#define CS_MAXPENDING   8
+#define CS_MAXPENDING   16
 #define PTHREAD_STACK_SIZE PTHREAD_STACK_MIN+8000
 #else
 //#define CS_MAXPID   512
 //#define CS_MAXREADER    (CS_MAXPID<<2)
 #define CS_MAXREADER    256
 //#define CS_MAXPENDING   (CS_MAXPID<<1)
-#define CS_MAXPENDING   20
+#define CS_MAXPENDING   32
 #define PTHREAD_STACK_SIZE PTHREAD_STACK_MIN+10000
 #endif
 
-#define CS_EMMCACHESIZE  5 //nr of EMMs that each client will cache; cache is per client, so memory-expensive...
+#define CS_EMMCACHESIZE  64 //nr of EMMs that each client will cache; cache is per client, so memory-expensive...
 
 #define D_TRACE     1 // Generate very detailed error/trace messages per routine
 #define D_ATR       2 // Debug ATR parsing, dump of ecm, cw
@@ -415,7 +415,7 @@ struct s_ecm
 
 struct s_emm
 {
-  uchar emm[CS_EMMSTORESIZE];
+  uchar emmd5[CS_EMMSTORESIZE];
   uchar type;
   int   count;
 };
@@ -452,7 +452,7 @@ struct s_module
   int  (*c_recv_log)();
   int  (*c_available)(); //Schlocke: available check for load-balancing, 
                          //params: 
-                         //int ridx (reader to check)
+                         //rdr (reader to check)
                          //int checktype (0=return connected, 1=return loadbalance-avail) return int
   void (*c_idle)();      //Schlocke: called when reader is idle
   void (*c_card_info)(); //Schlocke: request card infos
@@ -547,7 +547,7 @@ struct s_client
   uint64	grp;
   int		crypted;
   int		dup;
-  int		au;
+  struct s_reader *aureader; //the reader that needs EMMs from this client
   int		autoau;
   int		monlvl;
   CAIDTAB	ctab;
@@ -763,6 +763,8 @@ struct s_reader  //contains device info, reader info and card info
   uchar     tcp_connected;
   int       tcp_ito;      // inactivity timeout
   int       tcp_rto;      // reconnect timeout
+  struct timeb	tcp_block_connect_till; //time tcp connect ist blocked
+  int       tcp_block_delay; //incrementing block time
   time_t    last_g;       // get (if last_s-last_g>tcp_rto - reconnect )
   time_t    last_s;       // send
   uchar     show_cls;     // number of classes subscription showed on kill -31
@@ -892,7 +894,7 @@ struct s_auth
   char     usr[33];
   char     pwd[33];
   int      uniq;
-  int      au;
+  struct s_reader *aureader;
   int      autoau;
   int      monlvl;
   uint64   grp;
@@ -1241,6 +1243,7 @@ extern char* username(struct s_client *);
 extern struct s_client * idx_from_tid(unsigned long);
 extern int chk_bcaid(ECM_REQUEST *, CAIDTAB *);
 extern void cs_exit(int sig);
+extern int comp_timeb(struct timeb *tpa, struct timeb *tpb);
 extern struct s_client * cs_fork(in_addr_t);
 extern int cs_auth_client(struct s_client *, struct s_auth *, const char*);
 extern void cs_disconnect_client(struct s_client *);
@@ -1464,6 +1467,8 @@ extern void module_dvbapi(struct s_module *);
 
 // module-monitor
 extern char *monitor_get_proto(struct s_client *);
+
+extern char *reader_get_type_desc(struct s_reader * rdr);
 
 #ifdef WEBIF
 // oscam-http

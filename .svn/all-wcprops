@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/3648/trunk
+/svn/oscam/!svn/ver/3670/trunk
 END
 module-cccam.h
 K 25
@@ -19,7 +19,7 @@ module-camd35.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3618/trunk/module-camd35.c
+/svn/oscam/!svn/ver/3652/trunk/module-camd35.c
 END
 reader-viaccess.c
 K 25
@@ -31,7 +31,7 @@ module-newcamd.c
 K 25
 svn:wc:ra_dav:version-url
 V 47
-/svn/oscam/!svn/ver/3633/trunk/module-newcamd.c
+/svn/oscam/!svn/ver/3653/trunk/module-newcamd.c
 END
 VERSION
 K 25
@@ -67,7 +67,7 @@ oscam-log.c
 K 25
 svn:wc:ra_dav:version-url
 V 42
-/svn/oscam/!svn/ver/3572/trunk/oscam-log.c
+/svn/oscam/!svn/ver/3656/trunk/oscam-log.c
 END
 module-obj-llist.c
 K 25
@@ -133,25 +133,25 @@ module-stat.c
 K 25
 svn:wc:ra_dav:version-url
 V 44
-/svn/oscam/!svn/ver/3631/trunk/module-stat.c
+/svn/oscam/!svn/ver/3654/trunk/module-stat.c
 END
 oscam.c
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/3631/trunk/oscam.c
+/svn/oscam/!svn/ver/3668/trunk/oscam.c
 END
 oscam-reader.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/3614/trunk/oscam-reader.c
+/svn/oscam/!svn/ver/3670/trunk/oscam-reader.c
 END
 module-serial.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3614/trunk/module-serial.c
+/svn/oscam/!svn/ver/3653/trunk/module-serial.c
 END
 reader-tongfang.c
 K 25
@@ -163,7 +163,7 @@ module-constcw.c
 K 25
 svn:wc:ra_dav:version-url
 V 47
-/svn/oscam/!svn/ver/3614/trunk/module-constcw.c
+/svn/oscam/!svn/ver/3653/trunk/module-constcw.c
 END
 module-stat.h
 K 25
@@ -181,13 +181,13 @@ oscam-chk.c
 K 25
 svn:wc:ra_dav:version-url
 V 42
-/svn/oscam/!svn/ver/3614/trunk/oscam-chk.c
+/svn/oscam/!svn/ver/3654/trunk/oscam-chk.c
 END
 oscam-config.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/3621/trunk/oscam-config.c
+/svn/oscam/!svn/ver/3661/trunk/oscam-config.c
 END
 reader-conax.c
 K 25
@@ -205,7 +205,7 @@ module-monitor.c
 K 25
 svn:wc:ra_dav:version-url
 V 47
-/svn/oscam/!svn/ver/3636/trunk/module-monitor.c
+/svn/oscam/!svn/ver/3665/trunk/module-monitor.c
 END
 oscam-config.h
 K 25
@@ -247,13 +247,13 @@ module-radegast.c
 K 25
 svn:wc:ra_dav:version-url
 V 48
-/svn/oscam/!svn/ver/3614/trunk/module-radegast.c
+/svn/oscam/!svn/ver/3653/trunk/module-radegast.c
 END
 oscam-http.c
 K 25
 svn:wc:ra_dav:version-url
 V 43
-/svn/oscam/!svn/ver/3648/trunk/oscam-http.c
+/svn/oscam/!svn/ver/3669/trunk/oscam-http.c
 END
 .gitignore
 K 25
@@ -283,13 +283,13 @@ globals.h
 K 25
 svn:wc:ra_dav:version-url
 V 40
-/svn/oscam/!svn/ver/3636/trunk/globals.h
+/svn/oscam/!svn/ver/3663/trunk/globals.h
 END
 reader-common.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3614/trunk/reader-common.c
+/svn/oscam/!svn/ver/3652/trunk/reader-common.c
 END
 reader-nagra.c
 K 25
@@ -301,7 +301,7 @@ module-cccam.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/3642/trunk/module-cccam.c
+/svn/oscam/!svn/ver/3668/trunk/module-cccam.c
 END
 module-datastruct-llist.h
 K 25
@@ -313,13 +313,13 @@ reader-videoguard12.c
 K 25
 svn:wc:ra_dav:version-url
 V 52
-/svn/oscam/!svn/ver/3602/trunk/reader-videoguard12.c
+/svn/oscam/!svn/ver/3657/trunk/reader-videoguard12.c
 END
 module-camd33.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/3618/trunk/module-camd33.c
+/svn/oscam/!svn/ver/3652/trunk/module-camd33.c
 END
 reader-common.h
 K 25

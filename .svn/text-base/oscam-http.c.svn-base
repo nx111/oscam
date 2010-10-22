@@ -706,19 +706,6 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 
 			tpl_addVar(vars, 0, "READERNAME", rdr->label);
 			tpl_addVar(vars, 0, "READERNAMEENC", tpl_addTmp(vars, urlencode(rdr->label)));
-
-			int isphysical = (rdr->typ & R_IS_NETWORK)?0:1;
-			char *ctyp ="";
-			static char *typtxt[] = { "unknown", "mouse", "mouse", "sc8in1", "mp35", "mouse", "internal", "smartreader", "pcsc" };
-			if (isphysical)
-				ctyp = typtxt[rdr->typ];
-			else
-				ctyp = rdr->ph.desc;
-			if ((rdr->typ == R_NEWCAMD) && (rdr->ncd_proto == NCD_524))
-				ctyp = "newcamd524";
-			else if (rdr->client && rdr->client->cc && ((struct cc_data *)rdr->client->cc)->extended_mode)
-				ctyp = "cccam ext";
-
 			tpl_printf(vars, 0, "EMMERRORUK", "%d", rdr->emmerror[UNKNOWN]);
 			tpl_printf(vars, 0, "EMMERRORG", "%d", rdr->emmerror[GLOBAL]);
 			tpl_printf(vars, 0, "EMMERRORS", "%d", rdr->emmerror[SHARED]);
@@ -744,7 +731,7 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 			//call stats
 			tpl_addVar(vars, 0, "STATICO", ICSTA);
 
-			if (isphysical == 1) {
+			if (!(rdr->typ & R_IS_NETWORK)) { //reader is physical
 				tpl_addVar(vars, 0, "REFRICO", ICREF);
 				tpl_addVar(vars, 0, "READERREFRESH", tpl_getTpl(vars, "READERREFRESHBIT"));
 
@@ -762,14 +749,11 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 
 			}
 
-			tpl_addVar(vars, 0, "CTYP", ctyp);
+			tpl_addVar(vars, 0, "CTYP", reader_get_type_desc(rdr));
 			tpl_addVar(vars, 0, "EDIICO", ICEDI);
 			tpl_addVar(vars, 1, "READERLIST", tpl_getTpl(vars, "READERSBIT"));
 		}
 	}
-
-	//Todo: Disabled the Add Reader functionality temporarly
-	tpl_addVar(vars, 1, "BTNDISABLED", "DISABLED");
 
 	fputs(tpl_getTpl(vars, "READERS"), f);
 }
@@ -784,29 +768,24 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 
 	if(strcmp(getParam(params, "action"), "Add") == 0) {
 		// Add new reader
-		tpl_addVar(vars, 1, "MESSAGE", "<B>Add Reader is disabled and under construction</B><BR><BR>");
-		//Todo: Disabled the Add Reader functionality temporarly
-		/*
-		reader[ridx-1].next = rdr; //FIXME
-		rdr->next = NULL;
-		memset(&rdr, 0, sizeof(struct s_reader));
-		rdr->enable = 1;
-		rdr->tcp_rto = 30;
-		rdr->show_cls = 10;
-		rdr->maxqlen = CS_MAXQLEN;
-		rdr->mhz = 357;
-		rdr->cardmhz = 357;
-		rdr->deprecated = 0;
-		rdr->cachecm = 1;
-		strcpy(rdr->pincode, "none");
-		rdr->ndsversion = 0;
-		for (i = 1; i < CS_MAXCAIDTAB; rdr->ctab.mask[i++] = 0xffff);
-		for (i = 0; i < (*params).paramcount; ++i) {
-			if (strcmp((*params).params[i], "action"))
-				chk_reader((*params).params[i], (*params).values[i], rdr);
+		struct s_reader *newrdr;
+		newrdr = malloc(sizeof(struct s_reader));
+
+		if (newrdr) {
+			memset(newrdr, 0, sizeof(struct s_reader));
+			for (rdr = first_reader; rdr->next ; rdr = rdr->next); // get last rdr
+			rdr->next = newrdr;
+			newrdr->next = NULL; // terminate list
+			newrdr->enable = 0; // do not start the reader because must configured before
+			strcpy(newrdr->pincode, "none");
+			for (i = 1; i < CS_MAXCAIDTAB; newrdr->ctab.mask[i++] = 0xffff);
+			for (i = 0; i < (*params).paramcount; ++i) {
+				if (strcmp((*params).params[i], "action"))
+					chk_reader((*params).params[i], (*params).values[i], newrdr);
+			}
+			reader_ = newrdr->label;
 		}
-		reader_ = rdr->label;
-		*/
+
 
 	} else if(strcmp(getParam(params, "action"), "Save") == 0) {
 
@@ -831,8 +810,10 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 		}
 		chk_reader("services", servicelabels, rdr);
 
-		if(write_server()==0)
+		if(write_server()==0) {
 			refresh_oscam(REFR_READERS, in);
+			restart_cardreader(rdr, 0);
+		}
 		else
 			tpl_addVar(vars, 1, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
 	}
@@ -1242,7 +1223,7 @@ void send_oscam_user_config_edit(struct templatevars *vars, FILE *f, struct urip
 		}
 		memset(account, 0, sizeof(struct s_auth));
 		cs_strncpy((char *)account->usr, user, sizeof(account->usr));
-		account->au=(-1);
+		account->aureader=NULL;
 		account->monlvl=cfg->mon_level;
 		account->tosleep=cfg->tosleep;
 		for (i=1; i<CS_MAXCAIDTAB; account->ctab.mask[i++]=0xffff);
@@ -1337,14 +1318,13 @@ void send_oscam_user_config_edit(struct templatevars *vars, FILE *f, struct urip
 	tpl_addVar(vars, 0, tpl_getVar(vars, "TMP"), "selected");
 
 	//AU Selector
-	if (!account->au) tpl_addVar(vars, 0, "AUSELECTED", "selected");
+	if (!account->aureader) tpl_addVar(vars, 0, "AUSELECTED", "selected");
 	if (account->autoau == 1) tpl_addVar(vars, 0, "AUTOAUSELECTED", "selected");
 	struct s_reader *rdr;
-	int ridx;
-	for (ridx=0,rdr=first_reader; rdr ; rdr=rdr->next, ridx++) {
+	for (rdr=first_reader; rdr ; rdr=rdr->next) {
 		if(!rdr->device[0]) break;
 		tpl_addVar(vars, 0, "READERNAME", rdr->label);
-		if (account->au == ridx) tpl_addVar(vars, 0, "SELECTED", "selected");
+		if (account->aureader == rdr) tpl_addVar(vars, 0, "SELECTED", "selected");
 		else tpl_addVar(vars, 0, "SELECTED", "");
 		tpl_addVar(vars, 1, "RDROPTION", tpl_getTpl(vars, "USEREDITRDRSELECTED"));
 	}
@@ -1776,7 +1756,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			else if ((cl->tosleep) && (now-cl->lastswitch>cl->tosleep)) con=1;
 			else con=0;
 
-			if( (cau=cl->au+1) && (now-cl->lastemm)/60 > cfg->mon_aulow) cau=-cau;
+			if( (cau=get_ridx(cl->aureader)+1) && (now-cl->lastemm)/60 > cfg->mon_aulow) cau=-cau;
 
 			lt=localtime(&cl->login);
 
@@ -1791,7 +1771,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 				tpl_printf(vars, 0, "CSIDX", "<A HREF=\"status.html?action=restart&label=%s\" TITLE=\"Restart this reader/ proxy\"><IMG SRC=\"%s\" ALT=\"Restart\"></A>", cl->reader->label, ICKIL);
 			}
 			else {
-				tpl_printf(vars, 0, "CSIDX", "%d&nbsp;", cl->thread);
+				tpl_printf(vars, 0, "CSIDX", "%8X&nbsp;", cl->thread);
 			}
 
 			tpl_printf(vars, 0, "CLIENTTYPE", "%c", cl->typ);
@@ -1801,33 +1781,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			tpl_printf(vars, 0, "CLIENTCRYPTED", "%d", cl->crypted);
 			tpl_printf(vars, 0, "CLIENTIP", "%s", cs_inet_ntoa(cl->ip));
 			tpl_printf(vars, 0, "CLIENTPORT", "%d", cl->port);
-
-			char *ctyp="";
-			switch(cl->typ) {
-				case 's'	: ctyp = "server";
-					break;
-				case 'p'	:
-				case 'r'	: {
-
-					int isphysical = (cl->reader->typ & R_IS_NETWORK)?0:1;
-
-					static char *typtxt[] = { "unknown", "mouse", "mouse", "sc8in1", "mp35", "mouse", "internal", "smartreader", "pcsc" };
-					if (isphysical)
-						ctyp = typtxt[cl->reader->typ];
-					else
-						ctyp = cl->reader->ph.desc;
-
-					if ((cl->reader->typ == R_NEWCAMD) && (cl->reader->ncd_proto == NCD_524))
-						ctyp = "newcamd524";
-					else if (cl->reader->client && cl->reader->client->cc && ((struct cc_data *)cl->reader->client->cc)->extended_mode)
-						ctyp = "cccam ext";
-					break;
-				}
-
-				default		: ctyp = ph[cl->ctyp].desc;
-			}
-
-			tpl_addVar(vars, 0, "CLIENTPROTO", ctyp);
+			tpl_addVar(vars, 0, "CLIENTPROTO", monitor_get_proto(cl));
 			tpl_printf(vars, 0, "CLIENTLOGINDATE", "%02d.%02d.%02d", lt->tm_mday, lt->tm_mon+1, lt->tm_year%100);
 			tpl_printf(vars, 0, "CLIENTLOGINTIME", "%02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
 

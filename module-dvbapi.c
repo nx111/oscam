@@ -393,15 +393,15 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 		}
 	}
 
-	if(!added_STREAM && demux[demux_id].ECMpids[ecmidx].slen<8 && stream>-1){
-		cs_log("[PID %d] CAID:%04X  PROVID:%06X ECM_PID:%04X STREAMpid_in_ECM[%d]:%04X stream:%d Added", 
+	if(added_STREAM == 0){
+		cs_log("[ADD PID %d] CAID:%04X  PROVID:%06X ECM_PID:%04X STREAMpid_in_ECM[%d]:%04X stream:%d", 
 			ecmidx, caid,provid,ecmpid,demux[demux_id].ECMpids[ecmidx].slen,streampid,stream);
-		demux[demux_id].ECMpids[ecmidx].stream[demux[demux_id].ECMpids[ecmidx].slen]=(char)stream;
-		demux[demux_id].ECMpids[ecmidx].slen++;
+
+		if(demux[demux_id].ECMpids[ecmidx].slen < 8 && stream > -1 ){
+			demux[demux_id].ECMpids[ecmidx].stream[demux[demux_id].ECMpids[ecmidx].slen]=(char)stream;
+			demux[demux_id].ECMpids[ecmidx].slen++;
+		}
 	}
-	else if (added_ECM == 0)
-		cs_log("[PID %d] CAID:%04X  PROVID:%06X ECM_PID:%04X STREAMpid_in_ECM[%d]:%04X  Added", 
-			ecmidx, caid,provid,ecmpid,demux[demux_id].ECMpids[ecmidx].slen,streampid);
 }
 
 void dvbapi_add_emmpid(int demux_id, ushort caid, ushort emmpid, ulong provid) {
