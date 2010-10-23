@@ -851,6 +851,7 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 		<TR><TH>&nbsp;</TH><TH>Edit Cccam Config</TH></TR>\n\
 		<TR><TD>Port:</TD><TD><input name=\"port\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"##PORT##\"></TD></TR>\n\
 		<TR><TD>Reshare:</TD><TD><input name=\"reshare\" type=\"text\" size=\"2\" maxlength=\"1\" value=\"##RESHARE##\"></TD></TR>\n\
+		<TR><TD>Ignore reshare:</TD><TD><input name=\"ignorereshare\" type=\"text\" size=\"2\" maxlength=\"1\" value=\"##IGNORERESHARE##\"></TD></TR>\n\
 		<TR><TD>Version:</TD><TD><SELECT name=\"version\">\
 			<OPTION ##VERSIONSELECTED0##>2.0.11</OPTION>\
 			<OPTION ##VERSIONSELECTED1##>2.1.1</OPTION>\
