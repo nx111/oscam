@@ -815,7 +815,7 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 
 		if(write_server()==0) {
 			refresh_oscam(REFR_READERS, in);
-			restart_cardreader(rdr, 0);
+			restart_cardreader(rdr, 1);
 		}
 		else
 			tpl_addVar(vars, 1, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
@@ -1024,9 +1024,6 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 			dot=",";
 		}
 	}
-
-	if (rdr->cachecm)
-		tpl_addVar(vars, 0, "ECMCACHECHECKED", "checked");
 
 	if (rdr->blockemm_unknown)
 		tpl_addVar(vars, 0, "BLOCKEMMUNKNOWNCHK", "checked");
@@ -1266,11 +1263,11 @@ void send_oscam_user_config_edit(struct templatevars *vars, FILE *f, struct urip
 		for(i=0;i<(*params).paramcount;i++) {
 			if ((strcmp((*params).params[i], "action")) && (strcmp((*params).params[i], "user")) && (strcmp((*params).params[i], "newuser"))) {
 				if (!strcmp((*params).params[i], "expdate"))
-				account->expirationdate=(time_t)NULL;
+					account->expirationdate=(time_t)NULL;
 				if (!strcmp((*params).params[i], "services"))
-				snprintf(servicelabels + strlen(servicelabels), sizeof(servicelabels), "%s,", (*params).values[i]);
+					snprintf(servicelabels + strlen(servicelabels), sizeof(servicelabels), "%s,", (*params).values[i]);
 				else
-				chk_account((*params).params[i], (*params).values[i], account);
+					chk_account((*params).params[i], (*params).values[i], account);
 			}
 		}
 		chk_account("services", servicelabels, account);
@@ -1547,7 +1544,7 @@ void send_oscam_user_config(struct templatevars *vars, FILE *f, struct uriparams
 			emmnok += cl->emmnok;
 		 }
 		}
-		if ( isonline > 0 ) {
+		if ( isonline > 0 || ((isonline == 0) && (!cfg->http_hide_idle_clients))) {
 			tpl_printf(vars, 0, "CWOK", "%d", cwok);
 			tpl_printf(vars, 0, "CWNOK", "%d", cwnok);
 			tpl_printf(vars, 0, "CWIGN", "%d", cwign);
@@ -2468,6 +2465,7 @@ int process_request(FILE *f, struct in_addr in) {
 		st = localtime(&first_client->login);
 		tpl_printf(vars, 0, "STARTDATE", "%02d.%02d.%02d", st->tm_mday, st->tm_mon+1, st->tm_year%100);
 		tpl_printf(vars, 0, "STARTTIME", "%02d:%02d:%02d", st->tm_hour, st->tm_min, st->tm_sec);
+		tpl_printf(vars, 0, "PROCESSID", "%d", getpid());
 
 		time_t now = time((time_t)0);
 		int lsec = now - first_client->login;

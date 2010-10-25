@@ -408,7 +408,7 @@ struct s_ecm
   uchar  	cw[16];
   ushort 	caid;
   uint64  	grp;
-  int 		reader;
+  struct s_reader *reader;
   struct s_ecm *next;
   //int level;
 };
@@ -499,7 +499,8 @@ typedef struct ecm_request_t
   ushort        pid;
   ushort        idx;
   ulong         prid;
-  int           reader[CS_MAXREADER];
+  struct s_reader *selected_reader;
+  int           matching_rdr[CS_MAXREADER];
   struct s_client *client; //contains pointer to 'c' client while running in 'r' client
   int           cpti;   // client pending table index
   int           stage;    // processing stage in server module
@@ -509,13 +510,12 @@ typedef struct ecm_request_t
   struct timeb  tps;    // incoming time stamp
   uchar         locals_done;
   int		btun; // mark er as betatunneled
-  int           reader_count; //count of requesting readers
   int		reader_avail; //count of available readers
 
 #ifdef CS_WITH_DOUBLECHECK
   int		checked;
   uchar		cw_checked[16];
-  int       origin_reader;
+  struct s_reader *origin_reader;
 #endif
 
 #ifdef CS_WITH_GBOX
@@ -743,7 +743,6 @@ struct s_reader  //contains device info, reader info and card info
   int		ucpk_valid;
   int       logemm;
   int       cachemm;
-  int       cachecm;
   int       rewritemm;
   int       card_status;
   int       deprecated; //if 0 ATR obeyed, if 1 default speed (9600) is chosen; for devices that cannot switch baudrate
@@ -1100,7 +1099,6 @@ struct s_config
 	char		ac_logfile[128];
 	struct		s_cpmap *cpmap;
 #endif
-	//  struct s_reader reader[];
 };
 
 //Loadbalance constants:
@@ -1126,16 +1124,6 @@ typedef struct reader_stat_t
   
   int           request_count;
 } GCC_PACK      READER_STAT;
-
-typedef struct get_reader_stat_t 
-{
-  ushort        caid;
-  ulong         prid;
-  ushort        srvid;
-  struct s_client *client;
-  int           reader_avail[CS_MAXREADER];
-  uchar         ecmd5[CS_ECMSTORESIZE];
-} GCC_PACK      GET_READER_STAT;
 
 typedef struct emm_packet_t
 {
@@ -1247,13 +1235,12 @@ extern int comp_timeb(struct timeb *tpa, struct timeb *tpb);
 extern struct s_client * cs_fork(in_addr_t);
 extern int cs_auth_client(struct s_client *, struct s_auth *, const char*);
 extern void cs_disconnect_client(struct s_client *);
-extern int check_ecmcache1(ECM_REQUEST *, uint64);
-extern int check_ecmcache2(ECM_REQUEST *, uint64);
+extern int check_cwcache2(ECM_REQUEST *, uint64);
 extern int write_to_pipe(int, int, uchar *, int);
 extern int read_from_pipe(int, uchar **, int);
 extern int write_ecm_request(int, ECM_REQUEST *);
 extern int write_ecm_answer(struct s_reader *, ECM_REQUEST *);
-extern void log_emm_request(int);
+extern void log_emm_request(struct s_reader *);
 extern ulong chk_provid(uchar *, ushort);
 extern void guess_cardsystem(ECM_REQUEST *);
 #ifdef IRDETO_GUESSING
@@ -1426,7 +1413,7 @@ extern void reader_device_close(struct s_reader * reader);
 
 //module-stat
 extern void init_stat();
-extern struct s_reader *get_best_reader(GET_READER_STAT *grs, int *result);
+extern int get_best_reader(ECM_REQUEST *er);
 extern void clear_reader_stat(struct s_reader *reader);
 extern void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int ecm_time, int rc);
 #ifdef HAVE_PCSC

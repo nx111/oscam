@@ -4,7 +4,6 @@
 #ifdef CS_WITH_BOXKEYS
 #  include "oscam-boxkeys.np"
 #endif
-extern struct  s_reader  reader[CS_MAXREADER];
 
 #define CONFVARWIDTH 30
 
@@ -2440,11 +2439,6 @@ int write_server()
 			if (rdr->cachemm)
 				fprintf_conf(f, CONFVARWIDTH, "emmcache", "%d,%d,%d\n", rdr->cachemm, rdr->rewritemm, rdr->logemm);
 
-			if (rdr->cachecm)
-				fprintf_conf(f, CONFVARWIDTH, "ecmcache", "%d\n", rdr->cachecm);
-			else
-				fprintf_conf(f, CONFVARWIDTH, "ecmcache", "%d\n", 0);
-
 			//Todo: write blocknano
 
 			if (rdr->blockemm_unknown)
@@ -3592,16 +3586,6 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 		}
 	}
 
-	if (!strcmp(token, "ecmcache")) {
-		if(strlen(value) == 0) {
-			rdr->cachecm = 1;
-			return;
-		} else {
-			rdr->cachecm = atoi(value);
-			return;
-		}
-	}
-
 	if (!strcmp(token, "blocknano")) {
 		//wildcard is used
 		if (!strcmp(value,"all")) {
@@ -3908,7 +3892,7 @@ int init_irdeto_guess_tab()
 
 int init_readerdb()
 {
-	int tag = 0, nr;
+	int tag = 0;
 	FILE *fp;
 	char *value;
 
@@ -3917,8 +3901,8 @@ int init_readerdb()
 		cs_log("can't open file \"%s\" (errno=%d)\n", token, errno);
 		return(1);
 	}
-	nr = 0;
-	struct s_reader *rdr = first_reader;
+	struct s_reader *rdr = first_reader = (struct s_reader*) malloc (sizeof(struct s_reader));
+	memset(rdr, 0, sizeof(struct s_reader));
 	while (fgets(token, sizeof(token), fp)) {
 		int i, l;
 		if ((l = strlen(trim(token))) < 3)
@@ -3926,10 +3910,12 @@ int init_readerdb()
 		if ((token[0] == '[') && (token[l-1] == ']')) {
 			token[l-1] = 0;
 			tag = (!strcmp("reader", strtolower(token+1)));
-			if (reader[nr].label[0] && reader[nr].typ) nr++;
-			rdr = &reader[nr];//FIXME
+			if (rdr->label[0] && rdr->typ) {
+				struct s_reader *newreader = (struct s_reader*) malloc (sizeof(struct s_reader));
+				rdr->next = newreader; //add reader to list
+				rdr = newreader; //and advance to end of list
+			}
 			memset(rdr, 0, sizeof(struct s_reader));
-			rdr->next = &reader[nr+1]; //FIXME
 			rdr->enable = 1;
 			rdr->tcp_rto = 30;
 			rdr->show_cls = 10;
@@ -3938,7 +3924,6 @@ int init_readerdb()
 			rdr->cardmhz = 357;
 			rdr->deprecated = 0;
 			rdr->force_irdeto = 0;
-			rdr->cachecm = 1;
 			rdr->cc_reshare = cfg->cc_reshare; //set global value as init value
 			rdr->cc_maxhop = 10;
 			rdr->lb_weight = 100;
@@ -3956,7 +3941,6 @@ int init_readerdb()
 		chk_reader(trim(strtolower(token)), trim(value), rdr);
 	}
 	fclose(fp);
-	rdr->next = NULL; //FIXME terminate reader list
 	return(0);
 }
 

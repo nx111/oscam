@@ -235,7 +235,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		<H2>OSCAM ##CS_VERSION## build ###CS_SVN_VERSION##</H2>"
 
 #define TPLFOOTER "\
-		<HR/><H4>OSCAM Webinterface developed by Streamboard Team - ##CURDATE## ##CURTIME## | Access from ##CURIP##</H4><H4>Start: ##STARTDATE## - ##STARTTIME## | UpTime: ##UPTIME## </H4><H4 CLASS=\"styleauthor\">WebIf Style by </H4>\
+		<HR/><H4>OSCAM Webinterface developed by Streamboard Team - ##CURDATE## ##CURTIME## | Access from ##CURIP##</H4><H4>Start: ##STARTDATE## - ##STARTTIME## | UpTime: ##UPTIME## | Process ID: ##PROCESSID##</H4><H4 CLASS=\"styleauthor\">WebIf Style by </H4>\
 		</BODY>\
 		</HTML>"
 
@@ -350,7 +350,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		<TABLE WIDTH=\"100%\" cellspacing=\"0\" class=\"status\">\n\
 		<TR>\n\
 		<TH>hide</TH>\n\
-		<TH>PID</TH>\n\
+		<TH>Thread ID</TH>\n\
 		<TH>Type</TH>\n\
 		<TH>ID</TH>\n\
 		<TH>Label</TH>\n\
@@ -690,7 +690,6 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 			<TD align=\"center\"><input name=\"blockemm-s\" type=\"hidden\" value=\"0\"><input name=\"blockemm-s\" type=\"checkbox\" value=\"1\" ##BLOCKEMMSHAREDCHK##></TD>\n\
 			<TD align=\"center\"><input name=\"blockemm-g\" type=\"hidden\" value=\"0\"><input name=\"blockemm-g\" type=\"checkbox\" value=\"1\" ##BLOCKEMMGLOBALCHK##></TD></TR>\n\
     </TD>\n</TR>\n</TABLE>\n\
-    <TR><TD>Ecmcache:<input name=\"ecmcache\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"ecmcache\" type=\"checkbox\" value=\"1\" ##ECMCACHECHECKED##></TD></TR>\n\
     <TR><TD>Loadbalance weight:</TD><TD><input name=\"lb_weight\" type=\"text\" size=\"5\" maxlength=\"4\" value=\"##LBWEIGHT##\"></TD></TR>\n\
 	<TR><TD>Services:</TD><TD>\n<TABLE cellspacing=\"0\" class=\"invisible\">##SIDS##</TD>\n</TR>\n</TABLE>\n\
     <TR><TH>&nbsp;</TH><TH>Reader specific settings for protocol ##PROTOCOL##</TH></TR>\n\
