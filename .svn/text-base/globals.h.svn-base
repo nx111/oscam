@@ -263,6 +263,8 @@ typedef unsigned short uint16;
 typedef unsigned int uint32;
 typedef unsigned long long uint64;
 
+int server_pid; //alno: PID of server - set while startup
+
 // constants
 #define CTA_RES_LEN 512
 
@@ -1197,6 +1199,7 @@ extern char *get_provider(int caid, ulong provid);
 extern void make_non_blocking(int fd);
 extern uchar fast_rnd(void);
 extern void init_rnd(void);
+extern int hexserialset(struct s_reader *rdr);
 
 extern pthread_key_t getclient;
 extern struct s_client * cur_client(void);
