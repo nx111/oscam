@@ -99,7 +99,7 @@ struct s_dvbapi_priority
 	ushort mapcaid;
 	ulong mapprovid;
 	int delay;
-	int force;	
+	int force;
 	struct s_dvbapi_priority *last;
 	struct s_dvbapi_priority *next;
 };
@@ -155,13 +155,6 @@ struct dmx_sct_filter_params
 #define DMX_KERNEL_CLIENT   0x8000
 };
 
-typedef struct ca_caps {
-        unsigned int slot_num;     /* total number of CA card and module slots */
-        unsigned int slot_type;    /* OR of all supported types */
-        unsigned int descr_num;    /* total number of descrambler slots (keys) */
-        unsigned int descr_type;   /* OR of all supported types */
-} ca_caps_t;
-
 typedef struct ca_descr {
 	unsigned int index;
 	unsigned int parity;	/* 0 == even, 1 == odd */
@@ -177,7 +170,6 @@ typedef struct ca_pid {
 #define DMX_STOP		_IO('o', 42)
 #define DMX_SET_FILTER	_IOW('o', 43, struct dmx_sct_filter_params)
 
-#define CA_GET_CAP        	_IOR('o', 129, ca_caps_t)
 #define CA_SET_DESCR		_IOW('o', 134, ca_descr_t)
 #define CA_SET_PID		_IOW('o', 135, ca_pid_t)
 // --------------------------------------------------------------------
