@@ -1472,6 +1472,7 @@ void send_oscam_user_config(struct templatevars *vars, FILE *f, struct uriparams
 	char *lastchan="&nbsp;";
 	time_t now = time((time_t)0);
 	int isec = 0, isonline = 0;
+	long int total_cwok = 0, total_cwnok = 0, total_cwign = 0, total_cwtout = 0, total_cwcache = 0, total_cwtun = 0;
 
 	//for (account=cfg->account; (account); account=account->next) {
 	for (account=cfg->account; (account); account=account->next) {
@@ -1542,6 +1543,12 @@ void send_oscam_user_config(struct templatevars *vars, FILE *f, struct uriparams
 			cwtun += cl->cwtun;
 			emmok += cl->emmok;
 			emmnok += cl->emmnok;
+			total_cwok += cl->cwfound;
+			total_cwnok += cl->cwnot;
+			total_cwign += cl->cwignored;
+			total_cwtout += cl->cwtout;
+			total_cwcache += cl->cwcache;
+			total_cwtun += cl->cwtun;
 		 }
 		}
 		if ( isonline > 0 || ((isonline == 0) && (!cfg->http_hide_idle_clients))) {
@@ -1582,7 +1589,13 @@ void send_oscam_user_config(struct templatevars *vars, FILE *f, struct uriparams
 			tpl_addVar(vars, 0, "REFRESH", tpl_getTpl(vars, "REFRESH"));
 		}
 	}
-
+	tpl_printf(vars, 1, "TOTAL_CWOK", "%ld", total_cwok);
+	tpl_printf(vars, 1, "TOTAL_CWNOK", "%ld", total_cwnok);
+	tpl_printf(vars, 1, "TOTAL_CWIGN", "%ld", total_cwign);
+	tpl_printf(vars, 1, "TOTAL_CWTOUT", "%ld", total_cwtout);
+	tpl_printf(vars, 1, "TOTAL_CWCACHE", "%ld", total_cwcache);
+	tpl_printf(vars, 1, "TOTAL_CWTUN", "%ld", total_cwtun);
+	
 	fputs(tpl_getTpl(vars, "USERCONFIGLIST"), f);
 }
 
@@ -1593,7 +1606,7 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 	if (cfg->saveinithistory && strlen(reader_) > 0) {
 		struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
 
-		if (rdr->typ == R_CCCAM) {
+		if (rdr->typ == R_CCCAM && rdr->enable == 1) {
 
 			int caidcount = 0;
 
@@ -1694,7 +1707,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 	struct tm *lt;
 
 	if (strcmp(getParam(params, "action"), "kill") == 0)
-		kill_thread((struct s_client *)atoi(getParam(params, "threadid"))); //FIXME untested
+		kill_thread(get_client_by_tid(atoi(getParam(params, "threadid")))); //FIXME untested
 
 	if (strcmp(getParam(params, "action"), "restart") == 0) {
 		struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
@@ -1713,7 +1726,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 	if(getParamDef(params, "hide", NULL)) {
 		uint clidx;
 		clidx = atoi(getParamDef(params, "hide", NULL));
-		struct s_client *hideidx = (struct s_client *)clidx;
+		struct s_client *hideidx = get_client_by_tid(clidx);
 		if(hideidx)
 			hideidx->wihidden = 1;
 	}
@@ -1763,7 +1776,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 
 			lt=localtime(&cl->login);
 
-			tpl_printf(vars, 0, "HIDEIDX", "%d", cl);
+			tpl_printf(vars, 0, "HIDEIDX", "%d", cl->thread);
 			tpl_addVar(vars, 0, "HIDEICON", ICHID);
 			if(cl->typ == 'c' && !cfg->http_readonly) {
 				//tpl_printf(vars, 0, "CSIDX", "%d&nbsp;", i);

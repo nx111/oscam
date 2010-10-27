@@ -266,7 +266,7 @@ static struct s_client * idx_from_ip(in_addr_t ip, in_port_t port)
   return NULL;
 }
 
-struct s_client * idx_from_tid(unsigned long tid) //FIXME untested!! no longer pid in output...
+struct s_client * get_client_by_tid(unsigned long tid) //FIXME untested!! no longer pid in output...
 {
   struct s_client *cl; 
   for (cl=first_client; cl ; cl=cl->next)
@@ -1363,7 +1363,7 @@ int distribute_ecm(struct s_client * client, ECM_REQUEST *er) {
     cs_debug_mask(D_TRACE, "start distribute ecm from %s", er->selected_reader->label);
     
     for (cl=first_client; cl; cl=cl->next) {
-        if (cl->fd_m2c && (cl->grp&er->client->grp)) {
+        if (cl->fd_m2c && cl->typ=='c' && (cl->grp&er->client->grp)) {
             int i;
             ECM_REQUEST *ecmtask = cl->ecmtask;
 	    if (ecmtask)
@@ -1375,17 +1375,17 @@ int distribute_ecm(struct s_client * client, ECM_REQUEST *er) {
 	    for (--i; i>=0; i--) {
 	        ecm = &ecmtask[i];
 		if (ecm->rc>=100 
-		    && (ecm->caid==er->caid || ecm->ocaid==er->ocaid) 
+		    && (ecm->caid==er->caid || ecm->ocaid==er->ocaid)
 		    && memcmp(ecm->ecmd5, er->ecmd5, CS_ECMSTORESIZE) == 0) {
 		       //Do not modify original ecm request, use copy!
 		       ECM_REQUEST * new_ecm = malloc(sizeof(ECM_REQUEST));
 		       memcpy(new_ecm, ecm, sizeof(ECM_REQUEST));
 		       memcpy(new_ecm->cw, er->cw, sizeof(er->cw));
-		       new_ecm->caid = ecm->ocaid;
+		       new_ecm->caid = new_ecm->ocaid;
 		       new_ecm->selected_reader = er->selected_reader;
 		      
 		       new_ecm->rc = er->rc; 
-		       if (er->rc == 1 && cl!=client)
+		       if (er->rc == 1 && (cl!=client || er->cpti != new_ecm->cpti))
 			       new_ecm->rc = 2; //cache2
 	
 		       cs_debug_mask(D_TRACE, "distribute ecm to %s", cl->reader?cl->reader->label:username(cl));
@@ -1592,7 +1592,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 	struct s_reader *rdr;
 	for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)
 		if (er->matching_rdr[i] == 1) //do not count 2=loadbalancer
-			if (!rdr->fallback) //do not count fallback readers 
+			if (cfg->lb_mode || !rdr->fallback) //do not count fallback readers 
 				reader_count++;
 
 	cs_log("%s (%04X&%06X/%04X/%02X:%04X): %s (%d ms)%s (of %d avail %d)%s%s",
@@ -1861,28 +1861,37 @@ void cs_betatunnel(ECM_REQUEST *er)
 	int n;
 	struct s_client *cl = cur_client();
 	ulong mask_all = 0xFFFF;
+	uchar headerN3[10] = {0xc7, 0x00, 0x00, 0x00, 0x01, 0x10, 0x10, 0x00, 0x87, 0x12};
+	uchar headerN2[10] = {0xc9, 0x00, 0x00, 0x00, 0x01, 0x10, 0x10, 0x00, 0x48, 0x12};
 	TUNTAB *ttab;
 	ttab = &cl->ttab;
+
 	for (n = 0; (n < CS_MAXTUNTAB); n++) {
 		if ((er->caid==ttab->bt_caidfrom[n]) && ((er->srvid==ttab->bt_srvid[n]) || (ttab->bt_srvid[n])==mask_all)) {
-			uchar hack_n3[11] = {0xc7, 0x00, 0x00, 0x00, 0x01, 0x10, 0x10, 0x00, 0x87, 0x12, 0x07};
-			uchar hack_n2[11] = {0xc9, 0x00, 0x00, 0x00, 0x01, 0x10, 0x10, 0x00, 0x48, 0x12, 0x07};
+
 			er->caid = ttab->bt_caidto[n];
 			er->prid = 0;
 			er->l = er->ecm[2] + 3;
-			memmove(er->ecm + 14, er->ecm + 4, er->l);
+
+			memmove(er->ecm + 13, er->ecm + 3, er->l - 3);
+
 			if (er->l > 0x88) {
-				memcpy(er->ecm + 3, hack_n3, 11);
+				memcpy(er->ecm + 3, headerN3, 10);
+
 				if (er->ecm[0] == 0x81)
 					er->ecm[12] += 1;
+
+				er->ecm[1]=0x70;
 			}
-			else {
-				memcpy(er->ecm + 3, hack_n2, 11);
-			}
+			else
+				memcpy(er->ecm + 3, headerN2, 10);
+
                         er->l += 10;
 			er->ecm[2] = er->l - 3;
 			er->btun = 1;
+
 			cl->cwtun++;
+
 			cs_debug("ECM converted from: 0x%X to BetaCrypt: 0x%X for service id:0x%X",
 				ttab->bt_caidfrom[n], ttab->bt_caidto[n], ttab->bt_srvid[n]);
 		}
@@ -2150,7 +2159,11 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 			cs_betatunnel(er);
     
 		// store ECM in cache
-		memcpy(er->ecmd5, MD5(er->ecm, er->l, client->dump), CS_ECMSTORESIZE);
+		int offset=3;
+		if (er->caid==0x1702)
+			offset=13;
+
+		memcpy(er->ecmd5, MD5(er->ecm+offset, er->l-offset, client->dump), CS_ECMSTORESIZE);
 
 		// cache1
 		if (check_cwcache1(er, client->grp))
@@ -2167,7 +2180,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)
 			if (matching_reader(er, rdr)) {
 				er->matching_rdr[i] = (rdr->fallback)? 2: 1;
-				if (cfg->lb_mode || (!cfg->lb_mode && !rdr->fallback))
+				if (cfg->lb_mode || !rdr->fallback)
 					er->reader_avail++;
 			}
 

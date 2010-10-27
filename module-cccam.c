@@ -1567,37 +1567,49 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 
 		struct cc_card *card = read_card(buf + 4);
 
-		card->hop++; //inkrementing hop
-
-		//SS: Hack:
-		//Check if we already have this card:
-		LL_ITER *it = ll_iter_create(cc->cards);
-		struct cc_card *old_card;
-		while ((old_card = ll_iter_next(it))) {
-			if (old_card->id == card->id) { //we aready have this card, delete it
+		//Check if this card is from us:
+		LL_ITER *it = ll_iter_create(card->remote_nodes);
+		uint8 *remote_id;
+		while ((remote_id = ll_iter_next(it))) {
+			if (memcmp(remote_id, cc_node_id, sizeof(cc_node_id)) == 0) { //this card is from us!
+				cs_debug_mask(D_TRACE, "filtered card because of recursive nodeid: id=%08X, caid=%04X", card->id, card->caid);
 				cc_free_card(card);
-				card = old_card;
+				card=NULL;
 				break;
 			}
 		}
 		ll_iter_release(it);
+		if (card) {
+			//Check if we already have this card:
+			it = ll_iter_create(cc->cards);
+			struct cc_card *old_card;
+			while ((old_card = ll_iter_next(it))) {
+				if (old_card->id == card->id) { //we aready have this card, delete it
+					cc_free_card(card);
+					card = old_card;
+					break;
+				}
+			}
+			ll_iter_release(it);
 
-		card->time = time((time_t) 0);
-		if (!old_card) {
-			ll_append(cc->cards, card);
+			card->hop++; //inkrementing hop
+			card->time = time((time_t) 0);
+			if (!old_card) {
+				ll_append(cc->cards, card);
+			}
+			set_au_data(cl, rdr, card, NULL);
+			cc->cards_modified++;
 		}
-		set_au_data(cl, rdr, card, NULL);
-		cc->cards_modified++;
 
 		pthread_mutex_unlock(&cc->cards_busy);
-		//SS: Hack end
-	}
+
 		break;
+	}
 
 	case MSG_CARD_REMOVED: {
 		cc_card_removed(cl, b2i(4, buf + 4));
-	}
 		break;
+	}
 
 	case MSG_CW_NOK1:
 	case MSG_CW_NOK2:
@@ -3124,6 +3136,7 @@ void module_cccam(struct s_module *ph) {
 	ph->num = R_CCCAM;
 
 	//Partner Detection:
+	init_rnd();
 	uint16 sum = 0x1234; //This is our checksum 
 	int i;
 	for (i = 0; i < 6; i++) {
