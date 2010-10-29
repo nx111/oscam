@@ -513,6 +513,7 @@ typedef struct ecm_request_t
   uchar         locals_done;
   int		btun; // mark er as betatunneled
   int		reader_avail; //count of available readers
+  int           reader_count; //count of contacted readers
 
 #ifdef CS_WITH_DOUBLECHECK
   int		checked;
@@ -718,6 +719,7 @@ struct s_reader  //contains device info, reader info and card info
   int       log_port;
   CAIDTAB   ctab;
   ulong     boxid;
+  int       nagra_read; // read nagra ncmed records: 0 disabled (default), 1 read all records, 2 read valid records only
   uchar	    nagra_boxkey[16]; //n3 boxkey 8byte  or tiger idea key 16byte
   int       has_rsa;
   char      country_code[3]; // irdeto country code.

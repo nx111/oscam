@@ -509,8 +509,8 @@ void dvbapi_start_descrambling(int demux_id) {
 	dvbapi_adjust_prioritytab(demux_id);
 }
 
-extern void viaccess_reassemble_emm(uchar *buffer, uint *len);
-extern void cryptoworks_reassemble_emm(uchar *buffer, uint *len);
+extern int viaccess_reassemble_emm(uchar *buffer, uint *len);
+extern int cryptoworks_reassemble_emm(uchar *buffer, uint *len);
 
 void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer, unsigned int len) {
 	EMM_PACKET epg;
@@ -522,10 +522,12 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 
 	switch (caid >> 8) {
 		case 0x05:
-			viaccess_reassemble_emm(buffer, &len);
+			if (!viaccess_reassemble_emm(buffer, &len))
+				return;
 			break;
       		case 0x0d: 
-			cryptoworks_reassemble_emm(buffer, &len);
+			if (!cryptoworks_reassemble_emm(buffer, &len))
+				return;
 			break;
 	}
 		
