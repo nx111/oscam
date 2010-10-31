@@ -1,15 +1,15 @@
 10
 
 dir
-3782
+3794
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-10-30T22:49:47.329170Z
-3782
-alno
+2010-11-01T05:48:15.282770Z
+3794
+_network
 has-props
 
 
@@ -356,11 +356,11 @@ file
 
 
 
-2010-10-12T10:29:04.169615Z
-fd582c68223bafd5e0289fb7a6be84e6
-2010-10-11T11:47:05.445919Z
-3482
-schlocke
+2010-10-31T23:50:29.621894Z
+11a3375a81d02cc1e39bb76f361c88c5
+2010-11-01T02:26:07.812927Z
+3790
+alno
 
 
 
@@ -382,7 +382,7 @@ schlocke
 
 
 
-13690
+14040
 
 oscam-log.c
 file
@@ -418,6 +418,9 @@ _network
 
 10532
 
+toolchains
+dir
+
 module-obj-llist.c
 file
 
@@ -451,9 +454,6 @@ dingo35
 
 
 3091
-
-toolchains
-dir
 
 oscam-ac.c
 file
@@ -542,9 +542,9 @@ file
 
 
 
-e776943db51b1f03342362053514f901
-2010-10-30T10:52:08.751494Z
-3768
+024abfb6d6450021a1e5c0f0f807ba78
+2010-11-01T05:25:01.386783Z
+3793
 _network
 
 oscam-nano.c
@@ -581,6 +581,40 @@ rebdog
 
 1625
 
+CMakeLists.txt
+file
+
+
+
+
+2010-10-31T23:50:29.625894Z
+6cb854a89e9b4ddbe4e294ba0f532024
+2010-10-31T11:52:19.862922Z
+3785
+alno
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+27770
+
 Makefile
 file
 
@@ -615,39 +649,18 @@ cogsi
 
 25451
 
-CMakeLists.txt
+config.sh
 file
 
 
 
 
-2010-10-17T11:25:54.090009Z
-f4908aadc860d23b4a4cf48cfacc7709
-2010-10-12T15:57:39.352895Z
-3493
-rorothetroll
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-27596
+c3bc1816ffb9b212149c13ba7e8e772c
+2010-10-31T11:52:19.862922Z
+3785
+alno
+has-props
 
 module-dvbapi.h
 file
@@ -660,19 +673,6 @@ file
 2010-10-25T22:32:25.031548Z
 3732
 _network
-
-config.sh
-file
-
-
-
-
-
-32bbb05777f3064514130ff1b145d2ab
-2010-10-26T00:55:38.961306Z
-3733
-rorothetroll
-has-props
 
 module-stat.c
 file
@@ -708,6 +708,52 @@ schlocke
 
 15956
 
+oscam-reader.c
+file
+
+
+
+
+2010-10-31T23:50:29.629894Z
+77589a9e2a4b76c0defab189a17b8ccc
+2010-10-31T11:52:19.862922Z
+3785
+alno
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+23198
+
+oscam.c
+file
+
+
+
+
+
+0c71ad2b9ba760d245ac76fc5e1abc36
+2010-10-31T11:52:19.862922Z
+3785
+alno
+
 module-serial.c
 file
 
@@ -742,29 +788,17 @@ dingo35
 
 28204
 
-oscam.c
+module-stat.h
 file
 
 
 
 
-
-3fdedf628d0b99418b69f7a471f920c8
-2010-10-30T20:41:43.437062Z
-3781
-_network
-
-oscam-reader.c
-file
-
-
-
-
-2010-10-31T03:52:35.662046Z
-456be95af5f2bfdebd35b5919a40cb75
-2010-10-30T20:04:54.845745Z
-3780
-_network
+2010-10-24T10:57:44.858510Z
+8ffe4ede49f9a1b231aee1a1ea329466
+2010-10-24T10:48:16.592446Z
+3705
+schlocke
 
 
 
@@ -786,7 +820,7 @@ _network
 
 
 
-23096
+531
 
 reader-tongfang.c
 file
@@ -821,40 +855,6 @@ lattjo
 
 
 5068
-
-module-stat.h
-file
-
-
-
-
-2010-10-24T10:57:44.858510Z
-8ffe4ede49f9a1b231aee1a1ea329466
-2010-10-24T10:48:16.592446Z
-3705
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-531
 
 module-constcw.c
 file
@@ -896,10 +896,10 @@ file
 
 
 
-2010-10-31T03:52:35.666046Z
-07a9d74968b7c02cdb5a5506fd13b561
-2010-10-30T18:17:49.771921Z
-3778
+2010-10-31T23:50:29.633894Z
+e76b7660a82ad4cbf6f5cca86bc21222
+2010-11-01T02:26:07.812927Z
+3790
 alno
 
 
@@ -922,7 +922,7 @@ alno
 
 
 
-102113
+104769
 
 oscam-chk.c
 file
@@ -1035,10 +1035,10 @@ file
 
 
 
-2010-10-20T07:15:08.166486Z
+2010-10-31T23:50:29.637894Z
 394fcad38a466f5bd14b42962d3512d8
-2010-10-19T17:34:29.695007Z
-3633
+2010-11-01T05:48:15.282770Z
+3794
 _network
 
 
@@ -1171,10 +1171,10 @@ file
 
 
 
-2010-10-22T14:57:01.270405Z
-69d2ce6eccb8b9cbdf5cbb040153c155
-2010-10-22T12:47:35.458352Z
-3672
+2010-10-31T23:50:29.637894Z
+ff5e8ad331f94bb2c2be3a790e848999
+2010-10-31T11:58:18.419673Z
+3786
 _network
 
 
@@ -1310,11 +1310,11 @@ file
 
 
 
-2010-10-31T03:52:35.666046Z
-9db8a61d1450155bc97ec3e2aa0feafb
-2010-10-30T22:49:47.329170Z
-3782
-alno
+2010-10-31T23:50:29.637894Z
+59f9c4ddda127052b9a29d69f45e86bf
+2010-11-01T04:49:42.847293Z
+3792
+_network
 
 
 
@@ -1336,7 +1336,7 @@ alno
 
 
 
-91874
+93118
 
 utils
 dir
@@ -1350,10 +1350,10 @@ file
 
 
 
-2010-10-31T03:52:35.666046Z
-695a86265c440bdb1c3bc700e3aca39d
-2010-10-30T17:20:31.491546Z
-3774
+2010-10-31T23:50:29.641894Z
+a71b613e0673de3dfd4bd53d88ecd234
+2010-11-01T02:26:07.812927Z
+3790
 alno
 
 
@@ -1376,7 +1376,7 @@ alno
 
 
 
-80102
+80561
 
 .gitignore
 file
@@ -1555,9 +1555,9 @@ file
 
 
 
-14a35572a28ed239c3bb1914b770d1d4
-2010-10-30T20:04:54.845745Z
-3780
+9abbd8dc2e7613c1fc45722fda740a73
+2010-11-01T05:25:01.386783Z
+3793
 _network
 
 module-cccam.c

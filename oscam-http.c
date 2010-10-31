@@ -516,6 +516,8 @@ void send_oscam_config_monitor(struct templatevars *vars, FILE *f, struct uripar
 	tpl_printf(vars, 0, "HTTPREFRESH", "%d", cfg->http_refresh);
 	tpl_addVar(vars, 0, "HTTPTPL", cfg->http_tpl);
 	tpl_addVar(vars, 0, "HTTPSCRIPT", cfg->http_script);
+	tpl_addVar(vars, 0, "HTTPJSCRIPT", cfg->http_jscript);
+
 	if (cfg->http_hide_idle_clients > 0) tpl_addVar(vars, 0, "CHECKED", "checked");
 
 	struct s_ip *cip;
@@ -538,6 +540,9 @@ void send_oscam_config_monitor(struct templatevars *vars, FILE *f, struct uripar
 	//Monlevel selector
 	tpl_printf(vars, 0, "TMP", "MONSELECTED%d", cfg->mon_level);
 	tpl_addVar(vars, 0, tpl_getVar(vars, "TMP"), "selected");
+
+	if (cfg->http_full_cfg)
+		tpl_addVar(vars, 0, "HTTPSAVEFULLSELECT", "selected");
 
 	fputs(tpl_getTpl(vars, "CONFIGMONITOR"), f);
 }
@@ -1714,17 +1719,28 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 	time_t now = time((time_t)0);
 	struct tm *lt;
 
-	if (strcmp(getParam(params, "action"), "kill") == 0)
-		kill_thread(get_client_by_tid(atoi(getParam(params, "threadid")))); //FIXME untested
+	if (strcmp(getParam(params, "action"), "kill") == 0) {
+		struct s_client *cl = get_client_by_tid(atol(getParam(params, "threadid")));
+		if (cl) {
+			kill_thread(cl);
+			cs_log("Client %s killed by WebIF from %s", cl->usr, inet_ntoa(*(struct in_addr *)&in));
+		}
+	}
 
 	if (strcmp(getParam(params, "action"), "restart") == 0) {
 		struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
-		if(rdr)	restart_cardreader(rdr, 1);
+		if(rdr)	{
+			restart_cardreader(rdr, 1);
+			cs_log("Reader %s restarted by WebIF from %s", rdr->label, inet_ntoa(*(struct in_addr *)&in));
+		}
 	}
 
 	if (strcmp(getParam(params, "action"), "resetstat") == 0) {
 		struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
-		if(rdr) clear_reader_stat(rdr);
+		if(rdr) {
+			clear_reader_stat(rdr);
+			cs_log("Reader %s stats resetted by WebIF from %s", rdr->label, inet_ntoa(*(struct in_addr *)&in));
+		}
 	}
 
 	char *debuglvl = getParam(params, "debug");
@@ -1732,8 +1748,8 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 		cs_dblevel = atoi(debuglvl);
 
 	if(getParamDef(params, "hide", NULL)) {
-		uint clidx;
-		clidx = atoi(getParamDef(params, "hide", NULL));
+		ulong clidx;
+		clidx = atol(getParamDef(params, "hide", NULL));
 		struct s_client *hideidx = get_client_by_tid(clidx);
 		if(hideidx)
 			hideidx->wihidden = 1;
@@ -1784,11 +1800,11 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 
 			lt=localtime(&cl->login);
 
-			tpl_printf(vars, 0, "HIDEIDX", "%d", cl->thread);
+			tpl_printf(vars, 0, "HIDEIDX", "%ld", cl->thread);
 			tpl_addVar(vars, 0, "HIDEICON", ICHID);
 			if(cl->typ == 'c' && !cfg->http_readonly) {
 				//tpl_printf(vars, 0, "CSIDX", "%d&nbsp;", i);
-				tpl_printf(vars, 0, "CSIDX", "<A HREF=\"status.html?action=kill&threadid=%ld\" TITLE=\"Kill this client\"><IMG SRC=\"%s\" ALT=\"Kill\"></A>", cl, ICKIL);
+				tpl_printf(vars, 0, "CSIDX", "<A HREF=\"status.html?action=kill&threadid=%ld\" TITLE=\"Kill this client\"><IMG SRC=\"%s\" ALT=\"Kill\"></A>", cl->thread, ICKIL);
 			}
 			else if((cl->typ == 'p') && !cfg->http_readonly) {
 				//tpl_printf(vars, 0, "CLIENTPID", "%d&nbsp;", cl->ridx);
@@ -1849,7 +1865,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			}
 
 			if (found == 1) {
-				tpl_printf(vars, 0, "CLIENTSRVPROVIDER","%s : ", srvid->prov);
+				tpl_printf(vars, 0, "CLIENTSRVPROVIDER","%s: ", srvid->prov);
 				tpl_addVar(vars, 0, "CLIENTSRVNAME", srvid->name);
 				tpl_addVar(vars, 0, "CLIENTSRVTYPE", srvid->type);
 				tpl_addVar(vars, 0, "CLIENTSRVDESCRIPTION", srvid->desc);
@@ -2324,19 +2340,45 @@ int process_request(FILE *f, struct in_addr in) {
 	if (!ok && cfg->http_dyndns[0]) {
 		if(cfg->http_dynip == addr) {
 			ok = 1;
-		} else {
-		    pthread_mutex_lock(&gethostbyname_lock);
-			struct hostent *rht;
-			struct sockaddr_in udp_sa;
 
-			rht = gethostbyname((const char *) cfg->http_dyndns);
-			if (rht) {
-				memcpy(&udp_sa.sin_addr, rht->h_addr, sizeof(udp_sa.sin_addr));
-				cfg->http_dynip = cs_inet_order(udp_sa.sin_addr.s_addr);
-				if (cfg->http_dynip == addr)
+		} else {
+
+			if (cfg->resolve_gethostbyname) {
+
+				pthread_mutex_lock(&gethostbyname_lock);
+				struct hostent *rht;
+				struct sockaddr_in udp_sa;
+
+				rht = gethostbyname((const char *) cfg->http_dyndns);
+				if (rht) {
+					memcpy(&udp_sa.sin_addr, rht->h_addr, sizeof(udp_sa.sin_addr));
+					cfg->http_dynip = cs_inet_order(udp_sa.sin_addr.s_addr);
+					if (cfg->http_dynip == addr)
+						ok = 1;
+				} else {
+					cs_log("can't resolve %s", cfg->http_dyndns);
+				}
+				pthread_mutex_unlock(&gethostbyname_lock);
+
+			} else {
+
+				struct addrinfo hints, *res = NULL;
+				memset(&hints, 0, sizeof(hints));
+				hints.ai_socktype = SOCK_STREAM;
+				hints.ai_family = AF_INET;
+				hints.ai_protocol = IPPROTO_TCP;
+
+				int err = getaddrinfo((const char*)cfg->http_dyndns, NULL, &hints, &res);
+				if (err != 0 || !res || !res->ai_addr) {
+					cs_log("can't resolve %s, error: %s", cfg->http_dyndns, err ? gai_strerror(err) : "unknown");
+				}
+				else {
+					cfg->http_dynip = cs_inet_order(((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr);
 					ok = 1;
+				}
+				if (res) freeaddrinfo(res);
+
 			}
-			pthread_mutex_unlock(&gethostbyname_lock);
 		}
 	}
 
@@ -2375,7 +2417,8 @@ int process_request(FILE *f, struct in_addr in) {
 		"/scanusb.html",
 		"/files.html",
 		"/readerstats.html",
-		"/failban.html"};
+		"/failban.html",
+		"/oscam.js"};
 
 	int pagescnt = sizeof(pages)/sizeof(char *); // Calculate the amount of items in array
 
@@ -2460,6 +2503,7 @@ int process_request(FILE *f, struct in_addr in) {
 	/*build page*/
 	send_headers(f, 200, "OK", NULL, "text/html");
 	if(pgidx == 8) send_css(f);
+	else if (pgidx == 17) send_js(f);
 	else {
 		time_t t;
 		struct templatevars *vars = tpl_create();

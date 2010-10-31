@@ -41,7 +41,7 @@
 #	define CS_SVN_VERSION "test"
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUC__)  && !defined(__arm__)
 #  define GCC_PACK __attribute__((packed))
 #else
 #  define GCC_PACK
@@ -281,6 +281,43 @@ int server_pid; //alno: PID of server - set while startup
 extern void cs_switch_led(int led, int action);
 #endif
 
+#ifdef QBOXHD_LED
+typedef struct {   
+	unsigned short H;  // range 0-359
+	unsigned char S;   // range 0-99
+	unsigned char V;   // range 0-99
+} qboxhd_led_color_struct;
+typedef struct {
+	unsigned char red;  // first 5 bit used (&0x1F)
+	unsigned char green; // first 5 bit used (&0x1F)
+	unsigned char blue; // first 5 bit used (&0x1F)
+} qboxhdmini_led_color_struct;
+
+extern void qboxhd_led_blink(int color, int duration);
+
+#define QBOXHD_LED_DEVICE               "/dev/sw0"
+#define QBOXHD_SET_LED_ALL_PANEL_COLOR	_IO(0xBC, 13)    // payload = 3byte [H][S][V]
+#define QBOXHD_LED_COLOR_RED        359  // only H value, S and V values are always == 99
+#define QBOXHD_LED_COLOR_GREEN      120
+#define QBOXHD_LED_COLOR_BLUE       230
+#define QBOXHD_LED_COLOR_YELLOW     55
+#define QBOXHD_LED_COLOR_MAGENTA    290
+
+#define QBOXHDMINI_LED_DEVICE       "/dev/lpc_0"
+#define	QBOXHDMINI_IOSET_RGB        _IOWR('L', 6, qboxhdmini_led_color_struct)
+#define QBOXHDMINI_LED_COLOR_RED     0x1F0000               // 3 bytes RGB , 5 bit used for each color
+#define QBOXHDMINI_LED_COLOR_GREEN   0x001F00
+#define QBOXHDMINI_LED_COLOR_BLUE    0x00001F
+#define QBOXHDMINI_LED_COLOR_YELLOW  0x1F1F00
+#define QBOXHDMINI_LED_COLOR_MAGENTA 0x1F001F
+
+#define QBOXHD_LED_COLOR_OFF        -1   // all colors H,S,V and/or R,G,B == 0,0,0
+
+#define QBOXHD_LED_BLINK_FAST       100  // blink milliseconds
+#define QBOXHD_LED_BLINK_MEDIUM     200
+#define QBOXHD_LED_BLINK_SLOW       400
+
+#endif //QBOXHD_LED
 
 #define MAX_ATR_LEN 33         // max. ATR length
 #define MAX_HIST    15         // max. number of historical characters
@@ -1009,6 +1046,7 @@ struct s_config
 	char		http_user[65];
 	char		http_pwd[65];
 	char		http_css[128];
+	char		http_jscript[128];
 	char		http_tpl[128];
 	char		http_script[128];
 	int			http_refresh;
@@ -1017,6 +1055,7 @@ struct s_config
 	int			http_readonly;
 	in_addr_t	http_dynip;
 	uchar		http_dyndns[64];
+	int			http_full_cfg;
 #endif
 	int			failbantime;
 	LLIST_D_ 		*v_list; //failban list
@@ -1106,6 +1145,10 @@ struct s_config
 	int		ac_denysamples;
 	char		ac_logfile[128];
 	struct		s_cpmap *cpmap;
+#endif
+
+#ifdef QBOXHD_LED
+    int disableqboxhdled; // disable qboxhd led , default = 0
 #endif
 };
 
