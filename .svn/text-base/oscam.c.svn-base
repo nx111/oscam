@@ -1348,50 +1348,6 @@ void logCWtoFile(ECM_REQUEST *er)
 	fclose(pfCWL);
 }
 
-/**
- * Notifies all the other clients waiting for the same request
- **/
-int distribute_ecm(ECM_REQUEST *er) {
-    struct s_client *cl;
-    ECM_REQUEST *ecm;
-    int res = 0;
-    
-    cs_debug_mask(D_TRACE, "start distribute ecm from %s", er->selected_reader->label);
-    
-    for (cl=first_client; cl; cl=cl->next) {
-        if (cl->fd_m2c && cl->typ=='c' && (cl->grp&er->client->grp)) {
-            int i;
-            ECM_REQUEST *ecmtask = cl->ecmtask;
-	    if (ecmtask)
-		i=(ph[cl->ctyp].multi)?CS_MAXPENDING:1;
-	    else
-		i=0;
-
-	    // check all pending ecm-requests:
-	    for (--i; i>=0; i--) {
-	        ecm = &ecmtask[i];
-		if (ecm->rc>=100
-			&& ecm->caid==er->caid
-			&& memcmp(ecm->ecmd5, er->ecmd5, CS_ECMSTORESIZE) == 0) {
-		       //Do not modify original ecm request, use copy!
-		       ECM_REQUEST * new_ecm = malloc(sizeof(ECM_REQUEST));
-		       memcpy(new_ecm, ecm, sizeof(ECM_REQUEST));
-		       memcpy(new_ecm->cw, er->cw, sizeof(er->cw));
-		       new_ecm->caid = er->ocaid;
-		       new_ecm->selected_reader = er->selected_reader;
-		      
-		       new_ecm->rc = er->rc; 
-	
-		       cs_debug_mask(D_TRACE, "distribute ecm to %s", cl->reader?cl->reader->label:username(cl));
-		       res = write_ecm_request(cl->fd_m2c, new_ecm);
-		       free(new_ecm);
-		    }
-	    }
-        }
-    }
-    return res;
-}
-
 int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
 {
   int i;
@@ -1425,10 +1381,7 @@ int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
   int res=0;
   if( er->client && er->client->fd_m2c ) {
     //Wie got an ECM (or nok). Now we should check for another clients waiting for it:
-    if (cfg->lb_mode)
-      res = distribute_ecm(er);
-    else
-      res = write_ecm_request(er->client->fd_m2c, er);
+    res = write_ecm_request(er->client->fd_m2c, er);
     //return(write_ecm_request(first_client->fd_m2c, er)); //does this ever happen? Schlocke: should never happen!
   }
     
@@ -1968,6 +1921,16 @@ void request_cw(ECM_REQUEST *er, int flag, int reader_types)
   }
 }
 
+static int update_reader_count(ECM_REQUEST *er) {
+	int i, m;
+	struct s_reader *rdr;
+	for (i=m=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {
+        	m|=er->matching_rdr[i];
+                if (er->matching_rdr[i] == 1)
+                	er->reader_count++;
+	}
+	return m;
+}
 
 void get_cw(struct s_client * client, ECM_REQUEST *er)
 {
@@ -1996,6 +1959,10 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 	// Quickfix for 0500:D20200
 	if (er->caid == 0x500 && er->prid == 0xD20200)
 		er->prid = 0x030600; 
+
+	//betacrypt ecm with nagra header
+	if (er->caid == 0x1702 && er->l == 0x89 && er->ecm[3] == 0x07 && er->ecm[4] == 0x84)
+		er->caid = 0x1833;
 
 	/* END quickfixes */
 
@@ -2172,16 +2139,11 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		if (cfg->lb_mode) {
 			cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X", 
 				username(client), er->caid, er->prid, er->srvid);
-			if (!get_best_reader(er))
-				return; //ecm already requested by another client, see distribute ecm for details
+			get_best_reader(er);
 		}
 
-		for (i=m=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {
-			m|=er->matching_rdr[i];
-			if (er->matching_rdr[i] == 1)
-				er->reader_count++;
-			
-		}
+		m = update_reader_count(er);
+		
 		switch(m) {
 			// no reader -> not found
 			case 0:
@@ -2221,7 +2183,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 	char *typtext[]={"unknown", "unique", "shared", "global"};
 
 	struct s_reader *aureader = client->aureader;
-	cs_ddump_mask(D_ATR, ep->emm, ep->l, "emm:");
+	cs_ddump_mask(D_EMM, ep->emm, ep->l, "emm:");
 
 	//Unique Id matching for pay-per-view channels:
 	if (client->autoau) {
@@ -2247,21 +2209,20 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 		}
 	}
 	else {
-		cs_debug_mask(D_EMM, "emm skipped, reader %s (thread %8X) has no cardsystem defined!", aureader->label, (unsigned int)aureader->client->thread); 
+		cs_debug_mask(D_EMM, "emm skipped, reader %s has no cardsystem defined!", aureader->label); 
 		return;
 	}
 
 	//test: EMM becomes skipped if auprivid doesn't match with provid from EMM
-	if(aureader->auprovid) {
+	if(aureader->auprovid && b2i(4, ep->provid)) {
 		if(aureader->auprovid != b2i(4, ep->provid)) {
-			cs_debug_mask(D_EMM, "emm skipped, reader %s (thread %8X) auprovid doesn't match %06lX != %06lX!", aureader->label, (unsigned int) aureader->client->thread, aureader->auprovid, b2i(4, ep->provid));
+			cs_debug_mask(D_EMM, "emm skipped, reader %s auprovid doesn't match %06lX != %06lX!", aureader->label, aureader->auprovid, b2i(4, ep->provid));
 			return;
 		}
 	}
 
 	cs_debug_mask(D_EMM, "emmtype %s. Reader %s has serial %s.", typtext[ep->type], aureader->label, cs_hexdump(0, aureader->hexserial, 8)); 
 	cs_ddump_mask(D_EMM, ep->hexserial, 8, "emm UA/SA:");
-	cs_ddump_mask(D_EMM, ep->emm, ep->l, "emm:");
 
 	client->last=time((time_t)0);
 	if (aureader->b_nano[ep->emm[0]] & 0x02) //should this nano be saved?

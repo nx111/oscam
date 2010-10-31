@@ -1,15 +1,15 @@
 10
 
 dir
-3760
+3782
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-10-28T20:04:36.692500Z
-3760
-_network
+2010-10-30T22:49:47.329170Z
+3782
+alno
 has-props
 
 
@@ -112,11 +112,11 @@ file
 
 
 
-2010-10-23T12:45:56.307522Z
-67fdb83e178b3189584d52483f17e10b
-2010-10-23T07:56:02.659648Z
-3684
-dingo35
+2010-10-31T03:52:35.662046Z
+25d03c20a2b42b153c1bc8368950a9ec
+2010-10-30T20:04:54.845745Z
+3780
+_network
 
 
 
@@ -138,7 +138,7 @@ dingo35
 
 
 
-19060
+19067
 
 openxcas
 dir
@@ -183,11 +183,11 @@ file
 
 
 
-2010-10-21T12:39:30.718982Z
-fd2291366b33a9350f60d911ac4e94ee
-2010-10-21T10:22:36.730909Z
-3653
-dingo35
+2010-10-31T03:52:35.662046Z
+50b4e94cde465f7e59ad4326793cc957
+2010-10-30T20:04:54.845745Z
+3780
+_network
 
 
 
@@ -209,7 +209,7 @@ dingo35
 
 
 
-37827
+37779
 
 VERSION
 file
@@ -418,9 +418,6 @@ _network
 
 10532
 
-toolchains
-dir
-
 module-obj-llist.c
 file
 
@@ -454,6 +451,9 @@ dingo35
 
 
 3091
+
+toolchains
+dir
 
 oscam-ac.c
 file
@@ -542,9 +542,9 @@ file
 
 
 
-89bdca11eed179708077c42f3da9acce
-2010-10-28T16:32:16.566087Z
-3757
+e776943db51b1f03342362053514f901
+2010-10-30T10:52:08.751494Z
+3768
 _network
 
 oscam-nano.c
@@ -581,40 +581,6 @@ rebdog
 
 1625
 
-CMakeLists.txt
-file
-
-
-
-
-2010-10-17T11:25:54.090009Z
-f4908aadc860d23b4a4cf48cfacc7709
-2010-10-12T15:57:39.352895Z
-3493
-rorothetroll
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-27596
-
 Makefile
 file
 
@@ -649,18 +615,39 @@ cogsi
 
 25451
 
-config.sh
+CMakeLists.txt
 file
 
 
 
 
-
-32bbb05777f3064514130ff1b145d2ab
-2010-10-26T00:55:38.961306Z
-3733
+2010-10-17T11:25:54.090009Z
+f4908aadc860d23b4a4cf48cfacc7709
+2010-10-12T15:57:39.352895Z
+3493
 rorothetroll
-has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+27596
 
 module-dvbapi.h
 file
@@ -673,6 +660,19 @@ file
 2010-10-25T22:32:25.031548Z
 3732
 _network
+
+config.sh
+file
+
+
+
+
+
+32bbb05777f3064514130ff1b145d2ab
+2010-10-26T00:55:38.961306Z
+3733
+rorothetroll
+has-props
 
 module-stat.c
 file
@@ -708,52 +708,6 @@ schlocke
 
 15956
 
-oscam-reader.c
-file
-
-
-
-
-2010-10-24T23:23:17.410020Z
-92c0029918939d02efaff2d9d948e621
-2010-10-24T19:19:28.363781Z
-3712
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-23215
-
-oscam.c
-file
-
-
-
-
-
-39722926a48df669d8b43f66f08e4602
-2010-10-28T12:57:51.381626Z
-3754
-schlocke
-
 module-serial.c
 file
 
@@ -788,17 +742,29 @@ dingo35
 
 28204
 
-module-stat.h
+oscam.c
 file
 
 
 
 
-2010-10-24T10:57:44.858510Z
-8ffe4ede49f9a1b231aee1a1ea329466
-2010-10-24T10:48:16.592446Z
-3705
-schlocke
+
+3fdedf628d0b99418b69f7a471f920c8
+2010-10-30T20:41:43.437062Z
+3781
+_network
+
+oscam-reader.c
+file
+
+
+
+
+2010-10-31T03:52:35.662046Z
+456be95af5f2bfdebd35b5919a40cb75
+2010-10-30T20:04:54.845745Z
+3780
+_network
 
 
 
@@ -820,7 +786,7 @@ schlocke
 
 
 
-531
+23096
 
 reader-tongfang.c
 file
@@ -855,6 +821,40 @@ lattjo
 
 
 5068
+
+module-stat.h
+file
+
+
+
+
+2010-10-24T10:57:44.858510Z
+8ffe4ede49f9a1b231aee1a1ea329466
+2010-10-24T10:48:16.592446Z
+3705
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+531
 
 module-constcw.c
 file
@@ -896,11 +896,11 @@ file
 
 
 
-2010-10-29T02:12:57.317644Z
-4fc1e35324ddf21b2948c8c9fd0aae10
-2010-10-28T16:42:36.475868Z
-3758
-rorothetroll
+2010-10-31T03:52:35.666046Z
+07a9d74968b7c02cdb5a5506fd13b561
+2010-10-30T18:17:49.771921Z
+3778
+alno
 
 
 
@@ -922,7 +922,7 @@ rorothetroll
 
 
 
-101835
+102113
 
 oscam-chk.c
 file
@@ -1103,10 +1103,10 @@ file
 
 
 
-2010-10-27T23:32:02.155496Z
-d42fba3e93e797a7507798fd377340cd
-2010-10-27T19:34:04.937870Z
-3748
+2010-10-31T03:52:35.666046Z
+291cae6a68dea8de527c21975c13f1f0
+2010-10-30T18:17:49.771921Z
+3778
 alno
 
 
@@ -1129,7 +1129,7 @@ alno
 
 
 
-20735
+19840
 
 reader-videoguard2.c
 file
@@ -1205,11 +1205,11 @@ file
 
 
 
-2010-10-25T23:32:57.303918Z
-e6c3e9349bbcb428d2d2037b9729c2e0
-2010-10-25T20:03:26.024104Z
-3728
-_network
+2010-10-31T03:52:35.666046Z
+167cf8fe7b7e396c2e366e1734d389f3
+2010-10-30T18:17:49.771921Z
+3778
+alno
 
 
 
@@ -1231,7 +1231,7 @@ _network
 
 
 
-22526
+23454
 
 README
 file
@@ -1273,11 +1273,11 @@ file
 
 
 
-2010-10-21T12:39:30.738992Z
-bb3df4e898fec3f8e9ae8f47a79969c5
-2010-10-21T10:22:36.730909Z
-3653
-dingo35
+2010-10-31T03:52:35.666046Z
+d80cd98cf1d60143f1260490b878f007
+2010-10-30T18:15:04.136165Z
+3777
+_network
 
 
 
@@ -1299,7 +1299,7 @@ dingo35
 
 
 
-7841
+7876
 
 OSCam.xcodeproj
 dir
@@ -1310,11 +1310,11 @@ file
 
 
 
-2010-10-29T02:12:57.321642Z
-6a7e7dcbd7e1d8d7279fedd377975632
-2010-10-28T16:42:36.475868Z
-3758
-rorothetroll
+2010-10-31T03:52:35.666046Z
+9db8a61d1450155bc97ec3e2aa0feafb
+2010-10-30T22:49:47.329170Z
+3782
+alno
 
 
 
@@ -1336,7 +1336,7 @@ rorothetroll
 
 
 
-93950
+91874
 
 utils
 dir
@@ -1350,11 +1350,11 @@ file
 
 
 
-2010-10-29T02:12:57.321642Z
-af3b7e9bb0c1ef2a6c537f45c7176e6d
-2010-10-28T16:42:36.475868Z
-3758
-rorothetroll
+2010-10-31T03:52:35.666046Z
+695a86265c440bdb1c3bc700e3aca39d
+2010-10-30T17:20:31.491546Z
+3774
+alno
 
 
 
@@ -1376,7 +1376,7 @@ rorothetroll
 
 
 
-78722
+80102
 
 .gitignore
 file
@@ -1555,10 +1555,10 @@ file
 
 
 
-6142b0a7f43f5fe129dcaaeab968f8be
-2010-10-28T16:42:36.475868Z
-3758
-rorothetroll
+14a35572a28ed239c3bb1914b770d1d4
+2010-10-30T20:04:54.845745Z
+3780
+_network
 
 module-cccam.c
 file
@@ -1567,10 +1567,10 @@ file
 
 
 
-ac723ee976166d503b463cff5d41ed2d
-2010-10-28T15:50:11.138626Z
-3756
-schlocke
+6e3f6df239bdd9a21e6a3436f2508f5b
+2010-10-30T20:04:54.845745Z
+3780
+_network
 has-props
 
 module-datastruct-llist.h

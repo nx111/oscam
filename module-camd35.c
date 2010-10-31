@@ -38,7 +38,7 @@ static int camd35_send(uchar *buf)
         }
 	else {
 	   status = send(cl->udp_fd, rbuf, l + 4, 0);
-	   if (status == -1) network_tcp_connection_close(cl->reader, cl->pfd);
+	   if (status == -1) network_tcp_connection_close(cl, cl->pfd);
         }
 	return status;		
 }
@@ -553,7 +553,7 @@ static int camd35_send_emm(EMM_PACKET *ep)
 	return((camd35_send(buf)<1) ? 0 : 1);
 }
 
-static int camd35_recv_chk(struct s_client *client, uchar *dcw, int *rc, uchar *buf)
+static int camd35_recv_chk(struct s_client *client, uchar *dcw, int *rc, uchar *buf, int UNUSED(n))
 {
 	ushort idx;
 	static const char *typtext[]={"ok", "invalid", "sleeping"};

@@ -291,6 +291,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 			<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=logfile\">logfile</TD>\n\
 			<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=userfile\">userfile</TD>\n\
 			##TPLFILEMENUANTICASC##\
+			##TPLFILEMENUDVBAPI##\
 		</TR>\n\
 	</TABLE>"
 
@@ -303,6 +304,18 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
   <pre>##FILECONTENT##</pre>\
   </DIV><BR>\n\
   ##TPLFOOTER##"
+
+#define TPLDEBUGSELECT "\
+	<SPAN CLASS=\"debugt\"> Switch Debug from&nbsp;##ACTDEBUG## to&nbsp;</SPAN>\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=0##CUSTOMPARAM##\" title=\"no debugging (default)\">0</A>&nbsp;\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=1##CUSTOMPARAM##\" title=\"detailed error messages\">1</A>&nbsp;\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=2##CUSTOMPARAM##\" title=\"ATR parsing info, ECM dumps, CW dumps\">2</A>&nbsp;\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=4##CUSTOMPARAM##\" title=\"traffic from/to the reader\">4</A>&nbsp;\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=8##CUSTOMPARAM##\" title=\"traffic from/to the clients\">8</A>&nbsp;\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=16##CUSTOMPARAM##\" title=\"traffic to the reader-device on IFD layer\">16</A>&nbsp;\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=32##CUSTOMPARAM##\" title=\"traffic to the reader-device on I/O layer\">32</A>&nbsp;\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=64##CUSTOMPARAM##\" title=\"EMM logging\">64</A>&nbsp;\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=255##CUSTOMPARAM##\" title=\"debug all\">255</A>\n"
 
 #define TPLFAILBAN "\
 ##TPLHEADER##\
@@ -329,6 +342,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 
 #ifdef HAVE_DVBAPI
 #define TPLCONFIGMENUDVBAPI "<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=dvbapi\">DVB-Api</A></TD>\n"
+#define TPLFILEMENUDVBAPI "<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=dvbapi\">oscam.dvbapi</A></TD>\n"
 #endif
 
 #ifdef CS_WITH_GBOX
@@ -603,9 +617,9 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 			<option>newcamd525</option>\
 			<option>newcamd524</option>\
 			<option>cccam</option>\
-			<option>gbox</option>\
 			<option>pcsc</option>\
 			<option>constcw</option>\
+			##ADDPROTOCOL##\
 		</select></TD>\
 		<TD COLSPAN=\"4\" align=\"center\"><input type=\"submit\" name=\"action\" value=\"Add\" ##BTNDISABLED##></TD></TR>\
 		</form>\
@@ -1304,6 +1318,7 @@ char *tpl[]={
 	"CONFIGMENU",
 	"FILEMENU",
 	"FILE",
+	"DEBUGSELECT",
 	"FAILBAN",
 	"FAILBANBIT",
 	"CONFIGGBOX",
@@ -1328,6 +1343,7 @@ char *tpl[]={
 #ifdef HAVE_DVBAPI
 	,"CONFIGDVBAPI"
 	,"CONFIGMENUDVBAPI"
+	,"FILEMENUDVBAPI"
 #endif
 #ifdef CS_ANTICASC
 	,"USEREDITANTICASC"
@@ -1383,6 +1399,7 @@ char *tplmap[]={
 	TPLCONFIGMENU,
 	TPLFILEMENU,
 	TPLFILE,
+	TPLDEBUGSELECT,
 	TPLFAILBAN,
 	TPLFAILBANBIT,
 	TPLCONFIGGBOX,
@@ -1407,6 +1424,7 @@ char *tplmap[]={
 #ifdef HAVE_DVBAPI
 	,TPLCONFIGDVBAPI
 	,TPLCONFIGMENUDVBAPI
+	,TPLFILEMENUDVBAPI
 #endif
 #ifdef CS_ANTICASC
 	,TPLUSEREDITANTICASC

@@ -2261,7 +2261,7 @@ int write_server()
 
 			fprintf_conf(f, CONFVARWIDTH, "label", "%s\n", rdr->label);
 			fprintf_conf(f, CONFVARWIDTH, "enable", "%d\n", rdr->enable);
-			char *ctyp = reader_get_type_desc(rdr);
+			char *ctyp = reader_get_type_desc(rdr, 0);
 
 			fprintf_conf(f, CONFVARWIDTH, "protocol", "%s\n", ctyp);
 
@@ -2271,9 +2271,13 @@ int write_server()
 			if (rdr->l_port)
 				fprintf(f, ",%d", rdr->l_port);
 			fprintf(f, "\n");
+
 #ifdef LIBUSB
-            fprintf_conf(f, CONFVARWIDTH, "device_out_endpoint", "0x%2X\n", rdr->device_endpoint);
+			if (!(rdr->typ & R_IS_NETWORK))
+				if (rdr->device_endpoint)
+					fprintf_conf(f, CONFVARWIDTH, "device_out_endpoint", "0x%2X\n", rdr->device_endpoint);
 #endif
+
 			if (rdr->ncd_key[0] || rdr->ncd_key[13]) {
 				fprintf_conf(f, CONFVARWIDTH, "key", "");
 				for (j = 0; j < 14; j++) {
@@ -3260,6 +3264,15 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 	}
 
 	if (!strcmp(token, "label")) {
+		int found = 0;
+		for(i = 0; i < (int)strlen(value); i++) {
+			if (value[i] == ' ') {
+				value[i] = '_';
+				found++;
+			}
+		}
+
+		if (found) fprintf(stderr, "Configuration reader: corrected label to %s\n",value);
 		cs_strncpy(rdr->label, value, sizeof(rdr->label));
 		return;
 	}

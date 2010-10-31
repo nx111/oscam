@@ -752,11 +752,15 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 
 			}
 
-			tpl_addVar(vars, 0, "CTYP", reader_get_type_desc(rdr));
+			tpl_addVar(vars, 0, "CTYP", reader_get_type_desc(rdr, 1));
 			tpl_addVar(vars, 0, "EDIICO", ICEDI);
 			tpl_addVar(vars, 1, "READERLIST", tpl_getTpl(vars, "READERSBIT"));
 		}
 	}
+
+#ifdef CS_WITH_GBOX
+	tpl_addVar(vars, 0, "ADDPROTOCOL", "<option>gbox</option>");
+#endif
 
 	fputs(tpl_getTpl(vars, "READERS"), f);
 }
@@ -815,7 +819,8 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 
 		if(write_server()==0) {
 			refresh_oscam(REFR_READERS, in);
-			restart_cardreader(rdr, 1);
+			if (rdr->typ & R_IS_NETWORK)
+				restart_cardreader(rdr, 1); //physical readers make trouble if re-started
 		}
 		else
 			tpl_addVar(vars, 1, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
@@ -1783,7 +1788,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			tpl_addVar(vars, 0, "HIDEICON", ICHID);
 			if(cl->typ == 'c' && !cfg->http_readonly) {
 				//tpl_printf(vars, 0, "CSIDX", "%d&nbsp;", i);
-				tpl_printf(vars, 0, "CSIDX", "<A HREF=\"status.html?action=kill&threadid=%d\" TITLE=\"Kill this client\"><IMG SRC=\"%s\" ALT=\"Kill\"></A>", cl, ICKIL);
+				tpl_printf(vars, 0, "CSIDX", "<A HREF=\"status.html?action=kill&threadid=%ld\" TITLE=\"Kill this client\"><IMG SRC=\"%s\" ALT=\"Kill\"></A>", cl, ICKIL);
 			}
 			else if((cl->typ == 'p') && !cfg->http_readonly) {
 				//tpl_printf(vars, 0, "CLIENTPID", "%d&nbsp;", cl->ridx);
@@ -1918,16 +1923,10 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 	tpl_addVar(vars, 0, "LOGHISTORY", "the flag CS_LOGHISTORY is not set in your binary<BR>\n");
 #endif
 
-	tpl_printf(vars, 0, "SDEBUG", "<SPAN CLASS=\"debugt\"> %s&nbsp;%d to&nbsp;</SPAN>\n", "Switch Debug from", cs_dblevel);
-	tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"status.html?debug=0\" title=\"no debugging (default)\">0</A>&nbsp;\n");
-	tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"status.html?debug=1\" title=\"detailed error messages\">1</A>&nbsp;\n");
-	tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"status.html?debug=2\" title=\"ATR parsing info, ECM dumps, CW dumps\">2</A>&nbsp;\n");
-	tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"status.html?debug=4\" title=\"traffic from/to the reader\">4</A>&nbsp;\n");
-	tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"status.html?debug=8\" title=\"traffic from/to the clients\">8</A>&nbsp;\n");
-	tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"status.html?debug=16\" title=\"traffic to the reader-device on IFD layer\">16</A>&nbsp;\n");
-	tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"status.html?debug=32\" title=\"traffic to the reader-device on I/O layer\">32</A>&nbsp;\n");
-	tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"status.html?debug=64\" title=\"EMM logging\">64</A>&nbsp;\n");
-	tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"status.html?debug=255\" title=\"debug all\">255</A>\n");
+	// Debuglevel Selector
+	tpl_addVar(vars, 0, "NEXTPAGE", "status.html");
+	tpl_printf(vars, 0, "ACTDEBUG", "%d", cs_dblevel);
+	tpl_addVar(vars, 0, "SDEBUG", tpl_getTpl(vars, "DEBUGSELECT"));
 
 	fputs(tpl_getTpl(vars, "STATUS"), f);
 }
@@ -2179,21 +2178,16 @@ void send_oscam_files(struct templatevars *vars, FILE *f, struct uriparams *para
 			}
 		}
 
-		tpl_printf(vars, 0, "SDEBUG", "<SPAN CLASS=\"debugt\"> %s&nbsp;%d to&nbsp;</SPAN>\n", "Switch Debug from", cs_dblevel);
-		tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&debug=0\" title=\"no debugging (default)\">0</A>&nbsp;\n");
-		tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&debug=1\" title=\"detailed error messages\">1</A>&nbsp;\n");
-		tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&debug=2\" title=\"ATR parsing info, ECM dumps, CW dumps\">2</A>&nbsp;\n");
-		tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&debug=4\" title=\"traffic from/to the reader\">4</A>&nbsp;\n");
-		tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&debug=8\" title=\"traffic from/to the clients\">8</A>&nbsp;\n");
-		tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&debug=16\" title=\"traffic to the reader-device on IFD layer\">16</A>&nbsp;\n");
-		tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&debug=32\" title=\"traffic to the reader-device on I/O layer\">32</A>&nbsp;\n");
-		tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&debug=64\" title=\"EMM logging\">64</A>&nbsp;\n");
-		tpl_addVar(vars, 1, "SDEBUG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&debug=255\" title=\"debug all\">255</A><SPAN CLASS=\"debugt\">&nbsp;&nbsp;|</SPAN>\n");
+		// Debuglevel Selector
+		tpl_addVar(vars, 0, "NEXTPAGE", "files.html");
+		tpl_addVar(vars, 0, "CUSTOMPARAM", "&part=logfile");
+		tpl_printf(vars, 0, "ACTDEBUG", "%d", cs_dblevel);
+		tpl_addVar(vars, 0, "SDEBUG", tpl_getTpl(vars, "DEBUGSELECT"));
 
 		if(!cfg->disablelog)
-			tpl_printf(vars, 0, "SLOG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&stoplog=%d\">%s</A><SPAN CLASS=\"debugt\">&nbsp;&nbsp;|&nbsp;&nbsp;</SPAN>\n", 1, "Stop Log");
+			tpl_printf(vars, 0, "SLOG", "<BR><A CLASS=\"debugl\" HREF=\"files.html?part=logfile&stoplog=%d\">%s</A><SPAN CLASS=\"debugt\">&nbsp;&nbsp;|&nbsp;&nbsp;</SPAN>\n", 1, "Stop Log");
 		else
-			tpl_printf(vars, 0, "SLOG", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&stoplog=%d\">%s</A><SPAN CLASS=\"debugt\">&nbsp;&nbsp;|&nbsp;&nbsp;</SPAN>\n", 0, "Start Log");
+			tpl_printf(vars, 0, "SLOG", "<BR><A CLASS=\"debugl\" HREF=\"files.html?part=logfile&stoplog=%d\">%s</A><SPAN CLASS=\"debugt\">&nbsp;&nbsp;|&nbsp;&nbsp;</SPAN>\n", 0, "Start Log");
 
 		tpl_printf(vars, 0, "SCLEAR", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&clear=logfile\">%s</A><BR><BR>\n", "Clear Log");
 	}
@@ -2226,7 +2220,12 @@ void send_oscam_files(struct templatevars *vars, FILE *f, struct uriparams *para
 	}
 #ifdef CS_ANTICASC
 	else if (strcmp(getParam(params, "part"), "anticasc") == 0)
-	snprintf(targetfile, 255,"%s", cfg->ac_logfile);
+		snprintf(targetfile, 255,"%s", cfg->ac_logfile);
+#endif
+
+#ifdef HAVE_DVBAPI
+	else if (strcmp(getParam(params, "part"), "dvbapi") == 0)
+		snprintf(targetfile, 255, "%s%s", cs_confdir, "oscam.dvbapi");
 #endif
 
 	if (!strstr(targetfile, "/dev/")) {

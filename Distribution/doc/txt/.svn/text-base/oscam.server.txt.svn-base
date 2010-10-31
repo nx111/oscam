@@ -29,6 +29,12 @@ DESCRIPTIONS
 
 	  example: 1234:123456:1234:1234:1234:00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
 
+       device_out_endpoint = address
+	  set endpoint address for FTDI chips,default:0x81
+
+	   0x81: Infinity USB Smart (default)
+	   0x82: Smartreader+
+
        enable = 0|1
 	  0 = deactivate reader, default:1
 
@@ -221,11 +227,11 @@ DESCRIPTIONS
 	  1 = force Irdeto SC mode even if RSA key is set for Irdeto tunnled Nagravion SC, default:0
 
        nagra_read = 0|1|2
-	  read nagra records (only on NCMED cards)
+	  read Nagravison records (on NCMED cards only):
 
 	    0 = disabled (default)
-	    1 = read all records also with expired rights
-	    2 = read only records with valid rights
+	    1 = read all records with expired rights
+	    2 = read records with valid rights only
 
        n3_rsakey|rsakey = RSA key
 	  RSA key for Nagravision SCs / CAM key data for Irdeto SCs
