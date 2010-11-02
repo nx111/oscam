@@ -712,6 +712,11 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 	for (rdr = first_reader; rdr ; rdr = rdr->next) {
 		if(rdr->label[0] && rdr->typ && !rdr->deleted) {
 
+			if (rdr->enable)
+				tpl_addVar(vars, 0, "READERCLASS", "enabledreader");
+			else
+				tpl_addVar(vars, 0, "READERCLASS", "disabledreader");
+
 			tpl_addVar(vars, 0, "READERNAME", rdr->label);
 			tpl_addVar(vars, 0, "READERNAMEENC", tpl_addTmp(vars, urlencode(rdr->label)));
 			tpl_printf(vars, 0, "EMMERRORUK", "%d", rdr->emmerror[UNKNOWN]);
@@ -824,8 +829,9 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 
 		if(write_server()==0) {
 			refresh_oscam(REFR_READERS, in);
+			/*// fixme: restart_cardreader causes segfaults sometimes
 			if (rdr->typ & R_IS_NETWORK)
-				restart_cardreader(rdr, 1); //physical readers make trouble if re-started
+				restart_cardreader(rdr, 1); //physical readers make trouble if re-started */
 		}
 		else
 			tpl_addVar(vars, 1, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
@@ -1933,7 +1939,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 		char *p_usr, *p_txt;
 		p_usr=(char *)(loghist+(i*CS_LOGHISTSIZE));
 		p_txt=p_usr+32;
-		if (p_txt[0]) tpl_printf(vars, 1, "LOGHISTORY", "%s<BR>\n", p_txt+8);
+		if (p_txt[0]) tpl_printf(vars, 1, "LOGHISTORY", "<span class=\"%s\">%s</span><br>\n", p_usr, p_txt+8);
 	}
 #else
 	tpl_addVar(vars, 0, "LOGHISTORY", "the flag CS_LOGHISTORY is not set in your binary<BR>\n");

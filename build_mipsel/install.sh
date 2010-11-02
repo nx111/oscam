@@ -6,4 +6,4 @@ make clean
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/toolchain-mips-tuxbox.cmake -DWEBIF=1 ..    #用cmake命令对源码进行交叉编译
 make
 export PATH=$OLDPATH
-cp oscam oscam-nx111
+cp oscam oscam-release

@@ -93,7 +93,7 @@ int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uc
 #ifdef WITH_STAPI
 		case STAPI:
 			demux[demux_id].demux_fd[n].fd = 1;
-			ret=stapi_set_filter(demux_id, pid, filt, mask, n);
+			ret=stapi_set_filter(demux_id, pid, filt, mask, n, demux[demux_id].pmt_file);
 
 			break;
 #endif
@@ -242,7 +242,7 @@ int dvbapi_stop_filternum(int demux_index, int num) {
 	int ret=-1;
 	if (demux[demux_index].demux_fd[num].fd>0) {
 #ifdef WITH_STAPI
-		ret=stapi_remove_filter(demux_index, num);
+		ret=stapi_remove_filter(demux_index, num, demux[demux_index].pmt_file);
 #else
 		ret=ioctl(demux[demux_index].demux_fd[num].fd,DMX_STOP);
 		close(demux[demux_index].demux_fd[num].fd);
@@ -425,7 +425,7 @@ void dvbapi_set_pid(int demux_id, int num, int index) {
 	switch(selected_api) {
 #ifdef WITH_STAPI
 		case STAPI:
-			stapi_set_pid(demux_id,num,index);
+			stapi_set_pid(demux_id, num, index, demux[demux_id].STREAMpids[num], demux[demux_id].pmt_file);
 			break;
 #endif
 		default:
@@ -509,8 +509,12 @@ void dvbapi_start_descrambling(int demux_id) {
 	dvbapi_adjust_prioritytab(demux_id);
 }
 
+#ifdef READER_VIACCESS
 extern int viaccess_reassemble_emm(uchar *buffer, uint *len);
+#endif
+#ifdef READER_CRYPTOWORKS
 extern int cryptoworks_reassemble_emm(uchar *buffer, uint *len);
+#endif
 
 void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer, unsigned int len) {
 	EMM_PACKET epg;
@@ -971,7 +975,7 @@ void dvbapi_try_next_caid(int demux_id) {
 	demux[demux_id].ECMpids[num].checked=1;
 }
 
-int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
+int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd, char *pmtfile) {
 	unsigned int i;
 	int demux_id=-1;
 	unsigned short ca_mask=0x01, demux_index=0x00, adapter_index=0x00;
@@ -1034,6 +1038,9 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd) {
 	demux[demux_id].pidindex=-1;
 
 	cs_debug("id: %d\tdemux_index: %d\tca_mask: %02x\tprogram_info_length: %d", demux_id, demux[demux_id].demux_index, demux[demux_id].ca_mask, program_info_length);
+
+	if (pmtfile)
+		strcpy(demux[demux_id].pmt_file, pmtfile);
 
 	if (program_info_length > 1 && program_info_length < length)
 		dvbapi_parse_descriptor(demux_id, program_info_length-1, buffer+7,0);
@@ -1106,7 +1113,7 @@ void dvbapi_handlesockmsg (unsigned char *buffer, unsigned int len, int connfd) 
 		}
 		switch(buffer[2+k]) {
 			case 0x32:
-				dvbapi_parse_capmt(buffer + size + 3 + k, val, connfd);
+				dvbapi_parse_capmt(buffer + size + 3 + k, val, connfd, NULL);
 				break;
 			case 0x3f:
 				//9F 80 3f 04 83 02 00 <demux index>
@@ -1329,7 +1336,7 @@ void event_handler(int signal) {
 
 		cs_ddump(dest,len/2,"QboxHD pmt.tmp:");
 
-		pmt_id = dvbapi_parse_capmt(dest+4, (len/2)-4, -1);
+		pmt_id = dvbapi_parse_capmt(dest+4, (len/2)-4, -1, dp->d_name);
 #else
 		if (len>sizeof(dest)) {
 			cs_log("event_handler() dest buffer is to small for pmt data!");
@@ -1345,7 +1352,7 @@ void event_handler(int signal) {
 
 		memcpy(dest + 7, mbuf + 12, len - 12 - 4);
 
-		pmt_id = dvbapi_parse_capmt((uchar*)dest, 7 + len - 12 - 4, -1);
+		pmt_id = dvbapi_parse_capmt((uchar*)dest, 7 + len - 12 - 4, -1, dp->d_name);
 #endif
 		strcpy(demux[pmt_id].pmt_file, dp->d_name);
 		demux[pmt_id].pmt_time = pmt_info.st_mtime;
@@ -1736,7 +1743,7 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 			if (j==demux[i].ECMpidcount) continue;
 
 #ifdef WITH_STAPI
-			stapi_write_cw(i, er->cw, demux[i].STREAMpids, demux[i].STREAMpidcount);
+			stapi_write_cw(i, er->cw, demux[i].STREAMpids, demux[i].STREAMpidcount, demux[i].pmt_file);
 #else
 			dvbapi_write_cw(i, er->cw, demux[i].ECMpids[j].index-1);
 #endif
@@ -1947,7 +1954,7 @@ void * azbox_main(void *cli) {
 
 					memcpy(dest + 7, msg.buf + 12, msg.buf_len - 12 - 4);
 
-					dvbapi_parse_capmt(dest, 7 + msg.buf_len - 12 - 4, -1);
+					dvbapi_parse_capmt(dest, 7 + msg.buf_len - 12 - 4, -1, NULL);
 					free(dest);
 
 					unsigned char mask[12];
