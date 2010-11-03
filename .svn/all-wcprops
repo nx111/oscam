@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/3809/trunk
+/svn/oscam/!svn/ver/3812/trunk
 END
 module-cccam.h
 K 25
@@ -133,7 +133,7 @@ module-stat.c
 K 25
 svn:wc:ra_dav:version-url
 V 44
-/svn/oscam/!svn/ver/3755/trunk/module-stat.c
+/svn/oscam/!svn/ver/3811/trunk/module-stat.c
 END
 module-serial.c
 K 25
@@ -163,7 +163,7 @@ module-stat.h
 K 25
 svn:wc:ra_dav:version-url
 V 44
-/svn/oscam/!svn/ver/3705/trunk/module-stat.h
+/svn/oscam/!svn/ver/3812/trunk/module-stat.h
 END
 module-constcw.c
 K 25
@@ -181,7 +181,7 @@ oscam-config.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/3790/trunk/oscam-config.c
+/svn/oscam/!svn/ver/3812/trunk/oscam-config.c
 END
 oscam-chk.c
 K 25
@@ -253,7 +253,7 @@ oscam-http.c
 K 25
 svn:wc:ra_dav:version-url
 V 43
-/svn/oscam/!svn/ver/3804/trunk/oscam-http.c
+/svn/oscam/!svn/ver/3810/trunk/oscam-http.c
 END
 .gitignore
 K 25
@@ -265,7 +265,7 @@ oscam-http.h
 K 25
 svn:wc:ra_dav:version-url
 V 43
-/svn/oscam/!svn/ver/3806/trunk/oscam-http.h
+/svn/oscam/!svn/ver/3810/trunk/oscam-http.h
 END
 reader-irdeto.c
 K 25
@@ -283,7 +283,7 @@ globals.h
 K 25
 svn:wc:ra_dav:version-url
 V 40
-/svn/oscam/!svn/ver/3795/trunk/globals.h
+/svn/oscam/!svn/ver/3812/trunk/globals.h
 END
 reader-common.c
 K 25

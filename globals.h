@@ -254,6 +254,13 @@ extern char *RDR_CD_TXT[];
 #define CARD_INSERTED  2
 #define CARD_FAILURE   3
 
+// moved from stats
+#define DEFAULT_REOPEN_SECONDS 900
+#define DEFAULT_MIN_ECM_COUNT 5
+#define DEFAULT_MAX_ECM_COUNT 500
+#define DEFAULT_NBEST 1
+#define DEFAULT_NFB 1
+
 enum {E1_GLOBAL=0, E1_USER, E1_READER, E1_SERVER, E1_LSERVER};
 enum {E2_GLOBAL=0, E2_GROUP, E2_CAID, E2_IDENT, E2_CLASS, E2_CHID, E2_QUEUE,
       E2_EA_LEN, E2_F0_LEN, E2_OFFLINE, E2_SID};
@@ -1131,6 +1138,7 @@ struct s_config
 	char		dvbapi_usr[33];
 	int		dvbapi_boxtype;
 	int		dvbapi_pmtmode;
+	int		dvbapi_ecm_infomode;//ecm.info  format:0 oscam 1 cccam 2 
 	SIDTABBITS    dvbapi_sidtabok;	// positiv services
 	SIDTABBITS    dvbapi_sidtabno;	// negative services
 #endif
