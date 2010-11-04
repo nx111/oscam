@@ -678,6 +678,14 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 	int i;
 	//uchar dummy[1]={0x00};
 
+	if ((strcmp(getParam(params, "action"), "disable") == 0) || (strcmp(getParam(params, "action"), "enable") == 0)) {
+		rdr = get_reader_by_label(getParam(params, "label"));
+		if (strcmp(getParam(params, "action"), "enable") == 0)
+			rdr->enable = 1;
+		else
+			rdr->enable = 0;
+	}
+
 	if (strcmp(getParam(params, "action"), "delete") == 0) {
 		rdr = get_reader_by_label(getParam(params, "label"));
 		rdr->deleted = 1;
@@ -760,6 +768,16 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 					tpl_addVar(vars, 0, "ENTITLEMENT","");
 				}
 
+			}
+
+			if(rdr->enable == 0) {
+				tpl_addVar(vars, 0, "SWITCHICO", ICENA);
+				tpl_addVar(vars, 0, "SWITCHTITLE", "enable this reader");
+				tpl_addVar(vars, 0, "SWITCH", "enable");
+			} else {
+				tpl_addVar(vars, 0, "SWITCHICO", ICDIS);
+				tpl_addVar(vars, 0, "SWITCHTITLE", "disable this reader");
+				tpl_addVar(vars, 0, "SWITCH", "disable");
 			}
 
 			tpl_addVar(vars, 0, "CTYP", reader_get_type_desc(rdr, 1));
@@ -1843,7 +1861,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			tpl_printf(vars, 0, "CLIENTPORT", "%d", cl->port);
 			tpl_addVar(vars, 0, "CLIENTPROTO", monitor_get_proto(cl));
 			tpl_printf(vars, 0, "CLIENTLOGINDATE", "%02d.%02d.%02d", lt->tm_mday, lt->tm_mon+1, lt->tm_year%100);
-			tpl_printf(vars, 0, "CLIENTLOGINTIME", "%02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
+			tpl_printf(vars, 1, "CLIENTLOGINDATE", " %02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
 
 			int secs = 0, fullmins =0, mins =0, fullhours =0, hours =0, days =0;
 			if(lsec > 0) {
@@ -1942,7 +1960,23 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 				}
 				tpl_printf(vars, 0, "CLIENTCON", txt);
 			}
-			tpl_addVar(vars, 1, "CLIENTSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
+
+			// select right suborder
+			if (cl->typ == 'c') {
+				tpl_addVar(vars, 1, "CLIENTSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
+				tpl_addVar(vars, 0, "CLIENTHEADLINE", "<TR><TD CLASS=\"subheadline\" colspan=\"17\">Clients</TD></TR>\n");
+			}
+			else if (cl->typ == 'r') {
+				tpl_addVar(vars, 1, "READERSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
+				tpl_addVar(vars, 0, "READERHEADLINE", "<TR><TD CLASS=\"subheadline\" colspan=\"17\">Readers</TD></TR>\n");
+			}
+			else if (cl->typ == 'p') {
+				tpl_addVar(vars, 1, "PROXYSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
+				tpl_addVar(vars, 0, "PROXYHEADLINE", "<TR><TD CLASS=\"subheadline\" colspan=\"17\">Proxies</TD></TR>\n");
+			}
+			else
+				tpl_addVar(vars, 1, "SERVERSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
+
 		}
 		if (cl->next == NULL)
 			break;

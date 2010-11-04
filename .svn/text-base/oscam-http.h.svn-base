@@ -383,8 +383,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		<TH>Address</TH>\n\
 		<TH>Port</TH>\n\
 		<TH>Protocol</TH>\n\
-		<TH>Login Date</TH>\n\
-		<TH>Login Time</TH>\n\
+		<TH>Login</TH>\n\
 		<TH>Online</TH>\n\
 		<TH>CAID:SRVID</TH>\n\
 		<TH>Current Channel</TH>\n\
@@ -392,7 +391,13 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		<TH>Idle</TH>\n\
 		<TH>Status</TH>\n\
 		</TR>\n\
-		##CLIENTSTATUS##\
+		##SERVERSTATUS##\n\
+		##READERHEADLINE##\n\
+		##READERSTATUS##\n\
+		##PROXYHEADLINE##\n\
+		##PROXYSTATUS##\n\
+		##CLIENTHEADLINE##\n\
+		##CLIENTSTATUS##\n\
 		</TABLE><BR>\n\
 		<DIV class=\"log\">\n\
 		##LOGHISTORY##\
@@ -413,7 +418,6 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		<TD align=\"center\">##CLIENTPORT##</TD>\n\
 		<TD>##CLIENTPROTO##</TD>\n\
 		<TD align=\"center\">##CLIENTLOGINDATE##</TD>\n\
-		<TD align=\"center\">##CLIENTLOGINTIME##</TD>\n\
 		<TD align=\"center\">##CLIENTLOGINSECS##</TD>\n\
 		<TD align=\"center\">##CLIENTCAID##:##CLIENTSRVID##</TD>\n\
 		<TD>##CLIENTSRVPROVIDER####CLIENTSRVNAME##</TD>\n\
@@ -600,14 +604,14 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
   <TABLE CLASS=\"configmenu\"><TR><TD CLASS=\"configmenu\"><A HREF=\"scanusb.html\">Scan USB</A></TD></TR></TABLE><BR>\
   <TABLE CLASS=\"readers\">\n\
     <TR>\n\
-	  <TH>Delete</TH>\n\
+	  <TH>Lock</TH>\n\
       <TH>Reader</TH>\n\
       <TH>Protocol</TH>\n\
       <TH>EMM error<br><span title=\"unknown EMM\"> UK </span>/<span title=\"global EMM\"> G </span>/<span title=\"shared EMM\"> S </span>/<span title=\"unique EMM\"> UQ </span></TH>\n\
       <TH>EMM written<br><span title=\"unknown EMM\"> UK </span>/<span title=\"global EMM\"> G </span>/<span title=\"shared EMM\"> S </span>/<span title=\"unique EMM\"> UQ </span></TH>\n\
       <TH>EMM skipped<br><span title=\"unknown EMM\"> UK </span>/<span title=\"global EMM\"> G </span>/<span title=\"shared EMM\"> S </span>/<span title=\"unique EMM\"> UQ </span></TH>\n\
       <TH>EMM blocked<br><span title=\"unknown EMM\"> UK </span>/<span title=\"global EMM\"> G </span>/<span title=\"shared EMM\"> S </span>/<span title=\"unique EMM\"> UQ </span></TH>\n\
-      <TH COLSPAN=\"4\">Action</TH>\n\
+      <TH COLSPAN=\"5\">Action</TH>\n\
     </TR>\n\
     ##READERLIST##\
     <TR>\
@@ -631,14 +635,14 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 			<option>constcw</option>\
 			##ADDPROTOCOL##\
 		</select></TD>\
-		<TD COLSPAN=\"4\" align=\"center\"><input type=\"submit\" name=\"action\" value=\"Add\" ##BTNDISABLED##></TD></TR>\
+		<TD COLSPAN=\"5\" align=\"center\"><input type=\"submit\" name=\"action\" value=\"Add\" ##BTNDISABLED##></TD></TR>\
 		</form>\
   </TABLE>\n\
 ##TPLFOOTER##"
 
 #define TPLREADERSBIT "\
     <TR CLASS =\"##READERCLASS##\">\n\
-	<TD align=\"center\"><A HREF=\"readers.html?label=##READERNAMEENC##&action=delete\" TITLE=\"Delete this Reader\"><IMG SRC=\"##DELICO##\" BORDER=\"0\" ALT=\"Delete Reader\"/></A></TD>\n\
+      <TD align=\"center\"><A HREF=\"readers.html?label=##READERNAMEENC##&action=##SWITCH##\" TITLE=\"##SWITCHTITLE##\"><IMG SRC=\"##SWITCHICO##\"BORDER=\"0\" ALT=\"##SWITCHTITLE##\"/></A></TD>\n\
       <TD>##READERNAME##</TD>\n\
       <TD>##CTYP##</TD>\n\
       <TD align=\"center\">##EMMERRORUK## / ##EMMERRORG## / ##EMMERRORS## / ##EMMERRORUQ##</TD>\n\
@@ -649,6 +653,7 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
       <TD align=\"center\">##ENTITLEMENT##</TD>\n\
 	  <TD align=\"center\">##READERREFRESH##</TD>\n\
 	  <TD align=\"center\"><A HREF=\"readerstats.html?label=##READERNAMEENC##&hide=4\" TITLE=\"Show loadbalancer statistics\"><IMG SRC=\"##STATICO##\" BORDER=\"0\" ALT=\"Loadbalancer statistics\"/></A></TD>\n\
+	  <TD align=\"center\"><A HREF=\"readers.html?label=##READERNAMEENC##&action=delete\" TITLE=\"Delete this Reader\"><IMG SRC=\"##DELICO##\" BORDER=\"0\" ALT=\"Delete Reader\"/></A></TD>\n\
       </TR>\n"
 
 #define TPLREADERENTITLEBIT "<A HREF=\"entitlements.html?label=##READERNAMEENC##\" TITLE=\"Show Entitlement\"><IMG SRC=\"##ENTICO##\" BORDER=\"0\" ALT=\"Show Entitlement\"/></A>\n"
@@ -785,7 +790,7 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 #ifdef LIBUSB
 #define TPLREADERCONFIGDEVICEEPBIT "\
 	<SELECT name=\"device_out_endpoint\">\
-		<OPTION  value=\"\" ##DEVICEOUTEP0##>None</OPTION>\
+		<OPTION  value=\"\" ##DEVICEOUTEP0##>default</OPTION>\
         <OPTION  value=\"0x82\" ##DEVICEOUTEP1##>0x82 - Smargo+</OPTION>\
         <OPTION  value=\"0x81\" ##DEVICEOUTEP2##>0x81 - Infinity USB Smart</OPTION>\
      </SELECT>"

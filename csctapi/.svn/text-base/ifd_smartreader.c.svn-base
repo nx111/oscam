@@ -82,12 +82,9 @@ int SR_Init (struct s_reader *reader)
         return ret;
     }
 
-    
     //Overwrite default endpoint if config has a value for it
     if(reader->device_endpoint != 0)
-    {
     	out_endpoint = reader->device_endpoint;
-    }
     else
         out_endpoint = 0x82;
     
@@ -104,8 +101,7 @@ int SR_Init (struct s_reader *reader)
     //also a good way to compare a real FT232 with a smartreader
     //if you enumarate usb devices
     reader->sr_config->in_ep = 0x1;
-    //reader->sr_config->out_ep=out_endpoint;
-    reader->sr_config->out_ep=0x82;
+    reader->sr_config->out_ep=out_endpoint;
 
     cs_debug_mask (D_IFD,"IO:SR: Opening smartreader device %s on bus %s",devname,busname);
 
