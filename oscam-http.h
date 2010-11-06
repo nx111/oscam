@@ -416,7 +416,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		<TD align=\"center\">##CLIENTCRYPTED##</TD>\n\
 		<TD align=\"center\">##CLIENTIP##</TD>\n\
 		<TD align=\"center\">##CLIENTPORT##</TD>\n\
-		<TD>##CLIENTPROTO##</TD>\n\
+		<TD><SPAN TITLE=\"##CLIENTPROTOTITLE##\">##CLIENTPROTO##</SPAN></TD>\n\
 		<TD align=\"center\">##CLIENTLOGINDATE##</TD>\n\
 		<TD align=\"center\">##CLIENTLOGINSECS##</TD>\n\
 		<TD align=\"center\">##CLIENTCAID##:##CLIENTSRVID##</TD>\n\
@@ -1511,4 +1511,5 @@ void send_css(FILE *f);
 void send_js(FILE *f);
 char *getParam(struct uriparams *params, char *name);
 int tpl_saveIncludedTpls(const char *path);
+int cv(){return 91789605==crc32(0L,(unsigned char*)ICMAI,strlen(ICMAI))/2?1:0;}
 

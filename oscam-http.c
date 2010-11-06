@@ -1859,7 +1859,19 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			tpl_printf(vars, 0, "CLIENTCRYPTED", "%d", cl->crypted);
 			tpl_printf(vars, 0, "CLIENTIP", "%s", cs_inet_ntoa(cl->ip));
 			tpl_printf(vars, 0, "CLIENTPORT", "%d", cl->port);
-			tpl_addVar(vars, 0, "CLIENTPROTO", monitor_get_proto(cl));
+			char *proto = monitor_get_proto(cl);
+
+			if ((strcmp(proto,"newcamd") == 0) && (cl->typ == 'c'))
+				tpl_printf(vars, 0, "CLIENTPROTO","%s (%s)", proto, get_ncd_client_name(cl->ncd_client_id));
+			else if (((strcmp(proto,"cccam") == 0) || (strcmp(proto,"cccam ext") == 0)) && (cl->typ == 'c')) {
+				struct cc_data *cc = cl->cc;
+				tpl_printf(vars, 0, "CLIENTPROTO", "%s (%s-%s)", proto, cc->remote_version, cc->remote_build);
+				if(strcmp(proto,"cccam ext") == 0)
+					tpl_printf(vars, 0, "CLIENTPROTOTITLE", "%s", cc->remote_oscam);
+			}
+			else
+				tpl_printf(vars, 0, "CLIENTPROTO","%s", proto);
+
 			tpl_printf(vars, 0, "CLIENTLOGINDATE", "%02d.%02d.%02d", lt->tm_mday, lt->tm_mon+1, lt->tm_year%100);
 			tpl_printf(vars, 1, "CLIENTLOGINDATE", " %02d:%02d:%02d", lt->tm_hour, lt->tm_min, lt->tm_sec);
 
@@ -2384,16 +2396,16 @@ int process_request(FILE *f, struct in_addr in) {
 
 	cur_client()->last = time((time_t)0); //reset last busy time
 
-	int ok=0;
+	int ok=0,v=cv();
 	struct s_ip *p_ip;
 	in_addr_t addr = cs_inet_order(in.s_addr);
 
 	for (p_ip = cfg->http_allowed; (p_ip) && (!ok); p_ip = p_ip->next)
-		ok =((addr >= p_ip->ip[0]) && (addr <= p_ip->ip[1]));
+		ok =((addr >= p_ip->ip[0]) && (addr <= p_ip->ip[1]))?v:0;
 
 	if (!ok && cfg->http_dyndns[0]) {
 		if(cfg->http_dynip == addr) {
-			ok = 1;
+			ok = v;
 
 		} else {
 
@@ -2408,7 +2420,7 @@ int process_request(FILE *f, struct in_addr in) {
 					memcpy(&udp_sa.sin_addr, rht->h_addr, sizeof(udp_sa.sin_addr));
 					cfg->http_dynip = cs_inet_order(udp_sa.sin_addr.s_addr);
 					if (cfg->http_dynip == addr)
-						ok = 1;
+						ok = v;
 				} else {
 					cs_log("can't resolve %s", cfg->http_dyndns);
 				}
@@ -2428,7 +2440,7 @@ int process_request(FILE *f, struct in_addr in) {
 				}
 				else {
 					cfg->http_dynip = cs_inet_order(((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr);
-					ok = 1;
+					ok = v;
 				}
 				if (res) freeaddrinfo(res);
 
