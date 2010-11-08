@@ -60,7 +60,7 @@ static void casc_check_dcw(struct s_reader * reader, int idx, int rc, uchar *cw)
 {
   int i;
   struct s_client *cl = reader->client;
-  for (i=1; i<CS_MAXPENDING; i++)
+  for (i=0; i<CS_MAXPENDING; i++)
   {
     if ((cl->ecmtask[i].rc>=10) &&
         (!memcmp(cl->ecmtask[i].ecmd5, cl->ecmtask[idx].ecmd5, CS_ECMSTORESIZE)))
@@ -318,7 +318,7 @@ static void casc_do_sock_log(struct s_reader * reader)
   cl->last=time((time_t)0);
   if (idx<0) return;        // no dcw-msg received
 
-  for (i=1; i<CS_MAXPENDING; i++)
+  for (i=0; i<CS_MAXPENDING; i++)
   {
     if (  (cl->ecmtask[i].rc>=10)
        && (cl->ecmtask[i].idx==idx)
@@ -360,7 +360,7 @@ static void casc_do_sock(struct s_reader * reader, int w)
 //cs_log("casc_do_sock: last_s=%d, last_g=%d", reader->last_s, reader->last_g);
   if (!idx) idx=cl->last_idx;
   j=0;
-  for (i=1; i<CS_MAXPENDING; i++)
+  for (i=0; i<CS_MAXPENDING; i++)
   {
 
    if (cl->ecmtask[i].idx==idx)
@@ -405,21 +405,21 @@ int casc_process_ecm(struct s_reader * reader, ECM_REQUEST *er)
   uchar buf[512];
 
   t=time((time_t *)0);
-  for (n=0, i=sflag=1; i<CS_MAXPENDING; i++)
+  for (n=-1, i=0, sflag=1; i<CS_MAXPENDING; i++)
   {
     if ((t-(ulong)cl->ecmtask[i].tps.time > ((cfg->ctimeout + 500) / 1000) + 1) &&
         (cl->ecmtask[i].rc>=10))      // drop timeouts
         {
           cl->ecmtask[i].rc=0;
         }
-    if ((!n) && (cl->ecmtask[i].rc<10))   // free slot found
+    if (n<0 && (cl->ecmtask[i].rc<10))   // free slot found
       n=i;
     if ((cl->ecmtask[i].rc>=10) &&      // ecm already pending
         (!memcmp(er->ecmd5, cl->ecmtask[i].ecmd5, CS_ECMSTORESIZE)) &&
         (er->level<=cl->ecmtask[i].level))    // ... this level at least
       sflag=0;
   }
-  if (!n)
+  if (n<0)
   {
     cs_log("WARNING: ecm pending table overflow !!");
     return(-2);
@@ -756,6 +756,19 @@ void reader_do_card_info(struct s_reader * reader)
       	reader->ph.c_card_info();
 }
 
+void clear_reader_pipe(struct s_reader * reader)
+{
+	uchar *ptr;
+	int pipeCmd;
+	while (reader && reader->client && reader->client->fd_m2c_c)
+	{
+		pipeCmd = read_from_pipe(reader->client->fd_m2c_c, &ptr, 0);
+		if (ptr) free(ptr);
+		if (pipeCmd==PIP_ID_ERR || pipeCmd==PIP_ID_NUL)
+			break;
+	}
+}
+
 static void reader_do_pipe(struct s_reader * reader)
 {
   uchar *ptr;
@@ -816,7 +829,7 @@ void * start_cardreader(void * rdr)
     reader->client->typ='p';
     reader->client->port=reader->r_port;
     strcpy(reader->client->usr, reader->r_usr);
-    cs_log("proxy thread started  (thread=%8X, server=%s)",pthread_self(), reader->device);
+    cs_log("proxy thread started  (thread=%8X, label=%s, server=%s)",pthread_self(), reader->label, reader->device);
     
     if (!(reader->ph.c_init)) {
       cs_log("FATAL: %s-protocol not supporting cascading", reader->ph.desc);
@@ -837,13 +850,13 @@ void * start_cardreader(void * rdr)
   {
     reader->client->ip=cs_inet_addr("127.0.0.1");
 		if (reader->typ != R_SC8in1) {
-      cs_log("reader thread started (thread=%8X, device=%s, detect=%s%s, mhz=%d, cardmhz=%d)", pthread_self(), 
+      cs_log("reader thread started (thread=%8X, label=%s, device=%s, detect=%s%s, mhz=%d, cardmhz=%d)", pthread_self(), reader->label,
         reader->device, reader->detect&0x80 ? "!" : "",RDR_CD_TXT[reader->detect&0x7f], reader->mhz,reader->cardmhz);
      	while (reader_device_init(reader)==2)
       	cs_sleepms(60000); // wait 60 secs and try again
 		}
 		else {
-      cs_log("reader thread started (thread=%8X, device=%s:%i, detect=%s%s, mhz=%d, cardmhz=%d)", pthread_self(), 
+      cs_log("reader thread started (thread=%8X, label=%s, device=%s:%i, detect=%s%s, mhz=%d, cardmhz=%d)", pthread_self(), reader->label,
         reader->device, reader->slot,reader->detect&0x80 ? "!" : "", RDR_CD_TXT[reader->detect&0x7f], reader->mhz,reader->cardmhz);
 		}
   }

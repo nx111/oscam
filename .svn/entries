@@ -1,15 +1,15 @@
 10
 
 dir
-3840
+3849
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-11-05T23:16:21.774684Z
-3840
-alno
+2010-11-07T20:18:57.768764Z
+3849
+schlocke
 has-props
 
 
@@ -75,10 +75,10 @@ file
 
 
 
-2010-11-06T10:14:46.987410Z
-0ad388c722672de8bbdb97f235468377
-2010-11-05T21:50:02.052599Z
-3835
+2010-11-08T02:03:00.346064Z
+d2626430f9756281ad6a72345b0eacbd
+2010-11-06T20:59:05.643535Z
+3844
 schlocke
 
 
@@ -101,7 +101,7 @@ schlocke
 
 
 
-3860
+3881
 
 Distribution
 dir
@@ -418,6 +418,9 @@ alno
 
 10689
 
+toolchains
+dir
+
 module-obj-llist.c
 file
 
@@ -451,9 +454,6 @@ dingo35
 
 
 3091
-
-toolchains
-dir
 
 oscam-ac.c
 file
@@ -581,40 +581,6 @@ rebdog
 
 1625
 
-Makefile
-file
-
-
-
-
-2010-10-25T12:19:59.742119Z
-5d11f2e372352e703a6ef0d3144e9d1f
-2010-10-25T08:02:55.704722Z
-3716
-cogsi
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-25451
-
 CMakeLists.txt
 file
 
@@ -649,17 +615,39 @@ alno
 
 27770
 
-module-dvbapi.h
+Makefile
 file
 
 
 
 
+2010-10-25T12:19:59.742119Z
+5d11f2e372352e703a6ef0d3144e9d1f
+2010-10-25T08:02:55.704722Z
+3716
+cogsi
 
-8a2713b2c4613f619268a4b6a6cbc785
-2010-11-02T20:55:21.619019Z
-3809
-_network
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+25451
 
 config.sh
 file
@@ -673,6 +661,18 @@ c3bc1816ffb9b212149c13ba7e8e772c
 3785
 alno
 has-props
+
+module-dvbapi.h
+file
+
+
+
+
+
+8a2713b2c4613f619268a4b6a6cbc785
+2010-11-02T20:55:21.619019Z
+3809
+_network
 
 module-stat.c
 file
@@ -708,6 +708,52 @@ alno
 
 15448
 
+oscam-reader.c
+file
+
+
+
+
+2010-11-08T02:03:00.346064Z
+097b8dbe001d436df82fb9fdeeff4c82
+2010-11-07T20:18:57.768764Z
+3849
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+23569
+
+oscam.c
+file
+
+
+
+
+
+624c5744642c8b2b7fc3b24a447c505c
+2010-11-06T20:59:05.643535Z
+3844
+schlocke
+
 module-serial.c
 file
 
@@ -742,28 +788,16 @@ dingo35
 
 28204
 
-oscam.c
+module-stat.h
 file
 
 
 
 
-
-942666f11245467570b23786dd48fa3f
-2010-11-04T22:52:44.515857Z
-3829
-rorothetroll
-
-oscam-reader.c
-file
-
-
-
-
-2010-10-31T23:50:29.629894Z
-77589a9e2a4b76c0defab189a17b8ccc
-2010-10-31T11:52:19.862922Z
-3785
+2010-11-03T14:00:59.492967Z
+c596dfa96924ad727eee43e7eaaeba7b
+2010-11-03T13:57:07.026464Z
+3812
 alno
 
 
@@ -786,7 +820,7 @@ alno
 
 
 
-23198
+532
 
 reader-tongfang.c
 file
@@ -821,40 +855,6 @@ lattjo
 
 
 5068
-
-module-stat.h
-file
-
-
-
-
-2010-11-03T14:00:59.492967Z
-c596dfa96924ad727eee43e7eaaeba7b
-2010-11-03T13:57:07.026464Z
-3812
-alno
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-532
 
 module-constcw.c
 file
@@ -897,9 +897,9 @@ file
 
 
 
-284053c01f62441334feb755cd78c6d5
-2010-11-04T08:39:25.925789Z
-3817
+53f8fbfe622d4d76b88c1a5d1fe59fd4
+2010-11-06T19:12:05.358082Z
+3843
 alno
 
 oscam-chk.c
@@ -1081,10 +1081,10 @@ file
 
 
 
-2010-11-06T10:14:46.995410Z
-8ad95c212cd5be4c4d9d56888809131c
-2010-11-05T08:33:11.816084Z
-3832
+2010-11-08T02:03:00.354064Z
+6ba732aee8eee3dce2689412266e8e64
+2010-11-07T19:33:43.200327Z
+3848
 alno
 
 
@@ -1107,7 +1107,7 @@ alno
 
 
 
-19911
+19941
 
 reader-videoguard2.c
 file
@@ -1288,10 +1288,10 @@ file
 
 
 
-2010-11-06T10:14:46.999410Z
-db10913046868a4c52bff17252624035
-2010-11-05T23:13:42.468272Z
-3839
+2010-11-08T02:03:00.354064Z
+ce12c8404afd4c7a20a95ea355ddcdba
+2010-11-06T19:12:05.358082Z
+3843
 alno
 
 
@@ -1314,7 +1314,7 @@ alno
 
 
 
-95656
+95768
 
 utils
 dir
@@ -1328,10 +1328,10 @@ file
 
 
 
-2010-11-06T10:14:46.999410Z
-e6159737686ae83224c4340113a0e071
-2010-11-05T23:16:21.774684Z
-3840
+2010-11-08T02:03:00.358064Z
+5a599d775f864e93c9eaaf14c3106a4d
+2010-11-06T19:12:05.358082Z
+3843
 alno
 
 
@@ -1354,7 +1354,7 @@ alno
 
 
 
-81511
+81512
 
 .gitignore
 file
@@ -1533,10 +1533,10 @@ file
 
 
 
-ed912dcb42c107d43f76a63501ac4e5a
-2010-11-05T11:55:35.307141Z
-3833
-alno
+0c31c59c862ef6f29a5528e06651634c
+2010-11-06T20:59:05.643535Z
+3844
+schlocke
 
 module-cccam.c
 file
@@ -1545,9 +1545,9 @@ file
 
 
 
-aadbf14d42d6ea725dd59ef3e6cae0f5
-2010-11-05T23:03:52.994668Z
-3838
+41ed613faa233e510e2f27247f5541e5
+2010-11-07T19:26:56.547659Z
+3847
 schlocke
 has-props
 

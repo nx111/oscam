@@ -309,7 +309,7 @@ void send_oscam_config_newcamd(struct templatevars *vars, FILE *f, struct uripar
 	if ((cfg->ncd_ptab.nports > 0) && (cfg->ncd_ptab.ports[0].s_port > 0)) {
 		dot1 = "";
 		for(i = 0; i < cfg->ncd_ptab.nports; ++i) {
-			tpl_printf(vars, 1, "PORT", "%s%d@%04X", dot1, cfg->ncd_ptab.ports[i].s_port, cfg->ncd_ptab.ports[i].ftab.filts[0].caid);
+			tpl_printf(vars, 1, "PORT", "%s%d", dot1, cfg->ncd_ptab.ports[i].s_port);
 
 			// separate DES Key
 			if(cfg->ncd_ptab.ports[i].ncd_key_is_set){
@@ -319,6 +319,8 @@ void send_oscam_config_newcamd(struct templatevars *vars, FILE *f, struct uripar
 					tpl_printf(vars, 1, "PORT", "%02X", cfg->ncd_ptab.ports[i].ncd_key[k]);
 				tpl_printf(vars, 1, "PORT", "}");
 			}
+
+			tpl_printf(vars, 1, "PORT", "@%04X", cfg->ncd_ptab.ports[i].ftab.filts[0].caid);
 
 			if (cfg->ncd_ptab.ports[i].ftab.filts[0].nprids > 0) {
 				tpl_printf(vars, 1, "PORT", ":");
@@ -1868,6 +1870,8 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 				tpl_printf(vars, 0, "CLIENTPROTO", "%s (%s-%s)", proto, cc->remote_version, cc->remote_build);
 				if(strcmp(proto,"cccam ext") == 0)
 					tpl_printf(vars, 0, "CLIENTPROTOTITLE", "%s", cc->remote_oscam);
+				else
+					tpl_addVar(vars, 0, "CLIENTPROTOTITLE", ""); //unset tpl var
 			}
 			else
 				tpl_printf(vars, 0, "CLIENTPROTO","%s", proto);
