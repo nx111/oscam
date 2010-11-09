@@ -292,6 +292,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 	<TABLE border=0 class=\"configmenu\">\n\
 		<TR>\n\
 			<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=version\">oscam.version</TD>\n\
+			<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=dvbapi\">oscam.dvbapi</TD>\n\
 			<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=conf\">oscam.conf</TD>\n\
 			<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=user\">oscam.user</TD>\n\
 			<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=server\">oscam.server</TD>\n\
@@ -674,7 +675,9 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 	<TABLE CLASS=\"stats\">\n\
 	<TR><TH colspan=\"6\"> Loadbalance statistics for reader ##LABEL##</TH></TR>\n\
 	<TR><TH>Channel</TH><TH>Channelname</TH><TH>Result</TH><TH>Time</TH><TH>Count</TH><TH>Last checked/ found</TH></TR>\n\
-    ##READERSTATSROW##\n\
+    ##READERSTATSROWFOUND##\n\
+    ##READERSTATSNFHEADLINE##\n\
+    ##READERSTATSROWNOTFOUND##\n\
 	</TABLE>\n\
 ##TPLFOOTER##"
 

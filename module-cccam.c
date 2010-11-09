@@ -548,8 +548,9 @@ int cc_get_nxt_ecm(struct s_client *cl) {
  * sends the secret cmd05 answer to the server 
  */
 int send_cmd05_answer(struct s_client *cl) {
+	struct s_reader *rdr = cl->reader;
 	struct cc_data *cc = cl->cc;
-	if (!cc->cmd05_active) //exit if not in cmd05 or waiting for ECM answer
+	if (!cc->cmd05_active || !rdr->available) //exit if not in cmd05 or waiting for ECM answer
 		return 0;
 
 	cc->cmd05_active--;
@@ -1336,10 +1337,18 @@ void cc_idle() {
 		return;
 	ulong timeout=(rdr->cc_keepalive < 60 )? 60:rdr->cc_keepalive;
 	timeout=(timeout < cfg->cmaxidle - 10)? timeout: cfg->cmaxidle - 10;
-	if (rdr->cc_keepalive && cc->answer_on_keepalive + timeout < (ulong)time(NULL)) {
-		cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE);
-		cs_debug("cccam: keepalive");
-		cc->answer_on_keepalive = time(NULL);
+	if (rdr->cc_keepalive) {
+		if (cc->answer_on_keepalive + timeout < (ulong)time(NULL)) {
+			cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE);
+			cs_debug("cccam: keepalive");
+			cc->answer_on_keepalive = time(NULL);
+		}
+	}
+	else
+	{
+		int rto = abs(rdr->last_s - rdr->last_g);
+		if (rto >= (rdr->tcp_rto*60))
+			network_tcp_connection_close(cl, cl->udp_fd);
 	}
 	cs_debug_mask(D_FUT, "cc_idle out");
 }
@@ -1864,7 +1873,8 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 			cc->cmd05_active = 1;
 			cc->cmd05_data_len = l;
 			memcpy(&cc->cmd05_data, buf + 4, l);
-			send_cmd05_answer(cl);
+			if (rdr->available)
+				send_cmd05_answer(cl);
 		}
 		break;
 	case MSG_CMD_0B: {
@@ -2832,7 +2842,7 @@ int cc_srv_connect(struct s_client *cl) {
 			cmi = 0;
 			update_cards = 1;
 		}
-
+		                                                        
 		if (update_cards) {
 			if (!cc->server_ecm_pending) {
 				struct timeb timeout;
@@ -3109,8 +3119,8 @@ int cc_cli_init_int(struct s_client *cl) {
 	cl->udp_sa.sin_family = AF_INET;
 	cl->udp_sa.sin_port = htons((u_short) rdr->r_port);
 
-	if (rdr->tcp_rto <= 60)
-		rdr->tcp_rto = 120; // timeout to 120s
+	if (rdr->tcp_rto <= 2)
+		rdr->tcp_rto = 2; // timeout to 120s
 	cs_debug("cccam: timeout set to: %d", rdr->tcp_rto);
 	cc_check_version(rdr->cc_version, rdr->cc_build);
 	cs_log("proxy reader: %s (%s:%d) cccam v%s build %s, maxhop: %d",
@@ -3127,10 +3137,10 @@ int cc_cli_init(struct s_client *cl) {
 	if (res == 0 && reader && (reader->cc_keepalive || !cl->cc) && !reader->tcp_connected) {
 		cc_cli_connect(cl);
 		while (!reader->tcp_connected && reader->cc_keepalive && cfg->reader_restart_seconds > 0) {
-			cs_log("%s restarting reader in %d seconds", getprefix(), cfg->reader_restart_seconds);
+			cs_log("%s restarting reader in %d seconds", reader->label, cfg->reader_restart_seconds);
 			cs_sleepms(cfg->reader_restart_seconds*1000);
-			cs_log("%s restarting reader...", getprefix());
-			clear_reader_pipe(reader); //this avoids full running reader queues
+			cs_log("%s restarting reader...", reader->label);
+			//clear_reader_pipe(reader); //_n: bytes_available() in read_from_pipe blocks indefinitely
 			cc_cli_connect(cl);	
 		}
 	}

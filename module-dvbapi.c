@@ -290,6 +290,8 @@ void dvbapi_start_emm_filter(int demux_index) {
 
 	int filter_count=dmx_filter[1];
 
+	cs_debug("start %d emm filter for %s", filter_count, demux[demux_index].rdr->label);
+
 	for (j=1;j<=filter_count && j < 8;j++) {
 		int startpos=2+(34*(j-1));
 
@@ -301,8 +303,8 @@ void dvbapi_start_emm_filter(int demux_index) {
 		int emmtype=dmx_filter[startpos];
 		int count=dmx_filter[startpos+1];
 
-		cs_debug_mask(D_EMM, "dvbapi: starting emm filter %s, pid: 0x%04X", typtext[emmtype], demux[demux_index].ECMpids[demux[demux_index].pidindex].EMM_PID);
-		cs_ddump_mask(D_EMM, filter, 32, "demux filter:");
+		cs_debug("starting emm filter %s, pid: 0x%04X", typtext[emmtype], demux[demux_index].ECMpids[demux[demux_index].pidindex].EMM_PID);
+		cs_ddump(filter, 32, "demux filter:");
 		dvbapi_set_filter(demux_index, selected_api, demux[demux_index].ECMpids[demux[demux_index].pidindex].EMM_PID, filter, filter+16, 0, demux[demux_index].pidindex, count, TYPE_EMM);
 	}
 
@@ -1521,7 +1523,7 @@ void * dvbapi_main_local(void *cli) {
 
 	pthread_mutexattr_t attr;
 	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&event_handler_lock, &attr);
 
 	dir_fd = open(TMPDIR, O_RDONLY);
@@ -1767,8 +1769,14 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 			   	else if(cfg->dvbapi_ecm_infomode == 1){	//cccam
 					fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
 					fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
-					if (er->selected_reader->typ & R_IS_CASCADING)
-						fprintf(ecmtxt, "address: %s\n", er->selected_reader->device);
+					if (er->selected_reader->typ & R_IS_CASCADING){
+						fprintf(ecmtxt, "address: %s", er->selected_reader->device);
+						if(er->selected_reader->r_port)
+							fprintf(ecmtxt, ":%d", er->selected_reader->r_port);
+						if(er->selected_reader->l_port)
+							fprintf(ecmtxt, ":%d", er->selected_reader->l_port);
+						fprintf(ecmtxt,"\n");
+					}
 					else
 						fprintf(ecmtxt, "address: local\n");
 					fprintf(ecmtxt, "using: %s\n", er->selected_reader->ph.desc);
