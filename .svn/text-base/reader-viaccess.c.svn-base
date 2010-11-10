@@ -161,23 +161,41 @@ static int unlock_parental(struct s_reader * reader)
 
 static int viaccess_card_init(struct s_reader * reader, ATR newatr)
 {
-  get_atr;
-  def_resp;
-  int i;
-  uchar buf[256];
-  uchar insac[] = { 0xca, 0xac, 0x00, 0x00, 0x00 }; // select data
-  uchar insb8[] = { 0xca, 0xb8, 0x00, 0x00, 0x00 }; // read selected data
-  uchar insa4[] = { 0xca, 0xa4, 0x00, 0x00, 0x00 }; // select issuer
-  uchar insc0[] = { 0xca, 0xc0, 0x00, 0x00, 0x00 }; // read data item
+    get_atr;
+    def_resp;
+    int i;
+    uchar buf[256];
+    uchar insac[] = { 0xca, 0xac, 0x00, 0x00, 0x00 }; // select data
+    uchar insb8[] = { 0xca, 0xb8, 0x00, 0x00, 0x00 }; // read selected data
+    uchar insa4[] = { 0xca, 0xa4, 0x00, 0x00, 0x00 }; // select issuer
+    uchar insc0[] = { 0xca, 0xc0, 0x00, 0x00, 0x00 }; // read data item
+    static const uchar insFAC[] = { 0x87, 0x02, 0x00, 0x00, 0x03 }; // init FAC
+    static const uchar FacDat[] = { 0x00, 0x00, 0x28 };
+    static unsigned char ins8702_data[] = { 0x00, 0x00, 0x11};
+    static unsigned char ins8704[] = { 0x87, 0x04, 0x00, 0x00, 0x07 };
+    static unsigned char ins8706[] = { 0x87, 0x06, 0x00, 0x00, 0x04 };
 
-  static const uchar insFAC[] = { 0x87, 0x02, 0x00, 0x00, 0x03 }; // init FAC
-  static const uchar FacDat[] = { 0x00, 0x00, 0x28 };
 
-  if ((atr[0]!=0x3f) || (atr[1]!=0x77) || ((atr[2]!=0x18) && (atr[2]!=0x11) && (atr[2]!=0x19)) || (atr[9]!=0x68)) return ERROR;
+    if ((atr[0]!=0x3f) || (atr[1]!=0x77) || ((atr[2]!=0x18) && (atr[2]!=0x11) && (atr[2]!=0x19)) || (atr[9]!=0x68)) 
+        return ERROR;
+    
+    write_cmd(insFAC, FacDat);
+    if( !(cta_res[cta_lr-2]==0x90 && cta_res[cta_lr-1]==0) )
+        return ERROR;
 
-  write_cmd(insFAC, FacDat);
-  if( !(cta_res[cta_lr-2]==0x90 && cta_res[cta_lr-1]==0) )
-    return ERROR;
+    reader->last_geo.number_ecm = 0;
+    write_cmd(insFAC, ins8702_data);
+    if ((cta_res[cta_lr-2]==0x90) && (cta_res[cta_lr-1]==0x00)) {
+        write_cmd(ins8704, NULL);
+        if ((cta_res[cta_lr-2]==0x90) && (cta_res[cta_lr-1]==0x00)) {
+            write_cmd(ins8706, NULL);
+            if ((cta_res[cta_lr-2]==0x90) && (cta_res[cta_lr-1]==0x00)) {
+                reader->last_geo.number_ecm =(cta_res[2]<<8) | (cta_res[3]);
+                cs_log("[viaccess-reader] using ecm #%x for long viaccess ecm",reader->last_geo.number_ecm);
+            }
+        }
+    }
+
 
 //  switch((atr[atrsize-4]<<8)|atr[atrsize-3])
 //  {
@@ -229,15 +247,15 @@ cs_log("[viaccess-reader] name: %s", cta_res);
   reader->nprov=i;
   cs_ri_log(reader, "providers: %d (%s)", reader->nprov, buf+1);
 
-  /* init the maybe existing aes key */
-  aes_set_key((char *)reader->aes_key);
+    /* init the maybe existing aes key */
+    aes_set_key((char *)reader->aes_key);
+    
+    if (cfg->ulparent)
+        unlock_parental(reader);
 
-  if (cfg->ulparent)
-    unlock_parental(reader);
-
-  cs_log("[viaccess-reader] ready for requests");
-  memset(&reader->last_geo, 0, sizeof(reader->last_geo));
-  return OK;
+    cs_log("[viaccess-reader] ready for requests");
+    memset(&reader->last_geo, 0, sizeof(reader->last_geo));
+    return OK;
 }
 
 bool check_crc( uchar *data )
@@ -274,6 +292,8 @@ static int viaccess_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
   uchar keyToUse=0;
   uchar DE04[256];
   int D2KeyID=0;
+  int curnumber_ecm=0;
+
   memset(DE04, 0, sizeof(DE04)); //fix dorcel de04 bug
 
   nextEcm=ecm88Data;
@@ -311,6 +331,7 @@ static int viaccess_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
     else
         hasD2 = 0;
 
+
     // 40 07 03 0b 00  -> nano 40, len =7  ident 030B00 (tntsat), key #0  <== we're pointing here
     // 09 -> use key #9 
     // 05 67 00
@@ -322,7 +343,27 @@ static int viaccess_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
         int ecmf8Len=0;
 
         nanoLen=ecm88Data[1] + 2;
+        curnumber_ecm =(ecm88Data[6]<<8) | (ecm88Data[7]);
+        keynr=ecm88Data[4]&0x0F;        
+
+        // 40 07 03 0b 00  -> nano 40, len =7  ident 030B00 (tntsat), key #0  <== we're pointing here
+        // 09 -> use key #9 
+        if(nanoLen>5) {
+            if( reader->last_geo.number_ecm > 0 && reader->last_geo.number_ecm ==curnumber_ecm ) {
+    
+                keyToUse=ecm88Data[5];
+                keynr=keyToUse;
+                cs_debug("keyToUse = %d",keyToUse);
+            }
+            else
+            {
+                ecm88Data=nextEcm;
+                ecm88Len-=curEcm88len;
+                continue; //loop to next ecm
+            }
         
+        }
+
         memcpy (ident, &ecm88Data[2], sizeof(ident));
         provid = b2i(3, ident);
         ident[2]&=0xF0;
@@ -330,18 +371,10 @@ static int viaccess_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
         if(hasD2 && reader->aes_list) {
             // check that we have the AES key to decode the CW
             // if not there is no need to send the ecm to the card
-            if(!aes_present(reader->aes_list, 0x500, (uint32) provid, D2KeyID))
+            if(!aes_present(reader->aes_list, 0x500, (uint32) (provid & 0xFFFFF0) , D2KeyID))
                 return ERROR;
         }
 
-        keynr=ecm88Data[4]&0x0F;
-        // 40 07 03 0b 00  -> nano 40, len =7  ident 030B00 (tntsat), key #0  <== we're pointing here
-        // 09 -> use key #9 
-        if(nanoLen>5) {
-            keyToUse=ecm88Data[5];
-            keynr=keyToUse;
-            cs_debug("keyToUse = %d",keyToUse);
-        }
 
         if (!chk_prov(reader, ident, keynr))
         {
@@ -439,10 +472,10 @@ static int viaccess_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
 
   if ( hasD2 && !check_crc(er->cw)) {
     if(reader->aes_list) {
-        cs_debug("Decoding CW : using AES key id %d for provider %06x",D2KeyID,provid);
-        rc=aes_decrypt_from_list(reader->aes_list,0x500, (uint32) provid, D2KeyID,er->cw, 16);
+        cs_debug("Decoding CW : using AES key id %d for provider %06x",D2KeyID, (provid & 0xFFFFF0));
+        rc=aes_decrypt_from_list(reader->aes_list,0x500, (uint32) (provid & 0xFFFFF0), D2KeyID,er->cw, 16);
         if( rc == 0 )
-            snprintf( er->msglog, MSGLOGSIZE, "AES Decrypt : key id %d not found for CAID %04X , provider %06lx", D2KeyID, 0x500, provid & 0xFFFFF0 );
+            snprintf( er->msglog, MSGLOGSIZE, "AES Decrypt : key id %d not found for CAID %04X , provider %06lx", D2KeyID, 0x500, (provid & 0xFFFFF0) );
     }
     else
         aes_decrypt(er->cw, 16);

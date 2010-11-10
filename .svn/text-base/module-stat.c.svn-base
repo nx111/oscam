@@ -280,13 +280,12 @@ void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int e
 	if (stat->ecm_count < 0)
 		stat->ecm_count=0;
 		
-	stat->request_count = 0;
-		
 	if (rc == 0 || rc == 3) {
 		stat->rc = 0;
 		stat->ecm_count++;
 		stat->time_idx++;
 		stat->last_received = time(NULL);
+		stat->request_count = 0;
 		
 		//FASTEST READER:
 		if (stat->time_idx >= LB_MAX_STAT_TIME)
@@ -313,6 +312,9 @@ void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int e
 		stat->rc = rc;
 		//stat->ecm_count = 0; Keep ecm_count!
 		clear_from_cache(caid);
+	}
+	else if (rc == 5) { //timeout
+		stat->request_count++;
 	}
 
 	//cs_debug_mask(D_TRACE, "adding stat for reader %s (%d): rc %d caid %04hX prid %06lX srvid %04hX time %dms usagelevel %d",
@@ -408,21 +410,19 @@ int get_best_reader(ECM_REQUEST *er)
 				
 			if (stat->rc == 0 && stat->ecm_count < cfg->lb_min_ecmcount) {
 				cs_debug_mask(D_TRACE, "loadbalancer: reader %s needs more statistics", rdr->label);
-				stat->request_count++;
-				//algo for finding unanswered requests (newcamd reader for example:)
-				if (stat->request_count > cfg->lb_min_ecmcount) { //5 unanswered requests? 
-					add_stat(rdr, er->caid, er->prid, er->srvid, 1, 4); //reader marked as unuseable 
-					result[i] = 0;
-				}
-				else
-					result[i] = 1; //need more statistics!
+				result[i] = 1; //need more statistics!
+				continue;
+			}
+			
+			if (stat->rc == 0 && stat->request_count > cfg->lb_min_ecmcount) { // 5 unanswered requests or timeouts?
+				add_stat(rdr, er->caid, er->prid, er->srvid, 1, 4); //reader marked as unuseable 
+				result[i] = 0;
 				continue;
 			}
 				
 
 			//Reader can decode this service (rc==0) and has lb_min_ecmcount ecms:
 			if (stat->rc == 0) {
-					
 				switch (cfg->lb_mode) {
 				default:
 				case LB_NONE:
@@ -517,7 +517,7 @@ int get_best_reader(ECM_REQUEST *er)
 				break;
 		}
 	}
-	
+
 	if (n)
 		memcpy(er->matching_rdr, result, sizeof(result));
 #ifdef WITH_DEBUG 
@@ -532,6 +532,21 @@ int get_best_reader(ECM_REQUEST *er)
 		er->matching_rdr[8], er->matching_rdr[9], er->matching_rdr[10], er->matching_rdr[11], 
 		er->matching_rdr[12], er->matching_rdr[13], er->matching_rdr[14], er->matching_rdr[15]);
 #endif	
+
+	for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {
+		if (result[i] == 1) { //primary readers
+			stat = get_stat(rdr, er->caid, er->prid, er->srvid);
+			if (stat) {
+				stat->request_count++;
+				//algo for finding unanswered requests (newcamd reader for example:)
+				if (stat->request_count > cfg->lb_min_ecmcount) { //5 unanswered requests? 
+					add_stat(rdr, er->caid, er->prid, er->srvid, 1, 4); //reader marked as unuseable 
+					result[i] = 0;
+				}
+			}
+		}	
+	}
+	
 	add_send_cache(er->caid, er->ecmd5, er->matching_rdr, best_rdr, er->client->grp); //add to cache
 	
 	if (new_nulltime.time)

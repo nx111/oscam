@@ -341,7 +341,7 @@ int cc_msg_recv(struct s_client *cl, uint8 *buf) {
 	}
 
 	cc_crypt(&cc->block[DECRYPT], netbuf, 4, DECRYPT);
-	cs_ddump(netbuf, 4, "cccam: decrypted header:");
+	//cs_ddump(netbuf, 4, "cccam: decrypted header:");
 
 	cc->g_flag = netbuf[0];
 
@@ -408,11 +408,11 @@ int cc_cmd_send(struct s_client *cl, uint8 *buf, int len, cc_msg_type_t cmd) {
 	cc_crypt(&cc->block[ENCRYPT], netbuf, len, ENCRYPT);
 
 	n = send(cl->udp_fd, netbuf, len, 0);
-	if (cl->typ != 'c')
+	if (rdr)
 		rdr->last_s = time(NULL);
 
 	if (n != len) {
-		if (cl->typ == 'c')
+		if (!rdr)
 			cs_disconnect_client(cl);
 		else
 			cc_cli_close(cl);
@@ -509,7 +509,7 @@ int cc_send_srv_data(struct s_client *cl) {
  * retrieves the next waiting ecm request
  */
 int cc_get_nxt_ecm(struct s_client *cl) {
-	int n, i, j, found;
+	int n, i;
 	time_t t;
 
 	t = time(NULL);
@@ -523,20 +523,23 @@ int cc_get_nxt_ecm(struct s_client *cl) {
 
 		if (cl->ecmtask[i].rc >= 10 && cl->ecmtask[i].rc != 101) { // stil active and waiting
 			// search for the ecm with the lowest time, this should be the next to go
-			if ((n < 0 || cl->ecmtask[n].tps.time - cl->ecmtask[i].tps.time < 0)
-					&& &cl->ecmtask[n]) {
+			if (n < 0 || cl->ecmtask[n].tps.time - cl->ecmtask[i].tps.time < 0) {
 					
 				//check for already pending:
-				found=0;
-				for (j=0;j<CS_MAXPENDING;j++) {
-					if (i!=j && cl->ecmtask[j].rc == 101) {
-						if (cl->ecmtask[i].ecmd5==cl->ecmtask[j].ecmd5) {
+				if (((struct cc_data*)cl->cc)->extended_mode) {
+					int j,found;
+					for (found=j=0;j<CS_MAXPENDING;j++) {
+						if (i!=j && cl->ecmtask[j].rc == 101 &&
+							cl->ecmtask[i].caid==cl->ecmtask[j].caid &&
+							cl->ecmtask[i].ecmd5==cl->ecmtask[j].ecmd5) {
 							found=1;
 							break;
 						}
 					}
+					if (!found)
+						n = i;
 				}
-				if (!found)
+				else
 					n = i;
 			}
 		}
@@ -1237,7 +1240,7 @@ int cc_free_reported_carddata(struct s_client *cl, LLIST *reported_carddatas,
 	return i;
 }
 
-void cc_free_cardlist(LLIST *card_list) {
+void cc_free_cardlist(LLIST *card_list, int destroy_list) {
 	if (card_list) {
 		LL_ITER *it = ll_iter_create(card_list);
 		struct cc_card *card;
@@ -1246,8 +1249,8 @@ void cc_free_cardlist(LLIST *card_list) {
 			ll_iter_remove(it);
 		}
 		ll_iter_release(it);
-		ll_destroy_data(card_list);
-		card_list = NULL;
+		if (destroy_list)
+			ll_destroy_data(card_list);
 	}
 }
 
@@ -1260,7 +1263,7 @@ void cc_free(struct s_client *cl) {
 		return;
 
 	cs_debug_mask(D_FUT, "cc_free in");
-	cc_free_cardlist(cc->cards);
+	cc_free_cardlist(cc->cards, TRUE);
 	cc_free_reported_carddata(cl, cc->reported_carddatas, 0);
 	ll_destroy_data(cc->pending_emms);
 	free_current_cards(cc->current_cards);
@@ -1296,15 +1299,7 @@ int is_null_dcw(uint8 *dcw) {
  }
  return 0;
  }
-
- void fix_dcw(uchar *dcw)
- {
- int i;
- for (i=0; i<16; i+=4)
- {
- dcw[i+3] = (dcw[i] + dcw[i+1] + dcw[i+2]) & 0xFF;
- }
- }*/
+*/
 
 int check_extended_mode(struct s_client *cl, char *msg) {
 	//Extended mode: if PARTNER String is ending with [EXT], extended mode is activated
@@ -1489,6 +1484,23 @@ void move_card_to_end(struct s_client * cl, struct cc_card *card_to_move) {
 	}
 }
 
+void check_peer_changed(struct cc_data *cc, uint8 *node_id, uint8 *version) {
+	if (memcmp(cc->peer_node_id, node_id, 8) != 0 || memcmp(cc->peer_version, version, 8) != 0) {
+		//Remote Id has changed, clear cached data:
+		cc_free_cardlist(cc->cards, FALSE);
+		free_current_cards(cc->current_cards);
+	}
+}
+
+void fix_dcw(uchar *dcw)
+{
+	int i;
+	for (i=0; i<16; i+=4)
+	{
+		dcw[i+3] = (dcw[i] + dcw[i+1] + dcw[i+2]) & 0xFF;
+	}
+}
+
 int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 	cs_debug_mask(D_FUT, "cc_parse_msg in %d", buf[1]);
 	struct s_reader *rdr = (cl->typ == 'c') ? NULL : cl->reader;
@@ -1511,6 +1523,8 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 		data = (uint8*) &cc->receive_buffer;
 
 		if (l == 0x48) { //72 bytes: normal server data
+			check_peer_changed(cc, data, data+8);
+			
 			memcpy(cc->peer_node_id, data, 8);
 			memcpy(cc->peer_version, data + 8, 8);
 
@@ -1806,10 +1820,11 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 					if (!cc->extended_mode)
 						cc_cw_crypt(cl, buf + 4, card->id);
 					memcpy(cc->dcw, buf + 4, 16);
+					fix_dcw(cc->dcw);
 					if (!cc->extended_mode)
 						cc_crypt(&cc->block[DECRYPT], buf + 4, l - 4, ENCRYPT); // additional crypto step
 
-						if (is_null_dcw(cc->dcw)) {
+					if (is_null_dcw(cc->dcw)) {
 						cs_log("%s null dcw received! sid=%04X(%d)", getprefix(),
 								srvid.sid, srvid.ecmlen);
 						add_sid_block(cl, card, &srvid);
@@ -1855,7 +1870,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 			cs_debug("cccam: keepalive ack");
 		} else {
 			//Checking if last answer is one minute ago:
-			if (cc->answer_on_keepalive + 55 < time(NULL)) {
+			if (cc->answer_on_keepalive + 55 <= time(NULL)) {
 				cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE);
 				cs_debug("cccam: keepalive");
 				cc->answer_on_keepalive = time(NULL);
@@ -2004,6 +2019,8 @@ int cc_recv_chk(struct s_client *cl, uchar *dcw, int *rc, uchar *buf, int UNUSED
 //	return FALSE;
 //}
 
+
+
 /**
  * Server: send DCW to client
  */
@@ -2020,6 +2037,7 @@ void cc_send_dcw(struct s_client *cl, ECM_REQUEST *er) {
 	if (er->rc <= 3 && eei && eei->card) {
 		cc->g_flag = eei->send_idx;
 		memcpy(buf, er->cw, sizeof(buf));
+		fix_dcw(buf);
 		cs_debug_mask(D_TRACE, "%s send cw: %s cpti: %d", getprefix(),
 				cs_hexdump(0, buf, 16), er->cpti);
 		if (!cc->extended_mode)
@@ -2061,7 +2079,7 @@ int cc_recv(struct s_client *cl, uchar *buf, int l) {
 
 	n = cc_msg_recv(cl, cbuf); // recv and decrypt msg
 
-	cs_ddump(cbuf, n, "cccam: received %d bytes from %s", n, remote_txt());
+	//cs_ddump(cbuf, n, "cccam: received %d bytes from %s", n, remote_txt());
 	cl->last = time((time_t *) 0);
 
 	if (n <= 0) {
@@ -2322,9 +2340,7 @@ int remove_reported_card(struct s_client * cl, uint8 *buf, int len)
 			ll_iter_release(it);
 			return 0; //Old card and new card are equal! Nothing to do!
 		}
-		cc_cmd_send(cl, card, 4, MSG_CARD_REMOVED);
 		ll_iter_release(it);
-		cc->card_removed_count++;
 		return 1; //Card removed!
 	}
 	ll_iter_release(it);
@@ -2400,8 +2416,9 @@ void cc_srv_report_cards(struct s_client *cl) {
 		flt = 0;
 		if (rdr->typ != R_CCCAM && rdr->ftab.filts) {
 			for (j = 0; j < CS_MAXFILTERS; j++) {
-				if (rdr->ftab.filts[j].caid && chk_ctab(
-						rdr->ftab.filts[j].caid, &cl->ctab)) {
+				//if (rdr->ftab.filts[j].caid && chk_ctab( //Do not check for disabled services (ChrisO problem 1702/!1702)
+				//		rdr->ftab.filts[j].caid, &cl->ctab)) {
+				if (rdr->ftab.filts[j].caid) {
 					int ignore = 0;
 					memset(buf, 0, sizeof(buf));
 					buf[4] = rdr->cc_id >> 24;
@@ -2476,8 +2493,7 @@ void cc_srv_report_cards(struct s_client *cl) {
 			}
 		}
 
-		if (rdr->typ != R_CCCAM && rdr->caid[0] && !flt && chk_ctab(
-				rdr->caid[0], &cl->ctab)) {
+		if (rdr->typ != R_CCCAM && rdr->caid[0] && !flt && chk_ctab(rdr->caid[0], &cl->ctab)) {
 			//cs_log("tcp_connected: %d card_status: %d ", rdr->tcp_connected, rdr->card_status);
 			memset(buf, 0, sizeof(buf));
 			buf[4] = rdr->cc_id >> 24;
@@ -2617,10 +2633,10 @@ void cc_srv_report_cards(struct s_client *cl) {
 		report_card(cl, buf, ofs, new_reported_carddatas);
 	}
 	ll_iter_release(it);
-	cc_free_cardlist(server_cards);
+	cc_free_cardlist(server_cards, TRUE);
 	
 	//remove unsed, remaining cards:
-	cc->card_removed_count += cc_free_reported_carddata(cl, cc->reported_carddatas, 1);
+	cc->card_removed_count += cc_free_reported_carddata(cl, cc->reported_carddatas, TRUE);
 	
 	cc->reported_carddatas = new_reported_carddatas;
 	
@@ -2825,8 +2841,9 @@ int cc_srv_connect(struct s_client *cl) {
 	for (;;) {
 		i = process_input(mbuf, sizeof(mbuf), 10); //cfg->cmaxidle);
 		//cs_log("srv process input i=%d cmi=%d", i, cmi);
-		int update_cards = 0;
-		if (i == -9) {
+		if (i == MSG_KEEPALIVE) {
+			cmi = 0;
+		} else if (i == -9) {
 			cmi += 10;
 			if (cfg->cmaxidle && cmi >= cfg->cmaxidle) {
 				cmi = 0;
@@ -2834,40 +2851,35 @@ int cc_srv_connect(struct s_client *cl) {
 						getprefix());
 				break; //Disconnect client
 			}
-			update_cards = 1;
-
 		} else if (i <= 0)
 			break; //Disconnected by client
 		else {
 			cmi = 0;
-			update_cards = 1;
 		}
 		                                                        
-		if (update_cards) {
-			if (!cc->server_ecm_pending) {
-				struct timeb timeout;
-				struct timeb cur_time;
-				cs_ftime(&cur_time);
-				timeout = cc->ecm_time;
-				timeout.time += cfg->cc_update_interval;
+		if (!cc->server_ecm_pending) {
+			struct timeb timeout;
+			struct timeb cur_time;
+			cs_ftime(&cur_time);
+			timeout = cc->ecm_time;
+			timeout.time += cfg->cc_update_interval;
 
-				int needs_card_updates = (cfg->cc_update_interval >= 0)
-						&& comp_timeb(&cur_time, &timeout) > 0;
+			int needs_card_updates = (cfg->cc_update_interval >= 0)
+					&& comp_timeb(&cur_time, &timeout) > 0;
 
-				if (needs_card_updates) {
-					cc->ecm_time = cur_time;
-					ulong new_hexserial_crc = get_reader_hexserial_crc(cl);
-					int cards_modified = cc_cards_modified();
-					if (new_hexserial_crc != hexserial_crc || cards_modified
-							!= cc->cards_modified) {
-						cs_debug_mask(D_TRACE, "%s update share list",
-								getprefix());
+			if (needs_card_updates) {
+				cc->ecm_time = cur_time;
+				ulong new_hexserial_crc = get_reader_hexserial_crc(cl);
+				int cards_modified = cc_cards_modified();
+				if (new_hexserial_crc != hexserial_crc || cards_modified
+						!= cc->cards_modified) {
+					cs_debug_mask(D_TRACE, "%s update share list",
+							getprefix());
 
-						hexserial_crc = new_hexserial_crc;
-						cc->cards_modified = cards_modified;
+					hexserial_crc = new_hexserial_crc;
+					cc->cards_modified = cards_modified;
 
-						cc_srv_report_cards(cl);
-					}
+					cc_srv_report_cards(cl);
 				}
 			}
 		}
