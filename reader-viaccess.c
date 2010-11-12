@@ -178,12 +178,12 @@ static int viaccess_card_init(struct s_reader * reader, ATR newatr)
 
     if ((atr[0]!=0x3f) || (atr[1]!=0x77) || ((atr[2]!=0x18) && (atr[2]!=0x11) && (atr[2]!=0x19)) || (atr[9]!=0x68)) 
         return ERROR;
-    
+
     write_cmd(insFAC, FacDat);
     if( !(cta_res[cta_lr-2]==0x90 && cta_res[cta_lr-1]==0) )
         return ERROR;
 
-    reader->last_geo.number_ecm = 0;
+    memset(&reader->last_geo, 0, sizeof(reader->last_geo));
     write_cmd(insFAC, ins8702_data);
     if ((cta_res[cta_lr-2]==0x90) && (cta_res[cta_lr-1]==0x00)) {
         write_cmd(ins8704, NULL);
@@ -254,7 +254,6 @@ cs_log("[viaccess-reader] name: %s", cta_res);
         unlock_parental(reader);
 
     cs_log("[viaccess-reader] ready for requests");
-    memset(&reader->last_geo, 0, sizeof(reader->last_geo));
     return OK;
 }
 
@@ -289,7 +288,6 @@ static int viaccess_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
   int curEcm88len=0;
   int nanoLen=0;
   const uchar *nextEcm;
-  uchar keyToUse=0;
   uchar DE04[256];
   int D2KeyID=0;
   int curnumber_ecm=0;
@@ -338,30 +336,36 @@ static int viaccess_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
     if ((ecm88Data[0]==0x90 || ecm88Data[0]==0x40) && (ecm88Data[1]==0x03 || ecm88Data[1]==0x07 ) )
     {
         uchar ident[3], keynr;
-        //uchar buff[256]; // MAX_LEN
         uchar *ecmf8Data=0;
         int ecmf8Len=0;
 
         nanoLen=ecm88Data[1] + 2;
-        curnumber_ecm =(ecm88Data[6]<<8) | (ecm88Data[7]);
         keynr=ecm88Data[4]&0x0F;        
 
         // 40 07 03 0b 00  -> nano 40, len =7  ident 030B00 (tntsat), key #0  <== we're pointing here
         // 09 -> use key #9 
         if(nanoLen>5) {
-            if( reader->last_geo.number_ecm > 0 && reader->last_geo.number_ecm ==curnumber_ecm ) {
-    
-                keyToUse=ecm88Data[5];
-                keynr=keyToUse;
-                cs_debug("keyToUse = %d",keyToUse);
+            curnumber_ecm =(ecm88Data[6]<<8) | (ecm88Data[7]);
+            cs_debug("checking if the ecm number (%x) match the card one (%x)",curnumber_ecm,reader->last_geo.number_ecm);
+            // if we have an ecm number we check it.
+            // we can't assume that if the nano len is 5 or more we have an ecm number
+            // as some card don't support this
+            if( reader->last_geo.number_ecm > 0 ) {
+                if(reader->last_geo.number_ecm ==curnumber_ecm ) {
+                    keynr=ecm88Data[5];
+                    cs_debug("keyToUse = %02x",ecm88Data[5]);
+                }
+                else
+                {
+                    ecm88Data=nextEcm;
+                    ecm88Len-=curEcm88len;
+                    continue; //loop to next ecm
+                }
             }
-            else
-            {
-                ecm88Data=nextEcm;
-                ecm88Len-=curEcm88len;
-                continue; //loop to next ecm
+            else { // long ecm but we don't have an ecm number so we have to try them all.
+                keynr=ecm88Data[5];
+                cs_debug("keyToUse = %02x",ecm88Data[5]);
             }
-        
         }
 
         memcpy (ident, &ecm88Data[2], sizeof(ident));
@@ -627,7 +631,9 @@ static int viaccess_do_emm(struct s_reader * reader, EMM_PACKET *ep)
             }
         }
         // as we are maybe changing the used provider, clear the cache, so the next ecm will re-select the correct one
-        memset(&reader->last_geo, 0, sizeof(reader->last_geo));
+        reader->last_geo.provid = 0;
+        reader->last_geo.geo_len = 0;
+        reader->last_geo.geo[0]  = 0;
         
     } 
     else if (emmParsed[0]==0x9e && emmParsed[1]==0x20) {
@@ -800,7 +806,9 @@ static int viaccess_card_info(struct s_reader * reader)
   static const uchar pin[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04};
 
   show_cls=reader->show_cls;
-  memset(&reader->last_geo, 0, sizeof(reader->last_geo));
+  reader->last_geo.provid  = 0;
+  reader->last_geo.geo_len = 0;
+  reader->last_geo.geo[0]  = 0;
 
   cs_log("[viaccess-reader] card detected"); 
   

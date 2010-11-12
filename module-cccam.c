@@ -762,7 +762,7 @@ void set_au_data(struct s_client *cl __attribute__((unused)), struct s_reader *r
 			memcpy(&rdr->prid[p], &provider->prov, sizeof(provider->prov));
 			cc_SA_cccam2oscam(provider->sa, rdr->sa[p]);
 
-			cs_debug_mask(D_EMM, "%s au info: provider: %06lX:%02X%02X%02X%02X", 
+			cs_debug_mask(D_EMM, "%s au info: provider: %06lX:%02X%02X%02X%02X", getprefix(),
 				provider->prov,
 				provider->sa[0], provider->sa[1], provider->sa[2],
 				provider->sa[3]);
@@ -1333,7 +1333,7 @@ void cc_idle() {
 	ulong timeout=(rdr->cc_keepalive < 60 )? 60:rdr->cc_keepalive;
 	timeout=(timeout < cfg->cmaxidle - 10)? timeout: cfg->cmaxidle - 10;
 	if (rdr->cc_keepalive) {
-		if (cc->answer_on_keepalive + timeout < (ulong)time(NULL)) {
+		if (cc->answer_on_keepalive + timeout <= (ulong)time(NULL)) {
 			cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE);
 			cs_debug("cccam: keepalive");
 			cc->answer_on_keepalive = time(NULL);
@@ -1869,8 +1869,10 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 		if (cl->typ != 'c') {
 			cs_debug("cccam: keepalive ack");
 		} else {
-			//Checking if last answer is one minute ago:
-			if (cc->answer_on_keepalive + 55 <= time(NULL)) {
+			//Checking if last answer is one minute or ccckeepalive seconds ago:
+			ulong timeout=(rdr->cc_keepalive < 60 )? 60:rdr->cc_keepalive;
+			timeout=(timeout < cfg->cmaxidle - 10)? timeout: cfg->cmaxidle - 10;
+			if (cc->answer_on_keepalive + timeout <= (ulong)time(NULL)) {
 				cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE);
 				cs_debug("cccam: keepalive");
 				cc->answer_on_keepalive = time(NULL);
@@ -2416,9 +2418,8 @@ void cc_srv_report_cards(struct s_client *cl) {
 		flt = 0;
 		if (rdr->typ != R_CCCAM && rdr->ftab.filts) {
 			for (j = 0; j < CS_MAXFILTERS; j++) {
-				//if (rdr->ftab.filts[j].caid && chk_ctab( //Do not check for disabled services (ChrisO problem 1702/!1702)
-				//		rdr->ftab.filts[j].caid, &cl->ctab)) {
-				if (rdr->ftab.filts[j].caid) {
+				if (rdr->ftab.filts[j].caid && chk_ctab( //Do not check for disabled services (ChrisO problem 1702/!1702)
+						rdr->ftab.filts[j].caid, &cl->ctab)) {
 					int ignore = 0;
 					memset(buf, 0, sizeof(buf));
 					buf[4] = rdr->cc_id >> 24;
@@ -2841,9 +2842,7 @@ int cc_srv_connect(struct s_client *cl) {
 	for (;;) {
 		i = process_input(mbuf, sizeof(mbuf), 10); //cfg->cmaxidle);
 		//cs_log("srv process input i=%d cmi=%d", i, cmi);
-		if (i == MSG_KEEPALIVE) {
-			cmi = 0;
-		} else if (i == -9) {
+		if (i == -9) {
 			cmi += 10;
 			if (cfg->cmaxidle && cmi >= cfg->cmaxidle) {
 				cmi = 0;

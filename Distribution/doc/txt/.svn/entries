@@ -1,14 +1,14 @@
 10
 
 dir
-3876
+3885
 http://streamboard.gmc.to/svn/oscam/trunk/Distribution/doc/txt
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-11-05T07:49:34.318476Z
-3831
+2010-11-11T12:17:06.341738Z
+3880
 landlord
 
 
@@ -304,10 +304,10 @@ file
 
 
 
-2010-11-06T10:10:21.671410Z
-cbebf15c5632ba1b0869221cf91ecc0d
-2010-11-05T07:49:34.318476Z
-3831
+2010-11-12T09:07:18.811175Z
+92c694e70db06a5b02d8bdc1723649f4
+2010-11-11T12:17:06.341738Z
+3880
 landlord
 
 
@@ -330,7 +330,7 @@ landlord
 
 
 
-12202
+12203
 
 oscam.tiers.txt
 file
