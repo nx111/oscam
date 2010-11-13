@@ -1656,6 +1656,11 @@ void send_oscam_user_config(struct templatevars *vars, FILE *f, struct uriparams
 	fputs(tpl_getTpl(vars, "USERCONFIGLIST"), f);
 }
 
+char *strend(char *ch) {
+	while (*ch) ch++;
+	return ch;
+}
+
 void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams *params) {
 	/* build entitlements from reader init history */
 	char *reader_ = getParam(params, "label");
@@ -1665,8 +1670,9 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 
 		if (rdr->typ == R_CCCAM && rdr->enable == 1) {
 
-			int caidcount = 0;
+			tpl_addVar(vars, 0, "READERNAME", rdr->label);
 
+			int caidcount = 0;
 			char *provider = "";
 
 			struct cc_card *card;
@@ -1675,59 +1681,69 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 
 			if (rcc && rdr->tcp_connected == 2 && rcc->cards) {
 				pthread_mutex_lock(&rcc->cards_busy);
+				char *buf = malloc(4000);
 
-                LL_ITER *it = ll_iter_create(rcc->cards);
+
+				LL_ITER *it = ll_iter_create(rcc->cards);
 				while ((card = ll_iter_next(it))) {
-					char *node_str = malloc(ll_count(card->remote_nodes)*(16+2));
-					char *node_ptr = node_str;
-                    LL_ITER *nit = ll_iter_create(card->remote_nodes);
-					uint8 *node;
-					while ((node = ll_iter_next(nit))) {
-						if (node_ptr != node_str) {
-							strcat(node_ptr, ",");
-							node_ptr++;
-						}
-						sprintf(node_ptr, "%02X%02X%02X%02X%02X%02X%02X%02X",
-							node[0], node[1], node[2], node[3], node[4], node[5], node[6], node[7]);
-						node_ptr += 16;
-					}
-                    ll_iter_release(nit);
 
-					tpl_printf(vars, 1, "LOGHISTORY",
-							"caid: %04X hop: %d reshare: %d remote nodes: %s<BR>\n",
-							card->caid, card->hop, card->maxdown, node_str);
-					free(node_str);
+					tpl_printf(vars, 0, "HOST", "%s:%d", rdr->device, rdr->r_port);
+					tpl_printf(vars, 0, "CAID", "%04X", card->caid);
 
-					int provcount = 0;
-                    LL_ITER *pit = ll_iter_create(card->providers);
+					int cs = get_cardsystem(card->caid);
+					
+					if (cs)
+						tpl_printf(vars, 0, "SYSTEM", "%s", cardsystem[cs-1].desc);
+					else
+						tpl_printf(vars, 0, "SYSTEM", "???");
+
+					tpl_printf(vars, 0, "IDCARD", "%08X", card->remote_id);
+					tpl_printf(vars, 0, "UPHOPS", "%d", card->hop);
+					tpl_printf(vars, 0, "MAXDOWN", "%d", card->maxdown);
+
+					LL_ITER *pit = ll_iter_create(card->providers);
+					char *p = buf;
+					*p = 0;
 					struct cc_provider *prov;
 					while ((prov = ll_iter_next(pit))) {
 						provider = get_provider(card->caid, prov->prov);
-
-						provcount++;
-						tpl_printf(vars, 1, "LOGHISTORY",
-								"&nbsp;&nbsp;-- Provider %d: %06X -- %s<BR>\n",
-								provcount, prov->prov, provider);
+						sprintf(p, "%s<BR>\n", provider);
+						p = strend(p);
 					}
-                    ll_iter_release(pit);
 
-					tpl_addVar(vars, 1, "LOGHISTORY", "<BR>\n");
+					tpl_printf(vars, 0, "PROVIDERS", buf);
+
+					ll_iter_release(pit);
+					LL_ITER *nit = ll_iter_create(card->remote_nodes);
+					p = buf;
+					*p = 0;
+					uint8 *node;
+					while ((node = ll_iter_next(nit))) {
+						sprintf(p, "%02X%02X%02X%02X%02X%02X%02X%02X<BR>\n",
+								node[0], node[1], node[2], node[3], node[4], node[5], node[6], node[7]);
+						p = strend(p);
+					}
+					tpl_printf(vars, 0, "NODES", buf);
+
+					ll_iter_release(nit);
+
+					tpl_addVar(vars, 1, "CCCAMSTATSENTRY", tpl_getTpl(vars, "ENTITLEMENTCCCAMENTRYBIT"));
 					caidcount++;
 				}
-                ll_iter_release(it);
+				ll_iter_release(it);
+				free(buf);
 				pthread_mutex_unlock(&rcc->cards_busy);
 
-			if (caidcount)
-				tpl_printf(vars, 1, "LOGSUMMARY",
-						"<BR>%d caid found on this reader<BR><BR>\n", caidcount);
+				tpl_printf(vars, 0, "TOTALS", "card count=%d", caidcount);
+				tpl_addVar(vars, 0, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTCCCAMBIT"));
 
-			tpl_printf(vars, 1, "LOGHISTORY", "cardfile end<BR>\n");
 			} else {
-				tpl_printf(vars, 1, "LOGHISTORY", "no cardfile found<BR>\n");
+				tpl_addVar(vars, 0, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTGENERICBIT"));
+				tpl_printf(vars, 0, "LOGHISTORY", "no cardfile found<BR>\n");
 			}
 
 		} else {
-
+			tpl_addVar(vars, 0, "LOGHISTORY", "->");
 			// normal non-cccam reader
 			FILE *fp;
 			char filename[256];
@@ -1746,11 +1762,13 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 				fclose(fp);
 			}
 			tpl_addVar(vars, 0, "READERNAME", rdr->label);
+			tpl_addVar(vars, 0, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTGENERICBIT"));
 		}
 
 	} else {
 		tpl_addVar(vars, 0, "LOGHISTORY",
 				"You have to set saveinithistory=1 in your config to see Entitlements!<BR>\n");
+		tpl_addVar(vars, 0, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTGENERICBIT"));
 	}
 
 	fputs(tpl_getTpl(vars, "ENTITLEMENTS"), f);
