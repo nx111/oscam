@@ -1097,6 +1097,7 @@ struct s_config
 	in_addr_t	cc_srvip;
 	uchar		cc_version[7];
 	int             cc_minimize_cards;
+	int             cc_keep_connected;
 	struct s_ip *rad_allowed;
 	char		rad_usr[32];
 	char		ser_device[512];
@@ -1398,6 +1399,7 @@ extern void chk_reader(char *token, char *value, struct s_reader *rdr);
 extern void chk_t_dvbapi(char *token, char *value);
 void dvbapi_chk_caidtab(char *caidasc, char type);
 extern void dvbapi_main_exit();
+void dvbapi_read_priority();
 #endif
 
 #ifdef WEBIF

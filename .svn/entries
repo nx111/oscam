@@ -1,15 +1,15 @@
 10
 
 dir
-3907
+3917
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-11-15T11:48:40.877606Z
-3907
-schlocke
+2010-11-17T09:02:13.298434Z
+3917
+landlord
 has-props
 
 
@@ -418,9 +418,6 @@ alno
 
 10689
 
-toolchains
-dir
-
 module-obj-llist.c
 file
 
@@ -454,6 +451,9 @@ dingo35
 
 
 3091
+
+toolchains
+dir
 
 oscam-ac.c
 file
@@ -542,9 +542,9 @@ file
 
 
 
-237b1ec832d06445957861b5074ab0a2
-2010-11-13T23:51:23.948985Z
-3900
+33ce80b5d18353e9594bf1d853c3cf17
+2010-11-16T23:02:53.851940Z
+3909
 _network
 
 oscam-nano.c
@@ -581,40 +581,6 @@ rebdog
 
 1625
 
-CMakeLists.txt
-file
-
-
-
-
-2010-10-31T23:50:29.625894Z
-6cb854a89e9b4ddbe4e294ba0f532024
-2010-10-31T11:52:19.862922Z
-3785
-alno
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-27770
-
 Makefile
 file
 
@@ -649,6 +615,52 @@ cogsi
 
 25451
 
+CMakeLists.txt
+file
+
+
+
+
+2010-10-31T23:50:29.625894Z
+6cb854a89e9b4ddbe4e294ba0f532024
+2010-10-31T11:52:19.862922Z
+3785
+alno
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+27770
+
+module-dvbapi.h
+file
+
+
+
+
+
+aa14fc18af373040f05ec287ff43492b
+2010-11-16T23:02:53.851940Z
+3909
+_network
+
 config.sh
 file
 
@@ -661,18 +673,6 @@ c3bc1816ffb9b212149c13ba7e8e772c
 3785
 alno
 has-props
-
-module-dvbapi.h
-file
-
-
-
-
-
-7b000207ead2749d72c14f86df89b1c1
-2010-11-10T21:13:32.223027Z
-3874
-_network
 
 module-stat.c
 file
@@ -708,52 +708,6 @@ schlocke
 
 15938
 
-oscam-reader.c
-file
-
-
-
-
-2010-11-16T08:29:10.788384Z
-7288b25cfe3086ed82153bf53729e64f
-2010-11-15T11:48:40.877606Z
-3907
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-23746
-
-oscam.c
-file
-
-
-
-
-
-624c5744642c8b2b7fc3b24a447c505c
-2010-11-06T20:59:05.643535Z
-3844
-schlocke
-
 module-serial.c
 file
 
@@ -788,17 +742,29 @@ dingo35
 
 28204
 
-module-stat.h
+oscam.c
 file
 
 
 
 
-2010-11-03T14:00:59.492967Z
-c596dfa96924ad727eee43e7eaaeba7b
-2010-11-03T13:57:07.026464Z
-3812
-alno
+
+972ef9d95554dd7e12a195d69d1f8233
+2010-11-17T07:15:16.423672Z
+3914
+schlocke
+
+oscam-reader.c
+file
+
+
+
+
+2010-11-17T12:51:14.713264Z
+64a8fc0dd468aa976d5303f784efa74e
+2010-11-17T07:32:04.854426Z
+3915
+schlocke
 
 
 
@@ -820,7 +786,7 @@ alno
 
 
 
-532
+23887
 
 reader-tongfang.c
 file
@@ -855,6 +821,40 @@ schlocke
 
 
 5090
+
+module-stat.h
+file
+
+
+
+
+2010-11-03T14:00:59.492967Z
+c596dfa96924ad727eee43e7eaaeba7b
+2010-11-03T13:57:07.026464Z
+3812
+alno
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+532
 
 module-constcw.c
 file
@@ -897,10 +897,10 @@ file
 
 
 
-62198da05e3efc0bcbc983d7bc8ce3d9
-2010-11-09T21:03:37.410437Z
-3865
-alno
+060b7c5de46deb162bcdb30b0a5dcbf3
+2010-11-17T08:43:09.756331Z
+3916
+schlocke
 
 oscam-chk.c
 file
@@ -1288,11 +1288,11 @@ file
 
 
 
-2010-11-15T11:47:46.772289Z
-ab6efdd0b51b65cfdceee454c6eb7714
-2010-11-13T19:05:15.888081Z
-3898
-alno
+2010-11-17T12:51:14.721264Z
+621a81f4be74c3057a72f625e6b4444e
+2010-11-17T08:43:09.756331Z
+3916
+schlocke
 
 
 
@@ -1314,7 +1314,7 @@ alno
 
 
 
-97200
+97412
 
 utils
 dir
@@ -1328,11 +1328,11 @@ file
 
 
 
-2010-11-13T13:11:00.536791Z
-f430339d6351c5736396182d821532a0
-2010-11-12T23:28:21.103346Z
-3896
-alno
+2010-11-17T12:51:14.721264Z
+a61c40bce4d8223613ec8f34c2b9271c
+2010-11-17T08:43:09.756331Z
+3916
+schlocke
 
 
 
@@ -1354,7 +1354,7 @@ alno
 
 
 
-82798
+82997
 
 .gitignore
 file
@@ -1533,9 +1533,9 @@ file
 
 
 
-9f6ea9b7c3a2cd0ab175c3b486d872db
-2010-11-15T11:48:40.877606Z
-3907
+a759891827363eeeadb5648bb7051720
+2010-11-17T08:43:09.756331Z
+3916
 schlocke
 
 module-cccam.c
@@ -1545,9 +1545,9 @@ file
 
 
 
-171aa112046f09f3ef9b6f809b2b483e
-2010-11-15T11:48:40.877606Z
-3907
+6ccd82ca5a87434e008f58140e530e19
+2010-11-17T08:43:09.756331Z
+3916
 schlocke
 has-props
 
