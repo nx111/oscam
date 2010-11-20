@@ -368,30 +368,64 @@ int check_auth(char *authstring, char *method, char *path, char *expectednonce){
 	return authok;
 }
 
+#ifdef WITH_SSL
+#include <openssl/crypto.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif
+
+int webif_write(char *buf, FILE* f) {
+#ifdef WITH_SSL
+	if (cfg->http_use_ssl) {
+		return SSL_write((SSL*)f, buf, strlen(buf));
+	} else
+#endif
+		return fwrite(buf, 1, strlen(buf), f);
+}
+
+int webif_read(char *buf, int num, FILE *f) {
+#ifdef WITH_SSL
+	if (cfg->http_use_ssl) {
+		return SSL_read((SSL*)f, buf, num);
+	} else
+#endif
+	{
+		buf[0]='\0';
+		int len=0;
+		while (fgets(buf+len, num-len-1, f)) {
+			if (buf[0+len] == '\r' && buf[1+len] == '\n') break;
+			len=strlen(buf);
+		}
+		return len;
+	}
+}
+
 void send_headers(FILE *f, int status, char *title, char *extra, char *mime){
 
   time_t now;
   char timebuf[128];
+  char buf[1024];
 
-  fprintf(f, "%s %d %s\r\n", PROTOCOL, status, title);
-  fprintf(f, "Server: %s\r\n", SERVER);
+  sprintf(buf, "%s %d %s\r\n", PROTOCOL, status, title);
+  sprintf(buf+strlen(buf), "Server: %s\r\n", SERVER);
 
   now = time(NULL);
   strftime(timebuf, sizeof(timebuf), RFC1123FMT, gmtime(&now));
-  fprintf(f, "Date: %s\r\n", timebuf);
+  sprintf(buf+strlen(buf), "Date: %s\r\n", timebuf);
 
-  if (extra)
-		fprintf(f, "%s\r\n", extra);
+	if (extra)
+		sprintf(buf+strlen(buf), "%s\r\n", extra);
 
-  if (mime)
-		fprintf(f, "Content-Type: %s\r\n", mime);
+	if (mime)
+		sprintf(buf+strlen(buf), "Content-Type: %s\r\n", mime);
 
 	strftime(timebuf, sizeof(timebuf), RFC1123FMT, gmtime(&now));
-	fprintf(f, "Cache-Control: no-store, no-cache, must-revalidate\r\n");
-	fprintf(f, "Expires: Sat, 26 Jul 1997 05:00:00 GMT\r\n");
-	fprintf(f, "Last-Modified: %s\r\n", timebuf);
-	fprintf(f, "Connection: close\r\n");
-	fprintf(f, "\r\n");
+	sprintf(buf+strlen(buf), "Cache-Control: no-store, no-cache, must-revalidate\r\n");
+	sprintf(buf+strlen(buf), "Expires: Sat, 26 Jul 1997 05:00:00 GMT\r\n");
+	sprintf(buf+strlen(buf), "Last-Modified: %s\r\n", timebuf);
+	sprintf(buf+strlen(buf), "Connection: close\r\n");
+	sprintf(buf+strlen(buf), "\r\n");
+	webif_write(buf, f);
 }
 
 void send_css(FILE *f){
@@ -401,10 +435,10 @@ void send_css(FILE *f){
 		int read;
 
 		if((fp = fopen(cfg->http_css,"r"))==NULL) return;
-		while((read = fread(&buffer,sizeof(char),1024,fp)) > 0) fwrite(&buffer, sizeof(char), read, f);
+		while((read = fread(buffer,sizeof(char),1024,fp)) > 0) webif_write(buffer, f);
 		fclose (fp);
 	} else {
-		fputs(CSS, f);
+		webif_write(CSS, f);
 	}
 }
 
@@ -415,19 +449,21 @@ void send_js(FILE *f){
 		int read;
 
 		if((fp = fopen(cfg->http_jscript,"r"))==NULL) return;
-		while((read = fread(&buffer,sizeof(char),1024,fp)) > 0) fwrite(&buffer, sizeof(char), read, f);
+		while((read = fread(buffer,sizeof(char),1024,fp)) > 0) webif_write(buffer, f);
 		fclose (fp);
 	} else {
-		fputs(JSCRIPT, f);
+		webif_write(JSCRIPT, f);
 	}
 }
 
 void send_error(FILE *f, int status, char *title, char *extra, char *text){
-  send_headers(f, status, title, extra, "text/html");
-  fprintf(f, "<HTML><HEAD><TITLE>%d %s</TITLE></HEAD>\r\n", status, title);
-  fprintf(f, "<BODY><H4>%d %s</H4>\r\n", status, title);
-  fprintf(f, "%s\r\n", text);
-  fprintf(f, "</BODY></HTML>\r\n");
+	char buf[1024];
+	send_headers(f, status, title, extra, "text/html");
+	sprintf(buf, "<HTML><HEAD><TITLE>%d %s</TITLE></HEAD>\r\n", status, title);
+	sprintf(buf+strlen(buf), "<BODY><H4>%d %s</H4>\r\n", status, title);
+	sprintf(buf+strlen(buf), "%s\r\n", text);
+	sprintf(buf+strlen(buf), "</BODY></HTML>\r\n");
+	webif_write(buf, f);
 }
 
 char *getParam(struct uriparams *params, char *name){

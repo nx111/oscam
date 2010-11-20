@@ -1,14 +1,14 @@
 10
 
 dir
-3917
+3943
 http://streamboard.gmc.to/svn/oscam/trunk/Distribution/doc/txt
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-11-17T09:02:13.298434Z
-3917
+2010-11-19T21:16:15.120769Z
+3941
 landlord
 
 
@@ -202,10 +202,10 @@ file
 
 
 
-2010-11-17T12:50:27.529264Z
-d0282f7357985b325997afc0e7f8b65f
-2010-11-17T09:02:13.298434Z
-3917
+2010-11-20T14:09:23.228294Z
+887d7910065dac8b32911f2c8adcf73d
+2010-11-19T21:16:15.120769Z
+3941
 landlord
 
 
@@ -228,7 +228,7 @@ landlord
 
 
 
-17458
+17791
 
 oscam.dvbapi.txt
 file

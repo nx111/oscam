@@ -105,7 +105,7 @@ void cc_cw_crypt(struct s_client *cl, uint8 *cws, uint32 cardid) {
 }
 
 int sid_eq(struct cc_srvid *srvid1, struct cc_srvid *srvid2) {
-	return (srvid1->sid == srvid2->sid && srvid1->ecmlen == srvid2->ecmlen);
+	return (srvid1->sid == srvid2->sid && (srvid1->ecmlen == srvid2->ecmlen || !srvid1->ecmlen || !srvid2->ecmlen));
 }
 
 int is_sid_blocked(struct cc_card *card, struct cc_srvid *srvid_blocked) {
@@ -328,18 +328,15 @@ int cc_msg_recv(struct s_client *cl, uint8 *buf) {
 
 	int handle = cl->udp_fd;
 
-	if (handle < 0)
+	if (handle <= 0)
 		return -1;
 
 	len = recv(handle, netbuf, 4, MSG_WAITALL);
 	if (cl->typ != 'c')
 		rdr->last_g = time(NULL);
 
-	if (!len)
-		return 0;
-
 	if (len != 4) { // invalid header length read
-		if (len < 0)
+		if (len <= 0)
 			cs_log("%s disconnected by remote server", getprefix());
 		else
 			cs_log("%s invalid header length (expected 4, read %d)", getprefix(), len);
@@ -363,7 +360,7 @@ int cc_msg_recv(struct s_client *cl, uint8 *buf) {
 			rdr->last_g = time(NULL);
 
 		if (len != size) {
-			if (len < 0)
+			if (len <= 0)
 				cs_log("%s disconnected by remote", getprefix());
 			else
 				cs_log("%s invalid message length read (expected %d, read %d)",
@@ -387,7 +384,7 @@ int cc_msg_recv(struct s_client *cl, uint8 *buf) {
  */
 int cc_cmd_send(struct s_client *cl, uint8 *buf, int len, cc_msg_type_t cmd) {
 	if (!cl->udp_fd) //disconnected
-		return 0;
+		return -1;
 
 	struct s_reader *rdr = (cl->typ == 'c') ? NULL : cl->reader;
 
@@ -418,9 +415,7 @@ int cc_cmd_send(struct s_client *cl, uint8 *buf, int len, cc_msg_type_t cmd) {
 		rdr->last_s = time(NULL);
 
 	if (n != len) {
-		if (!rdr)
-			cs_disconnect_client(cl);
-		else
+		if (rdr)
 			cc_cli_close(cl, TRUE);
 	}
 
@@ -428,8 +423,8 @@ int cc_cmd_send(struct s_client *cl, uint8 *buf, int len, cc_msg_type_t cmd) {
 }
 
 #define CC_DEFAULT_VERSION 1
-char *version[] = { "2.0.11", "2.1.1", "2.1.2", "2.1.3", "2.1.4", "" };
-char *build[] = { "2892", "2971", "3094", "3165", "3191", "" };
+char *version[] = { "2.0.11", "2.1.1", "2.1.2", "2.1.3", "2.1.4", "2.2.0", "" };
+char *build[] = { "2892", "2971", "3094", "3165", "3191", "3290", "" };
 
 /**
  * reader+server
@@ -692,7 +687,7 @@ int get_UA_len(uint16 caid) {
 		len = 4;
 		break;
 	case 0x18: //NAGRA:
-		len = 4;
+		len = 6;
 		break;
 	case 0x05: //VIACCESS:
 		len = 5;
@@ -997,7 +992,7 @@ int cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 		//So if the last Message was a MSG_NEW_CARD, this "card receiving" is not already done
 		//if this happens, we do not autoblock it and do not set rc status
 		//So fallback could resolve it
-		if (cc->last_msg != MSG_NEW_CARD && !cc->just_logged_in) {
+		if (cc->last_msg != MSG_NEW_CARD && cc->last_msg != MSG_NEW_CARD_SIDINFO && !cc->just_logged_in) {
 			cs_log("%s no suitable card on server", getprefix());
 
 			cur_er->rc = 0;
@@ -1355,9 +1350,11 @@ void cc_idle() {
 	cs_debug_mask(D_FUT, "cc_idle out");
 }
 
-struct cc_card *read_card(uint8 *buf) {
+struct cc_card *read_card(uint8 *buf, int ext) {
 	struct cc_card *card = malloc(sizeof(struct cc_card));
 	memset(card, 0, sizeof(struct cc_card));
+
+    int nprov, nassign = 0, nreject = 0, offset = 21;
 
 	card->providers = ll_create();
 	card->badsids = ll_create();
@@ -1374,19 +1371,56 @@ struct cc_card *read_card(uint8 *buf) {
 	//		card->id, card->caid, card->hop, cs_hexdump(0, card->hexserial, 8),
 	//		ll_count(cc->cards));
 
+    nprov = buf[20];
+
+    if (ext) {
+        nassign = buf[21];
+        nreject = buf[22];
+
+        offset += 2;
+    }
+
 	int i;
-	for (i = 0; i < buf[20]; i++) { // providers
+	for (i = 0; i < nprov; i++) { // providers
 		struct cc_provider *prov = malloc(sizeof(struct cc_provider));
 		if (prov) {
-			prov->prov = b2i(3, buf + 21 + (7 * i));
-			memcpy(prov->sa, buf + 21 + (7 * i) + 3, 4);
+			prov->prov = b2i(3, buf + offset + (7 * i));
+			memcpy(prov->sa, buf + offset + (7 * i) + 3, 4);
 			cs_debug("      prov %d, %06x, sa %08x", i + 1, prov->prov, b2i(4,
 					prov->sa));
 
 			ll_append(card->providers, prov);
 		}
 	}
-	uint8 *ptr = buf + 21 + i * 7;
+
+	uint8 *ptr = buf + offset + i * 7;
+
+    if (ext) {
+        for (i = 0; i < nassign; i++) {
+            uint16_t sid = b2i(2, ptr + 2 * i);
+            cs_debug("      assigned sid = %04X, added to good sid list", sid);
+
+            struct cc_srvid *srvid = malloc(sizeof(struct cc_srvid));
+            srvid->sid = sid;
+            srvid->ecmlen = 0;
+            ll_append(card->goodsids, srvid);
+        }
+
+        ptr = ptr + 2 * i;
+
+        for (i = 0; i < nreject; i++) {
+            uint16_t sid = b2i(2, ptr + 2 * i);
+            cs_debug("      rejected sid = %04X, added to sid block list", sid);
+
+            struct cc_srvid *srvid = malloc(sizeof(struct cc_srvid));
+            srvid->sid = sid;
+            srvid->ecmlen = 0;
+            ll_append(card->badsids, srvid);
+        }
+
+        ptr = ptr + 2 * i;
+    }
+
 	int remote_count = ptr[0];
 	ptr++;
 	for (i = 0; i < remote_count; i++) {
@@ -1643,6 +1677,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 				cmd05_mode_name[cc->cmd05_mode], l);
 
 		break;
+	case MSG_NEW_CARD_SIDINFO: 
 	case MSG_NEW_CARD: {
 		if (buf[14] >= rdr->cc_maxhop)
 			break;
@@ -1655,7 +1690,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 
 		pthread_mutex_lock(&cc->cards_busy);
 
-		struct cc_card *card = read_card(data);
+		struct cc_card *card = read_card(data, buf[1]==MSG_NEW_CARD_SIDINFO);
 
 		//Check if this card is from us:
 		LL_ITER *it = ll_iter_create(card->remote_nodes);
@@ -1927,7 +1962,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 			cc->cmd05_active = 1;
 			cc->cmd05_data_len = l;
 			memcpy(&cc->cmd05_data, buf + 4, l);
-			if (rdr->available)
+			if (rdr->available && ll_count(cc->cards))
 				send_cmd05_answer(cl);
 		}
 		break;
@@ -1961,21 +1996,18 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 	case MSG_CMD_0C:
 	case MSG_CMD_0D:
 	case MSG_CMD_0E: {
-		//Unkwn commands, maybe attacking commands. Block this user
+		cs_log("cccam 2.2.0 commands not implemented");
+		//Unkwon commands...need workout algo
 		if (cl->typ == 'c') //client connection
 		{
-			cs_log("%s CCCAM-BACKDOOR COMMANDS DETECTED! BLOCKING USER %s", getprefix(), cl->usr);
-			struct s_auth *account;
-			for (account = cfg->account; (account) ; account = account->next) {
-				 if (!strcmp(cl->usr, account->usr))
-				 	account->disabled = TRUE;
-			}
-			cs_disconnect_client(cl);
+			//switching to an oder version and then disconnect...
+			strcpy(cfg->cc_version, version[0]);
+			ret = -1;
 		}
 		else //reader connection
 		{
-			cs_log("%s CCCAM-BACKDOOR COMMANDS DETECTED! BLOCKING READER %s", getprefix(), cl->reader->label);
-			cl->reader->enable = FALSE;
+			strcpy(cl->reader->cc_version, version[0]);
+			strcpy(cl->reader->cc_build, build[0]);
 			cc_cli_close(cl, FALSE);
 		}
 		break;
@@ -2147,7 +2179,7 @@ int cc_recv(struct s_client *cl, uchar *buf, int l) {
 	cl->last = time((time_t *) 0);
 
 	if (n <= 0) {
-		cs_log("%s connection closed to %s", getprefix(), remote_txt());
+		cs_log("%s connection closed by %s", getprefix(), remote_txt());
 		n = -1;
 	} else if (n < 4) {
 		cs_log("%s packet to small (%d bytes)", getprefix(), n);
@@ -2163,9 +2195,7 @@ int cc_recv(struct s_client *cl, uchar *buf, int l) {
 	NULLFREE(cbuf);
 
 	if (n == -1) {
-		if (cl->typ == 'c')
-			cs_disconnect_client(cl);
-		else
+		if (cl->typ != 'c')
 			cc_cli_close(cl, TRUE);
 	}
 
@@ -2270,9 +2300,59 @@ struct cc_card *create_card(struct cc_card *card) {
 }
 
 /**
+ * if idents defined on an cccam reader, the cards caid+provider are checked.
+ * return 1 a) if no ident defined b) card is in identlist
+ *        0 if card is not in identlist
+ * 
+ * a card is in the identlist, if the cards caid is matching and mininum a provider is matching
+ **/
+int chk_ident(FTAB *ftab, struct cc_card *card) {
+
+	int j, k;
+	int res = 1;
+	
+	if (ftab && ftab->filts) {
+		for (j = 0; j < ftab->nfilts; j++) {
+			if (ftab->filts[j].caid) {
+				res = 0;
+				if (ftab->filts[j].caid==card->caid) { //caid matches!
+			
+					int nprids = ftab->filts[j].nprids;
+					if (!nprids) // No Provider ->Ok
+						return 1;
+					
+			
+					LL_ITER *it = ll_iter_create(card->providers);
+					struct cc_provider *prov;
+				
+					while ((prov = ll_iter_next(it))) {
+						for (k = 0; k < nprids; k++) {
+							ulong prid = ftab->filts[j].prids[k];
+							if (prid == prov->prov) { //Provider matches
+								ll_iter_release(it);
+								return 1;	
+							}			
+						}
+					}
+					ll_iter_release(it);
+				}
+			}
+		}
+	}
+	return res;
+}
+
+/**
  * Adds a new card to a cardlist.
  */
-int add_card_to_serverlist(struct cc_data *cc, LLIST *cardlist, struct cc_card *card, int reshare) {
+int add_card_to_serverlist(struct s_reader *rdr, struct s_client *cl, LLIST *cardlist, struct cc_card *card, int reshare) {
+
+	if (!chk_ident(&cl->ftab, card))
+		return 0;
+	if (rdr && !chk_ident(&rdr->client->ftab, card))
+		return 0;
+		
+	struct cc_data *cc = cl->cc;
 	int modified = 0;
 	LL_ITER *it = ll_iter_create(cardlist);
 	struct cc_card *card2;
@@ -2355,9 +2435,9 @@ int add_card_to_serverlist(struct cc_data *cc, LLIST *cardlist, struct cc_card *
 /**
  * Adds a new card to a cardlist, buffer format
  */
-int add_card_to_serverlist_buf(struct cc_data *cc, LLIST *cardlist, uint8 *buf, int reshare) {
-	struct cc_card *card = read_card(buf);
-	return add_card_to_serverlist(cc, cardlist, card, reshare);
+int add_card_to_serverlist_buf(struct s_reader *rdr, struct s_client *cl, LLIST *cardlist, uint8 *buf, int reshare) {
+	struct cc_card *card = read_card(buf, 0);
+	return add_card_to_serverlist(rdr, cl, cardlist, card, reshare);
 	cc_free_card(card);
 }
 
@@ -2409,50 +2489,6 @@ void report_card(struct s_client *cl, uint8 *buf, int len, LLIST *new_reported_c
 		cc->card_added_count++;
 	}	
 	cc_add_reported_carddata(new_reported_carddatas, buf, len);
-}
-
-/**
- * if idents defined on an cccam reader, the cards caid+provider are checked.
- * return 1 a) if no ident defined b) card is in identlist
- *        0 if card is not in identlist
- * 
- * a card is in the identlist, if the cards caid is matching and mininum a provider is matching
- **/
-int chk_ident(struct s_reader *rdr, struct cc_card *card) {
-
-	int j, k;
-	int res = 1;
-
-	if (rdr->typ == R_CCCAM && rdr->ftab.filts) {
-		for (j = 0; j < CS_MAXFILTERS; j++) {
-			if (rdr->ftab.filts[j].caid) {
-				res = 0;
-				if (rdr->ftab.filts[j].caid==card->caid) { //caid matches!
-			
-					int nprids = rdr->ftab.filts[j].nprids;
-					if (!nprids) // No Provider ->Ok
-						return 1;
-					
-			
-					LL_ITER *it = ll_iter_create(card->providers);
-					struct cc_provider *prov;
-				
-					while ((prov = ll_iter_next(it))) {
-						for (k = 0; k < nprids; k++) {
-							ulong prid = rdr->ftab.filts[j].prids[k];
-							if (prid == prov->prov) { //Provider matches
-							
-								ll_iter_release(it);
-								return 1;	
-							}			
-						}
-					}
-					ll_iter_release(it);
-				}
-			}
-		}
-	}
-	return res;
 }
 
 /**
@@ -2510,8 +2546,8 @@ void cc_srv_report_cards(struct s_client *cl) {
 		flt = 0;
 		if (rdr->typ != R_CCCAM && rdr->ftab.filts) {
 			for (j = 0; j < CS_MAXFILTERS; j++) {
-				if (rdr->ftab.filts[j].caid && chk_ctab( //Do not check for disabled services (ChrisO problem 1702/!1702)
-						rdr->ftab.filts[j].caid, &cl->ctab)) {
+				if (rdr->ftab.filts[j].caid && 
+						chk_ctab(rdr->ftab.filts[j].caid, &cl->ctab)) {
 					int ignore = 0;
 					memset(buf, 0, sizeof(buf));
 					buf[4] = rdr->cc_id >> 24;
@@ -2550,7 +2586,7 @@ void cc_srv_report_cards(struct s_client *cl) {
 						}
 					}
 
-					if (!ignore) add_card_to_serverlist_buf(cc, server_cards, buf, reshare);
+					if (!ignore) add_card_to_serverlist_buf(rdr, cl, server_cards, buf, reshare);
 					flt = 1;
 				}
 			}
@@ -2580,7 +2616,7 @@ void cc_srv_report_cards(struct s_client *cl) {
 					buf[20] = 1; //one provider, nullprovider!
 					
 					if (chk_ctab(lcaid, &cl->ctab))
-						add_card_to_serverlist_buf(cc, server_cards, buf, reshare);
+						add_card_to_serverlist_buf(rdr, cl, server_cards, buf, reshare);
 					flt = 1;
 				}
 			}
@@ -2614,7 +2650,7 @@ void cc_srv_report_cards(struct s_client *cl) {
 			}
 			if ((rdr->tcp_connected || rdr->card_status == CARD_INSERTED) /*&& !rdr->cc_id*/) {
 				//rdr->cc_id = b2i(3, buf + 5);
-				add_card_to_serverlist_buf(cc, server_cards, buf, reshare);
+				add_card_to_serverlist_buf(rdr, cl, server_cards, buf, reshare);
 			}
 		}
 
@@ -2636,7 +2672,7 @@ void cc_srv_report_cards(struct s_client *cl) {
 					if (card->hop <= maxhops && chk_ctab(card->caid, &cl->ctab)
 							&& chk_ctab(card->caid, &rdr->ctab)) {
 
-						if ((cfg->cc_ignore_reshare || card->maxdown > 0) && chk_ident(rdr, card)) {
+						if ((cfg->cc_ignore_reshare || card->maxdown > 0)) {
 							int ignore = 0;
 
 							LL_ITER *it2 = ll_iter_create(card->providers);
@@ -2658,7 +2694,7 @@ void cc_srv_report_cards(struct s_client *cl) {
 												: (card->maxdown - 1);
 								if (new_reshare > reshare)
 									new_reshare = reshare;
-								add_card_to_serverlist(cc, server_cards, card,
+								add_card_to_serverlist(rdr, cl, server_cards, card,
 										new_reshare);
 								count++;
 							}
@@ -2679,6 +2715,7 @@ void cc_srv_report_cards(struct s_client *cl) {
 	struct cc_card *card;
 	while ((card = ll_iter_next(it))) {
 		//cs_debug_mask(D_TRACE, "%s card %d caid %04X hop %d", getprefix(), card->id, card->caid, card->hop);
+		
 		memset(buf, 0, sizeof(buf));
 		buf[4] = card->remote_id >> 24;
 		buf[5] = card->remote_id >> 16;
@@ -2931,16 +2968,25 @@ int cc_srv_connect(struct s_client *cl) {
 
 	cmi = 0;
 	// check for client timeout, if timeout occurs try to send keepalive
-	for (;;) {
+	while (cl->pfd)
+	{
 		i = process_input(mbuf, sizeof(mbuf), 10); //cfg->cmaxidle);
-		//cs_log("srv process input i=%d cmi=%d", i, cmi);
 		if (i == -9) {
 			cmi += 10;
-			if (cfg->cmaxidle && cmi >= cfg->cmaxidle && !cl->ncd_keepalive && !cfg->cc_keep_connected) {
+			if (cfg->cmaxidle && cmi >= cfg->cmaxidle) {
 				cmi = 0;
-				cs_debug_mask(D_TRACE, "%s keepalive after maxidle is reached",
-						getprefix());
-				break; //Disconnect client
+				if (!cl->ncd_keepalive && !cfg->cc_keep_connected) {
+					cs_debug_mask(D_TRACE, "%s keepalive after maxidle is reached",
+							getprefix());
+					break; //Disconnect client
+				}
+				else
+				{
+					if (cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE) < 0)
+						break;
+        		                cs_debug("cccam: keepalive");
+        		                cc->answer_on_keepalive = time(NULL);
+				}
 			}
 		} else if (i <= 0)
 			break; //Disconnected by client
@@ -3010,6 +3056,9 @@ int cc_cli_connect(struct s_client *cl) {
 	if (cc && cc->mode != CCCAM_MODE_NORMAL)
 		return -99;
 
+	if (!cl->udp_fd)
+		cc_cli_init_int(cl);
+		
 	if (is_connect_blocked(rdr)) {
 		cs_log("%s connection blocked, retrying later", rdr->label);
 		return -1;

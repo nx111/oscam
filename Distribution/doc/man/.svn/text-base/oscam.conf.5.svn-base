@@ -57,6 +57,14 @@ log file format:
  protocol  
 .RE
 .PP
+\fBusrfileflag\fP = \fB0\fP|\fB1\fP
+.RS 3n
+usrfile logging mode:
+
+  0 = only client logon/logoff will be logged in usrfile (default)
+  1 = each zapping of a client will be logged in usrfile
+.RE
+.PP
 \fBcwlogdir\fP = \fBpath\fP
 .RS 3n
 directory for CW logging, default:none
@@ -256,9 +264,14 @@ time to hide clients in the monitor if not sending requests, 0 = disabled, defau
 1 = append channel name on log messages, default:0
 .RE
 .SS "The [webif] section" \fI(only if web interface module enabled)\fR
-\fBhttpport\fP = \fBport\fP
+\fBhttpport\fP = [\fB+\fP]\fBport\fP
 .RS 3n
-port for web interface, 0 = disabled, default:none, \fIrequired\fR
+port for web interface, 0 = disabled, praefix + = enable SSL, default:none, \fIrequired\fR
+.RE
+.PP
+\fBhttpcert\fP = \fBfile\fP
+.RS 3n
+file for http SSL certificate, default:\fBoscam.pem\fP
 .RE
 .PP
 \fBhttpuser\fP = \fBusername\fP

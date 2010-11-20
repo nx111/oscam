@@ -1066,6 +1066,8 @@ struct s_config
 	int			http_readonly;
 	in_addr_t	http_dynip;
 	uchar		http_dyndns[64];
+	int		http_use_ssl;
+	char		http_cert[128];
 #endif
 	int			http_full_cfg;
 	int			failbantime;
@@ -1095,7 +1097,7 @@ struct s_config
 	int		cc_ignore_reshare;
 	int		cc_update_interval;
 	in_addr_t	cc_srvip;
-	uchar		cc_version[7];
+	char		cc_version[7];
 	int             cc_minimize_cards;
 	int             cc_keep_connected;
 	struct s_ip *rad_allowed;

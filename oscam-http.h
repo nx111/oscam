@@ -718,12 +718,13 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 
 #define TPLENTITLEMENTCCCAMBIT "\
 	<TABLE CLASS=\"stats\">\
-	<TR><TH>Host</TH><TH>Caid</TH><TH>System</TH><TH>id card</TH><TH>Uphops</TH><TH>Maxdown</TH><TH>Providers</TH><TH>Nodes</TH></TR>\
-	##CCCAMSTATSENTRY##\
+	<TR><TH>Host</TH><TH>Caid</TH><TH>System</TH><TH>share id</TH><TH>remote id</TH><TH>Uphops</TH><TH>Maxdown</TH><TH>Providers</TH><TH>Nodes</TH></TR>\
+    ##CCCAMSTATSENTRY##\
 	</TABLE><BR><DIV CLASS=\"cccamentitlementtotals\">##TOTALS##</DIV>"
 
 #define TPLENTITLEMENTCCCAMENTRYBIT "\
-	<TR><TD>##HOST##</TD><TD>##CAID##</TD><TD>##SYSTEM##</TD><TD>##IDCARD##</TD><TD>##UPHOPS##</TD><TD>##MAXDOWN##</TD><TD>##PROVIDERS##</TD><TD>##NODES##</TD></TR>"
+    <TR><TD>##HOST##</TD><TD>##CAID##</TD><TD>##SYSTEM##</TD><TD>##SHAREID##</TD><TD>##REMOTEID##</TD><TD>##UPHOPS##</TD><TD>##MAXDOWN##</TD><TD>##PROVIDERS##</TD><TD>##NODES##</TD></TR>"
+ 
 
 #define TPLREADERCONFIG "\
 ##TPLHEADER##\
@@ -853,6 +854,7 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 			<OPTION ##CCCVERSIONSELECTED2##>2.1.2</OPTION>\
 			<OPTION ##CCCVERSIONSELECTED3##>2.1.3</OPTION>\
 			<OPTION ##CCCVERSIONSELECTED4##>2.1.4</OPTION>\
+			<OPTION ##CCCVERSIONSELECTED5##>2.2.0</OPTION>\
 		</SELECT></TD></TR>\n\
     <TR><TD>Maxhop:</TD><TD><input name=\"cccmaxhop\" type=\"text\" size=\"3\" maxlength=\"2\" value=\"##CCCMAXHOP##\"></TD></TR>\n\
     <TR><TD>Want Emu:<input name=\"cccwantemu\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"cccwantemu\" type=\"checkbox\" value=\"1\" ##CCCWANTEMUCHECKED##></TD></TR>\n\
@@ -937,6 +939,7 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 			<OPTION ##VERSIONSELECTED2##>2.1.2</OPTION>\
 			<OPTION ##VERSIONSELECTED3##>2.1.3</OPTION>\
 			<OPTION ##VERSIONSELECTED4##>2.1.4</OPTION>\
+			<OPTION ##VERSIONSELECTED5##>2.2.0</OPTION>\
 		</SELECT></TD></TR>\n\
 		<TR><TD>Update Interval:</TD><TD><input name=\"updateinterval\" type=\"text\" size=\"5\" maxlength=\"4\" value=\"##UPDATEINTERVAL##\"></TD></TR>\n\
 		<TR><TD>Minimize cards:</TD><TD><SELECT name=\"minimizecards\">\
