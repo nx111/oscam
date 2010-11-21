@@ -72,7 +72,7 @@ int get_threadnum(struct s_client *client) {
 	return 0;
 }
 
-struct s_client * cur_client(void) 
+struct s_client * cur_client(void)
 {
 	return (struct s_client *) pthread_getspecific(getclient);
 }
@@ -144,18 +144,40 @@ static void usage()
   fprintf(stderr, "\tsee http://streamboard.gmc.to:8001/wiki/ for more details\n");
   fprintf(stderr, "\tbased on streamboard mp-cardserver v0.9d - (w) 2004-2007 by dukat\n");
   fprintf(stderr, "\tinbuilt modules: ");
+#ifdef WEBIF
+  #ifdef WITH_SSL
+  	fprintf(stderr, "webinterface with ssl ");
+  #else
+    fprintf(stderr, "webinterface ");
+  #endif
+#endif
 #ifdef HAVE_DVBAPI
 #ifdef WITH_STAPI
-  fprintf(stderr, "dvbapi with stapi");
+  fprintf(stderr, "dvbapi with stapi ");
 #else
   fprintf(stderr, "dvbapi ");
 #endif
 #endif
-#ifdef WEBIF
-  fprintf(stderr, "webinterface ");
+#ifdef IRDETO_GUESSING
+  fprintf(stderr, "irdeto-guessing ");
 #endif
 #ifdef CS_ANTICASC
   fprintf(stderr, "anticascading ");
+#endif
+#ifdef WITH_DEBUG
+  fprintf(stderr, "debug ");
+#endif
+#ifdef CS_LED
+  fprintf(stderr, "led-trigger ");
+#endif
+#ifdef CS_WITH_DOUBLECHECK
+  fprintf(stderr, "doublecheck ");
+#endif
+#ifdef QBOXHD_LED
+  fprintf(stderr, "QboxHD-led-trigger ");
+#endif
+#ifdef CS_LOGHISTORY
+  fprintf(stderr, "loghistory ");
 #endif
 #ifdef LIBUSB
   fprintf(stderr, "smartreader ");
@@ -165,15 +187,6 @@ static void usage()
 #endif
 #ifdef CS_WITH_GBOX
   fprintf(stderr, "gbox ");
-#endif
-#ifdef IRDETO_GUESSING
-  fprintf(stderr, "irdeto-guessing ");
-#endif
-#ifdef CS_LED
-  fprintf(stderr, "led-trigger ");
-#endif
-#ifdef QBOXHD_LED
-  fprintf(stderr, "QboxHD-led-trigger ");
 #endif
   fprintf(stderr, "\n\n");
   fprintf(stderr, "oscam [-b] [-c config-dir] [-d]");
@@ -246,7 +259,7 @@ int recv_from_udpipe(uchar *buf)
     cs_exit(1);
   }
   memcpy(&n, buf+1, 2);
- 
+
   memmove(buf, buf+3, n);
 
   return n;
@@ -262,7 +275,7 @@ char *username(struct s_client * client)
 
 static struct s_client * idx_from_ip(in_addr_t ip, in_port_t port)
 {
-  struct s_client *cl; 
+  struct s_client *cl;
   for (cl=first_client; cl ; cl=cl->next)
     if ((cl->ip==ip) && (cl->port==port) && ((cl->typ=='c') || (cl->typ=='m')))
       return cl;
@@ -271,7 +284,7 @@ static struct s_client * idx_from_ip(in_addr_t ip, in_port_t port)
 
 struct s_client * get_client_by_tid(unsigned long tid) //FIXME untested!! no longer pid in output...
 {
-  struct s_client *cl; 
+  struct s_client *cl;
   for (cl=first_client; cl ; cl=cl->next)
     if ((unsigned long)(cl->thread)==tid)
       return cl;
@@ -410,7 +423,7 @@ void cs_exit(int sig)
     cs_log("exit with signal %d", sig);
 
   struct s_client *cl = cur_client();
-  
+
   switch(cl->typ)
   {
     case 'c':
@@ -461,11 +474,11 @@ void cs_exit(int sig)
 		//Restore signals before exiting thread
 		set_signal_handler(SIGPIPE , 0, cs_sigpipe);
 		set_signal_handler(SIGHUP  , 1, cs_accounts_chk);
-		
+
 		pthread_exit(NULL);
 		return;
 	}
-	
+
 	cs_log("cardserver down");
 	cs_close_log();
 
@@ -667,7 +680,7 @@ static void init_shm()
   else
     strcpy(first_client->usr, "root");
 
-  pthread_mutex_init(&gethostbyname_lock, NULL); 
+  pthread_mutex_init(&gethostbyname_lock, NULL);
 
 #ifdef CS_LOGHISTORY
   loghistidx=0;
@@ -841,7 +854,7 @@ int cs_user_resolve(struct s_auth *account)
 		account->dynip=0;
 	return result;
 }
-#if defined(CS_ANTICASC) || defined(WEBIF) 
+#if defined(CS_ANTICASC) || defined(WEBIF)
 static void start_thread(void * startroutine, char * nameroutine) {
 	pthread_t temp;
 	pthread_attr_t attr;
@@ -898,7 +911,7 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 	rdr->card_status = NO_CARD;
 	rdr->tcp_block_delay = 100;
 	cs_ftime(&rdr->tcp_block_connect_till);
-	
+
 	if (rdr->device[0] && (rdr->typ & R_IS_CASCADING)) {
 		for (i=0; i<CS_MAX_MOD; i++)
 			if (ph[i].num && rdr->typ==ph[i].num)
@@ -926,10 +939,10 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 		rdr->fd=cl->fd_m2c;
 		cl->reader=rdr;
 		cs_log("creating thread for device %s slot %i", rdr->device, rdr->slot);
-             	
+
 		cl->sidtabok=rdr->sidtabok;
 		cl->sidtabno=rdr->sidtabno;
-   
+
 		rdr->client=cl;
 
 		cl->typ='r';
@@ -1090,7 +1103,7 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 						}
 					if(!client->aureader)
 						sprintf(t_msg[0], "au(auto)=0"); //FIXME dont think this is correct, but this was old behaviour
-					else 
+					else
 						sprintf(t_msg[0], "au(auto)=%s", client->aureader->label);
 				}
 				else
@@ -1098,7 +1111,7 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 			else
 				if(!client->aureader)
 					sprintf(t_msg[0], "au(auto)=0"); //FIXME dont think this is correct, but this was old behaviour
-				else 
+				else
 					sprintf(t_msg[0], "au=%s", client->aureader->label);
 
 	if(client->ncd_server)
@@ -1308,9 +1321,9 @@ void logCWtoFile(ECM_REQUEST *er)
 	struct tm *timeinfo;
 	struct s_srvid *this;
 
-	/* 
+	/*
 	* search service name for that id and change characters
-	* causing problems in file name 
+	* causing problems in file name
 	*/
 	srvname[0] = 0;
 	for (this=cfg->srvid; this; this = this->next) {
@@ -1399,7 +1412,7 @@ int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
     res = write_ecm_request(er->client->fd_m2c, er);
     //return(write_ecm_request(first_client->fd_m2c, er)); //does this ever happen? Schlocke: should never happen!
   }
-    
+
   return res;
 }
 
@@ -1495,7 +1508,7 @@ static void send_reader_stat(struct s_reader *rdr, ECM_REQUEST *er, int rc)
 // 12= disabled
 // 13= stopped
 // 100=unhandled
-                                                                                                                        
+
 int send_dcw(struct s_client * client, ECM_REQUEST *er)
 {
 	static const char *stxt[]={"found", "cache1", "cache2", "emu",
@@ -1571,8 +1584,8 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 		}
 
 		struct s_reader *cur = er->selected_reader;
-		
-		if (cur->typ == R_CCCAM && !cur->caid[0] && !cur->audisabled && 
+
+		if (cur->typ == R_CCCAM && !cur->caid[0] && !cur->audisabled &&
 				cur->card_system == get_cardsystem(er->caid) && hexserialset(er->selected_reader))
 			client->aureader= er->selected_reader;
 		else if((er->caid == cur->caid[0]) && (!cur->audisabled)) {
@@ -1580,7 +1593,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 		} else {
 			for (cur=first_reader; cur ; cur=cur->next) { //second chance loop through all readers to find an AU reader
 				if (matching_reader(er, cur)) {
-					if (cur->typ == R_CCCAM && !cur->caid[0] && !cur->audisabled && 
+					if (cur->typ == R_CCCAM && !cur->caid[0] && !cur->audisabled &&
 						cur->card_system == get_cardsystem(er->caid) && hexserialset(cur))
 					{
 						client->aureader = cur;
@@ -1648,7 +1661,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 	if (cfg->double_check && er->rc < 4) {
 	  if (er->checked == 0) {//First CW, save it and wait for next one
 	    er->checked = 1;
-	    er->origin_reader = er->selected_reader; 
+	    er->origin_reader = er->selected_reader;
 	    memcpy(er->cw_checked, er->cw, sizeof(er->cw));
 	    cs_log("DOUBLE CHECK FIRST CW by %s idx %d cpti %d", er->origin_reader->label, er->idx, er->cpti);
 	  }
@@ -1661,9 +1674,9 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 	    	cs_log("DOUBLE CHECKED NONMATCHING! %d. CW by %s idx %d cpti %d", er->checked, er->selected_reader->label, er->idx, er->cpti);
 	    }
 	  }
-	  
+
 	  if (er->checked < 2) { //less as two same cw? mark as pending!
-	    er->rc = 100; 
+	    er->rc = 100;
 	    return 0;
 	  }
 
@@ -1671,7 +1684,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 
 	}
 #endif
-	
+
 	ph[client->ctyp].send_dcw(client, er);
 
 #ifdef QBOXHD_LED
@@ -1689,7 +1702,7 @@ void chk_dcw(struct s_client *cl, ECM_REQUEST *er)
 {
   if (!cl || !cl->ecmtask)
   	return;
-  	
+
   ECM_REQUEST *ert;
 
   //cs_log("dcw check from reader %d for idx %d (rc=%d)", er->selected_reader, er->cpti, er->rc);
@@ -1764,7 +1777,7 @@ ulong chk_provid(uchar *ecm, ushort caid) {
 			i = (ecm[4] == 0xD2) ? ecm[5]+2 : 0;  // skip d2 nano
 			if((ecm[5+i] == 3) && ((ecm[4+i] == 0x90) || (ecm[4+i] == 0x40)))
 				provid = (b2i(3, ecm+6+i) & 0xFFFFF0);
-            
+
 			i = (ecm[6] == 0xD2) ? ecm[7]+2 : 0;  // skip d2 nano long ecm
 			if((ecm[7+i] == 7) && ((ecm[6+i] == 0x90) || (ecm[6+i] == 0x40)))
 				provid = (b2i(3, ecm+8+i) & 0xFFFFF0);
@@ -1891,8 +1904,8 @@ void guess_cardsystem(ECM_REQUEST *er)
     last_hope=0xd00;
 
 #ifdef IRDETO_GUESSING
-  if (!er->caid && er->ecm[2]==0x31 && er->ecm[0x0b]==0x28) 
-    guess_irdeto(er); 
+  if (!er->caid && er->ecm[2]==0x31 && er->ecm[0x0b]==0x28)
+    guess_irdeto(er);
 #endif
 
   if (!er->caid)    // guess by len ..
@@ -1909,7 +1922,7 @@ void request_cw(ECM_REQUEST *er, int flag, int reader_types)
     er->level=flag;
   flag=(flag)?3:1;    // flag specifies with/without fallback-readers
 	struct s_reader *rdr;
-	for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {	
+	for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {
       int status = 0;
       switch (reader_types)
       {
@@ -1946,7 +1959,7 @@ void request_cw(ECM_REQUEST *er, int flag, int reader_types)
       			if (rdr->fd_error > 5) {
       				rdr->fd_error = 0;
       				restart_cardreader(rdr, 1); //Schlocke: This restarts the reader!
-      			} 
+      			}
 		}
       }
       else
@@ -1991,7 +2004,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 
 	// Quickfix for 0500:D20200
 	if (er->caid == 0x500 && er->prid == 0xD20200)
-		er->prid = 0x030600; 
+		er->prid = 0x030600;
 
 	//betacrypt ecm with nagra header
 	if (er->caid == 0x1702 && er->l == 0x89 && er->ecm[3] == 0x07 && er->ecm[4] == 0x84)
@@ -2130,8 +2143,8 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 			}
 		}
 	}
-	
-	//Schlocke: above checks could change er->rc so 
+
+	//Schlocke: above checks could change er->rc so
 	if (er->rc > 99) {
 		/*BetaCrypt tunneling
 		 *moved behind the check routines,
@@ -2170,13 +2183,13 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 			}
 
 		if (cfg->lb_mode) {
-			cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X", 
+			cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X",
 				username(client), er->caid, er->prid, er->srvid);
 			get_best_reader(er);
 		}
 
 		m = update_reader_count(er);
-		
+
 		switch(m) {
 			// no reader -> not found
 			case 0:
@@ -2184,10 +2197,10 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 				if (!er->rcEx)
 					er->rcEx = E2_GROUP;
 				break;
-				
+
 			// fallbacks only, switch them
 			case 2:
-				for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)	
+				for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)
 					er->matching_rdr[i]>>=1;
 		}
 	}
@@ -2221,7 +2234,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 	//Unique Id matching for pay-per-view channels:
 	if (client->autoau) {
 		struct s_reader *rdr;
-		for (rdr=first_reader; rdr ; rdr=rdr->next)	
+		for (rdr=first_reader; rdr ; rdr=rdr->next)
 			if (rdr->card_system>0 && !rdr->audisabled)
 				if (reader_get_emm_type(ep, rdr)) //decodes ep->type and ep->hexserial from the EMM
 					if (memcmp(ep->hexserial, rdr->hexserial, sizeof(ep->hexserial))==0) {
@@ -2229,7 +2242,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 						break; //
 					}
 	}
-	
+
 	if (!aureader) {
 		cs_debug_mask(D_EMM, "emm disabled, client has no au-reader!");
 		return;
@@ -2242,7 +2255,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 		}
 	}
 	else {
-		cs_debug_mask(D_EMM, "emm skipped, reader %s has no cardsystem defined!", aureader->label); 
+		cs_debug_mask(D_EMM, "emm skipped, reader %s has no cardsystem defined!", aureader->label);
 		return;
 	}
 
@@ -2254,7 +2267,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 		}
 	}
 
-	cs_debug_mask(D_EMM, "emmtype %s. Reader %s has serial %s.", typtext[ep->type], aureader->label, cs_hexdump(0, aureader->hexserial, 8)); 
+	cs_debug_mask(D_EMM, "emmtype %s. Reader %s has serial %s.", typtext[ep->type], aureader->label, cs_hexdump(0, aureader->hexserial, 8));
 	cs_ddump_mask(D_EMM, ep->hexserial, 8, "emm UA/SA:");
 
 	client->last=time((time_t)0);
@@ -2277,7 +2290,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 		}
 		else
 		{
-			fprintf (fp, "%s   %s   ", buf, cs_hexdump(0, ep->hexserial, 8)); 
+			fprintf (fp, "%s   %s   ", buf, cs_hexdump(0, ep->hexserial, 8));
 			fprintf (fp, "%s\n", cs_hexdump(0, ep->emm, emm_length + 3));
 			fclose (fp);
 			cs_log ("Succesfully added EMM to %s.", token);
@@ -2288,7 +2301,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 		{
 			cs_log ("ERROR: Cannot open file '%s' (errno=%d: %s)\n", token, errno, strerror(errno));
 		}
-		else 
+		else
 		{
 			if ((int)fwrite(ep->emm, 1, emm_length+3, fp) == emm_length+3)
 			{
@@ -2377,7 +2390,7 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 	//cs_log("num pend=%d", i);
 
 	for (--i; i>=0; i--) {
-		if (cl->ecmtask[i].rc>=100) { // check all pending ecm-requests 
+		if (cl->ecmtask[i].rc>=100) { // check all pending ecm-requests
 			int act, j;
 			er=&cl->ecmtask[i];
 			tpc=er->tps;
@@ -2387,7 +2400,7 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 			tpc.millitm += tt % 1000;
 			if (!er->stage) {
 				struct s_reader *rdr;
-				for (j=0, act=1, rdr=first_reader; (act) && rdr ; rdr=rdr->next, j++) {	
+				for (j=0, act=1, rdr=first_reader; (act) && rdr ; rdr=rdr->next, j++) {
 					if (cfg->preferlocalcards && !er->locals_done) {
 						if ((er->matching_rdr[j]&1) && !(rdr->typ & R_IS_NETWORK))
 							act=0;
@@ -2409,7 +2422,7 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 					if (cfg->preferlocalcards && !er->locals_done) {
 						er->locals_done = 1;
 						struct s_reader *rdr;
-						for (rdr=first_reader; rdr ; rdr=rdr->next)	
+						for (rdr=first_reader; rdr ; rdr=rdr->next)
 							if (rdr->typ & R_IS_NETWORK)
 								inc_stage = 0;
 					}
@@ -2430,7 +2443,7 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 					}
 				}
 			}
-			if (comp_timeb(&tpn, &tpc)>0) { // action needed 
+			if (comp_timeb(&tpn, &tpc)>0) { // action needed
 				//cs_log("Action now %d.%03d", tpn.time, tpn.millitm);
 				//cs_log("           %d.%03d", tpc.time, tpc.millitm);
 				if (er->stage) {
@@ -2438,7 +2451,7 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 					if (cfg->lb_mode) {
 						int r;
 						struct s_reader *rdr;
-						for (r=0,rdr=first_reader; rdr ; rdr=rdr->next, r++)	
+						for (r=0,rdr=first_reader; rdr ; rdr=rdr->next, r++)
 							if (er->matching_rdr[r])
 								send_reader_stat(rdr, er, 5);
 					}
@@ -2535,7 +2548,7 @@ static void process_master_pipe(int mfdr)
     case PIP_ID_KCL: //Kill all clients
     	restart_clients();
     	break;
-    case PIP_ID_ERR: 
+    case PIP_ID_ERR:
         cs_exit(1); //better than reading from dead pipe!
         break;
     default:
@@ -2555,7 +2568,7 @@ int process_client_pipe(struct s_client *cl, uchar *buf, int l) {
 		case PIP_ID_ECM:
 			chk_dcw(cl, (ECM_REQUEST *)ptr);
 			break;
-		case PIP_ID_UDP:	
+		case PIP_ID_UDP:
 			if (ptr[0]!='U') {
 				cs_log("INTERNAL PIPE-ERROR");
 			}
@@ -2605,13 +2618,13 @@ void cs_waitforcardinit()
 		do {
 			card_init_done = 1;
 			struct s_reader *rdr;
-			for (rdr=first_reader; rdr ; rdr=rdr->next)	
+			for (rdr=first_reader; rdr ; rdr=rdr->next)
 				if (!(rdr->typ & R_IS_CASCADING) && rdr->card_status == CARD_NEED_INIT) {
 					card_init_done = 0;
 					break;
 				}
 			cs_sleepms(300); // wait a little bit
-			//alarm(cfg->cmaxidle + cfg->ctimeout / 1000 + 1); 
+			//alarm(cfg->cmaxidle + cfg->ctimeout / 1000 + 1);
 		} while (!card_init_done);
   		cs_log("init for all local cards done");
 	}
@@ -2708,7 +2721,7 @@ char * get_tmp_dir()
 {
   if (cs_tmpdir[0])
     return cs_tmpdir;
-      
+
 #ifdef OS_CYGWIN32
   char *d = getenv("TMPDIR");
   if (!d || !d[0])
@@ -2717,7 +2730,7 @@ char * get_tmp_dir()
     d = getenv("TEMP");
   if (!d || !d[0])
     getcwd(cs_tmpdir, sizeof(cs_tmpdir)-1);
-                                        
+
   strcpy(cs_tmpdir, d);
   char *p = cs_tmpdir;
   while(*p) p++;
@@ -2731,12 +2744,11 @@ char * get_tmp_dir()
   mkdir(cs_tmpdir, S_IRWXU);
   return cs_tmpdir;
 }
-                                                              
-                                                                            
+
+
 int main (int argc, char *argv[])
 {
 
-server_pid = getpid();
 
 if (pthread_key_create(&getclient, NULL)) {
   fprintf(stderr, "Could not create getclient, exiting...");
@@ -2897,7 +2909,7 @@ if (pthread_key_create(&getclient, NULL)) {
 
   init_len4caid();
 #ifdef IRDETO_GUESSING
-  init_irdeto_guess_tab(); 
+  init_irdeto_guess_tab();
 #endif
 
 
@@ -2924,6 +2936,7 @@ if (pthread_key_create(&getclient, NULL)) {
   }
 
   write_versionfile();
+  server_pid = getpid();
 
 #ifdef AZBOX
   openxcas_debug_message_onoff(1);  // debug
@@ -2946,9 +2959,9 @@ if (pthread_key_create(&getclient, NULL)) {
 	first_client->last=time((time_t *)0);
 
 #ifdef WEBIF
-  if(cfg->http_port == 0) 
-    cs_log("http disabled"); 
-  else 
+  if(cfg->http_port == 0)
+    cs_log("http disabled");
+  else
     start_thread((void *) &http_srv, "http");
 #endif
 
@@ -2977,7 +2990,7 @@ if (pthread_key_create(&getclient, NULL)) {
 	else {
 		init_ac();
 		start_thread((void *) &start_anticascader, "anticascader"); // 96
-		
+
 	}
 #endif
 
@@ -3003,7 +3016,7 @@ if (pthread_key_create(&getclient, NULL)) {
 		} while (errno==EINTR);
 
 		first_client->last=time((time_t *)0);
-		
+
 		if (FD_ISSET(mfdr, &fds)) {
 			process_master_pipe(mfdr);
 		}
@@ -3045,7 +3058,7 @@ void cs_switch_led(int led, int action) {
 			case LED3:snprintf(ledfile, 255, "/sys/class/leds/dockstar:orange:misc/brightness");
 			break;
 			}
-		#else		
+		#else
 			switch(led){
 			case LED1A:snprintf(ledfile, 255, "/sys/class/leds/nslu2:red:status/brightness");
 			break;
