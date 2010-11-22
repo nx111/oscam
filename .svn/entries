@@ -1,15 +1,15 @@
 10
 
 dir
-3954
+3960
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-11-21T11:09:02.389428Z
-3954
-_network
+2010-11-22T00:04:23.555307Z
+3960
+alno
 has-props
 
 
@@ -396,9 +396,6 @@ _network
 
 10193
 
-toolchains
-dir
-
 module-obj-llist.c
 file
 
@@ -432,6 +429,9 @@ dingo35
 
 
 3091
+
+toolchains
+dir
 
 oscam-ac.c
 file
@@ -559,40 +559,6 @@ rebdog
 
 1625
 
-CMakeLists.txt
-file
-
-
-
-
-2010-11-21T11:33:03.484599Z
-4c01206909b4c0e0c99ab41963ca9c9d
-2010-11-20T18:27:44.112589Z
-3947
-_network
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-28923
-
 Makefile
 file
 
@@ -627,18 +593,39 @@ cogsi
 
 25451
 
-config.sh
+CMakeLists.txt
 file
 
 
 
 
-
-e3b2a446779e70c2c3954da4c5875d09
-2010-11-19T16:04:10.133264Z
-3930
+2010-11-21T11:33:03.484599Z
+4c01206909b4c0e0c99ab41963ca9c9d
+2010-11-20T18:27:44.112589Z
+3947
 _network
-has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+28923
 
 module-dvbapi.h
 file
@@ -651,6 +638,19 @@ aa14fc18af373040f05ec287ff43492b
 2010-11-16T23:02:53.851940Z
 3909
 _network
+
+config.sh
+file
+
+
+
+
+
+e3b2a446779e70c2c3954da4c5875d09
+2010-11-19T16:04:10.133264Z
+3930
+_network
+has-props
 
 module-stat.c
 file
@@ -686,52 +686,6 @@ schlocke
 
 15938
 
-oscam-reader.c
-file
-
-
-
-
-2010-11-17T12:51:14.713264Z
-64a8fc0dd468aa976d5303f784efa74e
-2010-11-17T07:32:04.854426Z
-3915
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-23887
-
-oscam.c
-file
-
-
-
-
-
-35cdf53a466ae84eb8acbf5383e5ba91
-2010-11-21T09:59:38.369800Z
-3950
-hapeba
-
 module-serial.c
 file
 
@@ -766,17 +720,29 @@ dingo35
 
 28204
 
-module-stat.h
+oscam.c
 file
 
 
 
 
-2010-11-03T14:00:59.492967Z
-c596dfa96924ad727eee43e7eaaeba7b
-2010-11-03T13:57:07.026464Z
-3812
+
+94f212b766b7d61ea02be75dfb51a302
+2010-11-22T00:04:23.555307Z
+3960
 alno
+
+oscam-reader.c
+file
+
+
+
+
+2010-11-17T12:51:14.713264Z
+64a8fc0dd468aa976d5303f784efa74e
+2010-11-17T07:32:04.854426Z
+3915
+schlocke
 
 
 
@@ -798,7 +764,7 @@ alno
 
 
 
-532
+23887
 
 reader-tongfang.c
 file
@@ -833,6 +799,40 @@ schlocke
 
 
 5090
+
+module-stat.h
+file
+
+
+
+
+2010-11-03T14:00:59.492967Z
+c596dfa96924ad727eee43e7eaaeba7b
+2010-11-03T13:57:07.026464Z
+3812
+alno
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+532
 
 module-constcw.c
 file
@@ -1374,11 +1374,11 @@ file
 
 
 
-2010-11-13T13:11:00.540791Z
-5cb96e4996ab23342a182da0d4c1a0cf
-2010-11-12T23:08:09.041165Z
-3893
-schlocke
+2010-11-22T10:30:26.577231Z
+d46a649a25189d09f4a588dadb82bf9b
+2010-11-21T19:16:44.354698Z
+3958
+merek
 
 
 
@@ -1400,7 +1400,7 @@ schlocke
 
 
 
-18624
+18767
 
 module-datastruct-llist.c
 file
@@ -1523,9 +1523,9 @@ file
 
 
 
-1042e460abf6d90909638ae42c48f2cb
-2010-11-21T10:44:30.617168Z
-3952
+bcef62b210a0850c580d195509d9a717
+2010-11-21T19:55:36.614121Z
+3959
 schlocke
 has-props
 
