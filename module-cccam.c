@@ -211,6 +211,7 @@ void cc_cli_close(struct s_client *cl, int call_conclose) {
 		if (cl->udp_fd)
 			close(cl->udp_fd);
 		cl->udp_fd = 0;
+		cl->pfd = 0;
 	}
 
 	if (cc) {
@@ -664,7 +665,6 @@ void cc_remove_current_card(struct cc_data *cc,
 		if (c == current_card)
 			ll_iter_remove_data(it);
 	ll_iter_release(it);
-
 }
 
 int get_UA_len(uint16 caid) {
@@ -705,14 +705,45 @@ int get_UA_len(uint16 caid) {
 	return len;
 }
 
+int get_UA_ofs(uint16 caid) {
+	int ofs = 0;
+	switch (caid >> 8) {
+	case 0x4B: //TONGFANG:
+		ofs = 2;
+		break;
+	case 0x09: //VIDEOGUARD:
+		ofs = 2;
+		break;
+	case 0x18: //NAGRA:
+		ofs = 2;
+		break;
+	case 0x4A: //DRE:
+		ofs = 2;
+		break;
+	}
+	return ofs;
+}
+
 void cc_UA_oscam2cccam(uint8 *in, uint8 *out, uint16 caid) {
 	int len = get_UA_len(caid);
-	memcpy(&out[8 - len], in, len);
+	int ofs = get_UA_ofs(caid);
+	memset(out, 0, 8);
+	memcpy(out+8-len, in+ofs, len); //set UA trailing/leading zeros
 }
 
 void cc_UA_cccam2oscam(uint8 *in, uint8 *out, uint16 caid) {
 	int len = get_UA_len(caid);
-	memcpy(out, in, len);
+	int ofs_oscam = get_UA_ofs(caid);
+	int ofs_cccam = 0;
+	int i;
+	for (i=0;i<(8-len);i++) {
+		if (!in[ofs_cccam]) //ignore leading "00"
+			ofs_cccam++;
+		else
+			break;
+	}
+	memset(out, 0, 8);
+	memcpy(out+ofs_oscam, in+ofs_cccam, len);
 }
 
 void cc_SA_oscam2cccam(uint8 *in, uint8 *out) {
@@ -1320,12 +1351,16 @@ int is_null_dcw(uint8 *dcw) {
 */
 
 int check_extended_mode(struct s_client *cl, char *msg) {
-	//Extended mode: if PARTNER String is ending with [EXT], extended mode is activated
+	//Extended mode: if PARTNER String is ending with [PARAM], extended mode is activated
 	//For future compatibilty the syntax should be compatible with
 	//[PARAM1,PARAM2...PARAMn]
 	//
 	// EXT: Extended ECM Mode: Multiple ECMs could be send and received
 	//                         ECMs are numbered, Flag (byte[0] is the index
+	//
+	// SID: Exchange of good sids/bad sids activated (like cccam 2.2.x)
+	//      card exchange command MSG_NEW_CARD_SIDINFO instead MSG_NEW_CARD is used
+	//
 
 	struct cc_data *cc = cl->cc;
 	int has_param = 0;
@@ -1335,6 +1370,11 @@ int check_extended_mode(struct s_client *cl, char *msg) {
 		if (p && strncmp(p, "EXT", 3) == 0) {
 			cc->extended_mode = 1;
 			cs_log("%s extended ECM mode", getprefix());
+			has_param = 1;
+		}
+		else if (p && strncmp(p, "SID", 3)==0) {
+			cc->cccam220 = 1;
+			cs_log("%s extra SID mode", getprefix());
 			has_param = 1;
 		}
 	}
@@ -1662,6 +1702,16 @@ int chk_ident(FTAB *ftab, struct cc_card *card) {
 	}
 }*/
 
+void addParam(char *param, char *value)
+{
+	if (strlen(param) == 1)
+		strcat(param, value);
+	else {
+		strcat(param, ",");
+		strcat(param, value);
+	}
+}
+
 int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 	cs_debug_mask(D_FUT, "cc_parse_msg in %d", buf[1]);
 	struct s_reader *rdr = (cl->typ == 'c') ? NULL : cl->reader;
@@ -1712,7 +1762,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 			//Trick: when discovered partner is an Oscam Client, then we send him our version string:
 			if (cc->is_oscam_cccam) {
 				sprintf((char*) buf,
-						"PARTNER: OSCam v%s, build #%s (%s) [EXT]", CS_VERSION,
+						"PARTNER: OSCam v%s, build #%s (%s) [EXT,SID]", CS_VERSION,
 						CS_SVN_VERSION, CS_OSTYPE);
 				cc_cmd_send(cl, buf, strlen((char*) buf) + 1, MSG_CW_NOK1);
 			}
@@ -1863,13 +1913,15 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 				int has_param = check_extended_mode(cl, msg);
 
 				//send params back. At the moment there is only "EXT"
-				char param[10];
+				char param[14];
 				if (!has_param)
 					param[0] = 0;
 				else {
 					strcpy(param, " [");
 					if (cc->extended_mode)
-						strcat(param, "EXT");
+						addParam(param, "EXT");
+					if (cc->cccam220)
+						addParam(param, "SID");
 					strcat(param, "]");
 				}
 
@@ -3066,7 +3118,7 @@ int cc_srv_connect(struct s_client *cl) {
 							getprefix());
 					break; //Disconnect client
 				}
-				else
+				else if (cc->extended_mode) //special handling for "oscam"-cccam clients:
 				{
 					if (cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE) < 0)
 						break;
@@ -3130,14 +3182,9 @@ void * cc_srv_init(struct s_client *cl) {
 	if (cc_srv_connect(cl) < 0)
 		cs_log("cccam: %d failed errno: %d (%s)", __LINE__, errno, strerror(
 				errno));
-	cs_disconnect_client(cl);
-	if (cl->udp_fd) {
-		close(cl->udp_fd);
-		cl->udp_fd = 0;
-		cl->pfd = 0;
-	}
 	cc_cleanup(cl);
 	cs_debug_mask(D_FUT, "cc_srv_init out");
+	cs_disconnect_client(cl);
 	return NULL; //suppress compiler warning
 }
 
@@ -3186,8 +3233,7 @@ int cc_cli_connect(struct s_client *cl) {
 	// get init seed
 	if ((n = recv(handle, data, 16, MSG_WAITALL)) != 16) {
 		int err = errno;
-		cs_log(
-				"%s server does not return 16 bytes (n=%d, handle=%d, udp_fd=%d, errno=%d)",
+		cs_log("%s server does not return 16 bytes (n=%d, handle=%d, udp_fd=%d, errno=%d)",
 				rdr->label, n, handle, cl->udp_fd, err);
 		block_connect(rdr);
 		return -2;
@@ -3357,6 +3403,9 @@ int cc_cli_init_int(struct s_client *cl) {
 	//		loc_sa.sin_addr.s_addr = INADDR_ANY;
 	//		loc_sa.sin_port = htons(rdr->l_port);
 
+	if (cl->udp_fd)
+		cc_cli_close(cl, FALSE);
+		
 	if ((cl->udp_fd = socket(PF_INET, SOCK_STREAM, p_proto)) <= 0) {
 		cs_log("%s Socket creation failed (errno=%d, socket=%d)", rdr->label,
 				errno, cl->udp_fd);
@@ -3510,4 +3559,3 @@ void module_cccam(struct s_module *ph) {
 	cc_node_id[6] = sum >> 8;
 	cc_node_id[7] = sum & 0xff;
 }
-
