@@ -223,7 +223,7 @@ static int irdeto_card_init(struct s_reader * reader, ATR newatr)
 	get_atr;
 	int camkey = 0;
 	uchar buf[256] = {0};
-       uchar sc_GetCamKey383C[]  = { 0x02, 0x09, 0x03, 0x00, 0x40,
+	uchar sc_GetCamKey383C[]  = { 0x02, 0x09, 0x03, 0x00, 0x40,
                           0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
                           0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
                           0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
@@ -376,11 +376,11 @@ static int irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr) {
 				// hex addressed
 				return (base == rdr->hexserial[3] && !memcmp(ep->emm + 4, rdr->hexserial, l));
 			}
-			else if (base == 0) {
-				// FIXME: shared emm but hexbase was zero, dont see yet, but we should accept this
-				return TRUE;
-			}
 			else {
+				// not hex addressed and emm mode zero
+				if (base == 0)
+					return TRUE;
+
 				// provider addressed
 				for(i = 0; i < rdr->nprov; i++)
 					if (base == rdr->prid[i][0] && !memcmp(ep->emm + 4, &rdr->prid[i][1], l))
@@ -457,38 +457,39 @@ static int irdeto_do_emm(struct s_reader * reader, EMM_PACKET *ep)
 	int mode = (ep->emm[3] >> 3);
 	uchar *emm = ep->emm;
 
-	if (mode & 0x10) {		// Hex addressed
-		ok=(mode == reader->hexserial[3] &&
-				(!l || !memcmp(&emm[4], reader->hexserial, l)));
+	if (mode & 0x10) {
+		// hex addressed
+		ok = (mode == reader->hexserial[3] && (!l || !memcmp(&emm[4], reader->hexserial, l)));
 	}
-	else {				// Provider addressed
-		for(i = 0; i < reader->nprov; i++) {
-			ok=(mode == reader->prid[i][0] &&
-					(!l || !memcmp(&emm[4], &reader->prid[i][1], l)));
-			if (ok) break;
+	else {
+		// not hex addressed and emm mode zero
+		if (mode == 0)
+			ok = 1;
+		else {
+			// provider addressed
+			for(i = 0; i < reader->nprov; i++) {
+				ok = (mode == reader->prid[i][0] && (!l || !memcmp(&emm[4], &reader->prid[i][1], l)));
+				if (ok) break;
+			}
 		}
 	}
 
-	if (ok || mode == 0)
-	{
+	if (ok) {
 		l++;
-		if (l <= ADDRLEN)
-		{
+		if (l <= ADDRLEN) {
 			const int dataLen = SCT_LEN(emm) - 5 - l;		// sizeof of emm bytes (nanos)
 			uchar *ptr = cta_cmd;
 			memcpy(ptr, sc_EmmCmd, sizeof(sc_EmmCmd));		// copy card command
-			ptr[4] = dataLen + ADDRLEN;						// set card command emm size
+			ptr[4] = dataLen + ADDRLEN;				// set card command emm size
 			ptr += sizeof(sc_EmmCmd); emm += 3;
-			memset(ptr, 0, ADDRLEN);						// clear addr range
-			memcpy(ptr, emm, l);							// copy addr bytes
+			memset(ptr, 0, ADDRLEN);				// clear addr range
+			memcpy(ptr, emm, l);					// copy addr bytes
 			ptr += ADDRLEN; emm += l;
-			memcpy(ptr, &emm[2], dataLen);					// copy emm bytes
+			memcpy(ptr, &emm[2], dataLen);				// copy emm bytes
 			return(irdeto_do_cmd(reader, cta_cmd, 0, cta_res, &cta_lr) ? 0 : 1);
 		}
 		else
-		{
-			cs_debug("[irdeto-reader] addrlen %d > %d", l, ADDRLEN);
-		}
+			cs_debug_mask(D_EMM, "[irdeto-reader] addrlen %d > %d", l, ADDRLEN);
 	}
 	return ERROR;
 }

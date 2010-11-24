@@ -350,6 +350,11 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 
 	for (n=0;n<demux[demux_id].ECMpidcount;n++) {
 		if (stream>-1 && demux[demux_id].ECMpids[n].CAID == caid && demux[demux_id].ECMpids[n].ECM_PID == ecmpid) {
+			if (demux[demux_id].ECMpids[n].slen == 0) {
+				//we already got this caid/ecmpid as global, no need to add the single stream
+				cs_debug("[SKIP STREAM %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X", n, caid, ecmpid, provid);
+				continue;
+			}
 			added=1;
 			demux[demux_id].ECMpids[n].stream[demux[demux_id].ECMpids[n].slen++]=stream;
 			cs_debug("[ADD STREAM %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X", n, caid, ecmpid, provid);
@@ -505,8 +510,12 @@ void dvbapi_start_descrambling(int demux_id) {
 				&& demux[demux_id].ECMpids[demux[demux_id].curindex].PROVID == demux[demux_id].ECMpids[j].PROVID
 				&& demux[demux_id].ECMpids[j].PROVID > 0)) {
 
-			if (demux[demux_id].curindex != j)
+			if (demux[demux_id].curindex != j) {
+				if (demux[demux_id].ECMpids[j].status < 0 || demux[demux_id].ECMpids[demux[demux_id].curindex].slen == 0)
+					continue;
+
 				dvbapi_start_filter(demux_id, j, demux[demux_id].ECMpids[j].ECM_PID, 0x80, 0xF0, 3000, TYPE_ECM);
+			}
 
 			demux[demux_id].ECMpids[j].index=dvbapi_get_descindex();
 			demux[demux_id].ECMpids[j].checked=1;
@@ -1048,7 +1057,14 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd, c
 	for (i = 0; i < MAX_DEMUX; i++) {
 		if (connfd>0 && demux[i].socket_fd == connfd) {
 			//PMT Update
-			if (ca_pmt_list_management == 0x03 || ca_pmt_list_management == 0x01 || ca_pmt_list_management == 0x05)
+			if (ca_pmt_list_management == 0x05) {
+				demux_id = i;
+				demux[demux_id].curindex = demux[demux_id].pidindex;
+				demux[demux_id].STREAMpidcount=0;
+				demux[demux_id].ECMpidcount=0;
+				demux[demux_id].EMMpidcount=0;
+			}
+			if (ca_pmt_list_management == 0x03 || ca_pmt_list_management == 0x01)
 				dvbapi_stop_descrambling(i);
 			if (ca_pmt_list_management == 0x02)
 				demux_id=i;
@@ -1117,7 +1133,9 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd, c
 	openxcas_sid = program_number;
 #endif
 
-	if (demux[demux_id].ECMpidcount>0 && ca_pmt_list_management != 0x01) {
+	if (ca_pmt_list_management == 0x05) {
+		dvbapi_start_descrambling(demux_id);
+	} else if (demux[demux_id].ECMpidcount>0 && ca_pmt_list_management != 0x01) {
 		dvbapi_resort_ecmpids(demux_id);
 		dvbapi_try_next_caid(demux_id);
 	} else {

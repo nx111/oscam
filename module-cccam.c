@@ -423,8 +423,8 @@ int cc_cmd_send(struct s_client *cl, uint8 *buf, int len, cc_msg_type_t cmd) {
 }
 
 #define CC_DEFAULT_VERSION 1
-char *version[] = { "2.0.11", "2.1.1", "2.1.2", "2.1.3", "2.1.4", "2.2.0", "" };
-char *build[] = { "2892", "2971", "3094", "3165", "3191", "3290", "" };
+char *version[] = { "2.0.11", "2.1.1", "2.1.2", "2.1.3", "2.1.4", "2.2.0", "2.2.1", "" };
+char *build[] = { "2892", "2971", "3094", "3165", "3191", "3290", "3316", "" };
 
 /**
  * reader+server
@@ -2595,8 +2595,9 @@ int find_reported_card(struct s_client * cl, struct cc_card *card1)
 	return 0; //Card not found
 }
 
-void report_card(struct s_client *cl, struct cc_card *card, LLIST *new_reported_carddatas)
+int report_card(struct s_client *cl, struct cc_card *card, LLIST *new_reported_carddatas)
 {
+	int res = 0;
 	struct cc_data *cc = cl->cc;
 	if (!find_reported_card(cl, card)) { //Add new card:
 		uint8 buf[CC_MAXMSGSIZE];
@@ -2606,18 +2607,19 @@ void report_card(struct s_client *cl, struct cc_card *card, LLIST *new_reported_
 		cc->report_carddata_id++;
 		
 		int len = write_card(cc, buf, card, TRUE);
-		cc_cmd_send(cl, buf, len, cc->cccam220?MSG_NEW_CARD_SIDINFO:MSG_NEW_CARD);
+		res = cc_cmd_send(cl, buf, len, cc->cccam220?MSG_NEW_CARD_SIDINFO:MSG_NEW_CARD);
 		cc->card_added_count++;
 	}	
 	cc_add_reported_carddata(new_reported_carddatas, card);
+	return res;
 }
 
 /**
  * Server:
  * Reports all caid/providers to the connected clients
- * returns total count of reported cards
+ * returns 1=ok, 0=error
  */
-void cc_srv_report_cards(struct s_client *cl) {
+int cc_srv_report_cards(struct s_client *cl) {
 	int j;
 	uint k;
 	uint8 hop = 0;
@@ -2811,6 +2813,7 @@ void cc_srv_report_cards(struct s_client *cl) {
 		}
 	}
 
+	int ok = TRUE;
 	//report reshare cards:
 	//cs_debug_mask(D_TRACE, "%s reporting %d cards", getprefix(), ll_count(server_cards));
 	LL_ITER *it = ll_iter_create(server_cards);
@@ -2818,7 +2821,10 @@ void cc_srv_report_cards(struct s_client *cl) {
 	while ((card = ll_iter_next(it))) {
 		//cs_debug_mask(D_TRACE, "%s card %d caid %04X hop %d", getprefix(), card->id, card->caid, card->hop);
 		
-		report_card(cl, card, new_reported_carddatas);
+		if (report_card(cl, card, new_reported_carddatas) < 0) {
+			ok = FALSE;
+			break;
+		}
 		ll_iter_remove(it);
 	}
 	ll_iter_release(it);
@@ -2827,11 +2833,13 @@ void cc_srv_report_cards(struct s_client *cl) {
 	cc_free_cardlist(server_cards, TRUE);
 	
 	//remove unsed, remaining cards:
-	cc->card_removed_count += cc_free_reported_carddata(cl, cc->reported_carddatas, new_reported_carddatas, TRUE);
+	cc->card_removed_count += cc_free_reported_carddata(cl, cc->reported_carddatas, new_reported_carddatas, ok);
 	
 	cc->reported_carddatas = new_reported_carddatas;
 	
-	cs_log("%s reported/updated +%d/-%d/dup %d of %d cards to client", getprefix(), cc->card_added_count, cc->card_removed_count, cc->card_dup_count, ll_count(cc->reported_carddatas));
+	cs_log("%s reported/updated +%d/-%d/dup %d of %d cards to client", getprefix(), 
+		cc->card_added_count, cc->card_removed_count, cc->card_dup_count, ll_count(cc->reported_carddatas));
+	return ok;
 }
 
 void cc_init_cc(struct cc_data *cc) {
@@ -2860,7 +2868,9 @@ int cc_srv_wakeup_readers(struct s_client *cl) {
 			continue;
 		if (!(rdr->grp & cl->grp))
 			continue;
-
+		if (rdr->cc_keepalive) //if reader has keepalive but is NOT connected, reader can't connect. so don't ask him
+			continue;
+		
 		//This wakeups the reader:
 		uchar dummy;
 		write_to_pipe(rdr->fd, PIP_ID_CIN, &dummy, sizeof(dummy));
@@ -2886,14 +2896,18 @@ int cc_cards_modified() {
 
 int check_cccam_compat(struct cc_data *cc) {
 	int res = 0;
-	if (strcmp(cfg->cc_version, "2.2.0") == 0 && strcmp(cc->remote_version, "2.2.0") == 0)
-		res = 1;
+	if (strcmp(cfg->cc_version, "2.2.0") == 0 || strcmp(cfg->cc_version, "2.2.1") == 0) {
+	
+		if (strcmp(cc->remote_version, "2.2.0") == 0 || strcmp(cc->remote_version, "2.2.1") == 0) {
+			res = 1;
+		}
+	}
 	return res;
 }
 
 int cc_srv_connect(struct s_client *cl) {
 	cs_debug_mask(D_FUT, "cc_srv_connect in");
-	int i;
+	int i, wait_for_keepalive;
 	ulong cmi;
 	uint8 buf[CC_MAXMSGSIZE];
 	uint8 data[16];
@@ -3033,10 +3047,12 @@ int cc_srv_connect(struct s_client *cl) {
 	if (wakeup > 0) //give readers time to get cards:
 		cs_sleepms(500);
 
-	cc_srv_report_cards(cl);
+	if (!cc_srv_report_cards(cl))
+		return -1;
 	cs_ftime(&cc->ecm_time);
 
 	cmi = 0;
+	wait_for_keepalive = 0;
 	// check for client timeout, if timeout occurs try to send keepalive
 	while (cl->pfd)
 	{
@@ -3056,15 +3072,21 @@ int cc_srv_connect(struct s_client *cl) {
 						break;
         		                cs_debug("cccam: keepalive");
         		                cc->answer_on_keepalive = time(NULL);
+        		                wait_for_keepalive = 1;
+        		                continue;
 				}
 			}
+			if (wait_for_keepalive)
+				break; //got no answer  -> disconnect
+			
 		} else if (i <= 0)
 			break; //Disconnected by client
-		else {
+		else { //data is parsed!
 			cmi = 0;
+			wait_for_keepalive = 0;
 		}
-		if (cc->mode != CCCAM_MODE_NORMAL)
-			break;
+		if (cc->mode != CCCAM_MODE_NORMAL || cl->dup)
+			break; //mode wrong or duplicate user -->disconect
 		                                                        
 		if (!cc->server_ecm_pending) {
 			struct timeb timeout;
@@ -3088,7 +3110,8 @@ int cc_srv_connect(struct s_client *cl) {
 					hexserial_crc = new_hexserial_crc;
 					cc->cards_modified = cards_modified;
 
-					cc_srv_report_cards(cl);
+					if (!cc_srv_report_cards(cl)) 
+						return -1;
 				}
 			}
 		}
