@@ -687,7 +687,7 @@ int get_UA_len(uint16 caid) {
 		len = 4;
 		break;
 	case 0x18: //NAGRA:
-		len = 6;
+		len = 4;
 		break;
 	case 0x05: //VIACCESS:
 		len = 5;
@@ -1091,16 +1091,17 @@ int cc_send_pending_emms(struct s_client *cl) {
 	struct cc_data *cc = cl->cc;
 
 	LL_ITER *it = ll_iter_create(cc->pending_emms);
-	;
 	uint8 *emmbuf;
+	int size = 0;
 	if ((emmbuf = ll_iter_next(it))) {
 		if (!cc->extended_mode) {
 			if (pthread_mutex_trylock(&cc->ecm_busy) == EBUSY) { //Unlock by NOK or ECM ACK
+				ll_iter_release(it);
 				return 0; //send later with cc_send_ecm
 			}
 			rdr->available = 0;
 		}
-		int size = emmbuf[11] + 12;
+		size = emmbuf[11] + 12;
 
 		cc->just_logged_in = 0;
 		cs_ftime(&cc->ecm_time);
@@ -1111,14 +1112,11 @@ int cc_send_pending_emms(struct s_client *cl) {
 		cc_cmd_send(cl, emmbuf, size, MSG_EMM_ACK); // send emm
 
 		ll_iter_remove_data(it);
-		ll_iter_release(it);
-
-		return size;
 	}
 	ll_iter_release(it);
 
 	cs_debug_mask(D_FUT, "cc_send_pending_emms out");
-	return 0;
+	return size;
 }
 
 /**
@@ -1129,15 +1127,13 @@ struct cc_card *get_card_by_hexserial(struct s_client *cl, uint8 *hexserial,
 		uint16 caid) {
 	struct cc_data *cc = cl->cc;
 	LL_ITER *it = ll_iter_create(cc->cards);
-	;
 	struct cc_card *card;
 	while ((card = ll_iter_next(it)))
 		if (card->caid == caid && memcmp(card->hexserial, hexserial, 8) == 0) { //found it!
-			ll_iter_release(it);
-			return card;
+			break;
 		}
 	ll_iter_release(it);
-	return NULL;
+	return card;
 }
 
 /**
@@ -1171,17 +1167,17 @@ int cc_send_emm(EMM_PACKET *ep) {
 	pthread_mutex_lock(&cc->cards_busy);
 	LL_ITER *it = ll_iter_create(cc->current_cards);
 	struct cc_current_card *current_card;
-	while ((current_card = ll_iter_next(it)) && current_card->card->caid
-			!= caid)
-		;
+	while ((current_card = ll_iter_next(it)))
+		if (current_card->card->caid == caid && cc_UA_valid(current_card->card->hexserial))
+			break; //found it
 	ll_iter_release(it);
 
 	struct cc_card *emm_card = (current_card != NULL) ? current_card->card
 			: NULL;
 
-	if (!emm_card || emm_card->caid != caid) {
+	if (!emm_card) {
 		uint8 hs[8];
-		cc_UA_oscam2cccam(ep->hexserial, hs, rdr->caid[0]);
+		cc_UA_oscam2cccam(ep->hexserial, hs, caid);
 		emm_card = get_card_by_hexserial(cl, hs, caid);
 	}
 
@@ -1439,57 +1435,55 @@ struct cc_card *read_card(uint8 *buf, int ext) {
 	int i;
 	for (i = 0; i < nprov; i++) { // providers
 		struct cc_provider *prov = malloc(sizeof(struct cc_provider));
-		if (prov) {
-			prov->prov = b2i(3, buf + offset + (7 * i));
-			memcpy(prov->sa, buf + offset + (7 * i) + 3, 4);
-			cs_debug("      prov %d, %06x, sa %08x", i + 1, prov->prov, b2i(4,
-					prov->sa));
+		prov->prov = b2i(3, buf + offset);
+		memcpy(prov->sa, buf + offset + 3, 4);
+		cs_debug("      prov %d, %06x, sa %08x", i + 1, prov->prov, b2i(4,
+				prov->sa));
 
-			ll_append(card->providers, prov);
-		}
+		ll_append(card->providers, prov);
+		offset+=7;
 	}
 
-	uint8 *ptr = buf + offset + i * 7;
+	uint8 *ptr = buf + offset;
 
     if (ext) {
         for (i = 0; i < nassign; i++) {
-            uint16_t sid = b2i(2, ptr + 2 * i);
+            uint16_t sid = b2i(2, ptr);
             cs_debug("      assigned sid = %04X, added to good sid list", sid);
 
             struct cc_srvid *srvid = malloc(sizeof(struct cc_srvid));
             srvid->sid = sid;
             srvid->ecmlen = 0;
             ll_append(card->goodsids, srvid);
+            ptr+=2;
         }
 
-        ptr = ptr + 2 * i;
-
         for (i = 0; i < nreject; i++) {
-            uint16_t sid = b2i(2, ptr + 2 * i);
+            uint16_t sid = b2i(2, ptr);
             cs_debug("      rejected sid = %04X, added to sid block list", sid);
 
             struct cc_srvid *srvid = malloc(sizeof(struct cc_srvid));
             srvid->sid = sid;
             srvid->ecmlen = 0;
             ll_append(card->badsids, srvid);
+            ptr+=2;
         }
-
-        ptr = ptr + 2 * i;
     }
 
 	int remote_count = ptr[0];
 	ptr++;
 	for (i = 0; i < remote_count; i++) {
 		uint8 *remote_node = malloc(8);
-		memcpy(remote_node, ptr + i * 8, 8);
+		memcpy(remote_node, ptr, 8);
 		ll_append(card->remote_nodes, remote_node);
+		ptr+=8;
 	}
 	return card;
 }
 
 #define READ_CARD_TIMEOUT 100
 
-int write_card(struct cc_data *cc, uint8 *buf, struct cc_card *card, int add_own) {
+int write_card(struct cc_data *cc, uint8 *buf, struct cc_card *card, int add_own, int ext) {
 	memset(buf, 0, CC_MAXMSGSIZE);
 	buf[0] = card->id >> 24;
 	buf[1] = card->id >> 16;
@@ -1506,7 +1500,7 @@ int write_card(struct cc_data *cc, uint8 *buf, struct cc_card *card, int add_own
 	memcpy(buf + 12, card->hexserial, 8);
 
 	//with cccam 2.2.0 we have assigned and rejected sids:
-	int ofs = cc->cccam220?23:21;
+	int ofs = ext?23:21;
 
 	//write providers:
 	LL_ITER *it = ll_iter_create(card->providers);
@@ -1523,7 +1517,7 @@ int write_card(struct cc_data *cc, uint8 *buf, struct cc_card *card, int add_own
 	ll_iter_release(it);
 	
 	//write sids only if cccam 2.2.0:
-	if (cc->cccam220) {
+	if (ext) {
 		//assigned sids:
 		it = ll_iter_create(card->goodsids);
 		struct cc_srvid *srvid;
@@ -1704,7 +1698,7 @@ int chk_ident(FTAB *ftab, struct cc_card *card) {
 
 void addParam(char *param, char *value)
 {
-	if (strlen(param) == 1)
+	if (strlen(param) < 4)
 		strcat(param, value);
 	else {
 		strcat(param, ",");
@@ -2651,6 +2645,7 @@ int report_card(struct s_client *cl, struct cc_card *card, LLIST *new_reported_c
 {
 	int res = 0;
 	struct cc_data *cc = cl->cc;
+	int ext = cc->cccam220;
 	if (!find_reported_card(cl, card)) { //Add new card:
 		uint8 buf[CC_MAXMSGSIZE];
 		if (!cc->report_carddata_id)
@@ -2658,8 +2653,8 @@ int report_card(struct s_client *cl, struct cc_card *card, LLIST *new_reported_c
 		card->id = cc->report_carddata_id;
 		cc->report_carddata_id++;
 		
-		int len = write_card(cc, buf, card, TRUE);
-		res = cc_cmd_send(cl, buf, len, cc->cccam220?MSG_NEW_CARD_SIDINFO:MSG_NEW_CARD);
+		int len = write_card(cc, buf, card, TRUE, ext);
+		res = cc_cmd_send(cl, buf, len, ext?MSG_NEW_CARD_SIDINFO:MSG_NEW_CARD);
 		cc->card_added_count++;
 	}	
 	cc_add_reported_carddata(new_reported_carddatas, card);
@@ -2782,7 +2777,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 		if (rdr->typ != R_CCCAM && rdr->caid[0] && !flt && chk_ctab(rdr->caid[0], &cl->ctab)) {
 			//cs_log("tcp_connected: %d card_status: %d ", rdr->tcp_connected, rdr->card_status);
 			ushort caid = rdr->caid[0];
-			struct cc_card *card = create_card2(rdr, j, caid, hop, reshare);
+			struct cc_card *card = create_card2(rdr, 0, caid, hop, reshare);
 			if (au_allowed)
 				cc_UA_oscam2cccam(rdr->hexserial, card->hexserial, caid);
 			for (j = 0; j < rdr->nprov; j++) {

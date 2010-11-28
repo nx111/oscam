@@ -357,7 +357,7 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 			}
 			added=1;
 			demux[demux_id].ECMpids[n].stream[demux[demux_id].ECMpids[n].slen++]=stream;
-			cs_debug("[ADD STREAM %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X", n, caid, ecmpid, provid);
+			cs_debug("[ADD STREAM %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X", stream, caid, ecmpid, provid);
 		}
 	}
 
@@ -370,7 +370,7 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 	if (stream>-1)
 		demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].stream[demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].slen++]=stream;
 
-	cs_log("[ADD PID %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X", demux[demux_id].ECMpidcount, caid, ecmpid, provid);
+	cs_log("[ADD PID %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X STREAM: %d", demux[demux_id].ECMpidcount, caid, ecmpid, provid,stream);
 	demux[demux_id].ECMpidcount++;
 }
 
@@ -675,7 +675,7 @@ void dvbapi_read_priority() {
 		char c_srvid[34];
 		c_srvid[0]='\0';
 		uint caid=0, provid=0xFFFFFF, srvid=0, ecmpid=0, chid=0;
-		sscanf(str1, "%4x:%6x:%33s:%4x:%4x", &caid, &provid, c_srvid, &ecmpid, &chid);
+		sscanf(str1, "%4x:%6x:%33[^:s]:%4x:%4x", &caid, &provid, c_srvid, &ecmpid, &chid);
 
 		entry->caid=caid;
 		entry->provid=provid;
