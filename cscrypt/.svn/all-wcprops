@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/3996/trunk/cscrypt
+/svn/oscam/!svn/ver/4013/trunk/cscrypt
 END
 bn_lcl.h
 K 25
@@ -25,7 +25,7 @@ rc6.h
 K 25
 svn:wc:ra_dav:version-url
 V 44
-/svn/oscam/!svn/ver/3996/trunk/cscrypt/rc6.h
+/svn/oscam/!svn/ver/4012/trunk/cscrypt/rc6.h
 END
 idea_lcl.h
 K 25
@@ -38,6 +38,12 @@ K 25
 svn:wc:ra_dav:version-url
 V 47
 /svn/oscam/!svn/ver/3942/trunk/cscrypt/bn_div.c
+END
+i_ecb.c
+K 25
+svn:wc:ra_dav:version-url
+V 46
+/svn/oscam/!svn/ver/4013/trunk/cscrypt/i_ecb.c
 END
 bn.h
 K 25
@@ -151,7 +157,7 @@ rc6.c
 K 25
 svn:wc:ra_dav:version-url
 V 44
-/svn/oscam/!svn/ver/3996/trunk/cscrypt/rc6.c
+/svn/oscam/!svn/ver/3999/trunk/cscrypt/rc6.c
 END
 bn_shift.c
 K 25
@@ -163,7 +169,7 @@ Makefile
 K 25
 svn:wc:ra_dav:version-url
 V 47
-/svn/oscam/!svn/ver/3993/trunk/cscrypt/Makefile
+/svn/oscam/!svn/ver/4012/trunk/cscrypt/Makefile
 END
 CMakeLists.txt
 K 25

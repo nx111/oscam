@@ -9,6 +9,9 @@
 
 #include "module-datastruct-llist.h"
 
+#include "cscrypt/rc6.h"
+#include "cscrypt/idea.h"
+
 #define CC_MAXMSGSIZE 512
 #define CC_MAX_PROV   16
 #define SWAPC(X, Y) do { char p; p = *X; *X = *Y; *Y = p; } while(0)
@@ -101,6 +104,16 @@ typedef enum {
 	MODE_LEN0 = 5,
 } cc_cmd05_mode;
 
+typedef enum {
+	MODE_CMD_0x0C_NONE = 0,
+	MODE_CMD_0x0C_RC6 = 1,
+	MODE_CMD_0x0C_RC4 = 2,
+	MODE_CMD_0x0C_CC_CRYPT = 3,
+	MODE_CMD_0x0C_AES = 4,
+	MODE_CMD_0x0C_IDEA = 5,
+} cc_cmd0c_mode;
+
+
 struct cc_extended_ecm_idx {
 	uint8 send_idx;
 	ushort ecm_idx;
@@ -128,6 +141,13 @@ struct cc_data {
 	uint8 cmd05_data[256];
 	cc_cmd05_mode cmd05_mode;
 	int cmd05_offset;
+
+	cc_cmd0c_mode cmd0c_mode;
+	struct cc_crypt_block cmd0c_cryptkey;
+	RC6KEY cmd0c_RC6_cryptkey;
+	AES_KEY cmd0c_AES_key;
+	IDEA_KEY_SCHEDULE cmd0c_IDEA_dkey;
+
 	uint8 receive_buffer[CC_MAXMSGSIZE];
 	
 	LLIST *cards; // cards list
@@ -181,5 +201,7 @@ void cc_rc4_crypt(struct cc_crypt_block *block, uint8 *data, int len,
 		cc_crypt_mode_t mode);
 void free_extended_ecm_idx(struct cc_data *cc);
 void cc_free_card(struct cc_card *card);
+int cc_UA_valid(uint8 *ua);
+void cc_UA_cccam2oscam(uint8 *in, uint8 *out, uint16 caid);
 
 #endif /* MODULECCCAM_H_ */
