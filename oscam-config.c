@@ -3899,7 +3899,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 
 	if (!strcmp(token, "ccckeepalive")) {
 		if (strlen(value) == 0) {
-			rdr->cc_keepalive = 0;
+			rdr->cc_keepalive = 120;
 			return;
 		} else {
 			rdr->cc_keepalive = atoi(value);
@@ -4117,6 +4117,7 @@ int init_readerdb()
 			rdr->deprecated = 0;
 			rdr->force_irdeto = 0;
 			rdr->cc_reshare = cfg->cc_reshare; //set global value as init value
+			rdr->cc_keepalive = 120;
 			rdr->cc_maxhop = 10;
 			rdr->lb_weight = 100;
 			strcpy(rdr->pincode, "none");
