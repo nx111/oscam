@@ -432,10 +432,10 @@ void send_css(FILE *f){
 	if(strlen(cfg->http_css) > 0 && file_exists(cfg->http_css) == 1){
 		FILE *fp;
 		char buffer[1024];
-		int read;
 
 		if((fp = fopen(cfg->http_css,"r"))==NULL) return;
-		while((read = fread(buffer,sizeof(char),1024,fp)) > 0) webif_write(buffer, f);
+		while(fgets(buffer, 1024, fp) != 0) webif_write(buffer, f);
+
 		fclose (fp);
 	} else {
 		webif_write(CSS, f);
@@ -446,10 +446,10 @@ void send_js(FILE *f){
 	if(strlen(cfg->http_jscript) > 0 && file_exists(cfg->http_jscript) == 1){
 		FILE *fp;
 		char buffer[1024];
-		int read;
 
 		if((fp = fopen(cfg->http_jscript,"r"))==NULL) return;
-		while((read = fread(buffer,sizeof(char),1024,fp)) > 0) webif_write(buffer, f);
+		while(fgets(buffer, 1024, fp) != 0) webif_write(buffer, f);
+
 		fclose (fp);
 	} else {
 		webif_write(JSCRIPT, f);
