@@ -1015,8 +1015,11 @@ void dvbapi_try_next_caid(int demux_id) {
 	}
 
 	if (num == -1) {
-		demux[demux_id].tries++;
-		cs_log("try pids again #%d", demux[demux_id].tries);
+		if (demux[demux_id].tries >= 0) {
+			demux[demux_id].tries++;
+			cs_log("try pids again #%d", demux[demux_id].tries);
+		}
+
 		for (n=0; n<demux[demux_id].ECMpidcount; n++) {
 			demux[demux_id].ECMpids[n].checked=0;
 			demux[demux_id].ECMpids[n].irdeto_curchid=0;
@@ -1587,22 +1590,24 @@ void * dvbapi_main_local(void *cli) {
 		}
 	}
 
-	struct sigaction signal_action;
-	signal_action.sa_handler = event_handler;
-	sigemptyset(&signal_action.sa_mask);
-	signal_action.sa_flags = SA_RESTART;
-	sigaction(SIGRTMIN + 1, &signal_action, NULL);
+	if (cfg->dvbapi_pmtmode != 4) {
+		struct sigaction signal_action;
+		signal_action.sa_handler = event_handler;
+		sigemptyset(&signal_action.sa_mask);
+		signal_action.sa_flags = SA_RESTART;
+		sigaction(SIGRTMIN + 1, &signal_action, NULL);
 
-	pthread_mutexattr_t attr;
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&event_handler_lock, &attr);
+		pthread_mutexattr_t attr;
+		pthread_mutexattr_init(&attr);
+		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+		pthread_mutex_init(&event_handler_lock, &attr);
 
-	dir_fd = open(TMPDIR, O_RDONLY);
-	if (dir_fd >= 0) {
-		fcntl(dir_fd, F_SETSIG, SIGRTMIN + 1);
-		fcntl(dir_fd, F_NOTIFY, DN_MODIFY | DN_CREATE | DN_DELETE | DN_MULTISHOT);
-		event_handler(SIGRTMIN + 1);
+		dir_fd = open(TMPDIR, O_RDONLY);
+		if (dir_fd >= 0) {
+			fcntl(dir_fd, F_SETSIG, SIGRTMIN + 1);
+			fcntl(dir_fd, F_NOTIFY, DN_MODIFY | DN_CREATE | DN_DELETE | DN_MULTISHOT);
+			event_handler(SIGRTMIN + 1);
+		}
 	}
 
 	cs_ftime(&tp);
@@ -1656,7 +1661,7 @@ void * dvbapi_main_local(void *cli) {
 			}
 		}
 
-		rc = poll(pfd2, pfdcount, 500);
+		rc = poll(pfd2, pfdcount, 300);
 		if (rc<1) continue;
 
 		for (i = 0; i < pfdcount; i++) {
@@ -1777,9 +1782,11 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 		if (demux[i].program_number==er->srvid) {
 			demux[i].rdr=er->selected_reader;
 
-			if (er->rc<=3 && demux[i].pidindex==-1 && er->caid!=0) {
+			if (er->rc <= 3)
+				demux[i].tries = 0;
+
+			if (er->rc<=3 && demux[i].pidindex==-1 && er->caid!=0) 
 				dvbapi_start_descrambling(i);
-			}
 
 			if (er->rc>3 && demux[i].pidindex==-1) {
 				struct s_dvbapi_priority *forceentry=dvbapi_check_prio_match(i, demux[i].curindex, 'p');
@@ -1788,12 +1795,14 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 					if (forceentry->force>0)
 						dvbapi_start_descrambling(i);
 					else {
+						if (er->rc == 5)	//timeout,maybe offline
+							demux[i].tries = -1;
 						dvbapi_try_next_caid(i);
 						return;
 					}
 				} else {
-					if(er->rc == 5)	//timeout
-						demux[i].tries=0;
+					if (er->rc == 5)		//timeout,maybe offline
+						demux[i].tries = -1;
 					dvbapi_try_next_caid(i);
 					return;
 				}
@@ -1818,9 +1827,10 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 						break;
 			if (j==demux[i].ECMpidcount) continue;
 
-			if (memcmp(&lastcw_time,&(er->tps),sizeof(struct timeb)) != 0 && lastcw_time.time != 0){
+			if (lastcw_time.time != 0 && 
+			   ((er->tps.time-lastcw_time.time)*1000+er->tps.millitm-lastcw_time.millitm)>200 ){
 				memset(&lastcw_time,0,sizeof(struct timeb));
-				cs_log("cw is expired,skipped it");
+				cs_debug("cw is expired,skipped it");
 				// reset idle-Time
 				client->last=time((time_t)0);
 				return;
@@ -1852,7 +1862,6 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 			   	}
 			   	else if(cfg->dvbapi_ecm_infomode == 1){	//cccam
 					fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
-					fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
 					if (er->selected_reader->typ & R_IS_CASCADING){
 						fprintf(ecmtxt, "address: %s", er->selected_reader->device);
 						if(er->selected_reader->r_port)
