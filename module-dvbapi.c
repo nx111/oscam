@@ -1792,6 +1792,8 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 						return;
 					}
 				} else {
+					if(er->rc == 5)	//timeout
+						demux[i].tries=0;
 					dvbapi_try_next_caid(i);
 					return;
 				}
