@@ -33,6 +33,6 @@ typedef unsigned int RC6KEY[rc6keylen];
  * ct=crypted data
  * block size is always 16bytes
  */
-void rc6_key_setup(unsigned char *K, int b, unsigned int *S);
-void rc6_block_encrypt(unsigned int *pt, unsigned int *ct, unsigned int *S);
-void rc6_block_decrypt(unsigned int *ct, unsigned int *pt, unsigned int *S);
+void rc6_key_setup(unsigned char *K, int b, RC6KEY S);
+void rc6_block_encrypt(unsigned int *pt, unsigned int *ct, int block_count, RC6KEY S);
+void rc6_block_decrypt(unsigned int *ct, unsigned int *pt, int block_count, RC6KEY S);
