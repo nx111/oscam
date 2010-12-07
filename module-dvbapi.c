@@ -37,7 +37,6 @@ int ca_fd[8];
 struct s_dvbapi_priority *dvbapi_priority=NULL;
 struct s_client *dvbapi_client=NULL;
 
-struct timeb lastcw_time;
 int priority_is_changed=0;
 
 int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uchar *mask, int timeout, int pidindex, int count, int type) {
@@ -1105,8 +1104,6 @@ int dvbapi_parse_capmt(unsigned char *buffer, unsigned int length, int connfd, c
 	demux[demux_id].rdr=NULL;
 	demux[demux_id].pidindex=-1;
 
-	memset(&lastcw_time,0,sizeof(struct timeb));
-
 	cs_debug("id: %d\tdemux_index: %d\tca_mask: %02x\tprogram_info_length: %d", demux_id, demux[demux_id].demux_index, demux[demux_id].ca_mask, program_info_length);
 
 	if (pmtfile)
@@ -1513,8 +1510,6 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 		memcpy(er->ecm, buffer, er->l);
 
 		cs_debug("request cw for caid %04X provid %06X srvid %04X pid %04X chid %02X", er->caid, er->prid, er->srvid, er->pid, (caid >> 8) == 0x06 ? buffer[7] : 0);
-		if(!lastcw_time.time)
-			memcpy(&lastcw_time,&(er->tps),sizeof(struct timeb));
 		get_cw(dvbapi_client, er);
 
 	}
@@ -1826,17 +1821,6 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 				if (demux[i].ECMpids[j].CAID == er->caid && demux[i].ECMpids[j].ECM_PID == er->pid)
 						break;
 			if (j==demux[i].ECMpidcount) continue;
-
-			if (lastcw_time.time != 0 && 
-			   ((er->tps.time-lastcw_time.time)*1000+er->tps.millitm-lastcw_time.millitm)>200 ){
-				memset(&lastcw_time,0,sizeof(struct timeb));
-				cs_debug("cw is expired,skipped it");
-				// reset idle-Time
-				client->last=time((time_t)0);
-				return;
-			}
-			else
-				memset(&lastcw_time,0,sizeof(struct timeb));
 
 #ifdef WITH_STAPI
 			stapi_write_cw(i, er->cw, demux[i].STREAMpids, demux[i].STREAMpidcount, demux[i].pmt_file);

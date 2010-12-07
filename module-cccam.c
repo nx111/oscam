@@ -410,6 +410,32 @@ void free_extended_ecm_idx(struct cc_data *cc) {
 	ll_iter_release(it);
 }
 
+int cc_recv_to(struct s_client *cl, uint8 *buf, int len) {
+	fd_set fds;
+	struct timeval timeout;
+	int rc;
+	
+	timeout.tv_sec = 2;
+	timeout.tv_usec = 0;
+	 
+	while (1) {       
+		FD_ZERO(&fds);
+		FD_SET(cl->udp_fd, &fds);
+	
+		rc=select(cl->udp_fd+1, &fds, 0, 0, &timeout);
+		if (rc<0) {
+			if (errno==EINTR) continue;
+		        else return(-1); //error!!
+		}
+	                                                                 
+		if(FD_ISSET(cl->udp_fd,&fds))
+			break;
+		else
+			return (-2); //timeout!!
+	}	
+	return recv(cl->udp_fd, buf, len, MSG_WAITALL);
+}
+
 /**
  * reader
  * closes the connection and reopens it.
@@ -893,14 +919,13 @@ void set_au_data(struct s_client *cl __attribute__((unused)), struct s_reader *r
 	struct cc_provider *provider;
 	int p = 0;
 	while ((provider = ll_iter_next(it2))) {
-		if (!cur_er || provider->prov == cur_er->prid) {
+		if (!cur_er || provider->prov == cur_er->prid || !provider->prov || !cur_er->prid) {
 			memcpy(&rdr->prid[p], &provider->prov, sizeof(provider->prov));
 			cc_SA_cccam2oscam(provider->sa, rdr->sa[p]);
 
 			cs_debug_mask(D_EMM, "%s au info: provider: %06lX:%02X%02X%02X%02X", getprefix(),
 				provider->prov,
-				provider->sa[0], provider->sa[1], provider->sa[2],
-				provider->sa[3]);
+				provider->sa[0], provider->sa[1], provider->sa[2], provider->sa[3]);
 
 			p++;
 			rdr->nprov = p;
@@ -908,6 +933,10 @@ void set_au_data(struct s_client *cl __attribute__((unused)), struct s_reader *r
 		}
 	}
 	ll_iter_release(it2);
+
+	rdr->caid[0] = card->caid;
+	if (cur_er)
+		rdr->auprovid = cur_er->prid;
 }
 
 /**
@@ -1318,6 +1347,9 @@ int cc_send_emm(EMM_PACKET *ep) {
 	ll_append(cc->pending_emms, emmbuf);
 	cc_send_pending_emms(cl);
 
+#ifdef WEBIF
+	rdr->emmwritten[ep->type]++;
+#endif	
 	cs_debug_mask(D_FUT, "cc_send_emm out");
 	return 1;
 }
@@ -1732,8 +1764,7 @@ int same_first_node(struct cc_card *card1, struct cc_card *card2) {
 int same_card(struct cc_card *card1, struct cc_card *card2) {
 	return (card1->caid == card2->caid && 
 		card1->remote_id == card2->remote_id && 
-		same_first_node(card1, card2) &&
-		memcmp(card1->hexserial, card2->hexserial, sizeof(card1->hexserial))==0);
+		same_first_node(card1, card2));
 }
 
 
@@ -2580,7 +2611,7 @@ ulong get_reader_hexserial_crc(struct s_client *cl) {
 
 ulong get_reader_prid(struct s_reader *rdr, int j) {
 	ulong prid;
-	if (!(rdr->typ & R_IS_CASCADING)) { // Read cardreaders have 4-byte Providers
+	if (!(rdr->typ & R_IS_CASCADING)) { // Real cardreaders have 4-byte Providers
 		prid = (rdr->prid[j][0] << 24) | (rdr->prid[j][1] << 16)
 				| (rdr->prid[j][2] << 8) | (rdr->prid[j][3] & 0xFF);
 	} else { // Cascading/Network-reader 3-bytes Providers
@@ -2917,7 +2948,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 			}
 		}
 
-		if (rdr->typ != R_CCCAM && !flt) {
+		if (rdr->typ != R_CCCAM && !rdr->caid[0] && !flt) {
 			for (j = 0; j < CS_MAXCAIDTAB; j++) {
 				//cs_log("CAID map CCcam card report caid: %04X cmap: %04X", rdr->ctab.caid[j], rdr->ctab.cmap[j]);
 				ushort lcaid = rdr->ctab.caid[j];
@@ -2949,12 +2980,8 @@ int cc_srv_report_cards(struct s_client *cl) {
 				prov->prov = prid;
 				//cs_log("Ident CCcam card report provider: %02X%02X%02X", buf[21 + (k*7)]<<16, buf[22 + (k*7)], buf[23 + (k*7)]);
 				if (au_allowed) {
-					int l; //Setting SA (Shared Addresses):
-					for (l = 0; l < rdr->nprov; l++) {
-						ulong rprid = get_reader_prid(rdr, l);
-						if (rprid == prid)
-							cc_SA_oscam2cccam(&rdr->sa[l][0], prov->sa);
-					}
+					//Setting SA (Shared Addresses):
+					cc_SA_oscam2cccam(&rdr->sa[j][0], prov->sa);
 				}
 				ll_append(card->providers, prov);
 				//cs_log("Main CCcam card report provider: %02X%02X%02X%02X", buf[21+(j*7)], buf[22+(j*7)], buf[23+(j*7)], buf[24+(j*7)]);
@@ -3161,7 +3188,7 @@ int cc_srv_connect(struct s_client *cl) {
 	cc_init_crypt(&cc->block[DECRYPT], data, 16);
 	cc_crypt(&cc->block[DECRYPT], buf, 20, DECRYPT);
 
-	if ((i = recv(cl->pfd, buf, 20, MSG_WAITALL)) == 20) {
+	if ((i = cc_recv_to(cl, buf, 20)) == 20) {
 		cs_ddump(buf, 20, "cccam: recv:");
 		cc_crypt(&cc->block[DECRYPT], buf, 20, DECRYPT);
 		cs_ddump(buf, 20, "cccam: hash:");
@@ -3169,7 +3196,7 @@ int cc_srv_connect(struct s_client *cl) {
 		return -1;
 
 	// receive username
-	if ((i = recv(cl->pfd, buf, 20, MSG_WAITALL)) == 20) {
+	if ((i = cc_recv_to(cl, buf, 20)) == 20) {
 		cc_crypt(&cc->block[DECRYPT], buf, 20, DECRYPT);
 
 		strncpy(usr, (char *) buf, sizeof(usr));
@@ -3178,12 +3205,12 @@ int cc_srv_connect(struct s_client *cl) {
 		for (i = 0; i < 20; i++) {
 			if (usr[i] > 0 && usr[i] < 0x20) { //found nonprintable char
 				cs_debug("illegal username received");
-				return -1;
+				return -2;
 			}
 		}
 		cs_ddump(buf, 20, "cccam: username '%s':", usr);
-	} else
-		return -1;
+	} else 
+		return -2;
 
 	cl->crypted = 1;
 
@@ -3196,7 +3223,7 @@ int cc_srv_connect(struct s_client *cl) {
 
 	if (cs_auth_client(cl, account, NULL)) { //cs_auth_client returns 0 if account is valid/active/accessible
 		cs_log("account '%s' not found!", usr);
-		return -1;
+		return -2;
 	}
 
 	if (!cc->prefix)
@@ -3205,16 +3232,15 @@ int cc_srv_connect(struct s_client *cl) {
 	
 	// receive passwd / 'CCcam'
 	cc_crypt(&cc->block[DECRYPT], (uint8 *) pwd, strlen(pwd), ENCRYPT);
-	if ((i = recv(cl->pfd, buf, 6, MSG_WAITALL)) == 6) {
+	if ((i = cc_recv_to(cl, buf, 6)) == 6) {
 		cc_crypt(&cc->block[DECRYPT], buf, 6, DECRYPT);
 		//cs_ddump(buf, 6, "cccam: pwd check '%s':", buf); //illegal buf-bytes could kill the logger!
 		if (memcmp(buf, "CCcam\0", 6) != 0) { 
 			cs_log("account '%s' wrong password!", usr);
-			cs_add_violation((uint)cl->ip);
-			return -1;
+			return -2;
 		}
 	} else
-		return -1;
+		return -2;
 
 	//Starting readers to get cards:
 	int wakeup = cc_srv_wakeup_readers(cl);
@@ -3268,7 +3294,7 @@ int cc_srv_connect(struct s_client *cl) {
 			cmi += 10;
 			if (cmi >= cfg->cmaxidle) {
 				cmi = 0;
-				if (cfg->cc_keep_connected && cc->extended_mode && !wait_for_keepalive) { //special handling for "oscam"-cccam clients:
+				if (cfg->cc_keep_connected && !wait_for_keepalive) {
 					if (cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE) < 0)
 						break;
         		                cs_debug("cccam: keepalive");
@@ -3332,9 +3358,13 @@ void * cc_srv_init(struct s_client *cl) {
 
 	cs_debug_mask(D_FUT, "cc_srv_init in");
 	cl->pfd = cl->udp_fd;
-	if (cc_srv_connect(cl) < 0)
+	int ret;
+	if ((ret=cc_srv_connect(cl)) < 0) {
 		cs_log("cccam: %d failed errno: %d (%s)", __LINE__, errno, strerror(
 				errno));
+		if (ret == -2)
+			cs_add_violation((uint)cl->ip);
+	}
 	cc_cleanup(cl);
 	cs_debug_mask(D_FUT, "cc_srv_init out");
 	cs_disconnect_client(cl);
@@ -3386,7 +3416,7 @@ int cc_cli_connect(struct s_client *cl) {
 	}
 
 	// get init seed
-	if ((n = recv(handle, data, 16, MSG_WAITALL)) != 16) {
+	if ((n = cc_recv_to(cl, data, 16)) != 16) {
 		int err = errno;
 		cs_log("%s server does not return 16 bytes (n=%d, handle=%d, udp_fd=%d, errno=%d)",
 				rdr->label, n, handle, cl->udp_fd, err);
@@ -3483,7 +3513,7 @@ int cc_cli_connect(struct s_client *cl) {
 	cc_crypt(&cc->block[ENCRYPT], (uint8 *) pwd, strlen(pwd), ENCRYPT);
 	cc_cmd_send(cl, buf, 6, MSG_NO_HEADER); // send 'CCcam' xor w/ pwd
 
-	if ((n = recv(handle, data, 20, MSG_WAITALL)) != 20) {
+	if ((n = cc_recv_to(cl, data, 20)) != 20) {
 		cs_log("%s login failed, pwd ack not received (n = %d)", getprefix(), n);
 		return -2;
 	}
