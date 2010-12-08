@@ -920,7 +920,10 @@ void set_au_data(struct s_client *cl __attribute__((unused)), struct s_reader *r
 	int p = 0;
 	while ((provider = ll_iter_next(it2))) {
 		if (!cur_er || provider->prov == cur_er->prid || !provider->prov || !cur_er->prid) {
-			memcpy(&rdr->prid[p], &provider->prov, sizeof(provider->prov));
+			rdr->prid[p][0] = provider->prov >> 24;
+			rdr->prid[p][1] = provider->prov >> 16;
+			rdr->prid[p][2] = provider->prov >> 8;
+			rdr->prid[p][3] = provider->prov & 0xFF;
 			cc_SA_cccam2oscam(provider->sa, rdr->sa[p]);
 
 			cs_debug_mask(D_EMM, "%s au info: provider: %06lX:%02X%02X%02X%02X", getprefix(),
@@ -933,6 +936,11 @@ void set_au_data(struct s_client *cl __attribute__((unused)), struct s_reader *r
 		}
 	}
 	ll_iter_release(it2);
+	
+	if (!rdr->nprov) { //No Providers? Add null-provider:
+		memset(rdr->prid[0], 0, sizeof(rdr->prid[0]));
+		rdr->nprov = 1;
+	}
 
 	rdr->caid[0] = card->caid;
 	if (cur_er)
@@ -2610,16 +2618,22 @@ ulong get_reader_hexserial_crc(struct s_client *cl) {
 }
 
 ulong get_reader_prid(struct s_reader *rdr, int j) {
-	ulong prid;
-	if (!(rdr->typ & R_IS_CASCADING)) { // Real cardreaders have 4-byte Providers
-		prid = (rdr->prid[j][0] << 24) | (rdr->prid[j][1] << 16)
-				| (rdr->prid[j][2] << 8) | (rdr->prid[j][3] & 0xFF);
-	} else { // Cascading/Network-reader 3-bytes Providers
-		prid = (rdr->prid[j][0] << 16) | (rdr->prid[j][1] << 8)
-				| (rdr->prid[j][2] & 0xFF);
-	}
-	return prid;
+	return b2i(4, rdr->prid[j]);
 }
+//ulong get_reader_prid(struct s_reader *rdr, int j) {
+//	ulong prid;
+//	if (!(rdr->typ & R_IS_CASCADING)) { // Real cardreaders have 4-byte Providers
+//		prid = b2i(4, &rdr->prid[j][0]);
+//		//prid = (rdr->prid[j][0] << 24) | (rdr->prid[j][1] << 16)
+//		//		| (rdr->prid[j][2] << 8) | (rdr->prid[j][3] & 0xFF);
+//	} else { // Cascading/Network-reader 3-bytes Providers
+//		prid = b2i(3, &rdr->prid[j][0]);
+//		//prid = (rdr->prid[j][0] << 16) | (rdr->prid[j][1] << 8)
+//		//		| (rdr->prid[j][2] & 0xFF);
+//		
+//	}
+//	return prid;
+//}
 
 void copy_sids(LLIST *dst, LLIST *src) {
 	LL_ITER *it_src = ll_iter_create(src);
@@ -2728,7 +2742,13 @@ int add_card_to_serverlist(struct s_reader *rdr, struct s_client *cl, LLIST *car
 		return 0;
 	if (rdr && !chk_ident(&rdr->client->ftab, card))
 		return 0;
-		
+	
+	if (!ll_count(card->providers))	{ //No providers? Add null-provider:
+		struct cc_provider *prov = malloc(sizeof(struct cc_provider));
+		memset(prov, 0, sizeof(struct cc_provider));
+		ll_append(card->providers, prov);
+	}
+	
 	struct cc_data *cc = cl->cc;
 	int modified = 0;
 	LL_ITER *it = ll_iter_create(cardlist);
@@ -2981,7 +3001,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 				//cs_log("Ident CCcam card report provider: %02X%02X%02X", buf[21 + (k*7)]<<16, buf[22 + (k*7)], buf[23 + (k*7)]);
 				if (au_allowed) {
 					//Setting SA (Shared Addresses):
-					cc_SA_oscam2cccam(&rdr->sa[j][0], prov->sa);
+					cc_SA_oscam2cccam(rdr->sa[j], prov->sa);
 				}
 				ll_append(card->providers, prov);
 				//cs_log("Main CCcam card report provider: %02X%02X%02X%02X", buf[21+(j*7)], buf[22+(j*7)], buf[23+(j*7)], buf[24+(j*7)]);
@@ -3294,12 +3314,14 @@ int cc_srv_connect(struct s_client *cl) {
 			cmi += 10;
 			if (cmi >= cfg->cmaxidle) {
 				cmi = 0;
-				if (cfg->cc_keep_connected && !wait_for_keepalive) {
-					if (cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE) < 0)
-						break;
-        		                cs_debug("cccam: keepalive");
-        		                cc->answer_on_keepalive = time(NULL);
-        		                wait_for_keepalive = 1;
+				if (cfg->cc_keep_connected) {
+					if (!wait_for_keepalive) {
+						if (cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE) < 0)
+							break;
+	        		                cs_debug("cccam: keepalive");
+        			                cc->answer_on_keepalive = time(NULL);
+        			                wait_for_keepalive = 1;
+					}
         		                continue;
 				} else {
 					cs_debug_mask(D_TRACE, "%s keepalive after maxidle is reached",
@@ -3307,8 +3329,6 @@ int cc_srv_connect(struct s_client *cl) {
 					break; //Disconnect client
 				}
 			}
-			if (wait_for_keepalive)
-				break; //got no answer  -> disconnect
 			
 		} else if (i <= 0)
 			break; //Disconnected by client
