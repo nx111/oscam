@@ -1,15 +1,15 @@
 10
 
 dir
-4062
+4073
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-12-08T09:14:24.145348Z
-4062
-merek
+2010-12-09T22:31:57.893396Z
+4073
+schlocke
 has-props
 
 
@@ -53,10 +53,10 @@ file
 
 
 
-2010-12-08T10:09:55.631164Z
-797e76f3d102a5e955ffab4d35007e31
-2010-12-08T08:28:22.180182Z
-4061
+2010-12-09T08:53:30.642030Z
+c6d9f6758547df57afce2a25ca7fceaa
+2010-12-09T07:07:28.863536Z
+4070
 schlocke
 
 
@@ -79,7 +79,7 @@ schlocke
 
 
 
-4520
+4543
 
 Distribution
 dir
@@ -368,10 +368,10 @@ file
 
 
 
-2010-11-21T11:33:03.484599Z
-f66146a6cf8ebea30957d3e3781b2c18
-2010-11-21T10:56:38.462918Z
-3953
+2010-12-10T07:11:01.530128Z
+4ed6080f701d5e7b5c3436449a93415e
+2010-12-09T15:48:44.051014Z
+4072
 _network
 
 
@@ -394,10 +394,7 @@ _network
 
 
 
-10193
-
-toolchains
-dir
+10381
 
 module-obj-llist.c
 file
@@ -432,6 +429,9 @@ dingo35
 
 
 3091
+
+toolchains
+dir
 
 oscam-ac.c
 file
@@ -559,40 +559,6 @@ rebdog
 
 1625
 
-CMakeLists.txt
-file
-
-
-
-
-2010-11-24T23:26:29.712996Z
-f04e9463ea9c97b2312f06a2e2eb7c99
-2010-11-24T18:45:21.002604Z
-3983
-hapeba
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-28921
-
 Makefile
 file
 
@@ -627,18 +593,39 @@ cogsi
 
 25451
 
-config.sh
+CMakeLists.txt
 file
 
 
 
 
+2010-11-24T23:26:29.712996Z
+f04e9463ea9c97b2312f06a2e2eb7c99
+2010-11-24T18:45:21.002604Z
+3983
+hapeba
 
-e3b2a446779e70c2c3954da4c5875d09
-2010-11-19T16:04:10.133264Z
-3930
-_network
-has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+28921
 
 module-dvbapi.h
 file
@@ -652,16 +639,29 @@ aa14fc18af373040f05ec287ff43492b
 3909
 _network
 
+config.sh
+file
+
+
+
+
+
+e3b2a446779e70c2c3954da4c5875d09
+2010-11-19T16:04:10.133264Z
+3930
+_network
+has-props
+
 module-stat.c
 file
 
 
 
 
-2010-12-08T10:09:55.631164Z
-761944f70d90f293be68fd445bd66b6a
-2010-12-07T22:41:58.789334Z
-4057
+2010-12-09T08:53:30.642030Z
+7821a4a340bc71d72e2b87fa64bb5532
+2010-12-09T07:06:52.387699Z
+4069
 schlocke
 
 
@@ -684,53 +684,7 @@ schlocke
 
 
 
-13256
-
-oscam-reader.c
-file
-
-
-
-
-2010-11-30T00:21:59.842341Z
-8a972163795aaa03bffa7f47e265416a
-2010-11-29T21:09:50.132937Z
-4020
-_network
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-24262
-
-oscam.c
-file
-
-
-
-
-
-763135daf5c385420b27fb212597eb37
-2010-12-04T11:01:35.950500Z
-4040
-hapeba
+13387
 
 module-serial.c
 file
@@ -766,17 +720,29 @@ dingo35
 
 28204
 
-module-stat.h
+oscam.c
 file
 
 
 
 
-2010-11-24T03:56:02.709179Z
-ca0139ec6f2979add49e1d8d97f67943
-2010-11-23T17:36:18.919278Z
-3972
-schlocke
+
+763135daf5c385420b27fb212597eb37
+2010-12-04T11:01:35.950500Z
+4040
+hapeba
+
+oscam-reader.c
+file
+
+
+
+
+2010-11-30T00:21:59.842341Z
+8a972163795aaa03bffa7f47e265416a
+2010-11-29T21:09:50.132937Z
+4020
+_network
 
 
 
@@ -798,7 +764,7 @@ schlocke
 
 
 
-458
+24262
 
 reader-tongfang.c
 file
@@ -833,6 +799,40 @@ schlocke
 
 
 5090
+
+module-stat.h
+file
+
+
+
+
+2010-11-24T03:56:02.709179Z
+ca0139ec6f2979add49e1d8d97f67943
+2010-11-23T17:36:18.919278Z
+3972
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+458
 
 module-constcw.c
 file
@@ -1266,10 +1266,10 @@ file
 
 
 
-2010-12-07T02:35:50.339980Z
-3095d3481f1e2f6ad0064666e47f2123
-2010-12-06T21:39:11.006483Z
-4045
+2010-12-09T00:55:27.150030Z
+f95fd8d9cd05567efe768e90e7545717
+2010-12-08T14:29:17.447811Z
+4065
 schlocke
 
 
@@ -1292,7 +1292,7 @@ schlocke
 
 
 
-100294
+101400
 
 utils
 dir
@@ -1408,10 +1408,10 @@ file
 
 
 
-2010-10-20T07:15:08.170486Z
-33c13839bfc609faaded4c175bf76249
-2010-10-19T19:14:24.518721Z
-3634
+2010-12-09T00:55:27.150030Z
+f461018220fa1989acb06d6fe637b79c
+2010-12-08T14:58:39.827981Z
+4066
 schlocke
 has-props
 
@@ -1434,7 +1434,7 @@ has-props
 
 
 
-3595
+3739
 
 reader-nagra.c
 file
@@ -1511,10 +1511,10 @@ file
 
 
 
-13543c11a2a47cbdcf4bbc37e4c80e1e
-2010-12-04T16:12:55.397511Z
-4041
-_network
+8fc694bd66fd050d4e3be6a57ba0fd12
+2010-12-09T07:06:20.336905Z
+4068
+schlocke
 
 module-cccam.c
 file
@@ -1523,9 +1523,9 @@ file
 
 
 
-349032afb422ef9eb78d69560d422162
-2010-12-08T08:28:22.180182Z
-4061
+4d756fbcb13fc62443b6532d32696204
+2010-12-09T22:31:57.893396Z
+4073
 schlocke
 has-props
 
@@ -1535,11 +1535,11 @@ file
 
 
 
-2010-10-20T07:15:08.174486Z
-05a8d84583a4f65c3a83f16ffe60fb9c
-2010-10-18T12:43:46.481969Z
-3611
-cogsi
+2010-12-09T00:55:27.154030Z
+95549b3521f5e59b292a8e533fc2b37d
+2010-12-08T14:58:39.827981Z
+4066
+schlocke
 has-props
 
 
@@ -1561,7 +1561,7 @@ has-props
 
 
 
-1801
+1834
 
 reader-videoguard12.c
 file

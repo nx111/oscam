@@ -546,6 +546,7 @@ typedef struct ecm_request_t
   ushort        pid;
   ushort        idx;
   ulong         prid;
+  void          *preferred_card;
   struct s_reader *selected_reader;
   int           matching_rdr[CS_MAXREADER];
   struct s_client *client; //contains pointer to 'c' client while running in 'r' client
@@ -1097,6 +1098,7 @@ struct s_config
 	char		cc_version[7];
 	int             cc_minimize_cards;
 	int             cc_keep_connected;
+	char		*cc_cfgfile;	//cccam.cfg file path
 	struct s_ip *rad_allowed;
 	char		rad_usr[32];
 	char		ser_device[512];

@@ -1153,6 +1153,14 @@ void chk_t_cccam(char *token, char *value)
                 return;
 	}
 
+	if (!strcmp(token, "cccamcfgfile")) {
+		NULLFREE(cfg->cc_cfgfile);
+		if (strlen(value) > 0) {
+			if(asprintf(&(cfg->cc_cfgfile), "%s", value) < 0)
+				fprintf(stderr, "Error allocating string for cfg->cc_cfgfile\n");
+		}
+		return;
+	}
 
 	if (token[0] != '#')
 		fprintf(stderr, "Warning: keyword '%s' in cccam section not recognized\n",token);
@@ -1518,6 +1526,7 @@ int init_config()
 #ifdef MODULE_CCCAM
 	cfg->cc_update_interval = 240;
 	cfg->cc_keep_connected = 1;
+	cfg->cc_cfgfile = NULL;
 #endif
 	sprintf(token, "%s%s", cs_confdir, cs_conf);
 	if (!(fp = fopen(token, "r"))) {
@@ -4086,6 +4095,108 @@ int init_irdeto_guess_tab()
 }
 #endif
 
+int init_cccamcfg()
+{
+	FILE *fp;
+	char line[2048];
+	char host[256],uname[20],upass[20];
+	char typ;
+	int port,ret,i;
+
+	if(!cfg->cc_cfgfile)
+			return(0);
+	if(!(fp=fopen(cfg->cc_cfgfile,"r"))){
+		cs_log("can't open file \"%s\" (errno=%d)\n", cfg->cc_cfgfile, errno);
+		return(1);
+	}
+
+	struct s_reader *rdr = first_reader;
+	int rcount=0;
+	while (rdr && rdr->next){
+		rcount++;
+		rdr=rdr->next;
+	}
+
+	while (fgets(token,sizeof(token),fp)) {
+		char *p=strchr(token,'#');
+		if(p)
+			*p='\0';
+		strncpy(line,trim(token),2047);
+		if(!strcmp(line,""))continue;
+		if(line[0] != 'C' && line[0] != 'L' && line[0] != 'X' && line[1] != ':')continue;
+		ret=sscanf(line,"%c:%s%d%s%s",&typ,host,&port,uname,upass);
+		if(ret < 5){
+			cs_log("line:%s has not a valid cccam client account!",line);
+			continue;
+		}
+
+		//this reader alwasys exists?
+		struct s_reader *prdr = first_reader;
+		int rfound=0;
+		while(prdr){
+			if( strcasecmp(prdr->device,host) == 0 && prdr->r_port == port &&
+			    strcmp(prdr->r_usr,uname) == 0  && strcmp(prdr->r_pwd,upass) == 0){
+				rfound=1;
+				break;
+			}
+			else if(prdr->next)
+				prdr = prdr->next;
+		}
+		if(rfound)continue;
+
+		if(rdr){
+			rcount++;
+			if (rcount>=CS_MAXREADER) break;
+			struct s_reader *newreader = (struct s_reader*) malloc (sizeof(struct s_reader));
+			rdr->next = newreader; //add reader to list
+			rdr = newreader; //and advance to end of list
+		}
+		memset(rdr, 0, sizeof(struct s_reader));
+		rdr->enable = 0;
+		rdr->tcp_rto = 30;
+		rdr->show_cls = 10;
+		rdr->maxqlen = CS_MAXQLEN;
+		rdr->nagra_read = 0;
+		rdr->mhz = 357;
+		rdr->cardmhz = 357;
+		rdr->deprecated = 0;
+		rdr->force_irdeto = 0;
+		rdr->cc_reshare = cfg->cc_reshare; //set global value as init value
+		rdr->cc_keepalive = 120;
+		rdr->cc_maxhop = 10;
+		rdr->lb_weight = 100;
+		strcpy(rdr->pincode, "none");
+		rdr->ndsversion = 0;
+		for (i=1; i<CS_MAXCAIDTAB; rdr->ctab.mask[i++]=0xffff);
+		cs_strncpy(rdr->device,host,sizeof(rdr->device));
+		rdr->r_port = port;
+		cs_strncpy(rdr->r_usr,uname,sizeof(rdr->r_usr));
+		cs_strncpy(rdr->r_pwd,upass,sizeof(rdr->r_pwd));
+		rdr->typ = 0;
+		switch(typ){
+			case 'C':
+				rdr->typ = R_CCCAM;
+				break;
+			case 'L':
+				rdr->typ = R_CAMD35;
+				break;
+#ifdef CS_WITH_GBOX
+			case 'X':
+				rdr->typ = R_GBOX;
+				break;
+#endif
+		}
+		if (! rdr->typ)
+			continue;
+		sprintf(token,"%s_%d",host,port);
+		cs_strncpy(rdr->label,token,sizeof(rdr->label));
+		rdr->enable = 1;
+		rdr->grp = 1;	
+	}
+	fclose(fp);
+	return(0);
+}
+
 int init_readerdb()
 {
 	int tag = 0;
@@ -4096,7 +4207,10 @@ int init_readerdb()
 	sprintf(token, "%s%s", cs_confdir, cs_srvr);
 	if (!(fp=fopen(token, "r"))) {
 		cs_log("can't open file \"%s\" (errno=%d)\n", token, errno);
-		return(1);
+		if(cfg->cc_cfgfile)
+			return(init_cccamcfg());
+		else
+			return(1);
 	}
 	struct s_reader *rdr = first_reader = (struct s_reader*) malloc (sizeof(struct s_reader));
 	memset(rdr, 0, sizeof(struct s_reader));
@@ -4142,6 +4256,9 @@ int init_readerdb()
 		chk_reader(trim(strtolower(token)), trim(value), rdr);
 	}
 	fclose(fp);
+	if(cfg->cc_cfgfile)
+		init_cccamcfg();
+
 	return(0);
 }
 
