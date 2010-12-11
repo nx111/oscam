@@ -1822,6 +1822,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 			// 0 - found
 			// 3 - emu FIXME: obsolete ?
 					client->cwfound++;
+					first_client->cwfound++;
 					break;
 
 		case 1:
@@ -1829,6 +1830,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 			// 1 - cache1
 			// 2 - cache2
 			client->cwcache++;
+			first_client->cwcache++;
 			break;
 
 		case 4:
@@ -1837,19 +1839,24 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 			// 4 - not found
 			// 9 - corrupt
 			// 10 - no card
-			if (er->rcEx)
+			if (er->rcEx) {
 				client->cwignored++;
-			else
+				first_client->cwignored++;
+			} else {
 				client->cwnot++;
+				first_client->cwnot++;
+                        }
 			break;
 
 		case 5:
 			// 5 - timeout
 			client->cwtout++;
+			first_client->cwtout++;
 			break;
 
 		default:
 			client->cwignored++;
+			first_client->cwignored++;
 	}
 
 #ifdef CS_ANTICASC
@@ -2087,6 +2094,7 @@ void cs_betatunnel(ECM_REQUEST *er)
 			er->btun = 1;
 
 			cl->cwtun++;
+			first_client->cwtun++;
 
 			cs_debug("ECM converted from: 0x%X to BetaCrypt: 0x%X for service id:0x%X",
 				ttab->bt_caidfrom[n], ttab->bt_caidto[n], ttab->bt_srvid[n]);

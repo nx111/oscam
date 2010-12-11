@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/4073/trunk
+/svn/oscam/!svn/ver/4082/trunk
 END
 module-cccam.h
 K 25
@@ -151,7 +151,7 @@ oscam.c
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/4040/trunk/oscam.c
+/svn/oscam/!svn/ver/4074/trunk/oscam.c
 END
 datastruct-llist.c
 K 25
@@ -253,7 +253,7 @@ oscam-http.c
 K 25
 svn:wc:ra_dav:version-url
 V 43
-/svn/oscam/!svn/ver/4065/trunk/oscam-http.c
+/svn/oscam/!svn/ver/4074/trunk/oscam-http.c
 END
 .gitignore
 K 25
@@ -301,7 +301,7 @@ module-cccam.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/4073/trunk/module-cccam.c
+/svn/oscam/!svn/ver/4082/trunk/module-cccam.c
 END
 module-datastruct-llist.h
 K 25

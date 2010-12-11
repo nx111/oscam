@@ -4102,9 +4102,10 @@ int init_cccamcfg()
 	char host[256],uname[20],upass[20];
 	char typ;
 	int port,ret,i;
-
+	
 	if(!cfg->cc_cfgfile)
 			return(0);
+	cs_log("try to read reader from CCcam config file: %s",cfg->cc_cfgfile);
 	if(!(fp=fopen(cfg->cc_cfgfile,"r"))){
 		cs_log("can't open file \"%s\" (errno=%d)\n", cfg->cc_cfgfile, errno);
 		return(1);
@@ -4129,7 +4130,6 @@ int init_cccamcfg()
 			cs_log("line:%s has not a valid cccam client account!",line);
 			continue;
 		}
-
 		//this reader alwasys exists?
 		struct s_reader *prdr = first_reader;
 		int rfound=0;
@@ -4151,6 +4151,8 @@ int init_cccamcfg()
 			rdr->next = newreader; //add reader to list
 			rdr = newreader; //and advance to end of list
 		}
+		else
+			rdr=(struct s_reader*) malloc (sizeof(struct s_reader));
 		memset(rdr, 0, sizeof(struct s_reader));
 		rdr->enable = 0;
 		rdr->tcp_rto = 30;
@@ -4206,7 +4208,7 @@ int init_readerdb()
 
 	sprintf(token, "%s%s", cs_confdir, cs_srvr);
 	if (!(fp=fopen(token, "r"))) {
-		cs_log("can't open file \"%s\" (errno=%d)\n", token, errno);
+		cs_log("can't open file \"%s\" (errno=%d)", token, errno);
 		if(cfg->cc_cfgfile)
 			return(init_cccamcfg());
 		else
