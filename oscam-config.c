@@ -569,7 +569,14 @@ void chk_t_global(const char *token, char *value)
 			cfg->lb_save = 0;
 			return;
 		} else {
-			cfg->lb_save = atoi(value);
+			int i = atoi(value);
+			if (i > 0 && i < 100) {
+				cfg->lb_save = 100;
+				fprintf(stderr, "Warning: '%s' corrected to the minimum -> 100\n", token);
+			}
+			else
+				cfg->lb_save = i;
+
 			return;
 		}
 	}
@@ -1530,7 +1537,7 @@ int init_config()
 #endif
 	sprintf(token, "%s%s", cs_confdir, cs_conf);
 	if (!(fp = fopen(token, "r"))) {
-		fprintf(stderr, "Cannot open config file '%s' (errno=%d)\n", token, errno);
+		fprintf(stderr, "Can't open config file '%s' (errno=%d)\n", token, errno);
 		exit(1);
 	}
 	while (fgets(token, sizeof(token), fp)) {
@@ -1835,7 +1842,7 @@ int write_services()
 	snprintf(bakfile, 255,"%s%s.bak", cs_confdir, cs_sidt);
 
 	if (!(f=fopen(tmpfile, "w"))){
-		cs_log("Cannot open file \"%s\" (errno=%d)", tmpfile, errno);
+		cs_log("Can't open file \"%s\" (errno=%d)", tmpfile, errno);
 		return(1);
 	}
 	fprintf(f,"# oscam.services generated automatically by Streamboard OSCAM %s build #%s\n", CS_VERSION, CS_SVN_VERSION);
@@ -1882,7 +1889,7 @@ int write_config()
 	snprintf(bakfile, 255,"%s%s.bak", cs_confdir, cs_conf);
 
 	if (!(f=fopen(tmpfile, "w"))){
-		cs_log("Cannot open file \"%s\" (errno=%d)", tmpfile, errno);
+		cs_log("Can't open file \"%s\" (errno=%d)", tmpfile, errno);
 		return(1);
 	}
 	fprintf(f,"# oscam.conf generated automatically by Streamboard OSCAM %s build #%s\n", CS_VERSION, CS_SVN_VERSION);
@@ -2258,7 +2265,7 @@ int write_userdb(struct s_auth *authptr)
 	snprintf(bakfile, 255,"%s%s.bak", cs_confdir, cs_user);
 
   if (!(f=fopen(tmpfile, "w"))){
-    cs_log("Cannot open file \"%s\" (errno=%d)", tmpfile, errno);
+    cs_log("Can't open file \"%s\" (errno=%d)", tmpfile, errno);
     return(1);
   }
   fprintf(f,"# oscam.user generated automatically by Streamboard OSCAM %s build #%s\n", CS_VERSION, CS_SVN_VERSION);
@@ -2408,7 +2415,7 @@ int write_server()
 	snprintf(bakfile, 255,"%s%s.bak", cs_confdir, cs_srvr);
 
 	if (!(f=fopen(tmpfile, "w"))){
-		cs_log("Cannot open file \"%s\" (errno=%d)", tmpfile, errno);
+		cs_log("Can't open file \"%s\" (errno=%d)", tmpfile, errno);
 		return(1);
 	}
 	fprintf(f,"# oscam.server generated automatically by Streamboard OSCAM %s build #%s\n", CS_VERSION, CS_SVN_VERSION);
@@ -2672,7 +2679,7 @@ void write_versionfile() {
   FILE *fp;
 
   if (!(fp=fopen(targetfile, "w"))) {
-	  cs_log("Cannot open %s (errno=%d)", targetfile, errno);
+	  cs_log("Can't open %s (errno=%d)", targetfile, errno);
   } else {
 	  time_t now = time((time_t)0);
 	  struct tm *st;
@@ -2860,7 +2867,7 @@ int init_userdb(struct s_auth **authptr_org)
 
 	sprintf(token, "%s%s", cs_confdir, cs_user);
 	if (!(fp = fopen(token, "r"))) {
-		cs_log("Cannot open file \"%s\" (errno=%d)", token, errno);
+		cs_log("Can't open file \"%s\" (errno=%d)", token, errno);
 		return(1);
 	}
 
@@ -3010,7 +3017,7 @@ int init_sidtab()
   sprintf(token, "%s%s", cs_confdir, cs_sidt);
   if (!(fp=fopen(token, "r")))
   {
-    cs_log("Cannot open file \"%s\" (errno=%d)", token, errno);
+    cs_log("Can't open file \"%s\" (errno=%d)", token, errno);
     return(1);
   }
   for (nro=0, ptr=cfg->sidtab; ptr; nro++)
@@ -4105,7 +4112,7 @@ int init_cccamcfg()
 	
 	if(!cfg->cc_cfgfile)
 			return(0);
-	cs_log("try to read reader from CCcam config file: %s",cfg->cc_cfgfile);
+	cs_debug("try to read reader from CCcam config file: %s",cfg->cc_cfgfile);
 	if(!(fp=fopen(cfg->cc_cfgfile,"r"))){
 		cs_log("can't open file \"%s\" (errno=%d)\n", cfg->cc_cfgfile, errno);
 		return(1);
@@ -4113,7 +4120,7 @@ int init_cccamcfg()
 
 	struct s_reader *rdr = first_reader;
 	int rcount=0;
-	while (rdr && rdr->next){
+	while (rdr){
 		rcount++;
 		rdr=rdr->next;
 	}
@@ -4127,7 +4134,7 @@ int init_cccamcfg()
 		if(line[0] != 'C' && line[0] != 'L' && line[0] != 'X' && line[1] != ':')continue;
 		ret=sscanf(line,"%c:%s%d%s%s",&typ,host,&port,uname,upass);
 		if(ret < 5){
-			cs_log("line:%s has not a valid cccam client account!",line);
+//			cs_log("line:%s has not a valid cccam client account!",line);
 			continue;
 		}
 		//this reader alwasys exists?
@@ -4139,7 +4146,7 @@ int init_cccamcfg()
 				rfound=1;
 				break;
 			}
-			else if(prdr->next)
+			else 
 				prdr = prdr->next;
 		}
 		if(rfound)continue;
@@ -4153,6 +4160,8 @@ int init_cccamcfg()
 		}
 		else
 			rdr=(struct s_reader*) malloc (sizeof(struct s_reader));
+		if(!first_reader)
+			first_reader=rdr;
 		memset(rdr, 0, sizeof(struct s_reader));
 		rdr->enable = 0;
 		rdr->tcp_rto = 30;
@@ -4188,12 +4197,13 @@ int init_cccamcfg()
 				break;
 #endif
 		}
-		if (! rdr->typ)
+		if (!rdr->typ)
 			continue;
 		sprintf(token,"%s_%d",host,port);
 		cs_strncpy(rdr->label,token,sizeof(rdr->label));
 		rdr->enable = 1;
 		rdr->grp = 1;	
+//		cs_log("Add reader(%d) device=%s,%d",rcount,rdr->device,rdr->r_port);
 	}
 	fclose(fp);
 	return(0);
@@ -4247,6 +4257,7 @@ int init_readerdb()
 			strcpy(rdr->pincode, "none");
 			rdr->ndsversion = 0;
 			for (i=1; i<CS_MAXCAIDTAB; rdr->ctab.mask[i++]=0xffff);
+//			cs_log("Add reader(%d) device=%s,%d",rcount,rdr->device,rdr->r_port);
 			continue;
 		}
 

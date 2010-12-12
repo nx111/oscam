@@ -497,7 +497,16 @@ void send_oscam_config_monitor(struct templatevars *vars, FILE *f, struct uripar
 	tpl_printf(vars, 0, "HIDECLIENTTO", "%d", cfg->mon_hideclient_to);
 	if(cfg->mon_appendchaninfo)
 		tpl_addVar(vars, 0, "APPENDCHANINFO", "checked");
+
+#ifdef WITH_SSL
+	if(cfg->http_use_ssl)
+		tpl_printf(vars, 0, "HTTPPORT", "+%d", cfg->http_port);
+	else
+		tpl_printf(vars, 0, "HTTPPORT", "%d", cfg->http_port);
+#else
 	tpl_printf(vars, 0, "HTTPPORT", "%d", cfg->http_port);
+#endif
+
 	tpl_addVar(vars, 0, "HTTPUSER", cfg->http_user);
 	tpl_addVar(vars, 0, "HTTPPASSWORD", cfg->http_pwd);
 
@@ -1953,33 +1962,44 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			else
 				tpl_printf(vars, 0, "CLIENTLOGINSECS", "%02dd %02d:%02d:%02d", days, hours, mins, secs);
 
-			tpl_printf(vars, 0, "CLIENTCAID", "%04X", cl->last_caid);
-			tpl_printf(vars, 0, "CLIENTSRVID", "%04X", cl->last_srvid);
 
-			int j, found = 0;
-			struct s_srvid *srvid = cfg->srvid;
+			if (isec < cfg->mon_hideclient_to || cfg->mon_hideclient_to == 0) {
+				tpl_printf(vars, 0, "CLIENTCAID", "%04X", cl->last_caid);
+				tpl_printf(vars, 0, "CLIENTSRVID", "%04X", cl->last_srvid);
 
-			while (srvid != NULL) {
-				if (srvid->srvid == cl->last_srvid) {
-					for (j=0; j < srvid->ncaid; j++) {
-						if (srvid->caid[j] == cl->last_caid) {
-							found = 1;
-							break;
+				int j, found = 0;
+				struct s_srvid *srvid = cfg->srvid;
+
+				while (srvid != NULL) {
+					if (srvid->srvid == cl->last_srvid) {
+						for (j=0; j < srvid->ncaid; j++) {
+							if (srvid->caid[j] == cl->last_caid) {
+								found = 1;
+								break;
+							}
 						}
 					}
+					if (found == 1)
+						break;
+					else
+						srvid = srvid->next;
 				}
-				if (found == 1)
-					break;
-				else
-					srvid = srvid->next;
-			}
 
-			if (found == 1) {
-				tpl_printf(vars, 0, "CLIENTSRVPROVIDER","%s: ", srvid->prov);
-				tpl_addVar(vars, 0, "CLIENTSRVNAME", srvid->name);
-				tpl_addVar(vars, 0, "CLIENTSRVTYPE", srvid->type);
-				tpl_addVar(vars, 0, "CLIENTSRVDESCRIPTION", srvid->desc);
+				if (found == 1) {
+					tpl_printf(vars, 0, "CLIENTSRVPROVIDER","%s: ", srvid->prov);
+					tpl_addVar(vars, 0, "CLIENTSRVNAME", srvid->name);
+					tpl_addVar(vars, 0, "CLIENTSRVTYPE", srvid->type);
+					tpl_addVar(vars, 0, "CLIENTSRVDESCRIPTION", srvid->desc);
+				} else {
+					tpl_addVar(vars, 0, "CLIENTSRVPROVIDER","");
+					tpl_printf(vars, 0, "CLIENTSRVNAME","");
+					tpl_addVar(vars, 0, "CLIENTSRVTYPE","");
+					tpl_addVar(vars, 0, "CLIENTSRVDESCRIPTION","");
+				}
+
 			} else {
+				tpl_printf(vars, 0, "CLIENTCAID", "");
+				tpl_printf(vars, 0, "CLIENTSRVID", "");
 				tpl_addVar(vars, 0, "CLIENTSRVPROVIDER","");
 				tpl_printf(vars, 0, "CLIENTSRVNAME","");
 				tpl_addVar(vars, 0, "CLIENTSRVTYPE","");
