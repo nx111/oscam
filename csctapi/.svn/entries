@@ -1,7 +1,7 @@
 10
 
 dir
-4087
+4098
 http://streamboard.gmc.to/svn/oscam/trunk/csctapi
 http://streamboard.gmc.to/svn/oscam
 
@@ -536,40 +536,6 @@ _network
 
 26425
 
-Makefile
-file
-
-
-
-
-2010-10-25T12:19:56.954119Z
-cbbc7601d9112674fe550bd449465545
-2010-10-25T08:02:55.704722Z
-3716
-cogsi
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-686
-
 CMakeLists.txt
 file
 
@@ -603,6 +569,40 @@ rorothetroll
 
 
 2000
+
+Makefile
+file
+
+
+
+
+2010-10-25T12:19:56.954119Z
+cbbc7601d9112674fe550bd449465545
+2010-10-25T08:02:55.704722Z
+3716
+cogsi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+686
 
 t1_block.c
 file
@@ -638,40 +638,6 @@ dingo35
 
 4941
 
-icc_async.h
-file
-
-
-
-
-2010-10-12T10:29:00.295679Z
-1f9e5266c49668356cd81d83b0a3f50c
-2010-09-24T12:24:37.740352Z
-3219
-dingo35
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-2080
-
 ifd_sci.c
 file
 
@@ -705,6 +671,40 @@ rorothetroll
 
 
 3810
+
+icc_async.h
+file
+
+
+
+
+2010-10-12T10:29:00.295679Z
+1f9e5266c49668356cd81d83b0a3f50c
+2010-09-24T12:24:37.740352Z
+3219
+dingo35
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2080
 
 t1_block.h
 file
@@ -774,40 +774,6 @@ _network
 
 15822
 
-ifd_sci.h
-file
-
-
-
-
-2010-10-31T23:50:25.681894Z
-d16e74ea295f4705f17a13a02c6739df
-2010-11-01T05:48:15.282770Z
-3794
-_network
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-581
-
 protocol_t1.c
 file
 
@@ -841,6 +807,40 @@ _network
 
 
 8750
+
+ifd_sci.h
+file
+
+
+
+
+2010-10-31T23:50:25.681894Z
+d16e74ea295f4705f17a13a02c6739df
+2010-11-01T05:48:15.282770Z
+3794
+_network
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+581
 
 io_serial.c
 file

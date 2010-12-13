@@ -387,7 +387,7 @@ void chk_t_global(const char *token, char *value)
 
 	if (!strcmp(token, "fallbacktimeout")) {
 		if (strlen(value) == 0) {
-			cfg->ftimeout = CS_CLIENT_TIMEOUT;
+			cfg->ftimeout = CS_CLIENT_TIMEOUT / 2;
 			return;
 		} else {
 			cfg->ftimeout = atoi(value);
@@ -1917,7 +1917,7 @@ int write_config()
     	fprintf_conf(f, CONFVARWIDTH, "usrfileflag", "%d\n", cfg->usrfileflag);
 	if (cfg->ctimeout != CS_CLIENT_TIMEOUT || (cfg->ctimeout != CS_CLIENT_TIMEOUT && cfg->http_full_cfg))
 		fprintf_conf(f, CONFVARWIDTH, "clienttimeout", "%ld\n", cfg->ctimeout);
-	if (cfg->ftimeout || (!cfg->ftimeout && cfg->http_full_cfg))
+	if ((cfg->ftimeout && cfg->ftimeout != (CS_CLIENT_TIMEOUT /2)) || ((!cfg->ftimeout || cfg->ftimeout == (CS_CLIENT_TIMEOUT /2)) && cfg->http_full_cfg))
 		fprintf_conf(f, CONFVARWIDTH, "fallbacktimeout", "%ld\n", cfg->ftimeout);
 	if (cfg->cmaxidle != CS_CLIENT_MAXIDLE || (cfg->cmaxidle == CS_CLIENT_MAXIDLE && cfg->http_full_cfg))
 		fprintf_conf(f, CONFVARWIDTH, "clientmaxidle", "%d\n", cfg->cmaxidle);

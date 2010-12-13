@@ -1931,6 +1931,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			if ((strcmp(proto,"newcamd") == 0) && (cl->typ == 'c'))
 				tpl_printf(vars, 0, "CLIENTPROTO","%s (%s)", proto, get_ncd_client_name(cl->ncd_client_id));
 			else if (((strcmp(proto,"cccam") == 0) || (strcmp(proto,"cccam ext") == 0)) && (cl->typ == 'c')) {
+			//else if ((strcmp(proto,"cccam") == 0) || (strcmp(proto,"cccam ext") == 0)) {
 				struct cc_data *cc = cl->cc;
 				tpl_printf(vars, 0, "CLIENTPROTO", "%s (%s-%s)", proto, cc->remote_version, cc->remote_build);
 				if(strcmp(proto,"cccam ext") == 0)
@@ -1998,8 +1999,8 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 				}
 
 			} else {
-				tpl_printf(vars, 0, "CLIENTCAID", "");
-				tpl_printf(vars, 0, "CLIENTSRVID", "");
+				tpl_printf(vars, 0, "CLIENTCAID", "0000");
+				tpl_printf(vars, 0, "CLIENTSRVID", "0000");
 				tpl_addVar(vars, 0, "CLIENTSRVPROVIDER","");
 				tpl_printf(vars, 0, "CLIENTSRVNAME","");
 				tpl_addVar(vars, 0, "CLIENTSRVTYPE","");
@@ -2353,6 +2354,10 @@ void send_oscam_files(struct templatevars *vars, FILE *f, struct uriparams *para
 	}
 	else if (strcmp(getParam(params, "part"), "provid") == 0) {
 		snprintf(targetfile, 255,"%s%s", cs_confdir, "oscam.provid");
+		writable = 1;
+	}
+	else if (strcmp(getParam(params, "part"), "tiers") == 0) {
+		snprintf(targetfile, 255,"%s%s", cs_confdir, "oscam.tiers");
 		writable = 1;
 	}
 	else if (strcmp(getParam(params, "part"), "logfile") == 0) {
