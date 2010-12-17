@@ -14,7 +14,7 @@ unsigned short openxcas_sid, openxcas_caid, openxcas_ecm_pid, openxcas_video_pid
 
 void azbox_openxcas_ecm_callback(int stream_id, unsigned int sequence, int cipher_index, unsigned int caid, unsigned char *ecm_data, int l, unsigned short pid);
 void azbox_openxcas_ex_callback(int stream_id, unsigned int seq, int idx, unsigned int pid, unsigned char *ecm_data, int l);
-void azbox_send_dcw(ECM_REQUEST *er);
+void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er);
 void * azbox_main(void * cli);
 #endif
 
@@ -534,9 +534,6 @@ void dvbapi_start_descrambling(int demux_id) {
 		}
 	}
 
-	if(cfg->dvbapi_au==2 && demux[demux_id].rdr)
-		dvbapi_client->aureader=demux[demux_id].rdr;
-
 	cs_log("Start descrambling PID #%d (CAID: %04X) %d", demux[demux_id].curindex, demux[demux_id].ECMpids[demux[demux_id].curindex].CAID, streamcount);
 
 	if (cfg->dvbapi_au>0)
@@ -592,6 +589,11 @@ void dvbapi_process_emm (int demux_index, int filter_num, unsigned char *buffer,
 
 	epg.l=len;
 	memcpy(epg.emm, buffer, epg.l);
+
+	if(cfg->dvbapi_au==2 && demux[demux_index].rdr) {
+		dvbapi_client->autoau=0;
+		dvbapi_client->aureader=demux[demux_index].rdr;
+	}
 
 	do_emm(dvbapi_client, &epg);
 }
@@ -668,6 +670,14 @@ void dvbapi_read_priority() {
 			entry->disablefilter=disablefilter;
 
 			cs_debug("stapi prio: ret=%d | %c: %s %s | disable %d", ret, type, entry->devname, entry->pmtfile, disablefilter);
+
+			if (!dvbapi_priority) {
+				dvbapi_priority=entry;
+			} else {
+ 				struct s_dvbapi_priority *p;
+				for (p = dvbapi_priority; p->next != NULL; p = p->next);
+				p->next = entry;
+			}
 			continue;
 		}
 #endif
@@ -1564,14 +1574,13 @@ void * dvbapi_main_local(void *cli) {
 	memset(demux, 0, sizeof(struct demux_s) * MAX_DEMUX);
 	memset(ca_fd, 0, sizeof(ca_fd));
 
+	dvbapi_read_priority();
 	dvbapi_detect_api();
 
 	if (selected_box == -1 || selected_api==-1) {
 		cs_log("could not detect api version");
 		return NULL;
 	}
-
-	dvbapi_read_priority();
 
 	if (cfg->dvbapi_pmtmode == 1)
 		disable_pmt_files=1;
@@ -2013,12 +2022,15 @@ void * azbox_main(void *cli) {
 
 	cs_auth_client(client, ok ? account : (struct s_auth *)(-1), "dvbapi");
 
+	dvbapi_read_priority();
+
 	openxcas_msg_t msg;
 	int ret;
 	while ((ret = openxcas_get_message(&msg, 0)) >= 0) {
 		cs_sleepms(10);
 
-	  chk_pending(tp);
+		process_client_pipe(dvbapi_client, NULL, 0);
+		chk_pending(tp);
 
 		if (ret) {
 			openxcas_stream_id = msg.stream_id;

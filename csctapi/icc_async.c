@@ -80,12 +80,45 @@ int ICC_Async_Device_Init (struct s_reader *reader)
 
 	switch(reader->typ) {
 		case R_SC8in1:
-			pthread_mutex_init(&sc8in1, NULL);
+			//pthread_mutex_init(&sc8in1, NULL);
+			pthread_mutex_lock(&sc8in1);
+			if (reader->handle != 0) {//this reader is already initialized
+				pthread_mutex_unlock(&sc8in1);
+				return OK;
+			}
+
+			//this reader is uninitialized, thus the first one, since the first one initializes all others
+
+			//get physical device name
 			int pos = strlen(reader->device)-2; //this is where : should be located; is also valid length of physical device name
 			if (reader->device[pos] != 0x3a) //0x3a = ":"
 				cs_log("ERROR: '%c' detected instead of slot separator `:` at second to last position of device %s", reader->device[pos], reader->device);
-			reader->slot=(int)reader->device[pos+1] - 0x30;//FIXME test boundaries
+			reader->slot=(int)reader->device[pos+1] - 0x30;
 			reader->device[pos]= 0; //slot 1 reader now gets correct physicalname
+
+			//open physical device
+			reader->handle = open (reader->device,  O_RDWR | O_NOCTTY| O_NONBLOCK);
+			if (reader->handle < 0) {
+				cs_log("ERROR opening device %s",reader->device);
+				pthread_mutex_unlock(&sc8in1);
+				return ERROR;
+			}
+
+			//copy physical device name and file handle to other slots
+			struct s_reader *rdr;
+cs_log("DINGO: first_reader = %p", first_reader);
+			for (rdr=first_reader; rdr ; rdr=rdr->next) //copy handle to other slots
+				if (rdr->typ == R_SC8in1 && rdr != reader) { //we have another sc8in1 reader
+					unsigned char save = rdr->device[pos];
+					rdr->device[pos]=0; //set to 0 so we can compare device names
+					if (!strcmp(reader->device, rdr->device)) {//we have a match to another slot with same device name
+						rdr->handle = reader->handle;
+						rdr->slot=(int)rdr->device[pos+1] - 0x30;
+					}
+					else
+						rdr->device[pos] = save; //restore character
+				}
+			break;
 		case R_MP35:
 		case R_MOUSE:
 			reader->handle = open (reader->device,  O_RDWR | O_NOCTTY| O_NONBLOCK);
@@ -159,8 +192,10 @@ int ICC_Async_Device_Init (struct s_reader *reader)
 				return ERROR;
 		}
 
-	if (reader->typ == R_SC8in1) 
+	if (reader->typ == R_SC8in1) { 
 		call(Sc8in1_Init(reader));
+		pthread_mutex_unlock(&sc8in1);
+	}
 
  cs_debug_mask (D_IFD, "IFD: Device %s succesfully opened\n", reader->device);
  return OK;
@@ -168,7 +203,7 @@ int ICC_Async_Device_Init (struct s_reader *reader)
 
 int ICC_Async_GetStatus (struct s_reader *reader, int * card)
 {
-	int in;
+	int in=0;
 	
 //	printf("\n%08X\n", (int)ifd->io);
 	
@@ -226,6 +261,8 @@ int ICC_Async_GetStatus (struct s_reader *reader, int * card)
 
 int ICC_Async_Activate (struct s_reader *reader, ATR * atr, unsigned short deprecated)
 {
+	int cs_ptyp_orig=cur_client()->cs_ptyp;
+	cur_client()->cs_ptyp=D_DEVICE;
 	cs_debug_mask (D_IFD, "IFD: Activating card in reader %s\n", reader->label);
 
 	reader->current_baudrate = DEFAULT_BAUDRATE; //this is needed for all readers to calculate work_etu for timings
@@ -241,7 +278,13 @@ int ICC_Async_Activate (struct s_reader *reader, ATR * atr, unsigned short depre
 			case R_DB2COM2:
 			case R_SC8in1:
 			case R_MOUSE:
-				call (Phoenix_Reset(reader, atr));
+				LOCK_SC8IN1;
+				int ret = Phoenix_Reset(reader, atr);
+				UNLOCK_SC8IN1;
+				if (ret) {
+					cs_debug_mask(D_TRACE, "ERROR, function call Phoenix_Reset returns error.");
+					return ERROR;
+				}
 				break;
 #if defined(LIBUSB)
 			case R_SMART:
@@ -274,36 +317,46 @@ int ICC_Async_Activate (struct s_reader *reader, ATR * atr, unsigned short depre
 	if (ATR_GetConvention (atr, &(reader->convention)) != ATR_OK) {
 		cs_log("ERROR: Could not read reader->convention");
 		reader->convention = 0;
-	  reader->protocol_type = 0; 
+		reader->protocol_type = 0;
 		return ERROR;
 	}
 	
 	reader->protocol_type = ATR_PROTOCOL_TYPE_T0;
 	
-	unsigned short cs_ptyp_orig=cur_client()->cs_ptyp;
 	cur_client()->cs_ptyp=D_ATR;
+	LOCK_SC8IN1;
 	int ret = Parse_ATR(reader, atr, deprecated);
+	UNLOCK_SC8IN1; //Parse_ATR and InitCard need to be included in lock because they change parity of serial port
 	if (ret)
 		cs_log("ERROR: Parse_ATR returned error");
-	cur_client()->cs_ptyp=cs_ptyp_orig;
+	cur_client()->cs_ptyp=D_DEVICE;;
 	if (ret)
-		return ERROR;		
+		return ERROR;
 	cs_debug_mask (D_IFD, "IFD: Card in reader %s succesfully activated\n", reader->label);
+
+	cur_client()->cs_ptyp=cs_ptyp_orig;
 	return OK;
 }
 
 int ICC_Async_CardWrite (struct s_reader *reader, unsigned char *command, unsigned short command_len, unsigned char *rsp, unsigned short *lr)
 {
 	*lr = 0; //will be returned in case of error
+
+	int ret;
+	cur_client()->cs_ptyp=D_DEVICE;
+
+	LOCK_SC8IN1;
+
 	switch (reader->protocol_type) {
 		case ATR_PROTOCOL_TYPE_T0:
-			call (Protocol_T0_Command (reader, command, command_len, rsp, lr));
+			ret = Protocol_T0_Command (reader, command, command_len, rsp, lr); 
 			break;
 		case ATR_PROTOCOL_TYPE_T1:
 		 {
 			int try = 1;
 			do {
-				if (Protocol_T1_Command (reader, command, command_len, rsp, lr) == OK)
+				ret = Protocol_T1_Command (reader, command, command_len, rsp, lr);
+				if (ret == OK)
 					break;
 				try++;
 				//try to resync
@@ -314,12 +367,22 @@ int ICC_Async_CardWrite (struct s_reader *reader, unsigned char *command, unsign
 			break;
 		 }
 		case ATR_PROTOCOL_TYPE_T14:
-			call (Protocol_T14_ExchangeTPDU (reader, command, command_len, rsp, lr));
+			ret = Protocol_T14_ExchangeTPDU (reader, command, command_len, rsp, lr);
 			break;
 		default:
 			cs_log("Error, unknown protocol type %i",reader->protocol_type);
-			return ERROR;
+			ret = ERROR;
 	}
+
+	UNLOCK_SC8IN1;
+
+	if (ret) {
+		cs_debug_mask(D_TRACE, "ERROR, function call Protocol_T0_Command returns error.");
+		return ERROR;
+	}
+
+	cs_ddump(rsp, *lr, "answer from cardreader %s:", reader->label);
+	cur_client()->cs_ptyp=D_READER;
 	return OK;
 }
 
@@ -722,15 +785,13 @@ static int SetRightParity (struct s_reader * reader)
 
 static int InitCard (struct s_reader * reader, ATR * atr, BYTE FI, double d, double n, unsigned short deprecated)
 {
-	double P,I;
+	double I;
 	double F;
     	unsigned long BGT, edc, EGT, CGT, WWT = 0;
     	unsigned int GT;
     	unsigned long gt_ms;
     
 	//set the amps and the volts according to ATR
-	if (ATR_GetParameter(atr, ATR_PARAMETER_P, &P) != ATR_OK)
-		P = 0;
 	if (ATR_GetParameter(atr, ATR_PARAMETER_I, &I) != ATR_OK)
 		I = 0;
 
@@ -872,7 +933,7 @@ static int InitCard (struct s_reader * reader, ATR * atr, BYTE FI, double d, dou
 		//for Irdeto T14 cards, do not set ETU
 		if (!(atr->hbn >= 6 && !memcmp(atr->hb, "IRDETO", 6) && reader->protocol_type == ATR_PROTOCOL_TYPE_T14))
 			ETU = F / d;
-		call (Sci_WriteSettings (reader, reader->protocol_type, reader->mhz / 100, ETU, WWT, reader->BWT, reader->CWT, EGT, (unsigned char)P, (unsigned char)I));
+		call (Sci_WriteSettings (reader, reader->protocol_type, reader->mhz / 100, ETU, WWT, reader->BWT, reader->CWT, EGT, 5, (unsigned char)I)); //P fixed at 5V since this is default class A card, and TB is deprecated
 #elif COOL
 		call (Cool_SetClockrate(reader->mhz));
 		call (Cool_WriteSettings (reader->BWT, reader->CWT, EGT, BGT));
@@ -887,11 +948,11 @@ static int InitCard (struct s_reader * reader, ATR * atr, BYTE FI, double d, dou
 	//IFS setting in case of T1
 	if ((reader->protocol_type == ATR_PROTOCOL_TYPE_T1) && (reader->ifsc != DEFAULT_IFSC)) {
 		unsigned char rsp[CTA_RES_LEN];
-		unsigned short lr=0;
+		unsigned short * lr = 0;
 		unsigned char tmp[] = { 0x21, 0xC1, 0x01, 0x00, 0x00 };
 		tmp[3] = reader->ifsc; // Information Field size
 		tmp[4] = reader->ifsc ^ 0xE1;
-		Protocol_T1_Command (reader, tmp, sizeof(tmp), rsp, &lr);
+		Protocol_T1_Command (reader, tmp, sizeof(tmp), rsp, lr);
 	}
  return OK;
 }

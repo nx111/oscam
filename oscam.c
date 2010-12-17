@@ -664,17 +664,13 @@ void cs_card_info()
 struct s_client * cs_fork(in_addr_t ip) {
 	struct s_client *cl;
 
-	for (cl=first_client; cl->next != NULL; cl=cl->next); //ends with cl on last client
-	cl->next = malloc(sizeof(struct s_client));
-	if (cl->next) {
-		cl = cl->next; //move to next empty slot
+	cl = malloc(sizeof(struct s_client));
+	if (cl) {
 		memset(cl, 0, sizeof(struct s_client));
-		cl->next = NULL;
 		int fdp[2];
-		cl->aureader=NULL;
 		if (pipe(fdp)) {
 			cs_log("Cannot create pipe (errno=%d: %s)", errno, strerror(errno));
-			//cs_exit(1);
+			free(cl);
 			return NULL;
 		}
 		//client part
@@ -706,8 +702,13 @@ struct s_client * cs_fork(in_addr_t ip) {
 		if (ecmc->next)
 			memset(ecmc->next, 0, sizeof(struct s_ecm));
 		pthread_mutex_unlock(&ecmcache_lock);
+
+                //Now add new client to the list:
+		struct s_client *last;
+		for (last=first_client; last->next != NULL; last=last->next); //ends with cl on last client
+		last->next = cl;
 	} else {
-		cs_log("max connections reached -> reject client %s", cs_inet_ntoa(ip));
+		cs_log("max connections reached (out of memory) -> reject client %s", cs_inet_ntoa(ip));
 		return NULL;
 	}
 	return(cl);
@@ -1055,7 +1056,7 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 
 		rdr->fd=cl->fd_m2c;
 		cl->reader=rdr;
-		cs_log("creating thread for device %s slot %i", rdr->device, rdr->slot);
+		cs_log("creating thread for device %s", rdr->device);
 
 		cl->sidtabok=rdr->sidtabok;
 		cl->sidtabno=rdr->sidtabno;
@@ -1101,7 +1102,7 @@ static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr
 	struct s_client *cl;
 	for (cl=first_client->next; cl ; cl=cl->next)
 	{
-		if ((cl->typ == 'c') && !cl->dup && !strcmp(cl->usr, usr)
+		if (cl != client && (cl->typ == 'c') && !cl->dup && !strcmp(cl->usr, usr)
 		   && (uniq < 5) && ((uniq % 2) || (cl->ip != ip)))
 		{
 			if (uniq  == 3 || uniq == 4)
@@ -1109,12 +1110,18 @@ static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr
 				cl->dup = 1;
 				cl->aureader = NULL;
 				cs_log("client(%8X) duplicate user '%s' from %s set to fake (uniq=%d)", cl->thread, usr, cs_inet_ntoa(ip), uniq);
+				if (cl->failban & BAN_DUPLICATE) {
+					cs_add_violation(ip);
+				}
 			}
 			else
 			{
 				client->dup = 1;
 				client->aureader = NULL;
 				cs_log("client(%8X) duplicate user '%s' from %s set to fake (uniq=%d)", pthread_self(), usr, cs_inet_ntoa(ip), uniq);
+				if (cl->failban & BAN_DUPLICATE) {
+					cs_add_violation(ip);
+				}
 				break;
 			}
 
@@ -2932,6 +2939,9 @@ int accept_connection(int i, int j) {
 				return 0;
 			}
 
+			int flag = 1;
+			setsockopt(pfd3, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+			
 			cl->ctyp=i;
 			cl->udp_fd=pfd3;
 			cl->port_idx=j;

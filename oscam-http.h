@@ -241,6 +241,9 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		<H2 CLASS=\"headline1\">OSCAM ##CS_VERSION## build ###CS_SVN_VERSION##</H2>\
 		</DIV>"
 
+#define TPLAPIHEADER "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+<oscam version=\"##CS_VERSION## build ###CS_SVN_VERSION##\" starttime=\"##STARTDATE## - ##STARTTIME##\">\n"
+
 #define TPLFOOTER "\
 		<BR><HR/><BR><DIV CLASS=\"footer\">\n\
 		<H4 CLASS=\"footline1\">OSCAM Webinterface developed by Streamboard Team - ##CURDATE## ##CURTIME## | Access from ##CURIP##</H4>\n\
@@ -249,6 +252,8 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		</DIV>\n\
 		</BODY>\
 		</HTML>"
+
+#define TPLAPIFOOTER "</oscam>"
 
 #define TPLREFRESH "\
 		\n<meta http-equiv=\"refresh\" content=\"##REFRESHTIME##; URL=##REFRESHURL##\" />\n"
@@ -409,6 +414,16 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		##SDEBUG##\
 		##TPLFOOTER##"
 
+#define TPLAPISTATUS "##TPLAPIHEADER##\n\
+   <status>\n\
+##APISTATUSBITS##\
+   </status>\n\
+   <log>\n\
+   ##LOGHISTORY##\
+   </log>\
+##TPLAPIFOOTER##"
+
+
 #define TPLCLIENTSTATUSBIT "\
 		<TR class=\"##CLIENTTYPE##\">\n\
 		<TD align=\"center\" WIDTH=\"10\"><A HREF =\"status.html?hide=##HIDEIDX##\" TITLE=\"Hide this client\"><IMG SRC=\"##HIDEICON##\" ALT=\"Hide\"></A></TD>\n\
@@ -429,6 +444,14 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 		<TD align=\"center\">##CLIENTIDLESECS##</TD>\n\
 		<TD align=\"center\">##CLIENTCON##</TD>\n\
 		</TR>\n"
+
+
+#define TPLAPISTATUSBIT "      <client type=\"##CLIENTTYPE##\" name=\"##CLIENTUSER##\" protocol=\"##CLIENTPROTO##\" protocolext=\"##CLIENTPROTOTITLE##\">\n\
+         <request caid=\"##CLIENTCAID##\" srvid=\"##CLIENTSRVID##\">##CLIENTSRVPROVIDER####CLIENTSRVNAME##</request>\n\
+         <times login=\"##CLIENTLOGINDATE##\" online=\"##CLIENTLOGINSECS##\" idle=\"##CLIENTIDLESECS##\"></times>\n\
+         <connection ip=\"##CLIENTIP##\" port=\"##CLIENTPORT##\">##CLIENTCON##</connection>\n\
+      </client>\n"
+
 
 #define TPLUSERCONFIGLIST "\
 		##TPLHEADER##\
@@ -985,7 +1008,7 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 		<TR><TD>Hide client to:</TD><TD><input name=\"hideclient_to\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##HIDECLIENTTO##\"> s</TD></TR>\n\
 		<TR><TD>Append channel info:</TD><TD><input name=\"appendchaninfo\" type=\"checkbox\" value=\"1\" ##APPENDCHANINFO##></TD></TR>\n\
 		<TR><TH>&nbsp;</TH><TH>Webinterface Config</TH></TR>\n\
-		<TR><TD>Http port:</TD><TD><input name=\"httpport\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##HTTPPORT##\"></TD></TR>\n\
+		<TR><TD>Http port:</TD><TD><input name=\"httpport\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"##HTTPPORT##\"></TD></TR>\n\
 		<TR><TD>Http user:</TD><TD><input name=\"httpuser\" type=\"text\" size=\"20\" maxlength=\"20\" value=\"##HTTPUSER##\"></TD></TR>\n\
 		<TR><TD>Http pwd:</TD><TD><input name=\"httppwd\" type=\"text\" size=\"20\" maxlength=\"20\" value=\"##HTTPPASSWORD##\"></TD></TR>\n\
 		<TR><TD>Http css:</TD><TD><SELECT name=\"httpcss\">##CSSOPTIONS##</select></TD></TR>\n\
@@ -1333,11 +1356,15 @@ enum refreshtypes {REFR_ACCOUNTS, REFR_READERS, REFR_SERVER, REFR_ANTICASC, REFR
 
 char *tpl[]={
 	"HEADER",
+	"APIHEADER",
 	"FOOTER",
+	"APIFOOTER",
 	"MENU",
 	"REFRESH",
 	"STATUS",
+	"APISTATUS",
 	"CLIENTSTATUSBIT",
+	"APISTATUSBIT",
 	"USERCONFIGLIST",
 	"ADDNEWUSER",
 	"USERCONFIGLISTBIT",
@@ -1420,11 +1447,15 @@ char *tpl[]={
 
 char *tplmap[]={
 	TPLHEADER,
+	TPLAPIHEADER,
 	TPLFOOTER,
+	TPLAPIFOOTER,
 	TPLMENU,
 	TPLREFRESH,
 	TPLSTATUS,
+	TPLAPISTATUS,
 	TPLCLIENTSTATUSBIT,
+	TPLAPISTATUSBIT,
 	TPLUSERCONFIGLIST,
 	TPLADDNEWUSER,
 	TPLUSERCONFIGLISTBIT,

@@ -140,7 +140,7 @@ void cc_crypt_cmd0c(struct s_client *cl, uint8 *buf, int len) {
 			SwapLBi(buf, len);
 			for (i = 0; i < len / 16; i++)
 				rc6_block_decrypt((unsigned int*)(buf+i*16), (unsigned int*)(out+i*16), 1, cc->cmd0c_RC6_cryptkey);
-			SwapLBi(buf, len);
+			SwapLBi(out, len);
 			break;
 		}
 		case MODE_CMD_0x0C_RC4: { // RC4
@@ -648,7 +648,14 @@ int cc_send_srv_data(struct s_client *cl) {
 	uint8 buf[CC_MAXMSGSIZE];
 	memset(buf, 0, CC_MAXMSGSIZE);
 
-	memcpy(buf, cc->node_id, 8);
+	if (cfg->cc_stealth)
+	{
+		int i;
+		for (i=0;i<8;i++)
+			buf[i] = fast_rnd();
+	}
+	else
+		memcpy(buf, cc->node_id, 8);
 	char cc_build[7];
 	cc_check_version((char *) cfg->cc_version, cc_build);
 	memcpy(buf + 8, cfg->cc_version, sizeof(cfg->cc_version)); // cccam version (ascii)
@@ -1917,7 +1924,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 	case MSG_SRV_DATA:
 		l -= 4;
 		cs_log("%s MSG_SRV_DATA (payload=%d, hex=%02X)", getprefix(), l, l);
-		data = (uint8*) &cc->receive_buffer;
+		data = cc->receive_buffer;
 
 		if (l == 0x48) { //72 bytes: normal server data
 			check_peer_changed(cc, data, data+8);
@@ -2918,6 +2925,10 @@ int report_card(struct s_client *cl, struct cc_card *card, LLIST *new_reported_c
  * Server:
  * Reports all caid/providers to the connected clients
  * returns 1=ok, 0=error
+ *
+ * cfg->cc_reshare_services=0 CCCAM reader reshares only received cards
+ *                         =1 CCCAM reader reshares received cards + defined services
+ *                         =2 CCCAM reader reshared only defined services as virtual cards
  */
 int cc_srv_report_cards(struct s_client *cl) {
 	int j;
@@ -2975,7 +2986,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 		int au_allowed = !rdr->audisabled && isau;
 
 		flt = 0;
-		if (rdr->typ != R_CCCAM && rdr->ftab.filts) {
+		if ((rdr->typ != R_CCCAM||cfg->cc_reshare_services) && rdr->ftab.filts) {
 			for (j = 0; j < CS_MAXFILTERS; j++) {
 				if (rdr->ftab.filts[j].caid && 
 						chk_ctab(rdr->ftab.filts[j].caid, &cl->ctab)) {
@@ -2990,7 +3001,8 @@ int cc_srv_report_cards(struct s_client *cl) {
 						struct cc_provider *prov = malloc(sizeof(struct cc_provider));
 						memset(prov, 0, sizeof(struct cc_provider));
 						prov->prov = rdr->ftab.filts[j].prids[k];
-						if (!chk_srvid_by_caid_prov(cl, caid, prov->prov, 0)) {
+
+						if (!chk_srvid_by_caid_prov(cl, caid, prov->prov)) {
 							ignore = 1;
 						}
 						//cs_log("Ident CCcam card report provider: %02X%02X%02X", buf[21 + (k*7)]<<16, buf[22 + (k*7)], buf[23 + (k*7)]);
@@ -3012,7 +3024,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 			}
 		}
 
-		if (rdr->typ != R_CCCAM && !rdr->caid[0] && !flt) {
+		if ((rdr->typ != R_CCCAM||cfg->cc_reshare_services) && !rdr->caid[0] && !flt) {
 			for (j = 0; j < CS_MAXCAIDTAB; j++) {
 				//cs_log("CAID map CCcam card report caid: %04X cmap: %04X", rdr->ctab.caid[j], rdr->ctab.cmap[j]);
 				ushort lcaid = rdr->ctab.caid[j];
@@ -3031,7 +3043,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 			}
 		}
 
-		if (rdr->typ != R_CCCAM && rdr->caid[0] && !flt && chk_ctab(rdr->caid[0], &cl->ctab)) {
+		if ((rdr->typ != R_CCCAM||cfg->cc_reshare_services) && rdr->caid[0] && !flt && chk_ctab(rdr->caid[0], &cl->ctab)) {
 			//cs_log("tcp_connected: %d card_status: %d ", rdr->tcp_connected, rdr->card_status);
 			ushort caid = rdr->caid[0];
 			struct cc_card *card = create_card2(rdr, 0, caid, hop, reshare);
@@ -3057,7 +3069,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 				cc_free_card(card);
 		}
 
-		if (rdr->typ == R_CCCAM && !flt) {
+		if (rdr->typ == R_CCCAM && cfg->cc_reshare_services<2) {
 
 			cs_debug_mask(D_TRACE, "%s asking reader %s for cards...",
 					getprefix(), rdr->label);
@@ -3068,44 +3080,44 @@ int cc_srv_report_cards(struct s_client *cl) {
 
 			int count = 0;
 			if (rcc && rcc->cards) {
-				pthread_mutex_lock(&rcc->cards_busy);
-
-				LL_ITER *it = ll_iter_create(rcc->cards);
-				while ((card = ll_iter_next(it))) {
-					if (card->hop <= maxhops && chk_ctab(card->caid, &cl->ctab)
-							&& chk_ctab(card->caid, &rdr->ctab)) {
-
-						if ((cfg->cc_ignore_reshare || card->maxdown > 0)) {
-							int ignore = 0;
-
-							LL_ITER *it2 = ll_iter_create(card->providers);
-							struct cc_provider *prov;
-							while ((prov = ll_iter_next(it2))) {
-								ulong prid = prov->prov;
-								if (!chk_srvid_by_caid_prov(cl, card->caid,
-										prid, 0) || !chk_srvid_by_caid_prov(
-										rdr->client, card->caid, prid, 0)) {
-									ignore = 1;
-									break;
-								}
-							}
-							ll_iter_release(it2);
+				if (pthread_mutex_trylock(&rcc->cards_busy) != EBUSY) {
+					LL_ITER *it = ll_iter_create(rcc->cards);
+					while ((card = ll_iter_next(it))) {
+						if (card->hop <= maxhops && chk_ctab(card->caid, &cl->ctab)
+								&& chk_ctab(card->caid, &rdr->ctab)) {
 							
-							if (!ignore) { //Filtered by service
-								int new_reshare =
-										cfg->cc_ignore_reshare ? reshare
-												: (card->maxdown - 1);
-								if (new_reshare > reshare)
-									new_reshare = reshare;
-								add_card_to_serverlist(rdr, cl, server_cards, card,
-										new_reshare);
-								count++;
+							if ((cfg->cc_ignore_reshare || card->maxdown > 0)) {
+								int ignore = 0;
+
+								LL_ITER *it2 = ll_iter_create(card->providers);
+								struct cc_provider *prov;
+								while ((prov = ll_iter_next(it2))) {
+									ulong prid = prov->prov;
+									if (!chk_srvid_by_caid_prov(cl, card->caid,
+											prid) || !chk_srvid_by_caid_prov(
+											rdr->client, card->caid, prid)) {
+										ignore = 1;
+										break;
+									}
+								}
+								ll_iter_release(it2);
+							
+								if (!ignore) { //Filtered by service
+									int new_reshare =
+											cfg->cc_ignore_reshare ? reshare
+													: (card->maxdown - 1);
+									if (new_reshare > reshare)
+										new_reshare = reshare;
+									add_card_to_serverlist(rdr, cl, server_cards, card,
+											new_reshare);
+									count++;
+								}
 							}
 						}
 					}
+					ll_iter_release(it);
+					pthread_mutex_unlock(&rcc->cards_busy);
 				}
-				ll_iter_release(it);
-				pthread_mutex_unlock(&rcc->cards_busy);
 			}
 			cs_debug_mask(D_TRACE, "%s got %d cards from %s", getprefix(),
 					count, rdr->label);
@@ -3130,8 +3142,8 @@ int cc_srv_report_cards(struct s_client *cl) {
 	cc->card_removed_count += cc_free_reported_carddata(cl, cc->reported_carddatas, new_reported_carddatas, ok);
 	cc->reported_carddatas = new_reported_carddatas;
 	
-	cs_log("%s reported/updated +%d/-%d/dup %d of %d cards to client", getprefix(), 
-		cc->card_added_count, cc->card_removed_count, cc->card_dup_count, ll_count(cc->reported_carddatas));
+	cs_log("%s reported/updated +%d/-%d/dup %d of %d cards to client (ext=%d)", getprefix(), 
+		cc->card_added_count, cc->card_removed_count, cc->card_dup_count, ll_count(cc->reported_carddatas), cc->cccam220);
 	return ok;
 }
 
@@ -3289,6 +3301,11 @@ int cc_srv_connect(struct s_client *cl) {
 		cs_log("account '%s' not found!", usr);
 		return -2;
 	}
+	if (cl->dup) {
+		cs_log("account '%s' duplicate login, disconnect!", usr);
+		return -2;
+	}
+	
 
 	if (!cc->prefix)
 		cc->prefix = malloc(strlen(cl->usr)+20);
@@ -3337,6 +3354,16 @@ int cc_srv_connect(struct s_client *cl) {
 		return -1;
 
 	cc->cccam220 = check_cccam_compat(cc);
+	
+	//Wait for Partner detection (NOK1 with data) before reporting cards
+	//When Partner is detected, cccam220=1 is set. then we can report extended card data
+	i = process_input(mbuf, sizeof(mbuf), 1);
+	if (i<=0 && i != -9)
+		return 0; //disconnected
+	if (cc->cccam220)
+		cs_debug_mask(D_TRACE, "%s extended sid mode activated", getprefix());
+	else
+		cs_debug_mask(D_TRACE, "%s 2.1.x compatibility mode", getprefix());
 
 	// report cards
 	ulong hexserial_crc = get_reader_hexserial_crc(cl);
@@ -3381,6 +3408,7 @@ int cc_srv_connect(struct s_client *cl) {
 			if (i == MSG_KEEPALIVE)
 				wait_for_keepalive = 0;
 		}
+
 		if (cc->mode != CCCAM_MODE_NORMAL || cl->dup)
 			break; //mode wrong or duplicate user -->disconect
 		                                                        
@@ -3534,6 +3562,7 @@ int cc_cli_connect(struct s_client *cl) {
 	cc->answer_on_keepalive = time(NULL);
 	cc->extended_mode = 0;
 	memset(&cc->cmd05_data, 0, sizeof(cc->cmd05_data));
+	memset(&cc->receive_buffer, 0, sizeof(cc->receive_buffer));
 	cc->cmd0c_mode = MODE_CMD_0x0C_NONE;
 
 	cs_ddump(data, 16, "cccam: server init seed:");

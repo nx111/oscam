@@ -1,4 +1,4 @@
-//FIXME Not checked on threadsafety yet; after checking please remove this line
+//FIXME Only threadsafe for ONE sc8in1/MCR reader; two readers WILL go wrong !!!
 /*
  *
  * This program is free software; you can redistribute it and/or modify
@@ -36,7 +36,6 @@ static unsigned char cardstatus; //FIXME not global but one per SC8in1  //if not
 
 static int sc8in1_command(struct s_reader * reader, unsigned char * buff, unsigned short lenwrite, unsigned short lenread)
 {
-  int init_phase = (buff[0] == 0x63); //FIXME UGLY
   struct termios termio, termiobackup;
 
   // backup data
@@ -76,9 +75,8 @@ static int sc8in1_command(struct s_reader * reader, unsigned char * buff, unsign
     cs_log("ERROR: SC8in1 Command error in restore RS232 attributes\n");
     return ERROR;
   }
-	if(!init_phase)
   // switch SC8in1 to normal mode
-  	IO_Serial_DTR_Clr(reader);
+ 	IO_Serial_DTR_Clr(reader);
   // give some time back to the system .. we're in a thread after all
   sched_yield();
 	return OK;
@@ -120,7 +118,7 @@ int Sc8in1_Selectslot(struct s_reader * reader, int slot) {
   // backup rs232 data
   tcgetattr(reader->handle,&termio);
 	if (current_slot != 0)
-  	memcpy(&stored_termio[current_slot-1],&termio,sizeof(termio));
+  	memcpy(&stored_termio[current_slot-1],&termio,sizeof(termio)); //not if current_slot is undefine
 	//
   // switch SC8in1 to command mode
   IO_Serial_DTR_Set(reader);
@@ -167,16 +165,16 @@ int Sc8in1_Init(struct s_reader * reader)
 {
 	//additional init, Phoenix_Init is also called for Sc8in1 !
 	struct termios termio;
-	int i,pos, speed,fd = reader->handle;
+	int i, speed;
 	unsigned int is_mcr, sc8in1_clock = 0;
 	
 	tcgetattr(reader->handle,&termio);
 	for (i=0; i<8; i++) {
 		//init all stored termios to default comm settings after device init, before ATR
 		memcpy(&stored_termio[i],&termio,sizeof(termio));
-    }
+	}
     
-    // check for a MCR device and how many slots it has.
+  // check for a MCR device and how many slots it has.
 	unsigned char buff[] = { 0x74 };
 	sc8in1_command(reader, buff, 1, 1);
 	if (buff[0] == 4 || buff[0] == 8) {
@@ -189,21 +187,23 @@ int Sc8in1_Init(struct s_reader * reader)
 	tcflush(reader->handle, TCIOFLUSH); // a non MCR reader might give longer answer
 
 	struct s_reader *rdr;
-	for (rdr=first_reader; rdr ; rdr=rdr->next) //copy handle to other slots, FIXME change this if multiple sc8in1 readers 
-		if (rdr->typ == R_SC8in1) {
-			if (rdr->slot == 0) {//not initialized yet
-				pos = strlen(rdr->device)-2; //this is where : should be located; is also valid length of physical device name
-				if (rdr->device[pos] != 0x3a) //0x3a = ":"
-					cs_log("ERROR: '%c' detected instead of slot separator `:` at second to last position of device %s", rdr->device[pos], rdr->device);
-				rdr->slot=(int)rdr->device[pos+1] - 0x30;//FIXME test boundaries
-				rdr->device[pos]= 0; //slot 1 reader now gets correct physicalname
-			}
-			rdr->handle = fd;
-		}
+	for (rdr=first_reader; rdr ; rdr=rdr->next)
+		if (rdr->handle == reader->handle) { //corresponding slot
 
-	if (is_mcr) {
-        //if MCR set clock
-        switch (reader->mhz) {
+			//check slot boundaries
+			int upper_slot = (is_mcr)? is_mcr : 8; //set upper limit to 8 for non MCR readers
+			if (rdr->slot <= 0 || rdr->slot > upper_slot) {
+				cs_log("ERROR: device %s has invalid slot number %i", rdr->device, rdr->slot);
+				return ERROR;
+			}
+
+			if (is_mcr) {
+				//set RTS for every slot to 1 to prevent jitter/glitch detection problems  
+				Sc8in1_Selectslot(rdr, rdr->slot);
+				IO_Serial_RTS_Set(reader);
+
+        //calculate clock-bits
+        switch (rdr->mhz) {
             case 357:
             case 358:
                 speed=0;
@@ -220,14 +220,29 @@ int Sc8in1_Init(struct s_reader * reader)
                 break;
             default:
                 speed = 0;
-                cs_log("ERROR Sc8in1, cannot set clockspeed to %i", reader->mhz);
+                cs_log("ERROR Sc8in1, cannot set clockspeed to %i", rdr->mhz);
                 break;
         }
-        sc8in1_clock |= (speed << (reader->slot - 1) * 2); 
+        sc8in1_clock |= (speed << (rdr->slot - 1) * 2); 
+			}
+		}
+		
+	if (is_mcr) {
+		//set clockspeeds for all slots
 		buff[0] = 0x63; //MCR set clock
 		buff[1] = (sc8in1_clock >> 8) & 0xFF;
 		buff[2] = sc8in1_clock & 0xFF;
-		sc8in1_command(reader,  buff, 3, 0);
+		sc8in1_command(reader, buff, 3, 0);
+
+/*		//DEBUG get clockspeeds
+		buff[0] = 0x67;
+		sc8in1_command(reader, buff, 1, 2);
+		static char * clock[] = { "3,57", "3,68", "6,00", "8,00" };
+		uint16 result = buff[0]<<8 | buff[1];
+		cs_log("Buff = %X %X, result = %02X",buff[0], buff[1], result);
+		for(i=0; i<8; i++) {
+		cs_log("Slot %i is clocked with %s mhz", i+1, clock[(result>>(i*2))&0X0003]);
+		}*/
 	}
 	
 	//IO_Serial_Flush(reader); //FIXME somehow ATR is generated and must be flushed
@@ -252,7 +267,7 @@ int Sc8in1_Card_Changed(struct s_reader * reader) {
 
 int Sc8in1_GetStatus (struct s_reader * reader, int * in)
 {
-	if (Sc8in1_Card_Changed(reader)|| *in == -1) { //FIXME what happens if slot 1 has no reader defined
+	if (Sc8in1_Card_Changed(reader)|| *in == -1) {
 		cs_debug("SC8in1: locking for Getstatus for slot %i",reader->slot);
 		pthread_mutex_lock(&sc8in1);
 		cs_debug("SC8in1: locked for Getstatus for slot %i",reader->slot);

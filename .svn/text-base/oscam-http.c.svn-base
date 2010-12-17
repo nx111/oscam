@@ -283,7 +283,7 @@ void send_oscam_config_camd35tcp(struct templatevars *vars, FILE *f, struct urip
 			tpl_addVar(vars, 1, "SERVERIP", inet_ntoa(*(struct in_addr *)&cfg->c35_tcp_srvip));
 
 	}
-	fputs(tpl_getTpl(vars, "CONFIGCAMD35TCP"), f);
+	webif_write(tpl_getTpl(vars, "CONFIGCAMD35TCP"), f);
 }
 
 void send_oscam_config_newcamd(struct templatevars *vars, FILE *f, struct uriparams *params, struct in_addr in) {
@@ -1800,7 +1800,7 @@ void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams
 	webif_write(tpl_getTpl(vars, "ENTITLEMENTS"), f);
 }
 
-void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *params, struct in_addr in) {
+void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *params, struct in_addr in, int apicall) {
 	int i;
 	char *usr;
 	int lsec, isec, con, cau;
@@ -1894,9 +1894,6 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 
 			if (((cl->typ=='r') || (cl->typ=='p')) && (con=get_ridx(cl->reader)>=0)) usr=cl->reader->label;
 
-			if (((cl->typ!='r') || (cl->typ!='p')) && (cl->lastreader[0]))
-				tpl_printf(vars, 0, "CLIENTLBVALUE", "%s", cl->lastreader);
-
 			if (cl->dup) con=2;
 			else if ((cl->tosleep) && (now-cl->lastswitch>cl->tosleep)) con=1;
 			else con=0;
@@ -1933,11 +1930,13 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 			else if (((strcmp(proto,"cccam") == 0) || (strcmp(proto,"cccam ext") == 0)) && (cl->typ == 'c')) {
 			//else if ((strcmp(proto,"cccam") == 0) || (strcmp(proto,"cccam ext") == 0)) {
 				struct cc_data *cc = cl->cc;
-				tpl_printf(vars, 0, "CLIENTPROTO", "%s (%s-%s)", proto, cc->remote_version, cc->remote_build);
-				if(strcmp(proto,"cccam ext") == 0)
-					tpl_printf(vars, 0, "CLIENTPROTOTITLE", "%s", cc->remote_oscam);
-				else
-					tpl_addVar(vars, 0, "CLIENTPROTOTITLE", ""); //unset tpl var
+				if(cc) {
+					tpl_printf(vars, 0, "CLIENTPROTO", "%s (%s-%s)", proto, cc->remote_version, cc->remote_build);
+					if(strcmp(proto,"cccam ext") == 0)
+						tpl_printf(vars, 0, "CLIENTPROTOTITLE", "%s", cc->remote_oscam);
+					else
+						tpl_addVar(vars, 0, "CLIENTPROTOTITLE", ""); //unset tpl var
+				}
 			}
 			else
 				tpl_printf(vars, 0, "CLIENTPROTO","%s", proto);
@@ -1965,6 +1964,10 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 
 
 			if (isec < cfg->mon_hideclient_to || cfg->mon_hideclient_to == 0) {
+
+				if (((cl->typ!='r') || (cl->typ!='p')) && (cl->lastreader[0]))
+					tpl_printf(vars, 0, "CLIENTLBVALUE", "%s", cl->lastreader);
+
 				tpl_printf(vars, 0, "CLIENTCAID", "%04X", cl->last_caid);
 				tpl_printf(vars, 0, "CLIENTSRVID", "%04X", cl->last_srvid);
 
@@ -2005,6 +2008,8 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 				tpl_printf(vars, 0, "CLIENTSRVNAME","");
 				tpl_addVar(vars, 0, "CLIENTSRVTYPE","");
 				tpl_addVar(vars, 0, "CLIENTSRVDESCRIPTION","");
+				tpl_printf(vars, 0, "CLIENTLBVALUE","");
+
 			}
 
 			secs = 0, fullmins =0, mins =0, fullhours =0, hours =0, days =0;
@@ -2054,24 +2059,29 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 				tpl_printf(vars, 0, "CLIENTCON", txt);
 			}
 
-			// select right suborder
-			if (cl->typ == 'c') {
-				tpl_addVar(vars, 1, "CLIENTSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
-				tpl_printf(vars, 0, "CLIENTHEADLINE", "<TR><TD CLASS=\"subheadline\" colspan=\"17\">Clients %d/%d</TD></TR>\n", 
-					user_count_active, user_count_all);
+			if (!apicall){
+				// select right suborder
+				if (cl->typ == 'c') {
+					tpl_addVar(vars, 1, "CLIENTSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
+					tpl_printf(vars, 0, "CLIENTHEADLINE", "<TR><TD CLASS=\"subheadline\" colspan=\"17\">Clients %d/%d</TD></TR>\n",
+							user_count_active, user_count_all);
+				}
+				else if (cl->typ == 'r') {
+					tpl_addVar(vars, 1, "READERSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
+					tpl_printf(vars, 0, "READERHEADLINE", "<TR><TD CLASS=\"subheadline\" colspan=\"17\">Readers %d/%d</TD></TR>\n",
+							reader_count_active, reader_count_all);
+				}
+				else if (cl->typ == 'p') {
+					tpl_addVar(vars, 1, "PROXYSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
+					tpl_printf(vars, 0, "PROXYHEADLINE", "<TR><TD CLASS=\"subheadline\" colspan=\"17\">Proxies %d/%d</TD></TR>\n",
+							proxy_count_active, proxy_count_all);
+				}
+				else
+					tpl_addVar(vars, 1, "SERVERSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
+
+			} else {
+				tpl_addVar(vars, 1, "APISTATUSBITS", tpl_getTpl(vars, "APISTATUSBIT"));
 			}
-			else if (cl->typ == 'r') {
-				tpl_addVar(vars, 1, "READERSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
-				tpl_printf(vars, 0, "READERHEADLINE", "<TR><TD CLASS=\"subheadline\" colspan=\"17\">Readers %d/%d</TD></TR>\n",
-					reader_count_active, reader_count_all);
-			}
-			else if (cl->typ == 'p') {
-				tpl_addVar(vars, 1, "PROXYSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
-				tpl_printf(vars, 0, "PROXYHEADLINE", "<TR><TD CLASS=\"subheadline\" colspan=\"17\">Proxies %d/%d</TD></TR>\n",
-					proxy_count_active, proxy_count_all);
-			}
-			else
-				tpl_addVar(vars, 1, "SERVERSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
 
 		}
 		if (cl->next == NULL)
@@ -2091,7 +2101,12 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 		char *p_usr, *p_txt;
 		p_usr=(char *)(loghist+(i*CS_LOGHISTSIZE));
 		p_txt=p_usr+32;
-		if (p_txt[0]) tpl_printf(vars, 1, "LOGHISTORY", "<span class=\"%s\">%s</span><br>\n", p_usr, p_txt+8);
+
+		if (!apicall) {
+			if (p_txt[0]) tpl_printf(vars, 1, "LOGHISTORY", "<span class=\"%s\">%s</span><br>\n", p_usr, p_txt+8);
+		} else {
+			tpl_printf(vars, 1, "LOGHISTORY", "%s", p_txt+8);
+		}
 	}
 #else
 	tpl_addVar(vars, 0, "LOGHISTORY", "the flag CS_LOGHISTORY is not set in your binary<BR>\n");
@@ -2102,7 +2117,11 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 	tpl_printf(vars, 0, "ACTDEBUG", "%d", cs_dblevel);
 	tpl_addVar(vars, 0, "SDEBUG", tpl_getTpl(vars, "DEBUGSELECT"));
 
-	webif_write(tpl_getTpl(vars, "STATUS"), f);
+	if(!apicall)
+		webif_write(tpl_getTpl(vars, "STATUS"), f);
+	else
+		webif_write(tpl_getTpl(vars, "APISTATUS"), f);
+
 }
 
 void send_oscam_services_edit(struct templatevars *vars, FILE *f, struct uriparams *params, struct in_addr in) {
@@ -2480,13 +2499,14 @@ void send_oscam_failban(struct templatevars *vars, FILE *f, struct uriparams *pa
 	V_BAN *v_ban_entry = llist_itr_init(cfg->v_list, &itr);
 
 	if (strcmp(getParam(params, "action"), "delete") == 0) {
-		ip2delete = atoi(getParam(params, "intip"));
+		sscanf(getParam(params, "intip"), "%u", &ip2delete);
 		while (v_ban_entry) {
-			if (v_ban_entry->v_ip) {
+			if (v_ban_entry->v_ip == ip2delete) {
 				free(v_ban_entry);
 				llist_itr_remove(&itr);
 				break;
 			}
+			v_ban_entry = llist_itr_next(&itr);
 		}
 	}
 
@@ -2530,6 +2550,12 @@ void send_oscam_failban(struct templatevars *vars, FILE *f, struct uriparams *pa
 	}
 
 	webif_write(tpl_getTpl(vars, "FAILBAN"), f);
+}
+
+void send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams *params, struct in_addr in) {
+	if (strcmp(getParam(params, "part"), "status") == 0) {
+		send_oscam_status(vars, f, params, in, 1);
+	}
 }
 
 int process_request(FILE *f, struct in_addr in) {
@@ -2624,7 +2650,8 @@ int process_request(FILE *f, struct in_addr in) {
 		"/files.html",
 		"/readerstats.html",
 		"/failban.html",
-		"/oscam.js"};
+		"/oscam.js",
+		"/oscamapi.html"};
 
 	int pagescnt = sizeof(pages)/sizeof(char *); // Calculate the amount of items in array
 
@@ -2768,7 +2795,7 @@ int process_request(FILE *f, struct in_addr in) {
 			case 0: send_oscam_config(vars, f, &params, in); break;
 			case 1: send_oscam_reader(vars, f, &params, in); break;
 			case 2: send_oscam_entitlement(vars, f, &params); break;
-			case 3: send_oscam_status(vars, f, &params, in); break;
+			case 3: send_oscam_status(vars, f, &params, in, 0); break;
 			case 4: send_oscam_user_config(vars, f, &params, in); break;
 			case 5: send_oscam_reader_config(vars, f, &params, in); break;
 			case 6: send_oscam_services(vars, f, &params, in); break;
@@ -2782,7 +2809,9 @@ int process_request(FILE *f, struct in_addr in) {
 			case 14: send_oscam_files(vars, f, &params); break;
 			case 15: send_oscam_reader_stats(vars, f, &params); break;
 			case 16: send_oscam_failban(vars, f, &params); break;
-			default: send_oscam_status(vars, f, &params, in); break;
+			//case  8: js file
+			case 18: send_oscam_api(vars, f, &params, in); break;
+			default: send_oscam_status(vars, f, &params, in, 0); break;
 		}
 		tpl_clear(vars);
 	}

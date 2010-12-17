@@ -17,6 +17,7 @@
 #include <sys/timeb.h>
 #include <limits.h>
 #include <pwd.h>
+#include <netinet/tcp.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -164,7 +165,7 @@
 
 #define R_DB2COM1   0x1 // Reader Dbox2 @ com1
 #define R_DB2COM2   0x2 // Reader Dbox2 @ com1
-#define R_SC8in1    0x3 // Reader smartcard mouse
+#define R_SC8in1    0x3 // Reader Sc8in1 or MCR
 #define R_MP35      0x4 // AD-Teknik Multiprogrammer 3.5 and 3.6 (only usb tested)
 #define R_MOUSE     0x5 // Reader smartcard mouse
 /////////////////// phoenix readers which need baudrate setting and timings need to be guarded by OSCam: BEFORE R_MOUSE
@@ -333,7 +334,7 @@ extern void qboxhd_led_blink(int color, int duration);
 #define BAN_UNKNOWN 1			//failban mask for anonymous/ unknown contact
 #define BAN_DISABLED 2			//failban mask for disabled user
 #define BAN_SLEEPING 4			//failban mask for sleeping user
-
+#define BAN_DUPLICATE 8			//failban mask for duplicate user
 
 //checking if (X) free(X) unneccessary since freeing a null pointer doesnt do anything
 #define NULLFREE(X) {if (X) {free(X); X = NULL; }}
@@ -1098,6 +1099,8 @@ struct s_config
 	int             cc_minimize_cards;
 	int             cc_keep_connected;
 	char		*cc_cfgfile;	//cccam.cfg file path
+	int		cc_stealth;
+	int		cc_reshare_services;
 	struct s_ip *rad_allowed;
 	char		rad_usr[32];
 	char		ser_device[512];
@@ -1336,7 +1339,7 @@ extern int process_client_pipe(struct s_client *cl, uchar *buf, int l);
 extern void update_reader_config(uchar *ptr);
 extern int chk_ctab(ushort caid, CAIDTAB *ctab);
 extern int chk_srvid_match_by_caid_prov(ushort caid, ulong provid, SIDTAB *sidtab);
-extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid, int chk_neg);
+extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid);
 extern void kill_thread(struct s_client *cl);
 extern int get_threadnum(struct s_client *client);
 extern int get_nr_of_readers(void);
