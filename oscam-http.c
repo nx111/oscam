@@ -1673,7 +1673,7 @@ char *strend(char *ch) {
 	return ch;
 }
 
-void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams *params) {
+void send_oscam_entitlement(struct templatevars *vars, FILE *f, struct uriparams *params, struct in_addr in, int apicall) {
 	/* build entitlements from reader init history */
 	char *reader_ = getParam(params, "label");
 
@@ -1832,8 +1832,10 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 	}
 
 	char *debuglvl = getParam(params, "debug");
-	if(strlen(debuglvl) > 0)
+	if(strlen(debuglvl) > 0) {
 		cs_dblevel = atoi(debuglvl);
+		cs_log("%s debug_level=%d", "all", cs_dblevel);
+	}
 
 	if(getParamDef(params, "hide", NULL)) {
 		ulong clidx;
@@ -2105,7 +2107,8 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 		if (!apicall) {
 			if (p_txt[0]) tpl_printf(vars, 1, "LOGHISTORY", "<span class=\"%s\">%s</span><br>\n", p_usr, p_txt+8);
 		} else {
-			tpl_printf(vars, 1, "LOGHISTORY", "%s", p_txt+8);
+			if (strcmp(getParam(params, "appendlog"), "1") == 0)
+				tpl_printf(vars, 1, "LOGHISTORY", "%s", p_txt+8);
 		}
 	}
 #else
@@ -2268,10 +2271,19 @@ void send_oscam_shutdown(struct templatevars *vars, FILE *f, struct uriparams *p
 		webif_write(tpl_getTpl(vars, "SHUTDOWN"), f);
 		running = 0;
 
-		struct s_client *cl;
-		for (cl=first_client->next; cl ; cl=cl->next)
-			kill_thread(cl);
-		exit(SIGQUIT);
+		cs_exit_oscam();
+	}
+	else if (strcmp(getParam(params, "action"), "Restart") == 0) {
+		tpl_addVar(vars, 0, "STYLESHEET", CSS);
+		tpl_printf(vars, 0, "REFRESHTIME", "%d", 1);
+		tpl_addVar(vars, 0, "REFRESHURL", "status.html");
+		tpl_addVar(vars, 0, "REFRESH", tpl_getTpl(vars, "REFRESH"));
+		tpl_printf(vars, 0, "SECONDS", "%d", 1);
+		webif_write(tpl_getTpl(vars, "SHUTDOWN"), f);
+		running = 0;
+		
+		cs_restart_oscam();
+		
 	} else {
 		webif_write(tpl_getTpl(vars, "PRESHUTDOWN"), f);
 	}
@@ -2448,7 +2460,6 @@ void send_oscam_files(struct templatevars *vars, FILE *f, struct uriparams *para
 			if((strlen(targetfile) > 0) && (file_exists(targetfile) == 1)) {
 				FILE *fpsave;
 				char *fcontent = getParam(params, "filecontent");
-				urldecode(fcontent);
 
 				if((fpsave = fopen(targetfile,"w"))){
 					fprintf(fpsave,"%s",fcontent);
@@ -2556,6 +2567,48 @@ void send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams *params
 	if (strcmp(getParam(params, "part"), "status") == 0) {
 		send_oscam_status(vars, f, params, in, 1);
 	}
+	else if (strcmp(getParam(params, "part"), "entitlement") == 0) {
+		//Send Errormessage while under construction
+		tpl_addVar(vars, 0, "APIERRORMESSAGE", "coming soon");
+		webif_write(tpl_getTpl(vars, "APIERROR"), f);
+
+		//send_oscam_entitlement(vars, f, params, in, 1);
+	}
+	else {
+		tpl_addVar(vars, 0, "APIERRORMESSAGE", "part not found");
+		webif_write(tpl_getTpl(vars, "APIERROR"), f);
+	}
+}
+
+void webif_parse_request(struct uriparams *params, char *pch) {
+	/* Parse url parameters; parsemode = 1 means parsing next param, parsemode = -1 parsing next
+	 value; pch2 points to the beginning of the currently parsed string, pch is the current position */
+
+	char *pch2;
+	int parsemode = 1;
+
+	pch2=pch;
+	while(pch[0] != '\0') {
+		if((parsemode == 1 && pch[0] == '=') || (parsemode == -1 && pch[0] == '&')) {
+			pch[0] = '\0';
+			urldecode(pch2);
+			if(parsemode == 1) {
+				if(params->paramcount >= MAXGETPARAMS) break;
+				++params->paramcount;
+				params->params[params->paramcount-1] = pch2;
+			} else {
+				params->values[params->paramcount-1] = pch2;
+			}
+			parsemode = -parsemode;
+			pch2 = pch + 1;
+		}
+		++pch;
+	}
+	/* last value wasn't processed in the loop yet... */
+	if(parsemode == -1 && params->paramcount <= MAXGETPARAMS) {
+		urldecode(pch2);
+		params->values[params->paramcount-1] = pch2;
+	}
 }
 
 int process_request(FILE *f, struct in_addr in) {
@@ -2620,17 +2673,11 @@ int process_request(FILE *f, struct in_addr in) {
 		return 0;
 	}
 
-	char buf[4096];
-	char *tmp;
-
 	int authok = 0;
 	char expectednonce[64];
 
-	char *method;
-	char *path;
-	char *protocol;
-	char *pch;
-	char *pch2;
+	char *method, *path, *protocol;
+	char *pch, *tmp;
 	/* List of possible pages */
 	char *pages[]= {
 		"/config.html",
@@ -2657,17 +2704,68 @@ int process_request(FILE *f, struct in_addr in) {
 
 	int pgidx = -1;
 	int i;
-	int parsemode = 1;
 	struct uriparams params;
 	params.paramcount = 0;
 
 	/* First line always includes the GET/POST request */
 	char *saveptr1=NULL;
-	int n;
-	if ((n=webif_read(buf, sizeof(buf), f)) <= 0) {
-		cs_debug("webif read error %d", n);
+	int n, bufsize=0;
+	char *filebuf = NULL;
+	char buf2[1024];
+	struct pollfd pfd2[1];
+
+	while (1) {
+		if ((n=webif_read(buf2, sizeof(buf2), f)) <= 0) {
+			cs_debug_mask(D_CLIENT, "webif read error %d", n);
+#ifdef WITH_SSL
+			if (cfg->http_use_ssl)
+				ERR_print_errors_fp(stderr);
+#endif
+			return -1;
+		}
+
+		filebuf = realloc(filebuf, bufsize+n+1);
+
+		memcpy(filebuf+bufsize, buf2, n);
+		bufsize+=n;
+
+		//max request size 100kb
+		if (bufsize>102400) {
+			cs_log("error: too much data received from %s", inet_ntoa(*(struct in_addr *)&in));
+			free(filebuf);
+			return -1;
+		}
+
+#ifdef WITH_SSL
+		if (cfg->http_use_ssl) {
+			int len = 0;
+			len = SSL_pending((SSL*)f);
+
+			if (len>0)
+				continue;
+
+			pfd2[0].fd = SSL_get_fd((SSL*)f);
+
+		} else
+#endif
+			pfd2[0].fd = fileno(f);
+
+		pfd2[0].events = (POLLIN | POLLPRI);
+
+		int rc = poll(pfd2, 1, 100);
+		if (rc>0)
+			continue;
+
+		break;
+	}
+
+	if (!filebuf) {
+		cs_log("error: no data received");
 		return -1;
 	}
+
+	filebuf[bufsize]='\0';
+	char *buf=filebuf;
 
 	method = strtok_r(buf, " ", &saveptr1);
 	path = strtok_r(NULL, " ", &saveptr1);
@@ -2688,38 +2786,21 @@ int process_request(FILE *f, struct in_addr in) {
 		if (!strcmp(path, pages[i])) pgidx = i;
 	}
 
-	/* Parse url parameters; parsemode = 1 means parsing next param, parsemode = -1 parsing next
-	 value; pch2 points to the beginning of the currently parsed string, pch is the current position */
-	pch2=pch;
-	while(pch[0] != '\0') {
-		if((parsemode == 1 && pch[0] == '=') || (parsemode == -1 && pch[0] == '&')) {
-			pch[0] = '\0';
-			urldecode(pch2);
-			if(parsemode == 1) {
-				if(params.paramcount >= MAXGETPARAMS) break;
-				++params.paramcount;
-				params.params[params.paramcount-1] = pch2;
-			} else {
-				params.values[params.paramcount-1] = pch2;
-			}
-			parsemode = -parsemode;
-			pch2 = pch + 1;
-		}
-		++pch;
-	}
-	/* last value wasn't processed in the loop yet... */
-	if(parsemode == -1 && params.paramcount <= MAXGETPARAMS) {
-		urldecode(pch2);
-		params.values[params.paramcount-1] = pch2;
-	}
+	webif_parse_request(&params, pch);
 
 	if(strlen(cfg->http_user) == 0 || strlen(cfg->http_pwd) == 0) authok = 1;
 	else calculate_nonce(expectednonce, sizeof(expectednonce)/sizeof(char));
 
 	char *str1, *saveptr=NULL;
+
 	for (str1=strtok_r(tmp, "\n", &saveptr); str1; str1=strtok_r(NULL, "\n", &saveptr)) {
-		if (str1[0] == '\r' && str1[1] == '\n') break;
-		else if(authok == 0 && strlen(str1) > 50 && strncmp(str1, "Authorization:", 14) == 0 && strstr(str1, "Digest") != NULL) {
+		if (strlen(str1)==1) {
+			if (strcmp(method, "POST")==0) {
+				webif_parse_request(&params, str1+2);
+			}
+			break;
+		}
+		if(authok == 0 && strlen(str1) > 50 && strncmp(str1, "Authorization:", 14) == 0 && strstr(str1, "Digest") != NULL) {
 			authok = check_auth(str1, method, path, expectednonce);
 		}
 	}
@@ -2732,6 +2813,7 @@ int process_request(FILE *f, struct in_addr in) {
 		strcat(tmp, "\"");
 		if(authok == 2) strcat(tmp, ", stale=true");
 		send_headers(f, 401, "Unauthorized", tmp, "text/html");
+		free(filebuf);
 		return 0;
 	}
 
@@ -2794,7 +2876,7 @@ int process_request(FILE *f, struct in_addr in) {
 		switch(pgidx) {
 			case 0: send_oscam_config(vars, f, &params, in); break;
 			case 1: send_oscam_reader(vars, f, &params, in); break;
-			case 2: send_oscam_entitlement(vars, f, &params); break;
+			case 2: send_oscam_entitlement(vars, f, &params, in, 0); break;
 			case 3: send_oscam_status(vars, f, &params, in, 0); break;
 			case 4: send_oscam_user_config(vars, f, &params, in); break;
 			case 5: send_oscam_reader_config(vars, f, &params, in); break;
@@ -2809,12 +2891,13 @@ int process_request(FILE *f, struct in_addr in) {
 			case 14: send_oscam_files(vars, f, &params); break;
 			case 15: send_oscam_reader_stats(vars, f, &params); break;
 			case 16: send_oscam_failban(vars, f, &params); break;
-			//case  8: js file
+			//case  17: js file
 			case 18: send_oscam_api(vars, f, &params, in); break;
 			default: send_oscam_status(vars, f, &params, in, 0); break;
 		}
 		tpl_clear(vars);
 	}
+	free(filebuf);
 	return 0;
 }
 
@@ -2828,7 +2911,7 @@ SSL_CTX *webif_init_ssl() {
 
 	static const char *cs_cert="oscam.pem";
  
-	meth = SSLv3_method();
+	meth = SSLv23_server_method();
  
 	ctx = SSL_CTX_new(meth);
 
@@ -2972,6 +3055,6 @@ void http_srv() {
 #endif
 	cs_log("HTTP Server: Shutdown requested from %s", inet_ntoa(*(struct in_addr *)&remote.sin_addr));
 	close(sock);
-	exit(SIGQUIT);
+	//exit(SIGQUIT);
 }
 #endif

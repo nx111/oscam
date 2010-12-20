@@ -160,7 +160,7 @@
 #define D_IFD       16  // Debug IFD+protocol
 #define D_DEVICE    32  // Debug Reader I/O
 #define D_EMM				64  // Dumps EMM
-#define D_FUT				128 // Reserved for future use
+#define D_DVBAPI		128 // Debug DVBAPI
 #define D_ALL_DUMP  255 // dumps all
 
 #define R_DB2COM1   0x1 // Reader Dbox2 @ com1
@@ -651,7 +651,6 @@ struct s_client
 
   int pfd;      // Primary FD, must be closed on exit
   struct s_reader *reader; //points to s_reader when cl->typ='r'
-  int cs_ptyp; // process-type
 
   ECM_REQUEST *ecmtask;
   struct s_emm *emmcache;
@@ -661,7 +660,6 @@ struct s_client
   //reader common
   int last_idx;
   ushort idx;
-  //int cs_ptyp_orig;
   int rotate;
 
   uchar	*req;
@@ -751,7 +749,7 @@ struct s_reader  //contains device info, reader info and card info
   ushort    slot;   //in case of multiple slots like sc8in1; first slot = 1
   int       handle;   //device handle
   int       fdmc;     //device handle for multicam
-#ifdef ST_LINUX
+#ifdef WITH_STAPI
   unsigned int stsmart_handle; //device handle for stsmart driver
 #endif
   char      pcsc_name[128];
@@ -1019,7 +1017,6 @@ struct s_ip
 struct s_config
 {
 	int		nice;
-	int		debuglvl;
 	ulong		netprio;
 	ulong		ctimeout;
 	ulong		ftimeout;
@@ -1297,6 +1294,10 @@ extern FILE *fpa;
 extern pthread_mutex_t gethostbyname_lock;
 
 // oscam
+#ifdef WEBIF
+extern void cs_exit_oscam();
+extern void cs_restart_oscam();
+#endif
 extern int recv_from_udpipe(uchar *);
 extern char* username(struct s_client *);
 extern struct s_client * get_client_by_tid(unsigned long);
@@ -1327,9 +1328,7 @@ extern int chk_srvid(struct s_client *, ECM_REQUEST *);
 extern int chk_srvid_match(ECM_REQUEST *, SIDTAB *);
 extern int chk_sfilter(ECM_REQUEST *, PTAB*);
 extern int chk_ufilters(ECM_REQUEST *);
-extern int chk_rfilter(ECM_REQUEST *, struct s_reader *);
 extern int chk_rsfilter(struct s_reader * reader, ECM_REQUEST *);
-extern int chk_avail_reader(ECM_REQUEST *, struct s_reader *);
 extern int matching_reader(ECM_REQUEST *, struct s_reader *);
 extern void set_signal_handler(int , int , void (*));
 extern void cs_log_config(void);
@@ -1338,7 +1337,6 @@ extern void cs_reinit_clients(void);
 extern int process_client_pipe(struct s_client *cl, uchar *buf, int l);
 extern void update_reader_config(uchar *ptr);
 extern int chk_ctab(ushort caid, CAIDTAB *ctab);
-extern int chk_srvid_match_by_caid_prov(ushort caid, ulong provid, SIDTAB *sidtab);
 extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid);
 extern void kill_thread(struct s_client *cl);
 extern int get_threadnum(struct s_client *client);
@@ -1359,9 +1357,6 @@ extern void ac_do_stat(void);
 extern void ac_init_client(struct s_auth *);
 extern void ac_chk(ECM_REQUEST*, int);
 #endif
-
-// oscam-nano
-extern int chk_class(ECM_REQUEST *, CLASSTAB*, const char*, const char*);
 
 // oscam-config
 extern int  init_config(void);
@@ -1448,9 +1443,7 @@ extern int  cs_init_log();
 extern void cs_write_log(char *);
 extern void cs_log(const char *,...);
 #ifdef WITH_DEBUG
-extern void cs_debug(const char *,...);
 extern void cs_debug_mask(unsigned short, const char *,...);
-extern void cs_ddump(const uchar *, int, char *, ...);
 extern void cs_ddump_mask(unsigned short, const uchar *, int, char *, ...);
 #else
 #define cs_debug(...)

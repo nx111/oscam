@@ -52,7 +52,7 @@ P.blinking {text-decoration: blink; font-weight:bold; font-size:large; color:red
 H4.styleauthor:after {content:\"Eneen\";}\n"
 
 #define JSCRIPT "\
-	function do_nothing(){}"
+	function do_nothing(){}\n"
 
 #define ICMAI "data:image/x-icon;base64,\
 AAABAAEAEBAAAAEACABoBQAAFgAAACgAAAAQAAAAIAAAAAEACAAAAAAAQAEAAAAAAAAAAAAAAAAA\
@@ -244,6 +244,10 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 #define TPLAPIHEADER "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
 <oscam version=\"##CS_VERSION## build ###CS_SVN_VERSION##\" starttime=\"##STARTDATE## - ##STARTTIME##\">\n"
 
+#define TPLAPIERROR "##TPLAPIHEADER##\n\
+   <error>##APIERRORMESSAGE##</error>\n\
+##TPLAPIFOOTER##"
+
 #define TPLFOOTER "\
 		<BR><HR/><BR><DIV CLASS=\"footer\">\n\
 		<H4 CLASS=\"footline1\">OSCAM Webinterface developed by Streamboard Team - ##CURDATE## ##CURTIME## | Access from ##CURIP##</H4>\n\
@@ -317,7 +321,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
   ##TPLMENU##\n\
   ##TPLFILEMENU##\n\
   <BR><BR>##SDEBUG####SLOG####SCLEAR##<BR>##FILTER##\n\
-  <FORM ACTION=\"files.html\" method=\"get\">\n\
+  <FORM ACTION=\"files.html\" method=\"post\">\n\
   <INPUT TYPE=\"hidden\" NAME=\"part\" VALUE=\"##PART##\">\n\
   <TEXTAREA NAME=\"filecontent\" CLASS=\"editor\">##FILECONTENT##</TEXTAREA><BR>##WRITEPROTECTION##<BR>\n\
   <INPUT TYPE=\"submit\" NAME=\"action\" VALUE=\"Save\" TITLE=\"Save file is not yet implemented\" ##BTNDISABLED##>\n\
@@ -334,6 +338,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=16##CUSTOMPARAM##\" title=\"traffic to the reader-device on IFD layer\">16</A>&nbsp;\n\
 	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=32##CUSTOMPARAM##\" title=\"traffic to the reader-device on I/O layer\">32</A>&nbsp;\n\
 	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=64##CUSTOMPARAM##\" title=\"EMM logging\">64</A>&nbsp;\n\
+	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=128##CUSTOMPARAM##\" title=\"DVBAPI logging\">128</A>&nbsp;\n\
 	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=255##CUSTOMPARAM##\" title=\"debug all\">255</A>\n"
 
 #define TPLFAILBAN "\
@@ -1325,7 +1330,8 @@ All users will become disconnected.<br>\
 You will not be able to restart oscam from the webinterface.<br>\
 The webinterface will try to connect to oscam once 30 seconds after shutdown.</b><br>\n\
 </DIV><br><form action=\"shutdown.html\" method=\"get\">\n\
-<input type=\"submit\" name=\"action\" value=\"Shutdown\" title=\"Save service and reload services\" ##BTNDISABLED##></TD>\n\
+<input type=\"submit\" name=\"action\" value=\"Shutdown\" title=\"Shutdown Oscam\" ##BTNDISABLED##>\
+<input type=\"submit\" name=\"action\" value=\"Restart\" title=\"Restart Oscam\" ##BTNDISABLED##></TD>\n\
 </form>\
 ##TPLFOOTER##"
 
@@ -1357,6 +1363,7 @@ enum refreshtypes {REFR_ACCOUNTS, REFR_READERS, REFR_SERVER, REFR_ANTICASC, REFR
 char *tpl[]={
 	"HEADER",
 	"APIHEADER",
+	"APIERROR",
 	"FOOTER",
 	"APIFOOTER",
 	"MENU",
@@ -1448,6 +1455,7 @@ char *tpl[]={
 char *tplmap[]={
 	TPLHEADER,
 	TPLAPIHEADER,
+	TPLAPIERROR,
 	TPLFOOTER,
 	TPLAPIFOOTER,
 	TPLMENU,

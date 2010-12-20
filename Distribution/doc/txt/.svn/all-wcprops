@@ -1,13 +1,13 @@
 K 25
 svn:wc:ra_dav:version-url
 V 51
-/svn/oscam/!svn/ver/4085/trunk/Distribution/doc/txt
+/svn/oscam/!svn/ver/4153/trunk/Distribution/doc/txt
 END
 oscam.txt
 K 25
 svn:wc:ra_dav:version-url
 V 61
-/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/txt/oscam.txt
+/svn/oscam/!svn/ver/4151/trunk/Distribution/doc/txt/oscam.txt
 END
 list_smargo.txt
 K 25
@@ -55,7 +55,7 @@ oscam.server.txt
 K 25
 svn:wc:ra_dav:version-url
 V 68
-/svn/oscam/!svn/ver/3984/trunk/Distribution/doc/txt/oscam.server.txt
+/svn/oscam/!svn/ver/4153/trunk/Distribution/doc/txt/oscam.server.txt
 END
 oscam.tiers.txt
 K 25

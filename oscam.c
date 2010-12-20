@@ -10,12 +10,16 @@
 #else
 #  define CS_VERSION_X  CS_VERSION
 #endif
+#ifdef COOL
+void coolapi_close_all();
+#endif
 
 extern void cs_statistics(struct s_client * client);
 
 /*****************************************************************************
         Globals
 *****************************************************************************/
+int exit_oscam=0;
 struct s_module ph[CS_MAX_MOD]; // Protocols
 struct s_cardsystem cardsystem[CS_MAX_MOD]; // Protocols
 struct s_client * first_client = NULL; //Pointer to clients list, first client is master
@@ -272,6 +276,7 @@ static void usage()
   fprintf(stderr, "\t              16 = traffic to the reader-device on IFD layer\n");
   fprintf(stderr, "\t              32 = traffic to the reader-device on I/O layer\n");
   fprintf(stderr, "\t              64 = EMM logging\n");
+  fprintf(stderr, "\t             128 = DVBAPI logging\n");
   fprintf(stderr, "\t             255 = debug all\n");
   fprintf(stderr, "\t-h         : show this help\n");
   fprintf(stderr, "\n");
@@ -498,7 +503,7 @@ void cs_exit(int sig)
 	set_signal_handler(SIGPIPE, 1, SIG_IGN);
 
 	if (sig==SIGALRM) {
-		cs_debug("thread %8X: SIGALRM, skipping", pthread_self());
+		cs_debug_mask(D_TRACE, "thread %8X: SIGALRM, skipping", pthread_self());
 		return;
 	}
 
@@ -551,6 +556,9 @@ void cs_exit(int sig)
 	if (unlink(targetfile) < 0)
 		cs_log("cannot remove oscam version file %s errno=(%d)", targetfile, errno);
 #endif
+#ifdef COOL
+	coolapi_close_all();
+#endif
 	break;
   }
 
@@ -570,8 +578,7 @@ void cs_exit(int sig)
 	cs_close_log();
 
 	NULLFREE(cl);
-
-	exit(sig);  //clears all threads
+	exit_oscam = sig;
 }
 
 void cs_reinit_clients()
@@ -619,7 +626,7 @@ void cs_reinit_clients()
 #endif
 			} else {
 				if (ph[cl->ctyp].type & MOD_CONN_NET) {
-					cs_debug("client '%s', thread=%8X not found in db (or password changed)", cl->usr, cl->thread);
+					cs_debug_mask(D_TRACE, "client '%s', thread=%8X not found in db (or password changed)", cl->usr, cl->thread);
 					kill_thread(cl);
 				}
 			}
@@ -629,25 +636,20 @@ void cs_reinit_clients()
 void cs_debug_level()
 {
 	//switch debuglevel forward one step if not set from outside
-	if(cfg->debuglvl == cs_dblevel) {
-		switch (cs_dblevel) {
-			case 0:
-				cs_dblevel = 1;
-				break;
-			case 64:
-				cs_dblevel = 255;
-				break;
-			case 255:
-				cs_dblevel = 0;
-				break;
-			default:
-				cs_dblevel <<= 1;
-		}
-	} else {
-		cs_dblevel = cfg->debuglvl;
+	switch (cs_dblevel) {
+		case 0:
+			cs_dblevel = 1;
+			break;
+		case 128:
+			cs_dblevel = 255;
+			break;
+		case 255:
+			cs_dblevel = 0;
+			break;
+		default:
+			cs_dblevel <<= 1;
 	}
 
-	cfg->debuglvl = cs_dblevel;
 	cs_log("%sdebug_level=%d", "all", cs_dblevel);
 }
 
@@ -677,7 +679,6 @@ struct s_client * cs_fork(in_addr_t ip) {
 
 		//make_non_blocking(fdp[0]);
 		//make_non_blocking(fdp[1]);
-		cl->cs_ptyp=D_CLIENT;
 		cl->fd_m2c_c = fdp[0]; //store client read fd
 		cl->fd_m2c = fdp[1]; //store client read fd
 		cl->ip=ip;
@@ -1039,7 +1040,7 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 			cs_log("Protocol Support missing. (typ=%d)", rdr->typ);
 			return;
 		}
-		cs_debug("reader %s protocol: %s", rdr->label, rdr->ph.desc);
+		cs_debug_mask(D_TRACE, "reader %s protocol: %s", rdr->label, rdr->ph.desc);
 	}
 
 	if (rdr->enable == 0)
@@ -1405,7 +1406,7 @@ int write_to_pipe(int fd, int id, uchar *data, int n)
 		return -1;
 	}
 
-	cs_debug("write to pipe %d (%s) thread: %8X to %8X", fd, PIP_ID_TXT[id], pthread_self(), get_thread_by_pipefd(fd)->thread);
+	cs_debug_mask(D_TRACE, "write to pipe %d (%s) thread: %8X to %8X", fd, PIP_ID_TXT[id], pthread_self(), get_thread_by_pipefd(fd)->thread);
 
 	uchar buf[3+sizeof(void*)];
 
@@ -1460,7 +1461,7 @@ int read_from_pipe(int fd, uchar **data, int redir)
 	memcpy(id, buf, 3);
 	id[3]='\0';
 
-	cs_debug("read from pipe %d (%s) thread: %8X", fd, id, (unsigned int)pthread_self());
+	cs_debug_mask(D_TRACE, "read from pipe %d (%s) thread: %8X", fd, id, (unsigned int)pthread_self());
 
 	int l;
 	for (l=0; (rc<0) && (PIP_ID_TXT[l]); l++)
@@ -1597,7 +1598,7 @@ int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
     c=((er->cw[i]+er->cw[i+1]+er->cw[i+2]) & 0xff);
     if (er->cw[i+3]!=c)
     {
-      cs_debug("notice: changed dcw checksum byte cw[%i] from %02x to %02x", i+3, er->cw[i+3],c);
+      cs_debug_mask(D_TRACE, "notice: changed dcw checksum byte cw[%i] from %02x to %02x", i+3, er->cw[i+3],c);
       er->cw[i+3]=c;
     }
   }
@@ -1656,8 +1657,8 @@ ECM_REQUEST *get_ecmtask()
 {
 	int i, n;
 	ECM_REQUEST *er=0;
-  struct s_client *cl = cur_client();
-
+	struct s_client *cl = cur_client();
+	if(!cl) return NULL;
 	if (!cl->ecmtask)
 	{
 		n=(ph[cl->ctyp].multi)?CS_MAXPENDING:1;
@@ -2038,26 +2039,26 @@ void guess_irdeto(ECM_REQUEST *er)
   b3  = er->ecm[3];
   ptr = cfg->itab[b3];
   if( !ptr ) {
-    cs_debug("unknown irdeto byte 3: %02X", b3);
+    cs_debug_mask(D_TRACE, "unknown irdeto byte 3: %02X", b3);
     return;
   }
   b47  = b2i(4, er->ecm+4);
   //chid = b2i(2, er->ecm+6);
-  //cs_debug("ecm: b47=%08X, ptr->b47=%08X, ptr->caid=%04X", b47, ptr->b47, ptr->caid);
+  //cs_debug_mask(D_TRACE, "ecm: b47=%08X, ptr->b47=%08X, ptr->caid=%04X", b47, ptr->b47, ptr->caid);
   while( ptr )
   {
     if( b47==ptr->b47 )
     {
       if( er->srvid && (er->srvid!=ptr->sid) )
       {
-        cs_debug("sid mismatched (ecm: %04X, guess: %04X), wrong oscam.ird file?",
+        cs_debug_mask(D_TRACE, "sid mismatched (ecm: %04X, guess: %04X), wrong oscam.ird file?",
                   er->srvid, ptr->sid);
         return;
       }
       er->caid=ptr->caid;
       er->srvid=ptr->sid;
       er->chid=(ushort)ptr->b47;
-//      cs_debug("quess_irdeto() found caid=%04X, sid=%04X, chid=%04X",
+//      cs_debug_mask(D_TRACE, "quess_irdeto() found caid=%04X, sid=%04X, chid=%04X",
 //               er->caid, er->srvid, er->chid);
       return;
     }
@@ -2103,7 +2104,7 @@ void cs_betatunnel(ECM_REQUEST *er)
 			cl->cwtun++;
 			first_client->cwtun++;
 
-			cs_debug("ECM converted from: 0x%X to BetaCrypt: 0x%X for service id:0x%X",
+			cs_debug_mask(D_TRACE, "ECM converted from: 0x%X to BetaCrypt: 0x%X for service id:0x%X",
 				ttab->bt_caidfrom[n], ttab->bt_caidto[n], ttab->bt_srvid[n]);
 		}
 	}
@@ -2279,7 +2280,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		if(!((mintime <= maxtime && curtime > mintime && curtime < maxtime) || (mintime > maxtime && (curtime > mintime || curtime < maxtime)))) {
 			er->rc = 11;
 		}
-		cs_debug("Check Timeframe - result: %d, start: %d, current: %d, end: %d\n",er->rc, mintime, curtime, maxtime);
+		cs_debug_mask(D_TRACE, "Check Timeframe - result: %d, start: %d, current: %d, end: %d\n",er->rc, mintime, curtime, maxtime);
 	}
 
 	// user disabled
@@ -2368,7 +2369,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 					// corrupt
 					if( (i = er->l - (er->ecm[2] + 3)) ) {
 						if (i > 0) {
-							cs_debug("warning: ecm size adjusted from 0x%X to 0x%X",
+							cs_debug_mask(D_TRACE, "warning: ecm size adjusted from 0x%X to 0x%X",
 							er->l, er->ecm[2] + 3);
 							er->l = (er->ecm[2] + 3);
 						}
@@ -2994,16 +2995,46 @@ char * get_tmp_dir()
   return cs_tmpdir;
 }
 
+#ifdef WEBIF
+static void restart_daemon()
+{
+  while (1) {
+  
+    //start client process:
+    pid_t pid = fork(); 
+    if (!pid)
+      return; //client process=oscam process
+    if (pid < 0)
+      exit(1);
+    
+    //restart control process:
+    int res=0;
+    int status=0;
+    do {
+      res = waitpid(pid, &status, 0);
+      if (res==-1) {
+        if (errno!=EINTR)
+          exit(1);
+      }
+    } while (res!=pid);
+
+    status = WEXITSTATUS(status);
+    
+    //status=99 restart oscam, all other->terminate
+    if (status!=99) {
+      exit(status);
+    }
+  }
+}
+#endif
 
 int main (int argc, char *argv[])
 {
-
 
 if (pthread_key_create(&getclient, NULL)) {
   fprintf(stderr, "Could not create getclient, exiting...");
   exit(1);
 }
-
 #ifdef CS_LED
   cs_switch_led(LED1A, LED_DEFAULT);
   cs_switch_led(LED1A, LED_ON);
@@ -3097,7 +3128,7 @@ if (pthread_key_create(&getclient, NULL)) {
 	0
   };
 
-  while ((i=getopt(argc, argv, "bc:t:d:hm:"))!=EOF)
+  while ((i=getopt(argc, argv, "bc:t:d:hm:x"))!=EOF)
   {
 	  switch(i) {
 		  case 'b':
@@ -3127,11 +3158,26 @@ if (pthread_key_create(&getclient, NULL)) {
 			  usage();
 	  }
   }
+
+#ifdef OS_MACOSX
+  if (bg && daemon_compat(1,0))
+#else
+  if (bg && daemon(1,0))
+#endif
+  {
+    cs_log("Error starting in background (errno=%d: %s)", errno, strerror(errno));
+    cs_exit(1);
+  }
+
+#ifdef WEBIF
+  restart_daemon();  
+#endif
+
   if (cs_confdir[strlen(cs_confdir)]!='/') strcat(cs_confdir, "/");
   init_shm();
   init_config();
   init_stat();
-  cfg->debuglvl = cs_dblevel; // give static debuglevel to outer world
+
   for (i=0; mod_def[i]; i++)  // must be later BEFORE init_config()
   {
     memset(&ph[i], 0, sizeof(struct s_module));
@@ -3173,16 +3219,6 @@ if (pthread_key_create(&getclient, NULL)) {
 
   first_client->fd_m2c=fd_c2m;
   first_client->fd_m2c_c=mfdr;
-
-#ifdef OS_MACOSX
-  if (bg && daemon_compat(1,0))
-#else
-  if (bg && daemon(1,0))
-#endif
-  {
-    cs_log("Error starting in background (errno=%d: %s)", errno, strerror(errno));
-    cs_exit(1);
-  }
 
   write_versionfile();
   server_pid = getpid();
@@ -3249,10 +3285,16 @@ if (pthread_key_create(&getclient, NULL)) {
 				ph[i].s_handler(i);
 
 	//cs_close_log();
-	while (1) {
+	while (!exit_oscam) {
 		fd_set fds;
 
 		do {
+		        //timeout value for checking exit_oscam:
+                        struct timeval timeout;
+                        timeout.tv_sec = 1;
+                        timeout.tv_usec = 0;
+                        
+                        //Wait for incoming data
 			FD_ZERO(&fds);
 			FD_SET(mfdr, &fds);
 			for (i=0; i<CS_MAX_MOD; i++)
@@ -3261,9 +3303,12 @@ if (pthread_key_create(&getclient, NULL)) {
 						if (ph[i].ptab->ports[j].fd)
 							FD_SET(ph[i].ptab->ports[j].fd, &fds);
 			errno=0;
-			select(gfd, &fds, 0, 0, 0);
-		} while (errno==EINTR);
-
+			select(gfd, &fds, 0, 0, &timeout);
+		} while (errno==EINTR && !exit_oscam); //if timeout accurs and exit_oscam is set, we break the loop
+		
+		if (exit_oscam)
+		        break;
+		  
 		first_client->last=time((time_t *)0);
 
 		if (FD_ISSET(mfdr, &fds)) {
@@ -3280,14 +3325,34 @@ if (pthread_key_create(&getclient, NULL)) {
 		}
 	}
 
+        //can't kill? running endless...
+	//struct s_client *cl;
+	//for (cl=first_client->next;cl;cl=cl->next)
+	//  kill_thread(cl);
+	  
 #ifdef AZBOX
   if (openxcas_close() < 0) {
     cs_log("openxcas: could not close");
   }
 #endif
 
-	cs_exit(1);
+	cs_exit(exit_oscam);
+	return exit_oscam;
 }
+
+#ifdef WEBIF
+void cs_exit_oscam()
+{
+  exit_oscam=1;
+  cs_log("exit oscam requested");
+}
+
+void cs_restart_oscam()
+{
+  exit_oscam=99;
+  cs_log("restart oscam requested");
+}
+#endif
 
 #ifdef CS_LED
 void cs_switch_led(int led, int action) {
