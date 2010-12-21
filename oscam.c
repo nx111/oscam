@@ -15,6 +15,7 @@ void coolapi_close_all();
 #endif
 
 extern void cs_statistics(struct s_client * client);
+extern int ICC_Async_Close (struct s_reader *reader);
 
 /*****************************************************************************
         Globals
@@ -28,6 +29,9 @@ struct s_reader * first_reader = NULL;
 ushort  len4caid[256];    // table for guessing caid (by len)
 char  cs_confdir[128]=CS_CONFDIR;
 int cs_dblevel=0;   // Debug Level (TODO !!)
+#ifdef WEBIF
+int cs_restart_mode=1; //Restartmode: 0=off, no restart fork, 1=(default)restart fork, restart by webif, 2=like=1, but also restart on segfaults
+#endif
 char  cs_tmpdir[200]={0x00};
 pthread_mutex_t gethostbyname_lock;
 pthread_mutex_t cwcache_lock;
@@ -278,6 +282,12 @@ static void usage()
   fprintf(stderr, "\t              64 = EMM logging\n");
   fprintf(stderr, "\t             128 = DVBAPI logging\n");
   fprintf(stderr, "\t             255 = debug all\n");
+#ifdef WEBIF
+  fprintf(stderr, "\t-r         : restart-level\n");
+  fprintf(stderr, "\t               0 = disabled: restart request sets exitstatus=99\n");
+  fprintf(stderr, "\t               1 = restart activated: webif can restart oscam (default)\n");
+  fprintf(stderr, "\t               2 = like 1, but also restart on SEGFAULTS\n");
+#endif
   fprintf(stderr, "\t-h         : show this help\n");
   fprintf(stderr, "\n");
   exit(1);
@@ -458,6 +468,9 @@ static void cleanup_thread(struct s_client *cl)
 	if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
 	if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
 
+	if (exit_oscam > 0)
+	  return; //No more cleanup for faster restart
+	  
 	cs_sleepms(1000); //wait some time before cleanup to prevent segfaults
 	NULLFREE(cl->ecmtask);
 	NULLFREE(cl->emmcache);
@@ -532,7 +545,7 @@ void cs_exit(int sig)
             aes_clear_entries(cl->reader);
         }
         // close the device
-        reader_device_close(cl->reader);
+	      ICC_Async_Close(cl->reader);
         break;
 
     case 'h':
@@ -578,7 +591,9 @@ void cs_exit(int sig)
 	cs_close_log();
 
 	NULLFREE(cl);
-	exit_oscam = sig;
+
+	if (!exit_oscam)
+	  exit_oscam = sig?sig:1;
 }
 
 void cs_reinit_clients()
@@ -2859,21 +2874,21 @@ void cs_waitforcardinit()
 {
 	if (cfg->waitforcards)
 	{
-  		cs_log("waiting for local card init");
+		cs_log("waiting for local card init");
 		int card_init_done;
-		cs_sleepms(3000);  // short sleep for card detect to work proberly
+		cs_sleepms(4000);  // sleep for card detect to work proberly NLSU2 / sc8in1 needs 4000 ms ...
 		do {
 			card_init_done = 1;
 			struct s_reader *rdr;
 			for (rdr=first_reader; rdr ; rdr=rdr->next)
-				if (!(rdr->typ & R_IS_CASCADING) && rdr->card_status == CARD_NEED_INIT) {
+				if (((rdr->typ & R_IS_CASCADING) == 0) && rdr->enable && rdr->card_status == CARD_NEED_INIT) {
 					card_init_done = 0;
 					break;
 				}
 			cs_sleepms(300); // wait a little bit
 			//alarm(cfg->cmaxidle + cfg->ctimeout / 1000 + 1);
 		} while (!card_init_done);
-  		cs_log("init for all local cards done");
+		cs_log("init for all local cards done");
 	}
 }
 
@@ -2942,7 +2957,7 @@ int accept_connection(int i, int j) {
 
 			int flag = 1;
 			setsockopt(pfd3, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
-			
+
 			cl->ctyp=i;
 			cl->udp_fd=pfd3;
 			cl->port_idx=j;
@@ -2999,14 +3014,14 @@ char * get_tmp_dir()
 static void restart_daemon()
 {
   while (1) {
-  
+
     //start client process:
-    pid_t pid = fork(); 
+    pid_t pid = fork();
     if (!pid)
       return; //client process=oscam process
     if (pid < 0)
       exit(1);
-    
+
     //restart control process:
     int res=0;
     int status=0;
@@ -3018,8 +3033,11 @@ static void restart_daemon()
       }
     } while (res!=pid);
 
-    status = WEXITSTATUS(status);
-    
+    if (cs_restart_mode==2 && WIFSIGNALED(status) && WTERMSIG(status)==SIGSEGV)
+      status=99; //restart on segfault!
+    else
+      status = WEXITSTATUS(status);
+
     //status=99 restart oscam, all other->terminate
     if (status!=99) {
       exit(status);
@@ -3049,9 +3067,6 @@ if (pthread_key_create(&getclient, NULL)) {
   int      fdp[2];
   int      mfdr=0;     // Master FD (read)
   int      fd_c2m=0;
-
-	cfg = malloc(sizeof(struct s_config));
-	memset(cfg, 0, sizeof(struct s_config));
 
   void (*mod_def[])(struct s_module *)=
   {
@@ -3128,7 +3143,7 @@ if (pthread_key_create(&getclient, NULL)) {
 	0
   };
 
-  while ((i=getopt(argc, argv, "bc:t:d:hm:x"))!=EOF)
+  while ((i=getopt(argc, argv, "bc:t:d:r:hm:x"))!=EOF)
   {
 	  switch(i) {
 		  case 'b':
@@ -3140,6 +3155,11 @@ if (pthread_key_create(&getclient, NULL)) {
 		  case 'd':
 			  cs_dblevel=atoi(optarg);
 			  break;
+#ifdef WEBIF
+                  case 'r':
+                          cs_restart_mode=atoi(optarg);
+                          break;
+#endif
 		  case 't':
 			  mkdir(optarg, S_IRWXU);
 			  j = open(optarg, O_RDONLY);
@@ -3170,8 +3190,12 @@ if (pthread_key_create(&getclient, NULL)) {
   }
 
 #ifdef WEBIF
-  restart_daemon();  
+  if (cs_restart_mode)
+    restart_daemon();
 #endif
+
+  cfg = malloc(sizeof(struct s_config));
+  memset(cfg, 0, sizeof(struct s_config));
 
   if (cs_confdir[strlen(cs_confdir)]!='/') strcat(cs_confdir, "/");
   init_shm();
@@ -3293,7 +3317,7 @@ if (pthread_key_create(&getclient, NULL)) {
                         struct timeval timeout;
                         timeout.tv_sec = 1;
                         timeout.tv_usec = 0;
-                        
+
                         //Wait for incoming data
 			FD_ZERO(&fds);
 			FD_SET(mfdr, &fds);
@@ -3305,10 +3329,10 @@ if (pthread_key_create(&getclient, NULL)) {
 			errno=0;
 			select(gfd, &fds, 0, 0, &timeout);
 		} while (errno==EINTR && !exit_oscam); //if timeout accurs and exit_oscam is set, we break the loop
-		
+
 		if (exit_oscam)
 		        break;
-		  
+
 		first_client->last=time((time_t *)0);
 
 		if (FD_ISSET(mfdr, &fds)) {
@@ -3325,11 +3349,12 @@ if (pthread_key_create(&getclient, NULL)) {
 		}
 	}
 
-        //can't kill? running endless...
-	//struct s_client *cl;
-	//for (cl=first_client->next;cl;cl=cl->next)
-	//  kill_thread(cl);
-	  
+	struct s_client *cl;
+	for (cl=first_client;cl->next;cl=cl->next) {
+	  if (cl->next->typ != 's')
+	    kill_thread(cl->next);
+        }
+
 #ifdef AZBOX
   if (openxcas_close() < 0) {
     cs_log("openxcas: could not close");

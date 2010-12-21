@@ -32,8 +32,6 @@ static struct termios stored_termio[8];//FIXME no globals please
 static int current_slot; //FIXME should not be a global, but one per SC8in1
 static unsigned char cardstatus; //FIXME not global but one per SC8in1  //if not static, the threads dont share same cardstatus!
 
-#define MAX_TRANSMIT			255
-
 static int sc8in1_command(struct s_reader * reader, unsigned char * buff, unsigned short lenwrite, unsigned short lenread)
 {
   struct termios termio, termiobackup;
@@ -232,7 +230,7 @@ int Sc8in1_Init(struct s_reader * reader)
 		buff[0] = 0x63; //MCR set clock
 		buff[1] = (sc8in1_clock >> 8) & 0xFF;
 		buff[2] = sc8in1_clock & 0xFF;
-		sc8in1_command(reader, buff, 3, 0);
+//		sc8in1_command(reader, buff, 3, 0); //FIXME this doesnt work properly yet
 
 /*		//DEBUG get clockspeeds
 		buff[0] = 0x67;

@@ -38,6 +38,9 @@
 #include "ifd_sci.h"
 #include "ifd_smartreader.h"
 #include "ifd_azbox.h"
+#ifdef HAVE_PCSC
+#include "ifd_pcsc.h"
+#endif
 
 // Default T0/T14 settings
 #define DEFAULT_WI		10
@@ -153,8 +156,6 @@ int ICC_Async_Device_Init (struct s_reader *reader)
 		case R_INTERNAL:
 #if defined(COOL)
 			return Cool_Init(reader->device);
-#elif defined(WITH_STAPI)
-			return STReader_Open(reader->device, &reader->stsmart_handle);
 #elif defined(AZBOX)
 			return Azbox_Init(reader);
 #elif defined(SCI_DEV)
@@ -167,12 +168,19 @@ int ICC_Async_Device_Init (struct s_reader *reader)
 				cs_log("ERROR opening device %s",reader->device);
 				return ERROR;
 			}
+#elif defined(WITH_STAPI)
+			return STReader_Open(reader->device, &reader->stsmart_handle);
 #else//SCI_DEV
 			cs_log("ERROR, you have specified 'protocol = internal' in oscam.server,");
 			cs_log("recompile with internal reader support.");
 			return ERROR;
 #endif//SCI_DEV
 			break;
+#ifdef HAVE_PCSC
+		case R_PCSC:
+			return (pcsc_reader_init(reader, reader->device));
+			break;
+#endif
 		default:
 			cs_log("ERROR ICC_Device_Init: unknow reader type %i",reader->typ);
 			return ERROR;
@@ -225,9 +233,9 @@ int ICC_Async_GetStatus (struct s_reader *reader, int * card)
 			break;
 #endif
 		case R_SC8in1:
-			LOCK_SC8IN1;
+			pthread_mutex_lock(&sc8in1);
 			call (Sc8in1_GetStatus(reader, &in));
-			UNLOCK_SC8IN1;
+			pthread_mutex_unlock(&sc8in1);
 			break;
 		case R_MP35:
 		case R_MOUSE:
@@ -249,6 +257,11 @@ int ICC_Async_GetStatus (struct s_reader *reader, int * card)
 			call(Azbox_GetStatus(reader, &in));
 #endif
 			break;
+#ifdef HAVE_PCSC
+		case R_PCSC:
+			in =  pcsc_check_card_inserted(reader);
+			break;
+#endif
 		default:
 			cs_log("ERROR ICC_Get_Status: unknow reader type %i",reader->typ);
 			return ERROR;
@@ -258,8 +271,6 @@ int ICC_Async_GetStatus (struct s_reader *reader, int * card)
 		*card = TRUE;
 	else
 		*card = FALSE;
-    // this debug is not really useful and polute the log in debug mode
-	// cs_debug_mask (D_IFD, "IFD: Status = %s", in ? "card": "no card");
 	
 	return OK;
 }
@@ -306,6 +317,18 @@ int ICC_Async_Activate (struct s_reader *reader, ATR * atr, unsigned short depre
 				call (Azbox_Reset(reader, atr));
 #endif
 				break;
+#ifdef HAVE_PCSC
+			case R_PCSC:
+				 {
+					unsigned char atrarr[64];
+					ushort atr_size = 0;
+					if (pcsc_activate_card(reader, atrarr, &atr_size))
+						return (ATR_InitFromArray (atr, atrarr, atr_size) == ATR_OK);
+					else
+						return 0;
+				 }
+				break;
+#endif
 			default:
 				cs_log("ERROR ICC_Async_Activate: unknow reader type %i",reader->typ);
 				return ERROR;
@@ -342,6 +365,10 @@ int ICC_Async_Activate (struct s_reader *reader, ATR * atr, unsigned short depre
 
 int ICC_Async_CardWrite (struct s_reader *reader, unsigned char *command, unsigned short command_len, unsigned char *rsp, unsigned short *lr)
 {
+#ifdef HAVE_PCSC
+	if (reader->typ == R_PCSC)
+ 	  return (pcsc_reader_do_api(reader, command, rsp, lr, command_len)); 
+#endif
 	*lr = 0; //will be returned in case of error
 
 	int ret;
@@ -423,12 +450,12 @@ int ICC_Async_Transmit (struct s_reader *reader, unsigned size, BYTE * data)
 		case R_INTERNAL:
 #if defined(COOL)
 			call (Cool_Transmit(sent, size));
-#elif defined(WITH_STAPI)
-			call (STReader_Transmit(reader->stsmart_handle, sent, size));
 #elif defined(AZBOX)
 			call (Azbox_Transmit(reader, sent, size));
 #elif defined(SCI_DEV)
 			call (Phoenix_Transmit (reader, sent, size, 0, 0)); //the internal reader will provide the delay
+#elif defined(WITH_STAPI)
+			call (STReader_Transmit(reader->stsmart_handle, sent, size));
 #endif
 			break;
 		default:
@@ -459,13 +486,13 @@ int ICC_Async_Receive (struct s_reader *reader, unsigned size, BYTE * data)
 #endif
 		case R_INTERNAL:
 #if defined(COOL)
-	    call (Cool_Receive(data, size));
-#elif defined(WITH_STAPI)
-	    call (STReader_Receive(reader->stsmart_handle, data, size));
+			call (Cool_Receive(data, size));
 #elif defined(AZBOX)
-	    call (Azbox_Receive(reader, data, size));
+			call (Azbox_Receive(reader, data, size));
 #elif defined(SCI_DEV)
 			call (Phoenix_Receive (reader, data, size, reader->read_timeout));
+#elif defined(WITH_STAPI)
+			call (STReader_Receive(reader->stsmart_handle, data, size));
 #endif
 			break;
 		default:
@@ -481,7 +508,7 @@ int ICC_Async_Receive (struct s_reader *reader, unsigned size, BYTE * data)
 }
 
 int ICC_Async_Close (struct s_reader *reader)
-{ //FIXME this routine is never called!
+{
 	cs_debug_mask (D_IFD, "IFD: Closing device %s", reader->device);
 
 	switch(reader->typ) {
@@ -490,6 +517,7 @@ int ICC_Async_Close (struct s_reader *reader)
 			break;
 		case R_DB2COM1:
 		case R_DB2COM2:
+		case R_SC8in1:
 		case R_MOUSE:
 			call (Phoenix_Close(reader));
 			break;
@@ -507,6 +535,11 @@ int ICC_Async_Close (struct s_reader *reader)
 			call(STReader_Close(reader->stsmart_handle));
 #endif
 			break;
+#ifdef HAVE_PCSC
+		case R_PCSC:
+			pcsc_close(reader);
+			break;
+#endif
 		default:
 			cs_log("ERROR ICC_Async_Close: unknow reader type %i",reader->typ);
 			return ERROR;
@@ -689,7 +722,7 @@ static int PPS_Exchange (struct s_reader * reader, BYTE * params, unsigned *leng
 	params[len_request - 1] = PPS_GetPCK(params, len_request - 1);
 	cs_debug_mask (D_IFD, "PTS: Sending request: %s", cs_hexdump(1, params, len_request));
 
-#ifdef WITH_STAPI	
+#if defined(WITH_STAPI) && !defined(SCI_DEV)
 	ret = STReader_SetProtocol(reader->stsmart_handle, params, length, len_request);
 	return ret;
 #endif

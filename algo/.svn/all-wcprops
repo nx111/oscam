@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 35
+/svn/oscam/!svn/ver/4176/trunk/algo
+END
+lzoconf.h
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/svn/oscam/!svn/ver/4176/trunk/algo/lzoconf.h
+END
+minilzo.c
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/svn/oscam/!svn/ver/4176/trunk/algo/minilzo.c
+END
+minilzo.h
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/svn/oscam/!svn/ver/4176/trunk/algo/minilzo.h
+END

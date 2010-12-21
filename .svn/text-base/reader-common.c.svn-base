@@ -3,9 +3,6 @@
 #include "defines.h"
 #include "atr.h"
 #include "icc_async_exports.h"
-#ifdef HAVE_PCSC
-#include "csctapi/ifd_pcsc.h"
-#endif
 #ifdef AZBOX
 #include "csctapi/ifd_azbox.h"
 #endif
@@ -54,13 +51,6 @@ static void reader_nullcard(struct s_reader * reader)
 int reader_cmd2icc(struct s_reader * reader, const uchar *buf, const int l, uchar * cta_res, ushort * p_cta_lr)
 {
 	int rc;
-#ifdef HAVE_PCSC
-	if (reader->typ == R_PCSC) {
- 	  return (pcsc_reader_do_api(reader, buf, cta_res, p_cta_lr,l)); 
-	}
-
-#endif
-
 	*p_cta_lr=CTA_RES_LEN-1; //FIXME not sure whether this one is necessary 
 	cs_ddump_mask(D_READER, buf, l, "write to cardreader %s:",reader->label);
 	rc=ICC_Async_CardWrite(reader, (uchar *)buf, (unsigned short)l, cta_res, p_cta_lr);
@@ -100,11 +90,6 @@ static int reader_card_inserted(struct s_reader * reader)
 	if ((reader->detect&0x7f) > 3)
 		return 1;
 #endif
-#ifdef HAVE_PCSC
-	if (reader->typ == R_PCSC) {
-		return(pcsc_check_card_inserted(reader));
-	}
-#endif
 	int card;
 	if (ICC_Async_GetStatus (reader, &card)) {
 		cs_log("Error getting status of terminal.");
@@ -115,30 +100,19 @@ static int reader_card_inserted(struct s_reader * reader)
 
 static int reader_activate_card(struct s_reader * reader, ATR * atr, unsigned short deprecated)
 {
-      int i;
-#ifdef HAVE_PCSC
-    unsigned char atrarr[64];
-    ushort atr_size = 0;
-    if (reader->typ == R_PCSC) {
-        if (pcsc_activate_card(reader, atrarr, &atr_size))
-            return (ATR_InitFromArray (atr, atrarr, atr_size) == ATR_OK);
-        else
-            return 0;
-    }
-#endif
+  int i,ret;
 	if (!reader_card_inserted(reader))
 		return 0;
 
   /* Activate card */
-  for (i=0; i<5; i++) {
-		if (!ICC_Async_Activate(reader, atr, deprecated)) {
-			i = 100;
+  for (i=0; i<3; i++) {
+		ret = ICC_Async_Activate(reader, atr, deprecated);
+		if (!ret)
 			break;
-		}
 		cs_log("Error activating card.");
   	cs_sleepms(500);
 	}
-  if (i<100) return(0);
+  if (ret) return(0);
 
   reader->init_history_pos=0;
 
@@ -261,12 +235,6 @@ static int reader_reset(struct s_reader * reader)
 
 int reader_device_init(struct s_reader * reader)
 {
-#ifdef HAVE_PCSC
-	if (reader->typ == R_PCSC) {
-	   return (pcsc_reader_init(reader, reader->device));
-	}
-#endif
- 
 	int rc = -1; //FIXME
 #if defined(TUXBOX) && defined(PPC)
 	struct stat st;
@@ -277,8 +245,7 @@ int reader_device_init(struct s_reader * reader)
 		cs_log("Cannot open device: %s", reader->device);
 	else
 		rc = OK;
-  cs_debug_mask(D_READER, "ct_init on %s: %d", reader->device, rc);
-  return((rc!=OK) ? 2 : 0);
+  return((rc!=OK) ? 2 : 0); //exit code 2 means keep retrying, exit code 0 means all OK
 }
 
 int reader_checkhealth(struct s_reader * reader)
@@ -413,14 +380,4 @@ int reader_emm(struct s_reader * reader, EMM_PACKET *ep)
 int check_emm_cardsystem(struct s_reader * rdr, EMM_PACKET *ep)
 {
 	return (rdr->fd && (rdr->caid[0] == b2i(2,ep->caid) || rdr->typ == R_CCCAM));
-}
-
-void reader_device_close(struct s_reader * reader)
-{
-#ifdef HAVE_PCSC
-	if (reader->typ == R_PCSC)
-	   pcsc_close(reader);
-    else
-#endif
-	   ICC_Async_Close(reader);
 }
