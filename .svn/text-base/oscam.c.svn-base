@@ -160,11 +160,10 @@ static void usage()
   fprintf(stderr, "\tbased on streamboard mp-cardserver v0.9d - (w) 2004-2007 by dukat\n");
   fprintf(stderr, "\tinbuilt modules: ");
 #ifdef WEBIF
-  #ifdef WITH_SSL
-  	fprintf(stderr, "webinterface-with-ssl ");
-  #else
-    fprintf(stderr, "webinterface ");
-  #endif
+  fprintf(stderr, "webinterface ");
+#endif
+#ifdef WITH_SSL
+  fprintf(stderr, "openssl ");
 #endif
 #ifdef HAVE_DVBAPI
 #ifdef WITH_STAPI
@@ -283,9 +282,9 @@ static void usage()
   fprintf(stderr, "\t             128 = DVBAPI logging\n");
   fprintf(stderr, "\t             255 = debug all\n");
 #ifdef WEBIF
-  fprintf(stderr, "\t-r         : restart-level\n");
-  fprintf(stderr, "\t               0 = disabled: restart request sets exitstatus=99\n");
-  fprintf(stderr, "\t               1 = restart activated: webif can restart oscam (default)\n");
+  fprintf(stderr, "\t-r         : restart level\n");
+  fprintf(stderr, "\t               0 = disabled, restart request sets exit status 99\n");
+  fprintf(stderr, "\t               1 = restart activated, web interface can restart oscam (default)\n");
   fprintf(stderr, "\t               2 = like 1, but also restart on SEGFAULTS\n");
 #endif
   fprintf(stderr, "\t-h         : show this help\n");
@@ -468,9 +467,6 @@ static void cleanup_thread(struct s_client *cl)
 	if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
 	if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
 
-	if (exit_oscam > 0)
-	  return; //No more cleanup for faster restart
-	  
 	cs_sleepms(1000); //wait some time before cleanup to prevent segfaults
 	NULLFREE(cl->ecmtask);
 	NULLFREE(cl->emmcache);
@@ -588,8 +584,15 @@ void cs_exit(int sig)
 
 	NULLFREE(cl);
 
+#ifdef WEBIF
+	if (!cs_restart_mode)
+		exit(sig);
+
 	if (!exit_oscam)
 	  exit_oscam = sig?sig:1;
+#else
+	exit(sig);
+#endif
 }
 
 void cs_reinit_clients()
@@ -2414,8 +2417,6 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		// cache1
 		if (check_cwcache1(er, client->grp))
 			er->rc = 1;
-                else if (check_and_store_ecmcache(er, client->grp))
-                        return;
 
 #ifdef CS_ANTICASC
 		ac_chk(er, 0);
@@ -2455,6 +2456,10 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 					er->matching_rdr[i]>>=1;
 		}
 	}
+
+	if (er->rc > 99 && check_and_store_ecmcache(er, client->grp))
+                return;
+
 
 	if (er->rc < 100) {
 		if (cfg->delay)
@@ -3341,12 +3346,6 @@ if (pthread_key_create(&getclient, NULL)) {
 			} // if (ph[i].type & MOD_CONN_NET)
 		}
 	}
-
-	struct s_client *cl;
-	for (cl=first_client;cl->next;cl=cl->next) {
-	  if (cl->next->typ != 's')
-	    kill_thread(cl->next);
-        }
 
 #ifdef AZBOX
   if (openxcas_close() < 0) {

@@ -75,11 +75,6 @@ debug level mask:
  255 = debug all
 .RE
 .PP
-\fB-m\fP <filename>
-.RS 3n
-use <filename> as mmaped memory file, default:see CS_MMAPFILE in \fBglobals.h\fR, needed for embedded systems without shared memory and windows
-.RE
-.PP
 \fB-h\fP
 .RS 3n
 usage
@@ -88,6 +83,14 @@ usage
 \fB-t\fP <directory>
 .RS 3n
 use <directory> for temporary data, default:temporary directory of OS
+.RE
+.PP
+\fB-r\fP <level> \fI(only if web interface module enabled)\fR
+.RS 3n
+restart level:
+   0 = disabled, restart request sets exit status to 99
+   1 = restart activated, web interface can restart oscam (default)
+   2 = like 1, but also restart on SEGFAULTS
 .RE
 .SH SIGNALS
 .PP
