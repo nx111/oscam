@@ -1,0 +1,1 @@
+oscam-complete_delfile.sh

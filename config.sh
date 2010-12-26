@@ -109,7 +109,7 @@ menu_reader() {
 		READER_VIDEOGUARD	"Videoguard"	$(check_test "READER_VIDEOGUARD") \
 		READER_DRE		"Dre"		$(check_test "READER_DRE") \
 		READER_TONGFANG		"Tongfang"		$(check_test "READER_TONGFANG") \
-		READER_TONGFANG		"Streamguard"		$(check_test "READER_STREAMGUARD") \
+		READER_STREAMGUARD	"Streamguard"		$(check_test "READER_STREAMGUARD") \
 		2> ${tempfile}
 
 	opt=${?}

@@ -1,0 +1,27 @@
+#!/bin/sh
+case "$1" in
+start)
+	sleep 1
+	/usr/bin/oscam -b
+	;;
+stop)
+	killall oscam
+	killall -9 oscam 
+	;;
+restart|reload)
+	$0 stop
+	sleep 1
+	$0 start
+	;;
+version)
+	echo "1.0"
+	;;
+info)
+	echo "oscam"
+	;;
+*)
+	echo "Usage: $0 start|stop|restart"
+	exit 1
+	;;
+esac
+exit 0

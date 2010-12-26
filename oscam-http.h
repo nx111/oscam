@@ -348,7 +348,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 	<BR><BR>\n\
 	<TABLE CLASS=\"stats\">\n\
 	<TR><TH colspan=\"4\">List of banned IP Addresses</TH></TR>\n\
-	<TR><TH>IP Address</TH><TH>Violation date</TH><TH>left ban time</TH><TH>Action</TH></TR>\n\
+	<TR><TH>IP Address</TH><TH>Violation date</TH><TH>Violation count</TH><TH>left ban time</TH><TH>Action</TH></TR>\n\
     ##FAILBANROW##\n\
 	</TABLE><BR>\n\
 ##TPLFOOTER##"
@@ -356,6 +356,7 @@ c3fmBuFft/Ff8xMd0s65SXIb/gAAAABJRU5ErkJggg=="
 #define TPLFAILBANBIT "\
 	<TR><TD>##IPADDRESS##</TD>\
 	<TD>##VIOLATIONDATE##</TD>\
+	<TD>##VIOLATIONCOUNT##</TD>\
 	<TD align=\"center\">##LEFTTIME##</TD>\
 	<TD align=\"center\"><A HREF=\"failban.html?action=delete&intip=##INTIP##\" TITLE=\"Delete Entry\"><IMG SRC=\"##DELICO##\" BORDER=\"0\" ALT=\"Delete Entry\"/></A></TD></TR>\n"
 
@@ -763,7 +764,7 @@ services(##SRVIDNUM##)=##SRVIDS##<BR><BR>\n"
 
 #define TPLAPICCCAMCARDBIT "      <card number=\"##APICARDNUMBER##\" caid=\"##APICAID##\" system=\"##SYSTEM##\" \
 reshare=\"##MAXDOWN##\" hop=\"##UPHOPS##\">\n\
-         <hostaddress>##APIHOST##</host>\n\
+         <hostaddress>##APIHOST##</hostaddress>\n\
          <hostport>##APIHOSTPORT##</hostport>\n\
          <shareid>##SHAREID##</shareid>\n\
          <remoteid>##REMOTEID##</remoteid>\n\
@@ -986,6 +987,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 		<TR><TD>Port:</TD><TD><input name=\"port\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"##PORT##\"></TD></TR>\n\
 		<TR><TD>Reshare:</TD><TD><input name=\"reshare\" type=\"text\" size=\"2\" maxlength=\"1\" value=\"##RESHARE##\"></TD></TR>\n\
 		<TR><TD>Ignore reshare:</TD><TD><SELECT NAME=\"ignorereshare\"><OPTION VALUE=\"0\">OFF</OPTION><OPTION VALUE=\"1\" ##IGNORERESHARE##>ON</OPTION></SELECT></TD></TR>\n\
+		<TR><TD>Stealth mode:</TD><TD><SELECT NAME=\"stealth\"><OPTION VALUE=\"0\">OFF</OPTION><OPTION VALUE=\"1\" ##STEALTH##>ON</OPTION></SELECT></TD></TR>\n\
 		<TR><TD>Keep clients connected:</TD><TD><SELECT NAME=\"keepconnected\"><OPTION VALUE=\"0\">OFF</OPTION><OPTION VALUE=\"1\" ##KEEPCONNECTED##>ON</OPTION></SELECT></TD></TR>\n\
 		<TR><TD>Version:</TD><TD><SELECT name=\"version\">\
 			<OPTION value=\"2.0.11\" ##VERSIONSELECTED0##>2.0.11</OPTION>\
@@ -1001,6 +1003,12 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 			<OPTION value=\"0\" ##MINIMIZECARDSELECTED0##>0 - legacy (default)</OPTION>\
 			<OPTION value=\"1\" ##MINIMIZECARDSELECTED1##>1 - smallest hop</OPTION>\
 			<OPTION value=\"2\" ##MINIMIZECARDSELECTED2##>2 - via caid</OPTION>\
+		</SELECT></TD></TR>\n\
+		<TR><TD>Reshare mode:</TD><TD><SELECT name=\"reshare_mode\">\
+			<OPTION value=\"0\" ##RESHAREMODE0##>0 - reshare cards only (default)</OPTION>\
+			<OPTION value=\"1\" ##RESHAREMODE1##>1 - reshare cards+services</OPTION>\
+			<OPTION value=\"2\" ##RESHAREMODE2##>2 - reshare reader-services</OPTION>\
+			<OPTION value=\"3\" ##RESHAREMODE3##>3 - reshare user-services</OPTION>\
 		</SELECT></TD></TR>\n\
 		<TR><TD colspan=\"2\" align=\"right\"><input type=\"submit\" value=\"OK\" ##BTNDISABLED##>\n</TD></TR>\n\
 	</TABLE>\n\
@@ -1124,6 +1132,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 		<TR><TD>Usr file flag:</TD><TD><input name=\"usrfileflag\" type=\"text\" size=\"5\" maxlength=\"1\" value=\"##USERFILEFLAG##\"></TD></TR>\n\
 		<TR><TD>CW log dir:</TD><TD><input name=\"cwlogdir\" type=\"text\" size=\"30\" maxlength=\"30\" value=\"##CWLOGDIR##\"></TD></TR>\n\
 		<TR><TD>Failban time:</TD><TD><input name=\"failbantime\" type=\"text\" size=\"7\" maxlength=\"6\" value=\"##FAILBANTIME##\"></TD></TR>\n\
+		<TR><TD>Failban count:</TD><TD><input name=\"failbancount\" type=\"text\" size=\"2\" maxlength=\"2\" value=\"##FAILBANCOUNT##\"></TD></TR>\n\
 		<TR><TD>Client timeout:</TD><TD><input name=\"clienttimeout\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##CLIENTTIMEOUT##\"> ms</TD></TR>\n\
 		<TR><TD>Fallback timeout:</TD><TD><input name=\"fallbacktimeout\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##FALLBACKTIMEOUT##\"> ms</TD></TR>\n\
 		<TR><TD>Cache delay:</TD><TD><input name=\"cachedelay\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##CACHEDELAY##\"> ms</TD></TR>\n\

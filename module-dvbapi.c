@@ -2065,7 +2065,7 @@ void azbox_openxcas_ex_callback(int stream_id, unsigned int seq, int idx, unsign
 	tp.time+=500;
 
 	chk_pending(tp);
-	process_client_pipe(dvbapi_client, NULL, 0);
+//	process_client_pipe(dvbapi_client, NULL, 0);
 
 	unsigned char mask[12];
 	unsigned char comp[12];
@@ -2155,7 +2155,7 @@ void * azbox_main(void *cli) {
 					mask[0] = 0xfe;
 					comp[0] = 0x80;
 
-					if ((ret = openxcas_add_filter(msg.stream_id, OPENXCAS_FILTER_ECM, 0, 0xffff, openxcas_ecm_pid, mask, comp, (void *)azbox_openxcas_ecm_callback)) < 0)
+/*					if ((ret = openxcas_add_filter(msg.stream_id, OPENXCAS_FILTER_ECM, 0, 0xffff, openxcas_ecm_pid, mask, comp, (void *)azbox_openxcas_ecm_callback)) < 0)
 						cs_log("openxcas: unable to add ecm filter");
 					else
 						cs_debug_mask(D_DVBAPI, "openxcas: ecm filter added, pid = %x, caid = %x", openxcas_ecm_pid, 0);
@@ -2164,6 +2164,12 @@ void * azbox_main(void *cli) {
 						cs_log("openxcas: unable to start ecm filter");
 					else
 						cs_debug_mask(D_DVBAPI, "openxcas: ecm filter started");
+*/
+					if ((ret=openxcas_start_filter_ex(msg.stream_id, msg.sequence, openxcas_ecm_pid, mask, comp, (void *)azbox_openxcas_ex_callback)) < 0)
+						cs_log("openxcas: unable to start ex filter");
+					else
+						cs_debug_mask(D_DVBAPI, "openxcas: ex filter started, pid = %x", openxcas_ecm_pid);
+
 
 					if (!openxcas_create_cipher_ex(msg.stream_id, openxcas_seq, 0, openxcas_ecm_pid, openxcas_video_pid, 0xffff, openxcas_audio_pid, 0xffff, 0xffff, 0xffff))
 						cs_log("openxcas: failed to create cipher ex");

@@ -136,6 +136,7 @@ void send_oscam_config_global(struct templatevars *vars, FILE *f, struct uripara
 		tpl_addVar(vars, 0, "RESOLVER0", "selected");
 
 	tpl_printf(vars, 0, "FAILBANTIME", "%d", cfg->failbantime);
+	tpl_printf(vars, 0, "FAILBANCOUNT", "%d", cfg->failbancount);
 
 
 #ifdef CS_WITH_DOUBLECHECK
@@ -423,8 +424,13 @@ void send_oscam_config_cccam(struct templatevars *vars, FILE *f, struct uriparam
 	}
 
 	tpl_printf(vars, 0, "UPDATEINTERVAL", "%d", cfg->cc_update_interval);
+	if (cfg->cc_stealth)
+		tpl_printf(vars, 0, "STEALTH", "selected");
 
 	tpl_printf(vars, 0, "TMP", "MINIMIZECARDSELECTED%d", cfg->cc_minimize_cards);
+	tpl_addVar(vars, 0, tpl_getVar(vars, "TMP"), "selected");
+
+	tpl_printf(vars, 0, "TMP", "RESHAREMODE%d", cfg->cc_reshare_services);
 	tpl_addVar(vars, 0, tpl_getVar(vars, "TMP"), "selected");
 
 	if (cfg->cc_ignore_reshare)
@@ -2604,6 +2610,8 @@ void send_oscam_failban(struct templatevars *vars, FILE *f, struct uriparams *pa
 				st->tm_year%100, st->tm_hour,
 				st->tm_min, st->tm_sec);
 
+		tpl_printf(vars, 0, "VIOLATIONCOUNT", "%d", v_ban_entry->v_count);
+
 		int lsec = (cfg->failbantime * 60) - (now - v_ban_entry->v_time);
 		int secs = 0, fullmins =0, mins =0, fullhours =0, hours =0, days =0;
 		if(lsec > 0) {
@@ -2878,13 +2886,14 @@ int process_request(FILE *f, struct in_addr in) {
 	}
 
 	if(authok != 1) {
-		strcpy(tmp, "WWW-Authenticate: Digest algorithm=\"MD5\", realm=\"");
-		strcat(tmp, AUTHREALM);
-		strcat(tmp, "\", qop=\"auth\", opaque=\"\", nonce=\"");
-		strcat(tmp, expectednonce);
-		strcat(tmp, "\"");
-		if(authok == 2) strcat(tmp, ", stale=true");
-		send_headers(f, 401, "Unauthorized", tmp, "text/html");
+		char temp[1024];
+		strcpy(temp, "WWW-Authenticate: Digest algorithm=\"MD5\", realm=\"");
+		strcat(temp, AUTHREALM);
+		strcat(temp, "\", qop=\"auth\", opaque=\"\", nonce=\"");
+		strcat(temp, expectednonce);
+		strcat(temp, "\"");
+		if(authok == 2) strcat(temp, ", stale=true");
+		send_headers(f, 401, "Unauthorized", temp, "text/html");
 		free(filebuf);
 		return 0;
 	}
@@ -2897,7 +2906,10 @@ int process_request(FILE *f, struct in_addr in) {
 		send_headers(f, 200, "OK", NULL, "text/javascript");
 		send_file(f, 2);
 	} else {
-		send_headers(f, 200, "OK", NULL, "text/html");
+		if (pgidx == 18)
+			send_headers(f, 200, "OK", NULL, "text/xml");
+		else
+			send_headers(f, 200, "OK", NULL, "text/html");
 		time_t t;
 		struct templatevars *vars = tpl_create();
 		struct tm *lt;
