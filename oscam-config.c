@@ -917,6 +917,16 @@ void chk_t_webif(char *token, char *value)
 		}
 	}
 
+	if (!strcmp(token, "httpjsicons")) {
+		if(strlen(value) == 0) {
+			cfg->http_js_icons = 0;
+			return;
+		} else {
+			cfg->http_js_icons = atoi(value);
+			return;
+		}
+	}
+
 	if (token[0] != '#')
 		fprintf(stderr, "Warning: keyword '%s' in webif section not recognized\n",token);
 }
@@ -1540,6 +1550,7 @@ int init_config()
 	cfg->http_refresh = 0;
 	cfg->http_hide_idle_clients = 0;
 	strcpy(cfg->http_tpl, "");
+	cfg->http_js_icons = 1;
 #endif
 	cfg->ncd_keepalive = 1;
 #ifdef CS_ANTICASC
@@ -1857,6 +1868,7 @@ int write_services()
 	char tmpfile[256];
 	char destfile[256];
 	char bakfile[256];
+	char *ptr;
 
 	snprintf(destfile, 255,"%s%s", cs_confdir, cs_sidt);
 	snprintf(tmpfile, 255, "%s%s.tmp", cs_confdir, cs_sidt);
@@ -1870,6 +1882,11 @@ int write_services()
 	fprintf(f,"# Read more: http://streamboard.gmc.to/oscam/browser/trunk/Distribution/doc/txt/oscam.services.txt\n\n");
 
 	while(sidtab != NULL){
+		ptr = sidtab->label;
+		while (*ptr) {
+			if (*ptr == ' ') *ptr = '_';
+			ptr++;
+		}
 		fprintf(f,"[%s]\n", sidtab->label);
 		fprintf_conf(f, CONFVARWIDTH, "caid", "");
 		for (i=0; i<sidtab->num_caid; i++){
@@ -2249,6 +2266,7 @@ int write_config()
 		fprintf_conf(f, CONFVARWIDTH, "httphideidleclients", "%d\n", cfg->http_hide_idle_clients);
 		fprintf_conf(f, CONFVARWIDTH, "httpreadonly", "%d\n", cfg->http_readonly);
 		fprintf_conf(f, CONFVARWIDTH, "httpsavefullcfg", "%d\n", cfg->http_full_cfg);
+		fprintf_conf(f, CONFVARWIDTH, "httpjsicons", "%d\n", cfg->http_js_icons);
 
 		fputc((int)'\n', f);
 	}
@@ -2880,29 +2898,33 @@ void write_versionfile() {
 
 }
 
-int init_userdb(struct s_auth **authptr_org)
-{
-	struct s_auth *authptr = *authptr_org;
-	int tag = 0, nr, nro, expired, disabled;
-	//int first=1;
-	FILE *fp;
-	char *value;
-	struct s_auth *ptr;
-	/*static */struct s_auth *account=(struct s_auth *)0;
-
-	sprintf(token, "%s%s", cs_confdir, cs_user);
-	if (!(fp = fopen(token, "r"))) {
-		cs_log("Can't open file \"%s\" (errno=%d)", token, errno);
-		return(1);
-	}
-
-	for (nro = 0, ptr = authptr; ptr; nro++) {
+int init_free_userdb(struct s_auth *ptr) {
+	int nro;
+	for (nro = 0; ptr; nro++) {
 		struct s_auth *ptr_next;
 		ptr_next = ptr->next;
 		free(ptr);
 		ptr = ptr_next;
 	}
-	nr = 0;
+	cs_log("userdb %d accounts freed", nro);
+	
+	return nro;
+}
+
+struct s_auth *init_userdb()
+{
+	struct s_auth *authptr = NULL;
+	int tag = 0, nr = 0, expired = 0, disabled = 0;
+	//int first=1;
+	FILE *fp;
+	char *value;
+	struct s_auth *account=NULL;
+
+	sprintf(token, "%s%s", cs_confdir, cs_user);
+	if (!(fp = fopen(token, "r"))) {
+		cs_log("Can't open file \"%s\" (errno=%d)", token, errno);
+		return authptr;
+	}
 
 	while (fgets(token, sizeof(token), fp)) {
 		int i, l;
@@ -2917,7 +2939,7 @@ int init_userdb(struct s_auth **authptr_org)
 
 			if (!(ptr=malloc(sizeof(struct s_auth)))) {
 				cs_log("Error allocating memory (errno=%d)", errno);
-				return(1);
+				return authptr;
 			}
 
 			if (account)
@@ -2945,6 +2967,12 @@ int init_userdb(struct s_auth **authptr_org)
 			account->ac_penalty = cfg->ac_penalty;
 			account->ac_idx = nr;
 #endif
+			if(account->expirationdate && account->expirationdate < time(NULL))
+				expired++;
+
+			if(account->disabled)
+				disabled++;
+
 			continue;
 		}
 
@@ -2960,21 +2988,8 @@ int init_userdb(struct s_auth **authptr_org)
 
 	fclose(fp);
 
-	for (expired = 0, disabled = 0, ptr = authptr; ptr;) {
-
-		if(ptr->expirationdate && ptr->expirationdate < time(NULL))
-			expired++;
-
-		if(ptr->disabled != 0)
-			disabled++;
-
-		ptr = ptr->next;
-	}
-
-	*authptr_org = authptr;
-
-	cs_log("userdb reloaded: %d accounts freed, %d accounts loaded, %d expired, %d disabled", nro, nr, expired, disabled);
-	return(0);
+	cs_log("userdb reloaded: %d accounts loaded, %d expired, %d disabled", nr, expired, disabled);
+	return authptr;
 }
 
 static void chk_entry4sidtab(char *value, struct s_sidtab *sidtab, int what)

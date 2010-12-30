@@ -1632,15 +1632,11 @@ void * dvbapi_main_local(void *cli) {
 	ssize_t len=0;
 	uchar mbuf[1024];
 
-	struct s_auth *account=0;
+	struct s_auth *account;
 	int ok=0;
-	if (!account) {
-		client->usr[0]=0;
-		for (ok=0, account=cfg->account; (account) && (!ok); account=account->next)
-			if( (ok=!strcmp(cfg->dvbapi_usr, account->usr)) )
-				break;
-	}
-
+	for (ok=0, account=cfg->account; (account) && (!ok); account=account->next)
+		if( (ok=!strcmp(cfg->dvbapi_usr, account->usr)) )
+			break;
 	cs_auth_client(client, ok ? account : (struct s_auth *)(-1), "dvbapi");
 
 	memset(demux, 0, sizeof(struct demux_s) * MAX_DEMUX);
@@ -2091,15 +2087,11 @@ void * azbox_main(void *cli) {
 	cs_ftime(&tp);
 	tp.time+=500;
 
-	struct s_auth *account=0;
+	struct s_auth *account;
 	int ok=0;
-	if (!account) {
-		client->usr[0]=0;
-		for (ok=0, account=cfg->account; (account) && (!ok); account=account->next)
-			if( (ok=!strcmp(cfg->dvbapi_usr, account->usr)) )
-				break;
-	}
-
+	for (ok=0, account=cfg->account; (account) && (!ok); account=account->next)
+		if( (ok=!strcmp(cfg->dvbapi_usr, account->usr)) )
+			break;
 	cs_auth_client(client, ok ? account : (struct s_auth *)(-1), "dvbapi");
 
 	dvbapi_read_priority();

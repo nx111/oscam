@@ -107,7 +107,7 @@ int cs_check_violation(uint ip) {
 					llist_itr_remove(&itr);
 					return 0;
 				} else {
-					if (v_ban_entry->v_count > cfg->failbancount) {
+					if (v_ban_entry->v_count >= cfg->failbancount) {
 						cs_debug_mask(D_TRACE, "failban: banned ip %s - %ld seconds left",
 								cs_inet_ntoa(v_ban_entry->v_ip),(cfg->failbantime * 60) - (now - v_ban_entry->v_time));
 						return 1;
@@ -164,7 +164,7 @@ static void usage()
 {
   fprintf(stderr, "%s\n\n", logo);
   fprintf(stderr, "OSCam cardserver v%s, build #%s (%s) - (w) 2009-2010 streamboard SVN\n", CS_VERSION_X, CS_SVN_VERSION, CS_OSTYPE);
-  fprintf(stderr, "\tsee http://streamboard.gmc.to:8001/wiki/ for more details\n");
+  fprintf(stderr, "\tsee http://streamboard.gmc.to/oscam/ for more details\n");
   fprintf(stderr, "\tbased on streamboard mp-cardserver v0.9d - (w) 2004-2007 by dukat\n");
   fprintf(stderr, "\tinbuilt modules: ");
 #ifdef WEBIF
@@ -352,8 +352,21 @@ int recv_from_udpipe(uchar *buf)
 
 char *username(struct s_client * client)
 {
-  if (client->usr[0])
-    return(client->usr);
+  if (!client)
+    return "NULL";
+    
+  if (client->typ == 's' || client->typ == 'h')
+  {
+    // get username master running under
+    struct passwd *pwd;
+    if ((pwd = getpwuid(getuid())) != NULL)
+      return pwd->pw_name;
+    else
+      return "root";
+  }
+  
+  if (client->account->usr[0])
+    return(client->account->usr);
   else
     return("anonymous");
 }
@@ -437,8 +450,27 @@ static void cs_sigpipe()
 
 void cs_accounts_chk()
 {
-  init_userdb(&cfg->account);
-  cs_reinit_clients();
+  struct s_auth *old_accounts = cfg->account;
+  struct s_auth *new_accounts = init_userdb();
+  struct s_auth *account1,*account2;
+  for (account1=cfg->account; account1; account1=account1->next) {
+    for (account2=new_accounts; account2; account2=account2->next) {
+      if (!strcmp(account1->usr, account2->usr)) {
+        account2->cwfound = account1->cwfound;
+        account2->cwcache = account1->cwcache;
+        account2->cwnot = account1->cwnot;
+        account2->cwtun = account1->cwtun;
+        account2->cwignored  = account1->cwignored;
+        account2->cwtout = account1->cwtout;
+        account2->emmok = account1->emmok;
+        account2->emmnok = account1->emmnok;
+      }
+    }
+  }
+  cs_reinit_clients(new_accounts);
+  cfg->account = new_accounts;
+  init_free_userdb(old_accounts);
+  
 #ifdef CS_ANTICASC
 //	struct s_client *cl;
 //	for (cl=first_client->next; cl ; cl=cl->next)
@@ -607,18 +639,19 @@ void cs_exit(int sig)
 #endif
 }
 
-void cs_reinit_clients()
+void cs_reinit_clients(struct s_auth *new_accounts)
 {
 	struct s_auth *account;
 
 	struct s_client *cl;
 	for (cl=first_client->next; cl ; cl=cl->next)
-		if( cl->typ == 'c' && cl->usr[0] ) {
-			for (account = cfg->account; (account) ; account = account->next)
-				if (!strcmp(cl->usr, account->usr))
+		if( cl->typ == 'c' && cl->account ) {
+			for (account = new_accounts; (account) ; account = account->next)
+				if (!strcmp(cl->account->usr, account->usr))
 					break;
 
 			if (account && cl->pcrc == crc32(0L, MD5((uchar *)account->pwd, strlen(account->pwd), cur_client()->dump), 16)) {
+                                cl->account = account;
 				cl->grp		= account->grp;
 				cl->aureader		= account->aureader;
 				cl->autoau	= account->autoau;
@@ -633,7 +666,6 @@ void cs_reinit_clients()
 				cl->disabled	= account->disabled;
 				cl->fchid		= account->fchid;  // CHID filters
 				cl->cltab		= account->cltab;  // Class
-
 				// newcamd module dosent like ident reloading
 				if(!cl->ncd_server)
 					cl->ftab	= account->ftab;   // Ident
@@ -649,10 +681,10 @@ void cs_reinit_clients()
 				cl->ac_idx	= account->ac_idx;
 				cl->ac_penalty= account->ac_penalty;
 				cl->ac_limit	= (account->ac_users * 100 + 80) * cfg->ac_stime;
-#endif
+#endif				
 			} else {
 				if (ph[cl->ctyp].type & MOD_CONN_NET) {
-					cs_debug_mask(D_TRACE, "client '%s', thread=%8X not found in db (or password changed)", cl->usr, cl->thread);
+					cs_debug_mask(D_TRACE, "client '%s', thread=%8X not found in db (or password changed)", cl->account->usr, cl->thread);
 					kill_thread(cl);
 				}
 			}
@@ -708,6 +740,7 @@ struct s_client * cs_fork(in_addr_t ip) {
 		cl->fd_m2c_c = fdp[0]; //store client read fd
 		cl->fd_m2c = fdp[1]; //store client read fd
 		cl->ip=ip;
+		cl->account = first_client->account;
 
 		//master part
 		cl->stat=1;
@@ -810,18 +843,14 @@ static void init_shm()
   first_client->typ='s';
   first_client->aureader=NULL;
   first_client->thread=pthread_self();
+  struct s_auth *null_account = malloc(sizeof(struct s_auth));
+  memset(null_account, 0, sizeof(struct s_auth));
+  first_client->account = null_account;
   if (pthread_setspecific(getclient, first_client)) {
     fprintf(stderr, "Could not setspecific getclient in master process, exiting...");
   exit(1);
   }
 
-
-  // get username master running under
-  struct passwd *pwd;
-  if ((pwd = getpwuid(getuid())) != NULL)
-    strcpy(first_client->usr, pwd->pw_name);
-  else
-    strcpy(first_client->usr, "root");
 
   pthread_mutex_init(&gethostbyname_lock, NULL);
   pthread_mutex_init(&cwcache_lock, NULL);
@@ -1034,7 +1063,6 @@ void start_anticascader()
   if (cl == NULL) return;
   cl->thread = pthread_self();
   pthread_setspecific(getclient, cl);
-  strcpy(cl->usr, first_client->usr);
   cl->typ = 'a';
 
   set_signal_handler(SIGHUP, 1, ac_init_stat);
@@ -1109,6 +1137,7 @@ static void init_cardreader() {
 	for (rdr=first_reader; rdr ; rdr=rdr->next)
 		if (rdr->device[0])
 			restart_cardreader(rdr, 0);
+        load_stat_from_file();
 }
 
 static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr_t ip)
@@ -1129,7 +1158,7 @@ static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr
 	struct s_client *cl;
 	for (cl=first_client->next; cl ; cl=cl->next)
 	{
-		if (cl != client && (cl->typ == 'c') && !cl->dup && !strcmp(cl->usr, usr)
+		if (cl != client && (cl->typ == 'c') && !cl->dup && !strcmp(cl->account->usr, usr)
 		   && (uniq < 5) && ((uniq % 2) || (cl->ip != ip)))
 		{
 			if (uniq  == 3 || uniq == 4)
@@ -1169,6 +1198,7 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 	memset(&client->grp, 0xff, sizeof(uint64));
 	//client->grp=0xffffffffffffff;
 	client->aureader=NULL;
+	client->account=first_client->account;
 	switch((long)account)
 	{
 #ifdef CS_WITH_GBOX
@@ -1235,7 +1265,7 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 			}
 		}
 		client->monlvl=account->monlvl;
-		strcpy(client->usr, account->usr);
+		client->account = account;
 	case -1:            // anonymous grant access
 	if (rc)
 		t_grant=t_reject;
@@ -1567,7 +1597,7 @@ void logCWtoFile(ECM_REQUEST *er)
 	}
 	if (writeheader) {
 		/* no global macro for cardserver name :( */
-		fprintf(pfCWL, "# OSCam cardserver v%s - http://streamboard.gmc.to:8001/oscam/wiki\n", CS_VERSION_X);
+		fprintf(pfCWL, "# OSCam cardserver v%s - http://streamboard.gmc.to/oscam/\n", CS_VERSION_X);
 		fprintf(pfCWL, "# control word log file for use with tsdec offline decrypter\n");
 		strftime(buf, sizeof(buf),"DATE %Y-%m-%d, TIME %H:%M:%S, TZ %Z\n", timeinfo);
 		fprintf(pfCWL, "# %s", buf);
@@ -1723,7 +1753,7 @@ ECM_REQUEST *get_ecmtask()
 
 static void send_reader_stat(struct s_reader *rdr, ECM_REQUEST *er, int rc)
 {
-	if (!cfg->lb_mode || rc == 100)
+	if (rc>=99)
 		return;
 	struct timeb tpe;
 	cs_ftime(&tpe);
@@ -1856,6 +1886,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 			// 0 - found
 			// 3 - emu FIXME: obsolete ?
 					client->cwfound++;
+			                client->account->cwfound++;
 					first_client->cwfound++;
 					break;
 
@@ -1864,6 +1895,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 			// 1 - cache1
 			// 2 - cache2
 			client->cwcache++;
+			client->account->cwcache++;
 			first_client->cwcache++;
 			break;
 
@@ -1875,9 +1907,11 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 			// 10 - no card
 			if (er->rcEx) {
 				client->cwignored++;
+				client->account->cwignored++;
 				first_client->cwignored++;
 			} else {
 				client->cwnot++;
+				client->account->cwnot++;
 				first_client->cwnot++;
                         }
 			break;
@@ -1885,11 +1919,13 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 		case 5:
 			// 5 - timeout
 			client->cwtout++;
+			client->account->cwtout++;
 			first_client->cwtout++;
 			break;
 
 		default:
 			client->cwignored++;
+			client->account->cwignored++;
 			first_client->cwignored++;
 	}
 
@@ -2000,7 +2036,7 @@ void chk_dcw(struct s_client *cl, ECM_REQUEST *er)
 	} else { // not found (from ONE of the readers !)
 		int i;
 		if (er->selected_reader)
-			ert->matching_rdr[get_ridx(er->selected_reader)]=0; //FIXME one of these two might be superfluous
+			ert->matching_rdr[get_ridx(er->selected_reader)]=0;
 
 		struct s_reader *rdr;
 		for (i=0,rdr=first_reader; (ert) && rdr ; rdr=rdr->next, i++) {
@@ -2128,6 +2164,7 @@ void cs_betatunnel(ECM_REQUEST *er)
 			er->btun = 1;
 
 			cl->cwtun++;
+			cl->account->cwtun++;
 			first_client->cwtun++;
 
 			cs_debug_mask(D_TRACE, "ECM converted from: 0x%X to BetaCrypt: 0x%X for service id:0x%X",
@@ -2611,7 +2648,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 		 of EMM log is done. */
 		if (aureader->logemm & 0x08)  {
 			cs_log("%s emmtype=%s, len=%d, idx=0, cnt=%d: blocked (0 ms) by %s",
-					client->usr,
+					client->account->usr,
 					typtext[ep->type],
 					ep->emm[2],
 					is_blocked,
@@ -2626,9 +2663,15 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 	if (aureader->card_system > 0) {
 		if (!check_emm_cardsystem(aureader, ep)) {   // wrong caid
 			client->emmnok++;
+			if (client->account)
+			  client->account->emmnok++;
+			first_client->emmnok++;
 			return;
 		}
 		client->emmok++;
+		if (client->account)
+		  client->account->emmok++;
+		first_client->emmok++;
 	}
 	ep->client = cur_client();
 	cs_debug_mask(D_EMM, "emm is being sent to reader %s.", aureader->label);
@@ -2863,7 +2906,7 @@ int process_client_pipe(struct s_client *cl, uchar *buf, int l) {
 			cs_exit(1);
 			break;
 		default:
-			cs_log("unhandled pipe message %d (client %s)", pipeCmd, cl->usr);
+			cs_log("unhandled pipe message %d (client %s)", pipeCmd, cl->account->usr);
 			break;
 	}
 	if (ptr) free(ptr);
@@ -3239,7 +3282,7 @@ if (pthread_key_create(&getclient, NULL)) {
   init_rnd();
   init_sidtab();
   init_readerdb();
-  init_userdb(&cfg->account);
+  cfg->account = init_userdb();
   init_signal();
   init_srvid();
   init_tierid();

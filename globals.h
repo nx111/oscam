@@ -363,7 +363,7 @@ typedef struct s_tuntab
 
 typedef struct s_sidtab
 {
-  char     label[33];
+  char     label[64];
   ushort   num_caid;
   ushort   num_provid;
   ushort   num_srvid;
@@ -549,7 +549,7 @@ typedef struct ecm_request_t
   ushort        idx;
   ulong         prid;
   struct s_reader *selected_reader;
-  int           matching_rdr[CS_MAXREADER];
+  uint8         matching_rdr[CS_MAXREADER];
   struct s_client *client; //contains pointer to 'c' client while running in 'r' client
   int           cpti;   // client pending table index
   int           stage;    // processing stage in server module
@@ -610,7 +610,7 @@ struct s_client
   int		last_srvid;
   int		last_caid;
   int		tosleep;
-  char		usr[32];
+  struct s_auth *account;
   int		udp_fd;
   int		fd_m2c; //master writes to this fd
   int		fd_m2c_c; //client reads from this fd
@@ -745,7 +745,7 @@ struct s_reader  //contains device info, reader info and card info
   int       fallback;
   int       typ;
   int       card_system;
-  char      label[32];
+  char      label[64];
   char      device[128];
   ushort    slot;   //in case of multiple slots like sc8in1; first slot = 1
   int       handle;   //device handle
@@ -886,6 +886,8 @@ struct s_reader  //contains device info, reader info and card info
  	unsigned char sessi[16];
  	unsigned char signature[8];
  	unsigned char cam_state[3];
+	////variables from reader-irdeto.c
+	int acs57; // A flag for the ACS57 ITA DVB-T
 	////variables from reader-cryptoworks.c
 	BIGNUM exp;
 	BIGNUM ucpk;
@@ -943,8 +945,8 @@ struct s_cpmap
 
 struct s_auth
 {
-  char     usr[33];
-  char     pwd[33];
+  char     usr[64];
+  char     pwd[64];
   int      uniq;
   struct s_reader *aureader;
   int      autoau;
@@ -974,6 +976,16 @@ struct s_auth
   int       cccreshare;
   int       disabled;
   int 		failban;
+  
+  int		cwfound;
+  int		cwcache;
+  int		cwnot;
+  int		cwtun;
+  int 		cwignored;
+  int		cwtout;
+  int		emmok;
+  int		emmnok;
+                                                                                                                             
   struct   s_auth *next;
 };
 
@@ -1058,12 +1070,13 @@ struct s_config
 	char		http_script[128];
 	int			http_refresh;
 	int			http_hide_idle_clients;
-	struct 	s_ip *http_allowed;
+	struct s_ip *http_allowed;
 	int			http_readonly;
 	in_addr_t	http_dynip;
 	uchar		http_dyndns[64];
-	int		http_use_ssl;
+	int			http_use_ssl;
 	char		http_cert[128];
+	int			http_js_icons;
 #endif
 	int			http_full_cfg;
 	int			failbantime;
@@ -1142,7 +1155,7 @@ struct s_config
 #ifdef HAVE_DVBAPI
 	int		dvbapi_enabled;
 	int		dvbapi_au;
-	char		dvbapi_usr[33];
+	char		dvbapi_usr[64];
 	int		dvbapi_boxtype;
 	int		dvbapi_pmtmode;
 	int		dvbapi_ecm_infomode;//ecm.info  format:0 oscam 1 cccam 2 
@@ -1335,7 +1348,7 @@ extern int matching_reader(ECM_REQUEST *, struct s_reader *);
 extern void set_signal_handler(int , int , void (*));
 extern void cs_log_config(void);
 extern void cs_waitforcardinit(void);
-extern void cs_reinit_clients(void);
+extern void cs_reinit_clients(struct s_auth *new_accounts);
 extern int process_client_pipe(struct s_client *cl, uchar *buf, int l);
 extern void update_reader_config(uchar *ptr);
 extern int chk_ctab(ushort caid, CAIDTAB *ctab);
@@ -1362,7 +1375,8 @@ extern void ac_chk(ECM_REQUEST*, int);
 
 // oscam-config
 extern int  init_config(void);
-extern int  init_userdb(struct s_auth **authptr_org);
+extern int  init_free_userdb(struct s_auth *auth);
+extern struct s_auth *init_userdb();
 extern int  init_readerdb(void);
 extern int  init_sidtab(void);
 extern int  init_srvid(void);
@@ -1486,6 +1500,8 @@ extern void init_stat();
 extern int get_best_reader(ECM_REQUEST *er);
 extern void clear_reader_stat(struct s_reader *reader);
 extern void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int ecm_time, int rc);
+extern void load_stat_from_file();
+extern void save_stat_to_file();
 #ifdef HAVE_PCSC
 // reader-pcsc
 extern void pcsc_close(struct s_reader *pcsc_reader);

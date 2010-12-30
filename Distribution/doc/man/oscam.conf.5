@@ -165,7 +165,7 @@ seconds beetween restarts, 0 = disable reader restart, default:5
 1 = save SC init history to /tmp/.oscam/reader<number>, default:0
 .RE
 .PP
-\fBdouble_check\fP = \fB0\fP|\fB1\fP \fI(only if CW double check enabled)\fR
+\fBdouble_check\fP = \fB0\fP|\fB1\fP
 .RS 3n
 1 = ECM will be send to two or more readers with the same SC and the CWs will be verified against each other, \fBlb_nbest_readers\fP must be set to 2 or higher, default:0
 .RE
@@ -264,7 +264,7 @@ time to hide clients in the monitor if not sending requests, 0 = disabled, defau
 .RS 3n
 1 = append channel name on log messages, default:0
 .RE
-.SS "The [webif] section" \fI(only if web interface module enabled)\fR
+.SS "The [webif] section"
 \fBhttpport\fP = [\fB+\fP]\fBport\fP
 .RS 3n
 port for web interface, 0 = disabled, praefix + = enable SSL, default:none, \fIrequired\fR
@@ -326,7 +326,6 @@ http web interface connections allowed, default:none
 http web interface connections allowed, default:none
  example: httpdyndns = my.dynexample.com
 .RE
-
 .PP
 \fBhttpsavefullcfg\fP = \fB0\fP|\fB1\fP
 .RS 3n
@@ -341,6 +340,11 @@ write config:
 \fBhttpreadonly\fP = \fB0\fP|\fB1\fP
 .RS 3n
 1 = read only modus for web interface, default:0
+.RE
+.PP
+\fBhttpjsicons\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1= use Javascript to set base64 icons, default:1
 .RE
 .SS "The [camd33] section"
 .PP
@@ -385,7 +389,7 @@ bind service to specified IP address, default:all
 .RE
 .SS "The [newcamd] section"
 .PP
-\fBmgclient\fP = \fB0\fP|\fB1\fP \fI(for beta testing only)\fR
+\fBmgclient\fP = \fB0\fP|\fB1\fP
 .RS 3n
 1 = enable mgcamd extended newcamd protocol,  allowing for a single connection to work with mutliple providers, default:0
 .RE
@@ -627,7 +631,7 @@ backwards sharing of local cards,default:none
 
  example: locals = 01001234,02005678
 .RE
-.SS "The [dvbapi] section" \fI(only if DVB API module enabled)\fR
+.SS "The [dvbapi] section"
 .PP
 \fBenabled\fP = \fB0\fP|\fB1\fP
 .RS 3n
@@ -675,7 +679,7 @@ verified on HD models only
 ipbox-pmt can be used on any DGS based images (with or without camd.socket support), 
 verified on HD models only
 .RE
-.SS "The [anticasc] section" \fI(only if anti-cascading enabled)\fR
+.SS "The [anticasc] section"
 .PP
 \fBenabled\fP = \fB0\fP|\fB1\fP
 .RS 3n

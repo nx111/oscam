@@ -128,12 +128,12 @@ expiration date for account, default:none
 account enabled from hh:mm to hh:mm, default:none
 .RE
 .PP
-\fBnumusers\fP = \fBquantity\fP \fI(only if anti-cascading enabled)\fR
+\fBnumusers\fP = \fBquantity\fP
 .RS 3n
 anti-cascading: user per account, 0 = anti-cascading disabled, default:0
 .RE
 .PP
-\fBpenalty\fP = \fB0\fP|\fB1\fP|\fB2\fP \fI(only if anti-cascading enabled)\fR
+\fBpenalty\fP = \fB0\fP|\fB1\fP|\fB2\fP
 .RS 3n
 level of penalty:
 

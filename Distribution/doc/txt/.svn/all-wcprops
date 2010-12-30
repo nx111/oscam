@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 51
-/svn/oscam/!svn/ver/4211/trunk/Distribution/doc/txt
+/svn/oscam/!svn/ver/4243/trunk/Distribution/doc/txt
 END
 oscam.txt
 K 25
@@ -19,7 +19,7 @@ oscam.ac.txt
 K 25
 svn:wc:ra_dav:version-url
 V 64
-/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/txt/oscam.ac.txt
+/svn/oscam/!svn/ver/4225/trunk/Distribution/doc/txt/oscam.ac.txt
 END
 oscam.provid.txt
 K 25
@@ -37,7 +37,7 @@ oscam.conf.txt
 K 25
 svn:wc:ra_dav:version-url
 V 66
-/svn/oscam/!svn/ver/4211/trunk/Distribution/doc/txt/oscam.conf.txt
+/svn/oscam/!svn/ver/4243/trunk/Distribution/doc/txt/oscam.conf.txt
 END
 oscam.dvbapi.txt
 K 25
@@ -49,13 +49,13 @@ oscam.guess.txt
 K 25
 svn:wc:ra_dav:version-url
 V 67
-/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/txt/oscam.guess.txt
+/svn/oscam/!svn/ver/4225/trunk/Distribution/doc/txt/oscam.guess.txt
 END
 oscam.server.txt
 K 25
 svn:wc:ra_dav:version-url
 V 68
-/svn/oscam/!svn/ver/4153/trunk/Distribution/doc/txt/oscam.server.txt
+/svn/oscam/!svn/ver/4231/trunk/Distribution/doc/txt/oscam.server.txt
 END
 oscam.tiers.txt
 K 25
@@ -73,17 +73,17 @@ oscam.cert.txt
 K 25
 svn:wc:ra_dav:version-url
 V 66
-/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/txt/oscam.cert.txt
+/svn/oscam/!svn/ver/4223/trunk/Distribution/doc/txt/oscam.cert.txt
 END
 oscam.ird.txt
 K 25
 svn:wc:ra_dav:version-url
 V 65
-/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/txt/oscam.ird.txt
+/svn/oscam/!svn/ver/4225/trunk/Distribution/doc/txt/oscam.ird.txt
 END
 oscam.user.txt
 K 25
 svn:wc:ra_dav:version-url
 V 66
-/svn/oscam/!svn/ver/3646/trunk/Distribution/doc/txt/oscam.user.txt
+/svn/oscam/!svn/ver/4225/trunk/Distribution/doc/txt/oscam.user.txt
 END

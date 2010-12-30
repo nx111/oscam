@@ -797,11 +797,10 @@ struct cc_current_card *cc_find_current_card(struct cc_data *cc,
 	struct cc_current_card *c;
 	while ((c = ll_iter_next(it)))
 		if (c->card == card) {
-			ll_iter_release(it);
-			return c;
+			break;
 		}
 	ll_iter_release(it);
-	return NULL;
+	return c;
 }
 
 struct cc_current_card *cc_find_current_card_by_srvid(struct cc_data *cc,
@@ -811,11 +810,10 @@ struct cc_current_card *cc_find_current_card_by_srvid(struct cc_data *cc,
 	while ((c = ll_iter_next(it)))
 		if (c->card->caid == caid && c->prov == prov
 				&& sid_eq(&c->srvid, srvid)) {
-			ll_iter_release(it);
-			return c;
+			break;
 		}
 	ll_iter_release(it);
-	return NULL;
+	return c;
 }
 
 void cc_remove_current_card(struct cc_data *cc,
@@ -1046,7 +1044,7 @@ int cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 	}
 
 	//No Card? Waiting for shares
-	if (!ll_count(cc->cards)) {
+	if (!ll_has_elements(cc->cards)) {
 		rdr->fd_error++;
 		cs_debug_mask(D_TRACE, "%s NO CARDS!", getprefix());
 		return 0;
@@ -1733,7 +1731,7 @@ int write_card(struct cc_data *cc, uint8 *buf, struct cc_card *card, int add_own
 	}
 	ll_iter_release(it);
 	
-	//write sids only if cccam 2.2.0:
+	//write sids only if cccam 2.2.x:
 	if (ext) {
 		//assigned sids:
 		it = ll_iter_create(card->goodsids);
@@ -1743,6 +1741,8 @@ int write_card(struct cc_data *cc, uint8 *buf, struct cc_card *card, int add_own
 			buf[ofs+1] = srvid->sid & 0xFF;
 			ofs+=2;
 			buf[21]++; //nassign
+			if (buf[21] > 250)
+				break;
 		}
 		ll_iter_release(it);
 
@@ -1753,6 +1753,8 @@ int write_card(struct cc_data *cc, uint8 *buf, struct cc_card *card, int add_own
 			buf[ofs+1] = srvid->sid & 0xFF;
 			ofs+=2;
 			buf[22]++; //nreject
+			if (buf[22] > 250)
+				break;
 		}
 		ll_iter_release(it);
 	}
@@ -1779,7 +1781,6 @@ int write_card(struct cc_data *cc, uint8 *buf, struct cc_card *card, int add_own
 void cc_card_removed(struct s_client *cl, uint32 shareid) {
 	struct cc_data *cc = cl->cc;
 	struct cc_card *card;
-	pthread_mutex_lock(&cc->cards_busy);
 	LL_ITER *it = ll_iter_create(cc->cards);
 
 	while ((card = ll_iter_next(it))) {
@@ -1802,7 +1803,6 @@ void cc_card_removed(struct s_client *cl, uint32 shareid) {
 		}
 	}
 	ll_iter_release(it);
-	pthread_mutex_unlock(&cc->cards_busy);
 }
 
 void move_card_to_end(struct s_client * cl, struct cc_card *card_to_move) {
@@ -2086,7 +2086,9 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 	}
 
 	case MSG_CARD_REMOVED: {
+		pthread_mutex_lock(&cc->cards_busy);
 		cc_card_removed(cl, b2i(4, buf + 4));
+		pthread_mutex_unlock(&cc->cards_busy);
 		break;
 	}
 
@@ -2312,7 +2314,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 			cc->cmd05_active = 1;
 			cc->cmd05_data_len = l;
 			memcpy(&cc->cmd05_data, buf + 4, l);
-			if (rdr->available && ll_count(cc->cards))
+			if (rdr->available && ll_has_elements(cc->cards))
 				send_cmd05_answer(cl);
 		}
 		break;
@@ -2639,16 +2641,6 @@ int cc_recv(struct s_client *cl, uchar *buf, int l) {
 	return n;
 }
 
-struct s_auth *get_account(char *usr) {
-	struct s_auth *account;
-	for (account = cfg->account; account; account = account->next) {
-		if (strcmp(usr, account->usr) == 0) {
-			return account;
-		}
-	}
-	return NULL;
-}
-
 /**
  * This function checks for hexserial changes on cards.
  * We update the share-list if a card has changed
@@ -2793,7 +2785,7 @@ int add_card_to_serverlist(struct s_reader *rdr, struct s_client *cl, LLIST *car
 	if (rdr && !chk_ident(&rdr->client->ftab, card))
 		return 0;
 	
-	if (!ll_count(card->providers))	{ //No providers? Add null-provider:
+	if (!ll_has_elements(card->providers))	{ //No providers? Add null-provider:
 		struct cc_provider *prov = malloc(sizeof(struct cc_provider));
 		memset(prov, 0, sizeof(struct cc_provider));
 		ll_append(card->providers, prov);
@@ -2832,8 +2824,7 @@ int add_card_to_serverlist(struct s_reader *rdr, struct s_client *cl, LLIST *car
 
 	} else if (cfg->cc_minimize_cards == MINIMIZE_HOPS) {
 		while ((card2 = ll_iter_next(it))) {
-			if (card2->caid == card->caid && ll_count(card2->providers)
-					< CS_MAXPROV)
+			if (card2->caid == card->caid && ll_count(card2->providers) < CS_MAXPROV)
 				break;
 		}
 		if (!card2) {
@@ -2939,14 +2930,8 @@ int cc_srv_report_cards(struct s_client *cl) {
 	
 	struct cc_data *cc = cl->cc;
 
-	struct s_auth *account = get_account(cl->usr);
-	if (account) {
-		maxhops = account->cccmaxhops;
-		usr_reshare = account->cccreshare;
-	} else {
-		maxhops = 10;
-		usr_reshare = cfg->cc_reshare;
-	}
+	maxhops = cl->account->cccmaxhops;
+	usr_reshare = cl->account->cccreshare;
 
 	LLIST *server_cards = ll_create();
 	if (!cc->reported_carddatas)
@@ -2981,198 +2966,200 @@ int cc_srv_report_cards(struct s_client *cl) {
 			ptr=ptr->next;
 		}
 	}
-		
-	struct s_reader *rdr;
-	int r = 0;
-	for (rdr = first_reader; rdr; rdr = rdr->next) {
-		if (!rdr->fd || !rdr->enable || rdr->deleted)
-			continue;
-		if (!(rdr->grp & cl->grp))
-			continue;
-		reader_reshare = rdr->cc_reshare;
+	else
+	{
+		struct s_reader *rdr;
+		int r = 0;
+		for (rdr = first_reader; rdr; rdr = rdr->next) {
+			if (!rdr->fd || !rdr->enable || rdr->deleted)
+				continue;
+			if (!(rdr->grp & cl->grp))
+				continue;
+			reader_reshare = rdr->cc_reshare;
+			
+			reshare = (reader_reshare < usr_reshare) ? reader_reshare : usr_reshare;
+			if (reshare < 0)
+				continue;
 
-		reshare = (reader_reshare < usr_reshare) ? reader_reshare : usr_reshare;
-		if (reshare < 0)
-			continue;
-
-		//Generate a uniq reader id:
-		if (!rdr->cc_id) {
-			rdr->cc_id = ++r;
-			struct s_reader *rdr2;
-			for (rdr2 = first_reader; rdr2; rdr2 = rdr2->next) {
-				if (rdr2 != rdr && rdr2->cc_id == rdr->cc_id) {
-					rdr2 = first_reader;
-					rdr->cc_id=++r;
+			//Generate a uniq reader id:
+			if (!rdr->cc_id) {
+				rdr->cc_id = ++r;
+				struct s_reader *rdr2;
+				for (rdr2 = first_reader; rdr2; rdr2 = rdr2->next) {
+					if (rdr2 != rdr && rdr2->cc_id == rdr->cc_id) {
+						rdr2 = first_reader;
+						rdr->cc_id=++r;
+					}
 				}
 			}
-		}
 
-		int au_allowed = !rdr->audisabled && isau;
+			int au_allowed = !rdr->audisabled && isau;
 
-		flt = 0;
+			flt = 0;
 		
-		//Reader-Services:
-		if (cfg->cc_reshare_services==2 && cfg->sidtab && rdr->sidtabok) {
-			struct s_sidtab *ptr;
-			for (j=0,ptr=cfg->sidtab; ptr; j++) {
-				if (rdr->sidtabok&((SIDTABBITS)1<<j)) {
-					int k;
-					for (k=0;k<ptr->num_caid;k++) {
-						struct cc_card *card = create_card2(rdr, (j<<8)|k, ptr->caid[k], hop, reshare);
-						int l;
-						for (l=0;l<ptr->num_provid;l++) {
+			//Reader-Services:
+			if ((cfg->cc_reshare_services==1||cfg->cc_reshare_services==2) && cfg->sidtab && rdr->sidtabok) {
+				struct s_sidtab *ptr;
+				for (j=0,ptr=cfg->sidtab; ptr; j++) {
+					if (rdr->sidtabok&((SIDTABBITS)1<<j)) {
+						int k;
+						for (k=0;k<ptr->num_caid;k++) {
+							struct cc_card *card = create_card2(rdr, (j<<8)|k, ptr->caid[k], hop, reshare);
+							int l;
+							for (l=0;l<ptr->num_provid;l++) {
+								struct cc_provider *prov = malloc(sizeof(struct cc_provider));
+								memset(prov, 0, sizeof(struct cc_provider));
+								prov->prov = ptr->provid[l];
+								ll_append(card->providers, prov);						
+							}
+							add_card_to_serverlist(rdr, cl, server_cards, card, reshare);
+						}
+						flt=1;
+					}
+					ptr=ptr->next;
+				}
+			}
+
+			//Filts by Hardware readers:
+			if ((rdr->typ != R_CCCAM) && rdr->ftab.filts && !flt) {
+				for (j = 0; j < CS_MAXFILTERS; j++) {
+					if (rdr->ftab.filts[j].caid && 
+							chk_ctab(rdr->ftab.filts[j].caid, &cl->ctab)) {
+						int ignore = 0;
+						ushort caid = rdr->ftab.filts[j].caid;
+						struct cc_card *card = create_card2(rdr, j, caid, hop, reshare);
+						//Setting UA: (Unique Address):
+						if (au_allowed)
+							cc_UA_oscam2cccam(rdr->hexserial, card->hexserial, caid);
+						//cs_log("Ident CCcam card report caid: %04X readr %s subid: %06X", rdr->ftab.filts[j].caid, rdr->label, rdr->cc_id);
+						for (k = 0; k < rdr->ftab.filts[j].nprids; k++) {
 							struct cc_provider *prov = malloc(sizeof(struct cc_provider));
 							memset(prov, 0, sizeof(struct cc_provider));
-							prov->prov = ptr->provid[l];
-							ll_append(card->providers, prov);						
-						}
-						add_card_to_serverlist(rdr, cl, server_cards, card, reshare);
-					}
-					flt=1;
-				}
-				ptr=ptr->next;
-			}
-		}
-
-		//Filts by Hardware readers:
-		if ((rdr->typ != R_CCCAM||cfg->cc_reshare_services<3) && rdr->ftab.filts && !flt) {
-			for (j = 0; j < CS_MAXFILTERS; j++) {
-				if (rdr->ftab.filts[j].caid && 
-						chk_ctab(rdr->ftab.filts[j].caid, &cl->ctab)) {
-					int ignore = 0;
-					ushort caid = rdr->ftab.filts[j].caid;
-					struct cc_card *card = create_card2(rdr, j, caid, hop, reshare);
-					//Setting UA: (Unique Address):
-					if (au_allowed)
-						cc_UA_oscam2cccam(rdr->hexserial, card->hexserial, caid);
-					//cs_log("Ident CCcam card report caid: %04X readr %s subid: %06X", rdr->ftab.filts[j].caid, rdr->label, rdr->cc_id);
-					for (k = 0; k < rdr->ftab.filts[j].nprids; k++) {
-						struct cc_provider *prov = malloc(sizeof(struct cc_provider));
-						memset(prov, 0, sizeof(struct cc_provider));
-						prov->prov = rdr->ftab.filts[j].prids[k];
-
-						if (!chk_srvid_by_caid_prov(cl, caid, prov->prov)) {
-							ignore = 1;
-						}
-						//cs_log("Ident CCcam card report provider: %02X%02X%02X", buf[21 + (k*7)]<<16, buf[22 + (k*7)], buf[23 + (k*7)]);
-						if (au_allowed) {
-							int l;
-							for (l = 0; l < rdr->nprov; l++) {
-								ulong rprid = get_reader_prid(rdr, l);
-								if (rprid == prov->prov)
-									cc_SA_oscam2cccam(&rdr->sa[l][0], prov->sa);
+							prov->prov = rdr->ftab.filts[j].prids[k];
+							
+							if (!chk_srvid_by_caid_prov(cl, caid, prov->prov)) {
+								ignore = 1;
 							}
+							//cs_log("Ident CCcam card report provider: %02X%02X%02X", buf[21 + (k*7)]<<16, buf[22 + (k*7)], buf[23 + (k*7)]);
+							if (au_allowed) {
+								int l;
+								for (l = 0; l < rdr->nprov; l++) {
+									ulong rprid = get_reader_prid(rdr, l);
+									if (rprid == prov->prov)
+										cc_SA_oscam2cccam(&rdr->sa[l][0], prov->sa);
+								}
+							}
+							ll_append(card->providers, prov);
 						}
-						ll_append(card->providers, prov);
+
+						if (!ignore) add_card_to_serverlist(rdr, cl, server_cards, card, reshare);
+						else cc_free_card(card);
+						flt = 1;
 					}
-
-					if (!ignore) add_card_to_serverlist(rdr, cl, server_cards, card, reshare);
-					else cc_free_card(card);
-					flt = 1;
 				}
 			}
-		}
 
-		if ((rdr->typ != R_CCCAM||cfg->cc_reshare_services<3) && !rdr->caid[0] && !flt) {
-			for (j = 0; j < CS_MAXCAIDTAB; j++) {
-				//cs_log("CAID map CCcam card report caid: %04X cmap: %04X", rdr->ctab.caid[j], rdr->ctab.cmap[j]);
-				ushort lcaid = rdr->ctab.caid[j];
+			if ((rdr->typ != R_CCCAM) && !rdr->caid[0] && !flt) {
+				for (j = 0; j < CS_MAXCAIDTAB; j++) {
+					//cs_log("CAID map CCcam card report caid: %04X cmap: %04X", rdr->ctab.caid[j], rdr->ctab.cmap[j]);
+					ushort lcaid = rdr->ctab.caid[j];
 
-				if (!lcaid || (lcaid == 0xFFFF))
-					lcaid = rdr->ctab.cmap[j];
+					if (!lcaid || (lcaid == 0xFFFF))
+						lcaid = rdr->ctab.cmap[j];
 
-				if (lcaid && (lcaid != 0xFFFF) && chk_ctab(lcaid, &cl->ctab)) {
-					struct cc_card *card = create_card2(rdr, j, lcaid, hop, reshare);
-					if (au_allowed)
-						cc_UA_oscam2cccam(rdr->hexserial, card->hexserial, lcaid);
+					if (lcaid && (lcaid != 0xFFFF) && chk_ctab(lcaid, &cl->ctab)) {
+						struct cc_card *card = create_card2(rdr, j, lcaid, hop, reshare);
+						if (au_allowed)
+							cc_UA_oscam2cccam(rdr->hexserial, card->hexserial, lcaid);
 					
+						add_card_to_serverlist(rdr, cl, server_cards, card, reshare);
+						flt = 1;
+					}
+				}
+			}
+
+			if ((rdr->typ != R_CCCAM) && rdr->caid[0] && !flt && chk_ctab(rdr->caid[0], &cl->ctab)) {
+				//cs_log("tcp_connected: %d card_status: %d ", rdr->tcp_connected, rdr->card_status);
+				ushort caid = rdr->caid[0];
+				struct cc_card *card = create_card2(rdr, 0, caid, hop, reshare);
+				if (au_allowed)
+					cc_UA_oscam2cccam(rdr->hexserial, card->hexserial, caid);
+				for (j = 0; j < rdr->nprov; j++) {
+					ulong prid = get_reader_prid(rdr, j);
+					struct cc_provider *prov = malloc(sizeof(struct cc_provider));
+					memset(prov, 0, sizeof(struct cc_provider));
+					prov->prov = prid;
+					//cs_log("Ident CCcam card report provider: %02X%02X%02X", buf[21 + (k*7)]<<16, buf[22 + (k*7)], buf[23 + (k*7)]);
+					if (au_allowed) {
+						//Setting SA (Shared Addresses):
+						cc_SA_oscam2cccam(rdr->sa[j], prov->sa);
+					}
+					ll_append(card->providers, prov);
+					//cs_log("Main CCcam card report provider: %02X%02X%02X%02X", buf[21+(j*7)], buf[22+(j*7)], buf[23+(j*7)], buf[24+(j*7)]);
+				}
+				if (rdr->tcp_connected || rdr->card_status == CARD_INSERTED) {
 					add_card_to_serverlist(rdr, cl, server_cards, card, reshare);
-					flt = 1;
 				}
+				else
+					cc_free_card(card);
 			}
-		}
 
-		if ((rdr->typ != R_CCCAM||cfg->cc_reshare_services<3) && rdr->caid[0] && !flt && chk_ctab(rdr->caid[0], &cl->ctab)) {
-			//cs_log("tcp_connected: %d card_status: %d ", rdr->tcp_connected, rdr->card_status);
-			ushort caid = rdr->caid[0];
-			struct cc_card *card = create_card2(rdr, 0, caid, hop, reshare);
-			if (au_allowed)
-				cc_UA_oscam2cccam(rdr->hexserial, card->hexserial, caid);
-			for (j = 0; j < rdr->nprov; j++) {
-				ulong prid = get_reader_prid(rdr, j);
-				struct cc_provider *prov = malloc(sizeof(struct cc_provider));
-				memset(prov, 0, sizeof(struct cc_provider));
-				prov->prov = prid;
-				//cs_log("Ident CCcam card report provider: %02X%02X%02X", buf[21 + (k*7)]<<16, buf[22 + (k*7)], buf[23 + (k*7)]);
-				if (au_allowed) {
-					//Setting SA (Shared Addresses):
-					cc_SA_oscam2cccam(rdr->sa[j], prov->sa);
-				}
-				ll_append(card->providers, prov);
-				//cs_log("Main CCcam card report provider: %02X%02X%02X%02X", buf[21+(j*7)], buf[22+(j*7)], buf[23+(j*7)], buf[24+(j*7)]);
-			}
-			if (rdr->tcp_connected || rdr->card_status == CARD_INSERTED) {
-				add_card_to_serverlist(rdr, cl, server_cards, card, reshare);
-			}
-			else
-				cc_free_card(card);
-		}
+			if (rdr->typ == R_CCCAM && cfg->cc_reshare_services<2) {
 
-		if (rdr->typ == R_CCCAM && cfg->cc_reshare_services<2) {
-
-			cs_debug_mask(D_TRACE, "%s asking reader %s for cards...",
+				cs_debug_mask(D_TRACE, "%s asking reader %s for cards...",
 					getprefix(), rdr->label);
 
-			struct cc_card *card;
-			struct s_client *rc = rdr->client;
-			struct cc_data *rcc = rc->cc;
+				struct cc_card *card;
+				struct s_client *rc = rdr->client;
+				struct cc_data *rcc = rc->cc;
 
-			int count = 0;
-			if (rcc && rcc->cards) {
-				if (pthread_mutex_trylock(&rcc->cards_busy) != EBUSY) {
-					LL_ITER *it = ll_iter_create(rcc->cards);
-					while ((card = ll_iter_next(it))) {
-						if (card->hop <= maxhops && chk_ctab(card->caid, &cl->ctab)
-								&& chk_ctab(card->caid, &rdr->ctab)) {
+				int count = 0;
+				if (rcc && rcc->cards) {
+					if (!pthread_mutex_trylock(&rcc->cards_busy)) {
+						LL_ITER *it = ll_iter_create(rcc->cards);
+						while ((card = ll_iter_next(it))) {
+							if (card->hop <= maxhops && chk_ctab(card->caid, &cl->ctab)
+									&& chk_ctab(card->caid, &rdr->ctab)) {
 							
-							if ((cfg->cc_ignore_reshare || card->maxdown > 0)) {
-								int ignore = 0;
+								if ((cfg->cc_ignore_reshare || card->maxdown > 0)) {
+									int ignore = 0;
 
-								LL_ITER *it2 = ll_iter_create(card->providers);
-								struct cc_provider *prov;
-								while ((prov = ll_iter_next(it2))) {
-									ulong prid = prov->prov;
-									if (!chk_srvid_by_caid_prov(cl, card->caid,
-											prid) || !chk_srvid_by_caid_prov(
-											rdr->client, card->caid, prid)) {
-										ignore = 1;
-										break;
+									LL_ITER *it2 = ll_iter_create(card->providers);
+									struct cc_provider *prov;
+									while ((prov = ll_iter_next(it2))) {
+										ulong prid = prov->prov;
+										if (!chk_srvid_by_caid_prov(cl, card->caid,
+												prid) || !chk_srvid_by_caid_prov(
+												rdr->client, card->caid, prid)) {
+											ignore = 1;
+											break;
+										}
 									}
-								}
-								ll_iter_release(it2);
-							
-								if (!ignore) { //Filtered by service
-									int new_reshare =
-											cfg->cc_ignore_reshare ? reshare
+									ll_iter_release(it2);
+								
+									if (!ignore) { //Filtered by service
+										int new_reshare =
+												cfg->cc_ignore_reshare ? reshare
 													: (card->maxdown - 1);
-									if (new_reshare > reshare)
-										new_reshare = reshare;
-									add_card_to_serverlist(rdr, cl, server_cards, card,
-											new_reshare);
-									count++;
+										if (new_reshare > reshare)
+											new_reshare = reshare;
+										add_card_to_serverlist(rdr, cl, server_cards, card,
+												new_reshare);
+										count++;
+									}
 								}
 							}
 						}
+						ll_iter_release(it);
+						pthread_mutex_unlock(&rcc->cards_busy);
 					}
-					ll_iter_release(it);
-					pthread_mutex_unlock(&rcc->cards_busy);
 				}
-			}
-			cs_debug_mask(D_TRACE, "%s got %d cards from %s", getprefix(),
+				cs_debug_mask(D_TRACE, "%s got %d cards from %s", getprefix(),
 					count, rdr->label);
+			}
 		}
 	}
-
+	
 	int ok = TRUE;
 	//report reshare cards:
 	//cs_debug_mask(D_TRACE, "%s reporting %d cards", getprefix(), ll_count(server_cards));
@@ -3197,16 +3184,9 @@ int cc_srv_report_cards(struct s_client *cl) {
 }
 
 void cc_init_cc(struct cc_data *cc) {
-	pthread_mutexattr_t mta;
-	pthread_mutexattr_init(&mta);
-#if defined(OS_CYGWIN32) || defined(OS_HPUX) || defined(OS_FREEBSD)  || defined(OS_MACOSX)
-	pthread_mutexattr_settype(&mta, PTHREAD_MUTEX_RECURSIVE);
-#else
-	pthread_mutexattr_settype(&mta, PTHREAD_MUTEX_RECURSIVE_NP);
-#endif                      		
 	pthread_mutex_init(&cc->lock, NULL); //No recursive lock
 	pthread_mutex_init(&cc->ecm_busy, NULL); //No recusive lock
-	pthread_mutex_init(&cc->cards_busy, &mta); //Recursive lock
+	pthread_mutex_init(&cc->cards_busy, NULL); //No (more) recursive lock
 }
 
 /**
@@ -3340,15 +3320,47 @@ int cc_srv_connect(struct s_client *cl) {
 
 	cl->crypted = 1;
 
-	for (account = cfg->account; account; account = account->next) {
-		if (strcmp(usr, account->usr) == 0) {
-			strncpy(pwd, account->pwd, sizeof(pwd));
-			break;
+	//CCCam only supports len=20 usr/pass. So we could have more than one user that matches the first 20 chars.
+	
+	//receive password-CCCam encrypted Hash:
+	if (cc_recv_to(cl, buf, 6) != 6)
+		return -2;
+	
+	account = cfg->account;
+	struct cc_crypt_block *save_block = malloc(sizeof(struct cc_crypt_block));
+	memcpy(save_block, cc->block, sizeof(struct cc_crypt_block));
+	int found = 0;
+	while (1) {
+		while (account) {
+			if (strncmp(usr, account->usr, 20) == 0) {
+				memset(pwd, 0, sizeof(pwd));
+				strncpy(pwd, account->pwd, 20);
+				found=1;
+				break;
+			}
+			account = account->next;
 		}
+
+		if (!account)
+			break;
+			
+		// receive passwd / 'CCcam'
+		memcpy(cc->block, save_block, sizeof(struct cc_crypt_block));
+		cc_crypt(&cc->block[DECRYPT], (uint8 *) pwd, strlen(pwd), ENCRYPT);
+		cc_crypt(&cc->block[DECRYPT], buf, 6, DECRYPT);
+		//cs_ddump_mask(D_CLIENT, buf, 6, "cccam: pwd check '%s':", buf); //illegal buf-bytes could kill the logger!
+		if (memcmp(buf, "CCcam\0", 6) == 0) //Password Hash OK!
+			break; //account is set
+			
+		account = account->next;
 	}
+	free(save_block);
 
 	if (cs_auth_client(cl, account, NULL)) { //cs_auth_client returns 0 if account is valid/active/accessible
-		cs_log("account '%s' not found!", usr);
+		if (!found)
+			cs_log("account '%s' not found!", usr);
+		else
+			cs_log("password for '%s' invalid!", usr);
 		return -2;
 	}
 	if (cl->dup) {
@@ -3358,20 +3370,9 @@ int cc_srv_connect(struct s_client *cl) {
 	
 
 	if (!cc->prefix)
-		cc->prefix = malloc(strlen(cl->usr)+20);
-	sprintf(cc->prefix, "cccam(s) %s: ", cl->usr);
+		cc->prefix = malloc(strlen(cl->account->usr)+20);
+	sprintf(cc->prefix, "cccam(s) %s: ", cl->account->usr);
 	
-	// receive passwd / 'CCcam'
-	cc_crypt(&cc->block[DECRYPT], (uint8 *) pwd, strlen(pwd), ENCRYPT);
-	if ((i = cc_recv_to(cl, buf, 6)) == 6) {
-		cc_crypt(&cc->block[DECRYPT], buf, 6, DECRYPT);
-		//cs_ddump_mask(D_CLIENT, buf, 6, "cccam: pwd check '%s':", buf); //illegal buf-bytes could kill the logger!
-		if (memcmp(buf, "CCcam\0", 6) != 0) { 
-			cs_log("account '%s' wrong password!", usr);
-			return -2;
-		}
-	} else
-		return -2;
 
 	//Starting readers to get cards:
 	int wakeup = cc_srv_wakeup_readers(cl);
