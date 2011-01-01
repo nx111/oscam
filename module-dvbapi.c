@@ -2157,7 +2157,7 @@ void * azbox_main(void *cli) {
 					else
 						cs_debug_mask(D_DVBAPI, "openxcas: ecm filter started");
 */
-					if ((ret=openxcas_start_filter_ex(msg.stream_id, msg.sequence, openxcas_ecm_pid, mask, comp, (void *)azbox_openxcas_ex_callback)) < 0)
+					if ((ret = openxcas_start_filter_ex(msg.stream_id, msg.sequence, openxcas_ecm_pid, mask, comp, (void *)azbox_openxcas_ex_callback)) < 0)
 						cs_log("openxcas: unable to start ex filter");
 					else
 						cs_debug_mask(D_DVBAPI, "openxcas: ex filter started, pid = %x", openxcas_ecm_pid);

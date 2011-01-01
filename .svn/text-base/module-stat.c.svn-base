@@ -32,10 +32,10 @@ void load_stat_from_file()
 	sprintf(buf, "%s/stat", get_tmp_dir());
 	FILE *file = fopen(buf, "r");
 	if (!file) {
-		cs_log("can't read from file %s", buf);
+		cs_log("loadbalancer: can't read from file %s", buf);
 		return;
 	}
-	cs_debug_mask(D_TRACE, "loadbalancer load statistics from %s", buf);
+	cs_debug_mask(D_TRACE, "loadbalancer: load statistics from %s", buf);
 	
 	struct s_reader *rdr = NULL;
 	READER_STAT *stat, *dup;
@@ -68,24 +68,26 @@ void load_stat_from_file()
 				dup = get_stat(rdr, stat->caid, stat->prid, stat->srvid);
 				if (dup)
 					free(stat); //already loaded
-				else
+				else {
+				
 					ll_append(rdr->lb_stat, stat);
-				count++;
+					count++;
+				}
 			}
 			else 
 			{
-				cs_log("loadbalancer statistics could not be loaded for %s", buf);
+				cs_log("loadbalancer: statistics could not be loaded for %s", buf);
 				free(stat);
 			}
 		}
 		else if (i!=EOF && i>0)
 		{
-			cs_debug_mask(D_TRACE, "loadbalancer statistics ERROR  %s rc=%d i=%d", buf, stat->rc, i);
+			cs_debug_mask(D_TRACE, "loadbalancer: statistics ERROR  %s rc=%d i=%d", buf, stat->rc, i);
 			free(stat);
 		}
 	} while(i!=EOF && i>0);
 	fclose(file);
-	cs_debug_mask(D_TRACE, "loadbalancer statistic loaded %d records", count);
+	cs_debug_mask(D_TRACE, "loadbalancer: statistic loaded %d records", count);
 }
 /**
  * get statistic values for reader ridx and caid/prid/srvid
@@ -181,7 +183,7 @@ void save_stat_to_file()
 	}
 	
 	fclose(file);
-	cs_log("loadbalacer statistic saved %d records", count);
+	cs_log("loadbalancer: statistic saved %d records", count);
 }
 
 /**
@@ -226,7 +228,7 @@ void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int e
 	if (stat->ecm_count < 0)
 		stat->ecm_count=0;
 		
-	if (rc == 0) {
+	if (rc == 0) { //found
 		stat->rc = 0;
 		stat->ecm_count++;
 		stat->time_idx++;
@@ -255,17 +257,30 @@ void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int e
 		rdr->lb_usagelevel_ecmcount = ule+1;
 		
 	}
+	else if (rc == 1 || rc == 2) { //cache
+		//no increase of statistics here, cachetime is not real time
+		stat->last_received = time(NULL);
+		stat->request_count = 0;
+	}
 	else if (rc == 4) { //not found
 		stat->rc = rc;
+		stat->last_received = time(NULL);
 		//stat->ecm_count = 0; Keep ecm_count!
 	}
 	else if (rc == 5) { //timeout
 		stat->request_count++;
+		stat->last_received = time(NULL);
 	}
 	else
+	{
+		if (rc >= 0)
+			cs_debug_mask(D_TRACE, "loadbalancer: nhandled stat for reader %s: rc %d caid %04hX prid %06lX srvid %04hX time %dms usagelevel %d",
+				rdr->label, rc, caid, prid, srvid, ecm_time, rdr->lb_usagelevel);
+	
 		return;
+	}
 		
-	cs_debug_mask(D_TRACE, "adding stat for reader %s: rc %d caid %04hX prid %06lX srvid %04hX time %dms usagelevel %d",
+	cs_debug_mask(D_TRACE, "loadbalancer: adding stat for reader %s: rc %d caid %04hX prid %06lX srvid %04hX time %dms usagelevel %d",
 				rdr->label, rc, caid, prid, srvid, ecm_time, rdr->lb_usagelevel);
 	
 	//debug only:
@@ -343,20 +358,18 @@ int get_best_reader(ECM_REQUEST *er)
 				cs_debug_mask(D_TRACE, "loadbalancer: starting statistics for reader %s", rdr->label);
 				add_stat(rdr, er->caid,  er->prid, er->srvid, 1, -1);
 				result[i] = 1; //no statistics, this reader is active (now) but we need statistics first!
-				continue; 
+				continue;
 			}
 			
 			if (stat->ecm_count < 0||(stat->ecm_count > cfg->lb_max_ecmcount && stat->time_avg > (int)cfg->ftimeout)) {
 				cs_debug_mask(D_TRACE, "loadbalancer: max ecms (%d) reached by reader %s, resetting statistics", cfg->lb_max_ecmcount, rdr->label);
 				reset_stat(er->caid, er->prid, er->srvid);
 				result[i] = 1;//max ecm reached, get new statistics
-				continue;
 			}
 				
 			if (stat->rc == 0 && stat->ecm_count < cfg->lb_min_ecmcount) {
 				cs_debug_mask(D_TRACE, "loadbalancer: reader %s needs more statistics", rdr->label);
 				result[i] = 1; //need more statistics!
-				continue;
 			}
 			
 			if (stat->rc == 0 && stat->request_count > cfg->lb_min_ecmcount) { // 5 unanswered requests or timeouts?
@@ -457,7 +470,7 @@ int get_best_reader(ECM_REQUEST *er)
 		else {
 			n++;
 			re[best_idx]=0;
-			if (nlocal_readers) {
+			if (nlocal_readers) {//primary readers, local
 				nlocal_readers--;
 				result[best_idx] = 1;
 				//OLDEST_READER:
@@ -467,7 +480,7 @@ int get_best_reader(ECM_REQUEST *er)
 					best_rdr = best_rdri;
 				}
 			}
-			else if (nbest_readers) {
+			else if (nbest_readers) {//primary readers, other
 				nbest_readers--;
 				result[best_idx] = 1;
 				//OLDEST_READER:
@@ -477,7 +490,7 @@ int get_best_reader(ECM_REQUEST *er)
 					best_rdr = best_rdri;
 				}
 			}
-			else if (nfb_readers) {
+			else if (nfb_readers) { //fallbacks:
 				nfb_readers--;
 				if (!result[best_idx])
 					result[best_idx] = 2;
@@ -487,13 +500,8 @@ int get_best_reader(ECM_REQUEST *er)
 		}
 	}
 
-	//if (n)
-	//Always copy result...so if we found NO reader->no requests! This helps blocking undecodeable channels
-	//and reduces ecm traffic!
-		memcpy(er->matching_rdr, result, sizeof(result));
+	memcpy(er->matching_rdr, result, sizeof(result));
 #ifdef WITH_DEBUG 
-	//else
-	//	cs_debug_mask(D_TRACE, "loadbalancer: no best reader found, trying all readers");
 
 	cs_debug_mask(D_TRACE, "loadbalancer: client %s for %04X/%06X/%04X: %s readers: %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d", 
 		username(er->client), er->caid, er->prid, er->srvid,
@@ -510,6 +518,7 @@ int get_best_reader(ECM_REQUEST *er)
        			//algo for finding unanswered requests (newcamd reader for example:) 
         		if (stat && current_time > stat->last_received+(time_t)(cfg->ctimeout/1000)) { 
         			stat->request_count++; 
+        			stat->last_received = current_time;
         			cs_debug_mask(D_TRACE, "loadbalancer: reader %s increment request count to %d", rdr->label, stat->request_count);
 			} 
 		}        

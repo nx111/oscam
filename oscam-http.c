@@ -816,7 +816,7 @@ void send_oscam_reader(struct templatevars *vars, FILE *f, struct uriparams *par
 				tpl_addVar(vars, 0, "SWITCH", "disable");
 			}
 
-			tpl_addVar(vars, 0, "CTYP", reader_get_type_desc(rdr, 1));
+			tpl_addVar(vars, 0, "CTYP", reader_get_type_desc(rdr, 0));
 			tpl_addVar(vars, 1, "READERLIST", tpl_getTpl(vars, "READERSBIT"));
 		}
 	}
@@ -884,9 +884,9 @@ void send_oscam_reader_config(struct templatevars *vars, FILE *f, struct uripara
 
 		if(write_server()==0) {
 			refresh_oscam(REFR_READERS, in);
-			/*// fixme: restart_cardreader causes segfaults sometimes
+			// fixme: restart_cardreader causes segfaults sometimes
 			if (rdr->typ & R_IS_NETWORK)
-				restart_cardreader(rdr, 1); //physical readers make trouble if re-started */
+				restart_cardreader(rdr, 1); //physical readers make trouble if re-started
 		}
 		else
 			tpl_addVar(vars, 1, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
@@ -1307,6 +1307,10 @@ void send_oscam_reader_stats(struct templatevars *vars, FILE *f, struct uriparam
 					tpl_printf(vars, 0, "CHANNELNAME","%s", xml_encode(vars, get_servicename(stat->srvid, stat->caid)));
 					tpl_printf(vars, 0, "RC", "%s", stxt[stat->rc]);
 					tpl_printf(vars, 0, "TIME", "%dms", stat->time_avg);
+					if (stat->time_stat[stat->time_idx])
+						tpl_printf(vars, 0, "TIMELAST", "%dms", stat->time_stat[stat->time_idx]);
+					else
+						tpl_printf(vars, 0, "TIMELAST", "");
 					tpl_printf(vars, 0, "COUNT", "%d", stat->ecm_count);
 					if(stat->last_received) {
 						struct tm *lt = localtime(&stat->last_received);
@@ -1321,6 +1325,7 @@ void send_oscam_reader_stats(struct templatevars *vars, FILE *f, struct uriparam
 					tpl_printf(vars, 0, "ECMSRVID", "%04X", stat->srvid);
 					tpl_addVar(vars, 0, "ECMCHANNELNAME", xml_encode(vars, get_servicename(stat->srvid, stat->caid)));
 					tpl_printf(vars, 0, "ECMTIME", "%d", stat->time_avg);
+					tpl_printf(vars, 0, "ECMTIMELAST", "%d", stat->time_stat[stat->time_idx]);
 					tpl_printf(vars, 0, "ECMRC", "%d", stat->rc);
 					tpl_printf(vars, 0, "ECMRCS", "%s", stxt[stat->rc]);
 					tpl_printf(vars, 0, "ECMLAST", "%u", stat->last_received);
@@ -1633,6 +1638,24 @@ void send_oscam_user_config(struct templatevars *vars, FILE *f, struct uriparams
 		} else tpl_addVar(vars, 1, "MESSAGE", "<b>Sorry but the specified user doesn't exist. No deletion will be made!</b><BR>");
 	}
 
+
+	if (strcmp(getParam(params, "action"), "resetstats") == 0) {
+		for (account=cfg->account; (account); account=account->next) {
+			if(strcmp(getParam(params, "user"), account->usr) == 0) {
+				clear_account_stats(account);
+			}
+		}
+	}
+
+
+	if (strcmp(getParam(params, "action"), "resetserverstats") == 0) {
+		clear_system_stats();
+	}
+
+	if (strcmp(getParam(params, "action"), "resetalluserstats") == 0) {
+		clear_all_account_stats();
+	}
+
 	/* List accounts*/
 	char *status = "offline";
 	char *expired = "";
@@ -1734,6 +1757,7 @@ void send_oscam_user_config(struct templatevars *vars, FILE *f, struct uriparams
 		if (!cfg->http_js_icons) {
 			tpl_addVar(vars, 0, "DELICO", ICDEL);
 			tpl_addVar(vars, 0, "EDIICO", ICEDI);
+			tpl_addVar(vars, 0, "RESICO", ICRES);
 		}
 
 		tpl_addVar(vars, 1, "USERCONFIGS", tpl_getTpl(vars, "USERCONFIGLISTBIT"));
@@ -2102,7 +2126,7 @@ void send_oscam_status(struct templatevars *vars, FILE *f, struct uriparams *par
 
 			if ((strcmp(proto,"newcamd") == 0) && (cl->typ == 'c'))
 				tpl_printf(vars, 0, "CLIENTPROTO","%s (%s)", proto, get_ncd_client_name(cl->ncd_client_id));
-			else if (((strcmp(proto,"cccam") == 0) || (strcmp(proto,"cccam ext") == 0)) && (cl->typ == 'c')) {
+			else if (((strcmp(proto,"cccam") == 0) || (strcmp(proto,"cccam ext") == 0))) {
 			//else if ((strcmp(proto,"cccam") == 0) || (strcmp(proto,"cccam ext") == 0)) {
 				struct cc_data *cc = cl->cc;
 				if(cc) {
@@ -3071,6 +3095,7 @@ int process_request(FILE *f, struct in_addr in) {
 			tpl_printf(vars, 1, "ICONS", "var ICDIS =\"%s\";\n", ICDIS);
 			tpl_printf(vars, 1, "ICONS", "var ICENA =\"%s\";\n", ICENA);
 			tpl_printf(vars, 1, "ICONS", "var ICHID =\"%s\";\n", ICHID);
+			tpl_printf(vars, 1, "ICONS", "var ICRES =\"%s\";\n", ICRES);
 			tpl_addVar(vars, 0, "ONLOADSCRIPT", " onload=\"load_Icons()\"");
 		}
 
