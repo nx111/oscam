@@ -50,6 +50,15 @@ typedef enum cs_proto_type
 static const char *cctag[]={"global", "monitor", "camd33", "camd35", "newcamd", "radegast", "serial",
 		      "cs357x", "cs378x", "gbox", "cccam", "constcw", "dvbapi", "webif", "anticasc", NULL};
 
+
+/* Returns the default value if string length is zero, otherwise atoi is called*/
+int strToIntVal(char *value, int defaultvalue){
+	if (strlen(value) == 0) return defaultvalue;
+	int i = atoi(value);
+	if (i < 0) return defaultvalue;
+	else return i;
+}
+
 #ifdef DEBUG_SIDTAB
 static void show_sidtab(struct s_sidtab *sidtab)
 {
@@ -307,23 +316,13 @@ void chk_t_global(const char *token, char *value)
 #endif
 
 	if (!strcmp(token, "disablelog")) {
-		if (strlen(value) == 0) {
-			cfg->disablelog = 0;
-			return;
-		} else {
-			cfg->disablelog = atoi(value);
-			return;
-		}
+		cfg->disablelog = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "disableuserfile")) {
-		if (strlen(value) == 0) {
-			cfg->disableuserfile = 0;
-			return;
-		} else {
-			cfg->disableuserfile = atoi(value);
-			return;
-		}
+		cfg->disableuserfile = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "serverip")) {
@@ -364,120 +363,60 @@ void chk_t_global(const char *token, char *value)
 	}
 
 	if (!strcmp(token, "usrfileflag")) {
-		if (strlen(value) == 0) {
-			cfg->usrfileflag = 0;
-			return;
-		} else {
-			cfg->usrfileflag = atoi(value);
-			return;
-		}
+		cfg->usrfileflag = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "clienttimeout")) {
-		if (strlen(value) == 0) {
-			cfg->ctimeout = CS_CLIENT_TIMEOUT;
-			return;
-		} else {
-			cfg->ctimeout = atoi(value);
-			if (cfg->ctimeout < 100)
-				cfg->ctimeout *= 1000;
-			return;
-		}
+		cfg->ctimeout = strToIntVal(value, CS_CLIENT_TIMEOUT);
+		if (cfg->ctimeout < 100) cfg->ctimeout *= 1000;
+		return;
 	}
 
 	if (!strcmp(token, "fallbacktimeout")) {
-		if (strlen(value) == 0) {
-			cfg->ftimeout = CS_CLIENT_TIMEOUT / 2;
-			return;
-		} else {
-			cfg->ftimeout = atoi(value);
-			if (cfg->ftimeout < 100)
-				cfg->ftimeout *= 1000;
-			return;
-		}
+		cfg->ftimeout = strToIntVal(value, (CS_CLIENT_TIMEOUT / 2));
+		if (cfg->ftimeout < 100) cfg->ftimeout *= 1000;
+		return;
 	}
 
 	if (!strcmp(token, "clientmaxidle")) {
-		if (strlen(value) == 0) {
-			cfg->cmaxidle = CS_CLIENT_MAXIDLE;
-			return;
-		} else {
-			cfg->cmaxidle = atoi(value);
-			return;
-		}
+		cfg->cmaxidle = strToIntVal(value, CS_CLIENT_MAXIDLE);
+		return;
 	}
 
 	if (!strcmp(token, "cachedelay")) {
-		if (strlen(value) == 0) {
-			cfg->delay = CS_DELAY;
-			return;
-		} else {
-			cfg->delay = atoi(value);
-			return;
-		}
-		/*cfg->delay = CS_DELAY;
-		fprintf(stderr, "Parameter %s is deprecated -> ignored\n", token);
-		return;*/
+		cfg->delay = strToIntVal(value, CS_DELAY);
+		return;
 	}
 
 	if (!strcmp(token, "bindwait")) {
-		if (strlen(value) == 0) {
-			cfg->bindwait = CS_BIND_TIMEOUT;
-			return;
-		} else {
-			cfg->bindwait = atoi(value);
-			return;
-		}
+		cfg->bindwait = strToIntVal(value, CS_BIND_TIMEOUT);
+		return;
 	}
 
 	if (!strcmp(token, "netprio")) {
-		if (strlen(value) == 0) {
-			cfg->netprio = 0;
-			return;
-		} else {
-			cfg->netprio = atoi(value);
-			return;
-		}
+		cfg->netprio = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "resolvedelay")) {
-		if (strlen(value) == 0) {
-			cfg->resolvedelay = CS_RESOLVE_DELAY;
-			return;
-		} else {
-			cfg->resolvedelay = atoi(value);
-			return;
-		}
+		cfg->resolvedelay = strToIntVal(value, CS_RESOLVE_DELAY);
+		return;
 	}
 
 	if (!strcmp(token, "clientdyndns")) {
-		if (strlen(value) == 0) {
-			cfg->clientdyndns = 0;
-			return;
-		} else {
-			cfg->clientdyndns = atoi(value);
-			return;
-		}
+		cfg->clientdyndns = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "sleep")) {
-		if (strlen(value) == 0) {
-			cfg->tosleep = 0;
-			return;
-		} else {
-			cfg->tosleep = atoi(value);
-			return;
-		}
+		cfg->tosleep = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "unlockparental")) {
-		if (strlen(value) == 0) {
-			cfg->ulparent = 0;
-			return;
-		} else {
-			cfg->ulparent = atoi(value);
-			return;
-		}
+		cfg->ulparent = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "nice")) {
@@ -503,153 +442,89 @@ void chk_t_global(const char *token, char *value)
 	}
 
 	if (!strcmp(token, "maxlogsize")) {
-		if (strlen(value) == 0) {
-			cfg->max_log_size = 10;
-			return;
-		} else {
-			cfg->max_log_size = atoi(value);
-			if( cfg->max_log_size <= 10 )
-				cfg->max_log_size = 10;
-			return;
-		}
+		cfg->max_log_size = strToIntVal(value, 10);
+		if( cfg->max_log_size <= 10 ) cfg->max_log_size = 10;
+		return;
 	}
 
 	if( !strcmp(token, "waitforcards")) {
-		if (strlen(value) == 0) {
-			cfg->waitforcards = 1;
-			return;
-		} else {
-			cfg->waitforcards = atoi(value);
-			return;
-		}
+		cfg->waitforcards = strToIntVal(value, 1);
+		return;
 	}
 
 	if( !strcmp(token, "preferlocalcards")) {
-		if (strlen(value) == 0) {
-			cfg->preferlocalcards = 0;
-			return;
-		} else {
-			cfg->preferlocalcards = atoi(value);
-			return;
-		}
+		cfg->preferlocalcards = strToIntVal(value, 0);
+		return;
 	}
 
 	if( !strcmp(token, "saveinithistory")) {
-		if (strlen(value) == 0) {
-			cfg->saveinithistory = 0;
-			return;
-		} else {
-			cfg->saveinithistory = atoi(value);
-			return;
-		}
+		cfg->saveinithistory = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "readerrestartseconds")) {
-		if (strlen(value) == 0) {
-			cfg->reader_restart_seconds = 5;
-			return;
-		} else {
-			cfg->reader_restart_seconds = atoi(value);
-			return;
-		}
+		cfg->reader_restart_seconds = strToIntVal(value, 5);
+		return;
 	}
 
 	if (!strcmp(token, "readerautoloadbalance") || !strcmp(token, "lb_mode")) {
-		if (strlen(value) == 0) {
-			cfg->lb_mode = 0;
-			return;
-		} else {
-			cfg->lb_mode = atoi(value);
-			return;
-		}
+		cfg->lb_mode = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "readerautoloadbalance_save") || !strcmp(token, "lb_save")) {
-		if (strlen(value) == 0) {
-			cfg->lb_save = 0;
-			return;
-		} else {
-			int i = atoi(value);
-			if (i > 0 && i < 100) {
-				cfg->lb_save = 100;
-				fprintf(stderr, "Warning: '%s' corrected to the minimum -> 100\n", token);
-			}
-			else
-				cfg->lb_save = i;
-
-			return;
+		cfg->lb_save = strToIntVal(value, 0);
+		if (cfg->lb_save  > 0 && cfg->lb_save  < 100) {
+			cfg->lb_save = 100;
+			fprintf(stderr, "Warning: '%s' corrected to the minimum -> 100\n", token);
 		}
+		return;
 	}
 
 	if (!strcmp(token, "lb_nbest_readers")) {
-		if (strlen(value))
-			cfg->lb_nbest_readers = atoi(value);
+		cfg->lb_nbest_readers = strToIntVal(value, 0);
 		return;
 	}
 
 	if (!strcmp(token, "lb_nfb_readers")) {
-		if (strlen(value))
-			cfg->lb_nfb_readers = atoi(value);
+		cfg->lb_nfb_readers = strToIntVal(value, 0);
 		return;
 	}
 
 	if (!strcmp(token, "lb_min_ecmcount")) {
-		if (strlen(value))
-			cfg->lb_min_ecmcount = atoi(value);
+		cfg->lb_min_ecmcount = strToIntVal(value, 0);
 		return;
 	}
 
 	if (!strcmp(token, "lb_max_ecmcount")) {
-		if (strlen(value))
-			cfg->lb_max_ecmcount = atoi(value);
+		cfg->lb_max_ecmcount = strToIntVal(value, 0);
 		return;
 	}
 
 	if (!strcmp(token, "lb_reopen_seconds")) {
-		if (strlen(value))
-			cfg->lb_reopen_seconds = atoi(value);
+		cfg->lb_reopen_seconds = strToIntVal(value, 0);
 		return;
 	}
 
 	if (!strcmp(token, "resolvegethostbyname")) {
-		if (strlen(value) == 0) {
-			cfg->resolve_gethostbyname = 0;
-			return;
-		} else {
-			cfg->resolve_gethostbyname = atoi(value);
-			return;
-		}
+		cfg->resolve_gethostbyname = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "failbantime")) {
-		if(strlen(value) == 0) {
-			cfg->failbantime = 0;
-			return;
-		} else {
-			cfg->failbantime = atoi(value);
-			return;
-		}
+		cfg->failbantime = strToIntVal(value, 0);
+		return;
 	}
 
 	if (!strcmp(token, "failbancount")) {
-		if(strlen(value) == 0) {
-			cfg->failbancount = 0;
-			return;
-		} else {
-			cfg->failbancount = atoi(value);
-			return;
-		}
+		cfg->failbancount = strToIntVal(value, 0);
+		return;
 	}
 
 #ifdef CS_WITH_DOUBLECHECK
 	if (!strcmp(token, "double_check")) {
-		if (strlen(value) == 0) {
-			cfg->double_check = 0;
-			return;
-		} else {
-			cfg->double_check = atoi(value);
-			return;
-		}
+		cfg->double_check = strToIntVal(value, 0);
+		return;
 	}
 #endif
 
@@ -662,18 +537,14 @@ void chk_t_global(const char *token, char *value)
 void chk_t_ac(char *token, char *value)
 {
 	if (!strcmp(token, "enabled")) {
-		cfg->ac_enabled = atoi(value);
-		if( cfg->ac_enabled <= 0 )
-			cfg->ac_enabled = 0;
-		else
+		cfg->ac_enabled = strToIntVal(value, 0);
+		if( cfg->ac_enabled > 0 )
 			cfg->ac_enabled = 1;
-	return;
+		return;
 	}
 
 	if (!strcmp(token, "numusers")) {
-		cfg->ac_users = atoi(value);
-		if( cfg->ac_users < 0 )
-			cfg->ac_users = 0;
+		cfg->ac_users = strToIntVal(value, 0);
 		return;
 	}
 
@@ -1632,6 +1503,12 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 		cs_strncpy(account->pwd, value, sizeof(account->pwd));
 		return;
 	}
+#ifdef WEBIF
+	if (!strcmp(token, "description")) {
+		cs_strncpy(account->description, value, sizeof(account->description));
+		return;
+	}
+#endif
 
 	if (!strcmp(token, "hostname")) {
 		cs_strncpy((char *)account->dyndns, value, sizeof(account->dyndns));
@@ -1915,9 +1792,10 @@ int write_services()
 
 int write_config()
 {
-	int i,j;
+	int i;
 	FILE *f;
-	char *dot = "", *dot1 = "", *dot2 = ""; //flags for delimiters
+	char *value;
+	char *dot = ""; //flag for delimiter
 	char tmpfile[256];
 	char destfile[256];
 	char bakfile[256];
@@ -2041,35 +1919,13 @@ int write_config()
 
 	/*newcamd*/
 	if ((cfg->ncd_ptab.nports > 0) && (cfg->ncd_ptab.ports[0].s_port > 0)){
+
 		fprintf(f,"[newcamd]\n");
-		fprintf_conf(f, CONFVARWIDTH, "port", "");
-		dot1 = "";
-		for(i = 0; i < cfg->ncd_ptab.nports; ++i){
-			fprintf(f,"%s%d", dot1, cfg->ncd_ptab.ports[i].s_port);
 
-			// separate DES Key
-			if(cfg->ncd_ptab.ports[i].ncd_key_is_set){
-				int k;
-				fprintf(f,"{");
-				for (k = 0; k < 14; k++)
-					fprintf(f,"%02X", cfg->ncd_ptab.ports[i].ncd_key[k]);
-				fprintf(f,"}");
-			}
+		value = mk_t_newcamd_port();
+		fprintf_conf(f, CONFVARWIDTH, "port", "%s\n", value);
+		free(value);
 
-			fprintf(f,"@%04X", cfg->ncd_ptab.ports[i].ftab.filts[0].caid);
-
-			if (cfg->ncd_ptab.ports[i].ftab.filts[0].nprids > 0){
-				fprintf(f,":");
-				dot2 = "";
-				for (j = 0; j < cfg->ncd_ptab.ports[i].ftab.filts[0].nprids; ++j){
-					fprintf(f,"%s%06X", dot2, (int)cfg->ncd_ptab.ports[i].ftab.filts[0].prids[j]);
-					dot2 = ",";
-				}
-			}
-			dot1=";";
-		}
-
-		fputc((int)'\n', f);
 		if (cfg->ncd_srvip != 0)
 			fprintf_conf(f, CONFVARWIDTH, "serverip", "%s\n", inet_ntoa(*(struct in_addr *)&cfg->ncd_srvip));
 		fprintf_conf(f, CONFVARWIDTH, "key", "");
@@ -2122,22 +1978,11 @@ int write_config()
 	/*camd3.5 TCP*/
 	if ((cfg->c35_tcp_ptab.nports > 0) && (cfg->c35_tcp_ptab.ports[0].s_port > 0)) {
 		fprintf(f,"[cs378x]\n");
-		fprintf_conf(f, CONFVARWIDTH, "port", "");
-		dot1 = "";
-		for(i = 0; i < cfg->c35_tcp_ptab.nports; ++i){
-			fprintf(f,"%s%d@%04X", dot1, cfg->c35_tcp_ptab.ports[i].s_port, cfg->c35_tcp_ptab.ports[i].ftab.filts[0].caid);
-			if (cfg->c35_tcp_ptab.ports[i].ftab.filts[0].nprids > 1){
-				fprintf(f,":");
-				dot2 = "";
-				for (j = 0; j < cfg->c35_tcp_ptab.ports[i].ftab.filts[0].nprids; ++j){
-					fprintf(f,"%s%lX", dot2, cfg->c35_tcp_ptab.ports[i].ftab.filts[0].prids[j]);
-					dot2 = ",";
-				}
-			}
-			dot1=";";
-		}
 
-		fputc((int)'\n', f);
+		value = mk_t_camd35tcp_port();
+		fprintf_conf(f, CONFVARWIDTH, "port", "%s\n", value);
+		free(value);
+
 		if (cfg->c35_tcp_srvip != 0)
 			fprintf_conf(f, CONFVARWIDTH, "serverip", "%s\n", inet_ntoa(*(struct in_addr *)&cfg->c35_tcp_srvip));
 		fputc((int)'\n', f);
@@ -2319,7 +2164,10 @@ int write_userdb(struct s_auth *authptr)
 		fprintf(f,"[account]\n");
 		fprintf_conf(f, CONFVARWIDTH, "user", "%s\n", account->usr);
 		fprintf_conf(f, CONFVARWIDTH, "pwd", "%s\n", account->pwd);
-
+#ifdef WEBIF
+		if (account->description[0])
+			fprintf_conf(f, CONFVARWIDTH, "description", "%s\n", account->description);
+#endif
 		if (account->disabled || (!account->disabled && cfg->http_full_cfg))
 			fprintf_conf(f, CONFVARWIDTH, "disabled", "%d\n", account->disabled);
 
@@ -2643,6 +2491,10 @@ int write_server()
 				fprintf_conf(f, CONFVARWIDTH, "chid", "%s\n", value);
 			free(value);
 
+			value = mk_t_aeskeys(rdr);
+			fprintf_conf(f, CONFVARWIDTH, "aeskeys", "%s\n", value);
+			free(value);
+
 			if (rdr->show_cls && !rdr->show_cls == 10)
 				fprintf_conf(f, CONFVARWIDTH, "showcls", "%d\n", rdr->show_cls);
 
@@ -2655,8 +2507,6 @@ int write_server()
 
 			if (rdr->cachemm)
 				fprintf_conf(f, CONFVARWIDTH, "emmcache", "%d,%d,%d\n", rdr->cachemm, rdr->rewritemm, rdr->logemm);
-
-			//Todo: write blocknano
 
 			if (rdr->blockemm_unknown)
 				fprintf_conf(f, CONFVARWIDTH, "blockemm-unknown", "%d\n", rdr->blockemm_unknown);
@@ -2673,7 +2523,43 @@ int write_server()
 			if (rdr->lb_weight)
 				fprintf_conf(f, CONFVARWIDTH, "lb_weight", "%d\n", rdr->lb_weight);
 
-			//Todo: write savenano
+			//savenano
+			int i, all = 1;
+			dot="";
+			for(i = 0; i < 256; ++i) {
+				if(!(rdr->b_nano[i] & 0x02)) {
+					all = 0;
+					break;
+				}
+			}
+			if (all == 1) fprintf_conf(f, CONFVARWIDTH, "savenano", "%s\n", "all");
+			else {
+				fprintf_conf(f, CONFVARWIDTH, "savenano", "%s", "");
+				for(i = 0; i < 256; ++i) {
+					if(rdr->b_nano[i] & 0x02) fprintf(f, "%s%02x", dot, i);
+					dot=",";
+				}
+				fprintf(f, "\n");
+			}
+			
+			//blocknano
+			all = 1;
+			dot="";
+			for(i = 0; i < 256; ++i) {
+				if(!(rdr->b_nano[i] & 0x01)) {
+					all = 0;
+					break;
+				}
+			}
+			if (all == 1) fprintf_conf(f, CONFVARWIDTH, "blocknano", "%s\n", "all");
+			else {
+				fprintf_conf(f, CONFVARWIDTH, "blocknano", "%s", "");
+				for(i = 0; i < 256; ++i) {
+					if(rdr->b_nano[i] & 0x01) fprintf(f, "%s%02x", dot, i);
+					dot=",";
+				}
+				fprintf(f, "\n");
+			}
 
 			if (rdr->typ == R_CCCAM) {
 				if (rdr->cc_version[0])
@@ -4159,9 +4045,7 @@ int init_cccamcfg()
 	}
 
 	struct s_reader *rdr = first_reader;
-	int rcount=0;
 	while (rdr){
-		rcount++;
 		rdr=rdr->next;
 	}
 
@@ -4192,8 +4076,6 @@ int init_cccamcfg()
 		if(rfound)continue;
 
 		if(rdr){
-			rcount++;
-			if (rcount>=CS_MAXREADER) break;
 			struct s_reader *newreader = (struct s_reader*) malloc (sizeof(struct s_reader));
 			rdr->next = newreader; //add reader to list
 			rdr = newreader; //and advance to end of list
@@ -4254,7 +4136,6 @@ int init_readerdb()
 	int tag = 0;
 	FILE *fp;
 	char *value;
-	int rcount=1;
 
 	sprintf(token, "%s%s", cs_confdir, cs_srvr);
 	if (!(fp=fopen(token, "r"))) {
@@ -4274,8 +4155,6 @@ int init_readerdb()
 			token[l-1] = 0;
 			tag = (!strcmp("reader", strtolower(token+1)));
 			if (rdr->label[0] && rdr->typ) {
-				rcount++;
-				if (rcount>=CS_MAXREADER) break;
 				struct s_reader *newreader = (struct s_reader*) malloc (sizeof(struct s_reader));
 				rdr->next = newreader; //add reader to list
 				rdr = newreader; //and advance to end of list
@@ -4550,6 +4429,135 @@ char *mk_t_ftab(FTAB *ftab){
 	}
 
 	value[pos] = '\0';
+	return value;
+}
+
+char *mk_t_camd35tcp_port(){
+	int i, j, pos = 0, needed = 1;
+
+	/* Precheck to determine how long the resulting string will maximally be (might be a little bit smaller but that shouldn't hurt) */
+	for(i = 0; i < cfg->c35_tcp_ptab.nports; ++i) {
+		/* Port is maximally 5 chars long, plus the @caid, plus the ";" between ports */
+		needed += 11;
+		if (cfg->c35_tcp_ptab.ports[i].ftab.filts[0].nprids > 1){
+			needed += cfg->c35_tcp_ptab.ports[i].ftab.filts[0].nprids * 7;
+		}
+	}
+	char *value = (char *) malloc(needed * sizeof(char));
+	char *dot1 = "", *dot2;
+	for(i = 0; i < cfg->c35_tcp_ptab.nports; ++i) {
+		pos += sprintf(value + pos, "%s%d@%04X", dot1, cfg->c35_tcp_ptab.ports[i].s_port, cfg->c35_tcp_ptab.ports[i].ftab.filts[0].caid);
+		if (cfg->c35_tcp_ptab.ports[i].ftab.filts[0].nprids > 1) {
+			dot2 = ":";
+			for (j = 0; j < cfg->c35_tcp_ptab.ports[i].ftab.filts[0].nprids; ++j) {
+				pos += sprintf(value + pos, "%s%lX", dot2, cfg->c35_tcp_ptab.ports[i].ftab.filts[0].prids[j]);
+				dot2 = ",";
+			}
+		}
+		dot1=";";
+	}
+	return value;
+}
+
+char *mk_t_aeskeys(struct s_reader *rdr){
+	AES_ENTRY *current = rdr->aes_list;
+	int i, pos = 0, needed = 1, prevKeyid = 0, prevCaid = 0;
+	uint32 prevIdent = 0;
+
+	/* Precheck for the approximate size that we will need; it's a bit overestimated but we correct that at the end of the function */
+	while(current) {
+		/* The caid, ident, "@" and the trailing ";" need to be output when they are changing */
+		if(prevCaid != current->caid || prevIdent != current->ident) needed += 12 + (current->keyid * 2);
+		/* "0" keys are not saved so we need to check for gaps */
+		else if(prevKeyid != current->keyid + 1) needed += (current->keyid - prevKeyid - 1) * 2;
+		/* The 32 byte key plus either the (heading) ":" or "," */
+		needed += 33;
+		prevCaid = current->caid;
+		prevIdent = current->ident;
+		prevKeyid = current->keyid;
+		current = current->next;
+	}
+
+	/* Set everything back and now create the string */
+	current = rdr->aes_list;
+	prevCaid = 0;
+	prevIdent = 0;
+	prevKeyid = 0;
+	char tmp[needed * sizeof(char)];
+	char dot;
+	if(needed == 1) tmp[0] = '\0';
+	char tmpkey[33];
+	while(current) {
+		/* A change in the ident or caid means that we need to output caid and ident */
+		if(prevCaid != current->caid || prevIdent != current->ident){
+			if(pos > 0) {
+				tmp[pos] = ';';
+				++pos;
+			}
+			pos += sprintf(tmp+pos, "%04X@%06X", current->caid, current->ident);
+			prevKeyid = -1;
+			dot = ':';
+		} else dot = ',';
+		/* "0" keys are not saved so we need to check for gaps and output them! */
+		for (i = prevKeyid + 1; i < current->keyid; ++i) {
+			pos += sprintf(tmp+pos, "%c0", dot);
+			dot = ',';
+		}
+		tmp[pos] = dot;
+		++pos;
+		for (i = 0; i < 16; ++i) sprintf(tmpkey + (i*2), "%02X", current->plainkey[i]);
+		/* A key consisting of only FFs has a special meaning (just return what the card outputted) and can be specified more compact */
+		if(strcmp(tmpkey, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF") == 0) pos += sprintf(tmp+pos, "FF");
+		else pos += sprintf(tmp+pos, "%s", tmpkey);
+		prevCaid = current->caid;
+		prevIdent = current->ident;
+		prevKeyid = current->keyid;
+		current = current->next;
+	}
+
+	/* copy to result array of correct size */
+	char *value = (char *) malloc((pos + 1) * sizeof(char));
+	memcpy(value, tmp, pos + 1);
+	return(value);
+}
+
+char *mk_t_newcamd_port(){
+	int i, j, k, pos = 0, needed = 1;
+
+	/* Precheck to determine how long the resulting string will maximally be (might be a little bit smaller but that shouldn't hurt) */
+	for(i = 0; i < cfg->ncd_ptab.nports; ++i){
+		/* Port is maximally 5 chars long, plus the @caid, plus the ";" between ports */
+		needed += 11;
+		if(cfg->ncd_ptab.ports[i].ncd_key_is_set) needed += 30;
+		if (cfg->ncd_ptab.ports[i].ftab.filts[0].nprids > 0){
+			needed += cfg->ncd_ptab.ports[i].ftab.filts[0].nprids * 7;
+		}
+	}
+	char *value = (char *) malloc(needed * sizeof(char));
+	char *dot1 = "", *dot2;
+
+	for(i = 0; i < cfg->ncd_ptab.nports; ++i){
+		pos += sprintf(value + pos, "%s%d", dot1, cfg->ncd_ptab.ports[i].s_port);
+
+		// separate DES Key for this port
+		if(cfg->ncd_ptab.ports[i].ncd_key_is_set){
+			pos += sprintf(value + pos, "{");
+			for (k = 0; k < 14; k++)
+				pos += sprintf(value + pos, "%02X", cfg->ncd_ptab.ports[i].ncd_key[k]);
+			pos += sprintf(value + pos, "}");
+		}
+
+		pos += sprintf(value + pos, "@%04X", cfg->ncd_ptab.ports[i].ftab.filts[0].caid);
+
+		if (cfg->ncd_ptab.ports[i].ftab.filts[0].nprids > 0){
+			dot2 = ":";
+			for (j = 0; j < cfg->ncd_ptab.ports[i].ftab.filts[0].nprids; ++j){
+				pos += sprintf(value + pos, "%s%06X", dot2, (int)cfg->ncd_ptab.ports[i].ftab.filts[0].prids[j]);
+				dot2 = ",";
+			}
+		}
+		dot1=";";
+	}
 	return value;
 }
 

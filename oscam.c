@@ -34,7 +34,6 @@ int cs_restart_mode=1; //Restartmode: 0=off, no restart fork, 1=(default)restart
 #endif
 char  cs_tmpdir[200]={0x00};
 pthread_mutex_t gethostbyname_lock;
-pthread_mutex_t cwcache_lock;
 pthread_key_t getclient;
 
 //Cache for **found** cws:
@@ -44,7 +43,6 @@ struct  s_ecm     *cwidx;
 //Cache for **requesting** ecms:
 struct  s_ecm     *ecmcache;
 struct  s_ecm     *ecmidx;
-pthread_mutex_t ecmcache_lock;
 
 #ifdef CS_WITH_GBOX
 struct  card_struct Cards[CS_MAXCARDS];
@@ -53,6 +51,7 @@ unsigned long IgnoreList[CS_MAXIGNORE];
 #endif
 
 struct  s_config  *cfg;
+int rdr_count;
 #ifdef CS_LOGHISTORY
 int     loghistidx;  // ptr to current entry
 char    loghist[CS_MAXLOGHIST*CS_LOGHISTSIZE];     // ptr of log-history
@@ -65,13 +64,6 @@ int get_ridx(struct s_reader *reader) {
 		if (reader == rdr)
 			return i;
 	return -1;
-}
-
-int get_nr_of_readers() {
-	int i;
-	struct s_reader *rdr;
-	for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++);
-	return i;
 }
 
 int get_threadnum(struct s_client *client) {
@@ -163,9 +155,9 @@ static const char *logo = "  ___  ____   ___                \n / _ \\/ ___| / __
 static void usage()
 {
   fprintf(stderr, "%s\n\n", logo);
-  fprintf(stderr, "OSCam cardserver v%s, build #%s (%s) - (w) 2009-2010 streamboard SVN\n", CS_VERSION_X, CS_SVN_VERSION, CS_OSTYPE);
+  fprintf(stderr, "OSCam cardserver v%s, build #%s (%s) - (w) 2009-2011 Streamboard SVN\n", CS_VERSION_X, CS_SVN_VERSION, CS_OSTYPE);
   fprintf(stderr, "\tsee http://streamboard.gmc.to/oscam/ for more details\n");
-  fprintf(stderr, "\tbased on streamboard mp-cardserver v0.9d - (w) 2004-2007 by dukat\n");
+  fprintf(stderr, "\tbased on Streamboard mp-cardserver v0.9d - (w) 2004-2007 by dukat\n");
   fprintf(stderr, "\tinbuilt modules: ");
 #ifdef WEBIF
   fprintf(stderr, "webinterface ");
@@ -352,23 +344,30 @@ int recv_from_udpipe(uchar *buf)
 
 char *username(struct s_client * client)
 {
-  if (!client)
-    return "NULL";
-    
-  if (client->typ == 's' || client->typ == 'h')
-  {
-    // get username master running under
-    struct passwd *pwd;
-    if ((pwd = getpwuid(getuid())) != NULL)
-      return pwd->pw_name;
-    else
-      return "root";
-  }
-  
-  if (client->account->usr[0])
-    return(client->account->usr);
-  else
-    return("anonymous");
+	if (!client)
+		return "NULL";
+
+	if (client->typ == 's' || client->typ == 'h')
+	{
+		// get username master running under
+		struct passwd *pwd;
+		if ((pwd = getpwuid(getuid())) != NULL)
+			return pwd->pw_name;
+		else
+			return "root";
+	}
+
+	if(client->account)
+	{
+		if (client->account->usr[0])
+			return(client->account->usr);
+		else
+			return("anonymous");
+	}
+	else
+	{
+		return("NULL");
+	}
 }
 
 static struct s_client * idx_from_ip(in_addr_t ip, in_port_t port)
@@ -524,6 +523,20 @@ static void nullclose(int *fd)
 	close(f); //then close fd
 }
 
+static void cleanup_ecmtasks(struct s_client *cl) 
+{
+        if (!cl->ecmtask)
+                return;
+                
+        int i, n=(ph[cl->ctyp].multi)?CS_MAXPENDING:1;
+        ECM_REQUEST *ecm;
+        for (i=0; i<n; i++) {
+                ecm = &cl->ecmtask[i];
+                add_garbage(ecm->matching_rdr);
+        }
+        add_garbage(cl->ecmtask);
+}
+
 static void cleanup_thread(struct s_client *cl)
 {
 	struct s_client *prev, *cl2;
@@ -542,40 +555,38 @@ static void cleanup_thread(struct s_client *cl)
 	if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
 	if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
 
-	cs_sleepms(1000); //wait some time before cleanup to prevent segfaults
-	NULLFREE(cl->ecmtask);
-	NULLFREE(cl->emmcache);
-	NULLFREE(cl->req);
-	NULLFREE(cl->cc);
-
-	NULLFREE (cl);
+	cleanup_ecmtasks(cl);
+	add_garbage(cl->emmcache);
+	add_garbage(cl->req);
+	add_garbage(cl->cc);
+	add_garbage(cl);
+	NULLFREE(cl->serialdata);
 
 	//decrease cwcache
-	pthread_mutex_lock(&cwcache_lock);
 	struct s_ecm *ecmc;
 	if (cwidx->next) {
 		if (cwidx->next->next) {
 			ecmc=cwidx->next->next;
-			NULLFREE(cwidx->next);
+			add_garbage(cwidx->next);
 			cwidx->next=ecmc;
-		} else
-			NULLFREE(cwidx->next);
+		} else {
+			add_garbage(cwidx->next);
+			cwidx->next = NULL;
+                }
 	} else {
 		ecmc=cwcache->next;
-		NULLFREE(cwcache);
+		add_garbage(cwcache);
 		cwcache=ecmc;
 	}
-	pthread_mutex_unlock(&cwcache_lock);
 
 	//decrease ecmache
-	pthread_mutex_lock(&ecmcache_lock);
 	if (ecmcache->next != NULL) { //keep it at least on one entry big
 		for (ecmc=ecmcache; ecmc->next->next ; ecmc=ecmc->next) ; //find last element
 		if (ecmidx==ecmc->next)
 		  ecmidx = ecmcache;
-		NULLFREE(ecmc->next); //free last element
+		add_garbage(ecmc->next); //free last element
+		ecmc->next = NULL;
 	}
-	pthread_mutex_unlock(&ecmcache_lock);
 }
 
 void cs_exit(int sig)
@@ -780,21 +791,17 @@ struct s_client * cs_fork(in_addr_t ip) {
 
 		cl->login=cl->last=time((time_t *)0);
 		//increase cwcache
-		pthread_mutex_lock(&cwcache_lock);
 		struct s_ecm *ecmc;
 		for (ecmc=cwcache; ecmc->next ; ecmc=ecmc->next); //ends on last cwcache entry
 		ecmc->next = malloc(sizeof(struct s_ecm));
 		if (ecmc->next)
 			memset(ecmc->next, 0, sizeof(struct s_ecm));
-		pthread_mutex_unlock(&cwcache_lock);
 
 		//increase ecmcache
-		pthread_mutex_lock(&ecmcache_lock);
 		for (ecmc=ecmcache; ecmc->next ; ecmc=ecmc->next); //ends on last ecmcache entry
 		ecmc->next = malloc(sizeof(struct s_ecm));
 		if (ecmc->next)
 			memset(ecmc->next, 0, sizeof(struct s_ecm));
-		pthread_mutex_unlock(&ecmcache_lock);
 
                 //Now add new client to the list:
 		struct s_client *last;
@@ -886,8 +893,6 @@ static void init_shm()
 
 
   pthread_mutex_init(&gethostbyname_lock, NULL);
-  pthread_mutex_init(&cwcache_lock, NULL);
-  pthread_mutex_init(&ecmcache_lock, NULL);
 
 #ifdef CS_LOGHISTORY
   loghistidx=0;
@@ -1167,9 +1172,13 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 
 static void init_cardreader() {
 	struct s_reader *rdr;
-	for (rdr=first_reader; rdr ; rdr=rdr->next)
+	int new_rdr_count = 0;
+	for (rdr=first_reader; rdr ; rdr=rdr->next) {
+	        new_rdr_count++;
 		if (rdr->device[0])
 			restart_cardreader(rdr, 0);
+        }
+        rdr_count = new_rdr_count;
         load_stat_from_file();
 }
 
@@ -1368,18 +1377,17 @@ void cs_disconnect_client(struct s_client * client)
 static int check_and_store_ecmcache(ECM_REQUEST *er, uint64 grp)
 {
 	struct s_ecm *ecmc;
-	pthread_mutex_lock(&ecmcache_lock);
 	for (ecmc=ecmcache; ecmc ; ecmc=ecmc->next) {
 		if ((grp & ecmc->grp) &&
 		     ecmc->caid==er->caid &&
 		     (!memcmp(ecmc->ecmd5, er->ecmd5, CS_ECMSTORESIZE)))
 		{
 			er->rc = 99;
-			pthread_mutex_unlock(&ecmcache_lock);
 			return(1);
 		}
 	}
-	//store_ecm(er, grp); //Only ECM, no CW!
+
+	//Add cache entry:
 	if (ecmidx->next)
 		ecmidx=ecmidx->next;
 	else
@@ -1389,7 +1397,6 @@ static int check_and_store_ecmcache(ECM_REQUEST *er, uint64 grp)
 	ecmidx->grp = grp;
 	ecmidx->reader = er->selected_reader;
 
-	pthread_mutex_unlock(&ecmcache_lock);
 	return(0);
 }
 
@@ -1410,7 +1417,6 @@ static int check_cwcache1(ECM_REQUEST *er, uint64 grp)
 			lc^=*lp;
 	}
 
-	pthread_mutex_lock(&cwcache_lock);
 	for (ecmc=cwcache; ecmc ; ecmc=ecmc->next, count++) {
 		if (memcmp(ecmc->ecmd5, er->ecmd5, CS_ECMSTORESIZE))
 			continue;
@@ -1425,10 +1431,8 @@ static int check_cwcache1(ECM_REQUEST *er, uint64 grp)
 
 		memcpy(er->cw, ecmc->cw, 16);
 		er->selected_reader = ecmc->reader;
-		pthread_mutex_unlock(&cwcache_lock);
 		return 1;
 	}
-	pthread_mutex_unlock(&cwcache_lock);
 	cs_debug_mask(D_TRACE, "cache: %04X not found count=%d", lc, count);
 	return 0;
 }
@@ -1452,7 +1456,6 @@ static void store_cw(ECM_REQUEST *er, uint64 grp)
 	if (cfg->double_check && er->checked < 2)
 		return;
 #endif
-	pthread_mutex_lock(&cwcache_lock);
 	if (cwidx->next)
 		cwidx=cwidx->next;
 	else
@@ -1471,7 +1474,6 @@ static void store_cw(ECM_REQUEST *er, uint64 grp)
 		cs_debug_mask(D_TRACE, "store_cw: ecm=%04X grp=%lld", lc, grp);
 	}
 	//cs_ddump(cwcache[*cwidx].ecmd5, CS_ECMSTORESIZE, "ECM stored (idx=%d)", *cwidx);
-	pthread_mutex_unlock(&cwcache_lock);
 }
 
 // only for debug
@@ -1775,12 +1777,26 @@ ECM_REQUEST *get_ecmtask()
 		cs_log("WARNING: ecm pending table overflow !");
 	else
 	{
+                int save_rdr_count = er->rdr_count;
+                uint8 * save_rdrs = er->matching_rdr;
+                
 		memset(er, 0, sizeof(ECM_REQUEST));
 		er->rc=100;
 		er->cpti=n;
 		er->client=cl;
 		cs_ftime(&er->tps);
-	}
+
+                er->rdr_count=save_rdr_count;
+                er->matching_rdr=save_rdrs;
+        	if (er->rdr_count < rdr_count) {
+                        er->rdr_count = rdr_count;
+                        add_garbage(er->matching_rdr);
+                        er->matching_rdr = malloc(er->rdr_count);
+                }
+                memset(er->matching_rdr, 0, er->rdr_count);
+        }
+	
+	
 	return(er);
 }
 
@@ -1791,6 +1807,8 @@ static void send_reader_stat(struct s_reader *rdr, ECM_REQUEST *er, int rc)
 	struct timeb tpe;
 	cs_ftime(&tpe);
 	int time = 1000*(tpe.time-er->tps.time)+tpe.millitm-er->tps.millitm;
+	if (time < 1)
+	        time = 1;
 
 	add_stat(rdr, er->caid, er->prid, er->srvid, time, rc);
 }
@@ -1859,6 +1877,8 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 
 	cs_ftime(&tpe);
 	client->cwlastresptime = 1000*(tpe.time-er->tps.time)+tpe.millitm-er->tps.millitm;
+	if (er->selected_reader && er->selected_reader->client)
+	  er->selected_reader->client->cwlastresptime = client->cwlastresptime;
 
 #ifdef CS_LED
 	if(!er->rc) cs_switch_led(LED2, LED_BLINK_OFF);
@@ -1868,9 +1888,9 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 
 #ifdef WEBIF
 	if(er->rc == 0)
-		snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s", sby);
+		snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s", er->selected_reader->label);
 	else if ((er->rc == 1) || (er->rc == 2))
-		snprintf(client->lastreader, sizeof(client->lastreader)-1, "by %s (cache)", er->selected_reader->label);
+		snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s (cache)", er->selected_reader->label);
 	else
 		snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s", stxt[er->rc]);
 #endif
@@ -2073,9 +2093,11 @@ void chk_dcw(struct s_client *cl, ECM_REQUEST *er)
 
 		struct s_reader *rdr;
 		for (i=0,rdr=first_reader; (ert) && rdr ; rdr=rdr->next, i++) {
+		        if (i>=ert->rdr_count)
+		                break;
 			if (ert->matching_rdr[i]) { // we have still another chance
-				ert->selected_reader=0;
-				ert=(ECM_REQUEST *)0;
+				ert->selected_reader=NULL;
+				ert=NULL;
 			}
 		}
 
@@ -2256,6 +2278,9 @@ void request_cw(ECM_REQUEST *er, int flag, int reader_types)
 	}
 
 	for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {
+	        if (i>=er->rdr_count)
+                        break;
+                        
 		int status = 0;
 		switch (reader_types)
 		{
@@ -2304,6 +2329,8 @@ static int update_reader_count(ECM_REQUEST *er) {
 	int i, m;
 	struct s_reader *rdr;
 	for (i=m=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {
+	        if (i>=er->rdr_count)
+	                break;
         	m|=er->matching_rdr[i];
                 if (er->matching_rdr[i] == 1)
                 	er->reader_count++;
@@ -2508,12 +2535,15 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 	if(er->rc > 99) {
 		er->reader_avail=0;
 		struct s_reader *rdr;
-		for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)
+		for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {
+		        if (i>=er->rdr_count)
+		                break;
 			if (matching_reader(er, rdr)) {
 				er->matching_rdr[i] = (rdr->fallback)? 2: 1;
 				if (cfg->lb_mode || !rdr->fallback)
 					er->reader_avail++;
 			}
+                }
 
 		if (cfg->lb_mode) {
 			cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X",
@@ -2534,8 +2564,11 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 
 			// fallbacks only, switch them
 			case 2:
-				for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++)
+				for (i=0,rdr=first_reader; rdr ; rdr=rdr->next, i++) {
+				        if (i>=er->rdr_count)
+				                break;
 					er->matching_rdr[i]>>=1;
+                                }
 		}
 	}
 
@@ -2758,6 +2791,8 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 			if (!er->stage && er->rc>=100) {
 				struct s_reader *rdr;
 				for (j=0, act=1, rdr=first_reader; (act) && rdr ; rdr=rdr->next, j++) {
+				        if (j>=er->rdr_count)
+				                break;
 					if (cfg->preferlocalcards && !er->locals_done) {
 						if ((er->matching_rdr[j]&1) && !(rdr->typ & R_IS_NETWORK))
 							act=0;
@@ -2808,9 +2843,12 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 					if (cfg->lb_mode) {
 						int r;
 						struct s_reader *rdr;
-						for (r=0,rdr=first_reader; rdr ; rdr=rdr->next, r++)
+						for (r=0,rdr=first_reader; rdr ; rdr=rdr->next, r++) {
+						        if (r>=er->rdr_count)
+						                break;
 							if (er->matching_rdr[r])
 								send_reader_stat(rdr, er, 5);
+                                                }
 					}
 					send_dcw(cl, er);
 					continue;
@@ -3403,6 +3441,8 @@ if (pthread_key_create(&getclient, NULL)) {
 	}
 #endif
 
+        start_garbage_collector();
+        
 	for (i=0; i<CS_MAX_MOD; i++)
 		if (ph[i].type & MOD_CONN_SERIAL)   // for now: oscam_ser only
 			if (ph[i].s_handler)
@@ -3471,6 +3511,11 @@ void cs_restart_oscam()
   exit_oscam=99;
   cs_log("restart oscam requested");
 }
+
+int cs_get_restartmode() {
+	return cs_restart_mode;
+}
+
 #endif
 
 #ifdef CS_LED

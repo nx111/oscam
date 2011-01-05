@@ -100,7 +100,11 @@
 #endif
 
 #if defined(LIBUSB)
+#ifdef __FreeBSD__
+#include <libusb.h>
+#else
 #include <libusb-1.0/libusb.h>
+#endif
 #include "csctapi/smartreader_types.h"
 #endif
 
@@ -137,7 +141,6 @@
 #define CS_MAXLOGHIST     30
 #define CS_LOGHISTSIZE    193 // 32+128+33: username + logline + channelname
 #define CS_MAXREADERCAID  16
-#define CS_MAXREADER      128
 
 #ifndef PTHREAD_STACK_MIN
 #define PTHREAD_STACK_MIN 64000
@@ -337,7 +340,7 @@ extern void qboxhd_led_blink(int color, int duration);
 #define BAN_DUPLICATE 8			//failban mask for duplicate user
 
 //checking if (X) free(X) unneccessary since freeing a null pointer doesnt do anything
-#define NULLFREE(X) {if (X) {free(X); X = NULL; }}
+#define NULLFREE(X) {if (X) {void *tmpX=X; X=NULL; free(tmpX); }}
 
 typedef struct s_classtab
 {
@@ -442,6 +445,7 @@ typedef struct aes_entry {
     ushort      keyid;
     ushort      caid;
     uint32      ident;
+    uchar		plainkey[16];
     AES_KEY     key;
     struct aes_entry   *next;
 } AES_ENTRY;
@@ -549,7 +553,8 @@ typedef struct ecm_request_t
   ushort        idx;
   ulong         prid;
   struct s_reader *selected_reader;
-  uint8         matching_rdr[CS_MAXREADER];
+  int           rdr_count;
+  uint8         *matching_rdr;
   struct s_client *client; //contains pointer to 'c' client while running in 'r' client
   int           cpti;   // client pending table index
   int           stage;    // processing stage in server module
@@ -628,7 +633,7 @@ struct s_client
   int		emmnok;	     // count EMM nok
 #ifdef WEBIF
   int		wihidden;	// hidden in webinterface status
-  char      lastreader[32]; // last cw got from this reader
+  char      lastreader[64]; // last cw got from this reader
 #endif
   uchar		ucrc[4];    // needed by monitor and used by camd35
   ulong		pcrc;        // pwd crc
@@ -657,6 +662,8 @@ struct s_client
   struct s_emm *emmcache;
 
   pthread_t thread;
+  
+  struct s_serial_client *serialdata;
 
   //reader common
   int last_idx;
@@ -947,6 +954,9 @@ struct s_auth
 {
   char     usr[64];
   char     pwd[64];
+#ifdef WEBIF
+  char     description[64];
+#endif
   int      uniq;
   struct s_reader *aureader;
   int      autoau;
@@ -1312,6 +1322,7 @@ extern pthread_mutex_t gethostbyname_lock;
 #ifdef WEBIF
 extern void cs_exit_oscam();
 extern void cs_restart_oscam();
+extern int cs_get_restartmode();
 
 //reset stats for webif:
 extern void clear_account_stats(struct s_auth *account);
@@ -1361,7 +1372,6 @@ extern int chk_ctab(ushort caid, CAIDTAB *ctab);
 extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid);
 extern void kill_thread(struct s_client *cl);
 extern int get_threadnum(struct s_client *client);
-extern int get_nr_of_readers(void);
 extern int get_ridx(struct s_reader *reader);
 extern void cs_add_violation(uint ip);
 
@@ -1439,6 +1449,10 @@ extern char *mk_t_caidtab(CAIDTAB *ctab);
 extern char *mk_t_tuntab(TUNTAB *ttab);
 extern char *mk_t_group(uint64 grp);
 extern char *mk_t_ftab(FTAB *ftab);
+extern char *mk_t_camd35tcp_port();
+extern char *mk_t_aeskeys(struct s_reader *rdr);
+extern char *mk_t_newcamd_port();
+
 //Todo #ifdef CCCAM
 extern int init_provid();
 extern char * get_tmp_dir();
@@ -1549,5 +1563,9 @@ extern void module_dvbapi(struct s_module *);
 // oscam-http
 extern void http_srv();
 #endif
+
+// oscam-garbage
+extern void add_garbage(void *data);
+extern void start_garbage_collector();
 
 #endif  // CS_GLOBALS

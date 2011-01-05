@@ -377,7 +377,7 @@ static void monitor_process_details_master(char *buf, unsigned long pid){
 	sprintf(buf, "Nice=%d", cfg->nice);
 	monitor_send_details(buf, pid);
 #ifdef WEBIF
-	sprintf(buf, "Restartmode=%s", "yes");
+	sprintf(buf, "Restartmode=%d", cs_get_restartmode());
 	monitor_send_details(buf, pid);
 #else
 	sprintf(buf, "Restartmode=%s", "no");
@@ -506,7 +506,11 @@ static void monitor_logsend(char *flag){
 static void monitor_set_debuglevel(char *flag){
 	if (flag) {
 		cs_dblevel = atoi(flag);
+#ifndef WITH_DEBUG
+		cs_log("*** Warning: Debug Support not compiled in ***");
+#else
 		cs_log("%s debug_level=%d", "all", cs_dblevel);
+#endif
 	}
 }
 
