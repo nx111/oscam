@@ -598,7 +598,7 @@ static int nagra2_card_init(struct s_reader * reader, ATR newatr)
 	else if ((!memcmp(atr+4, "IRDETO", 6)) && ((atr[14]==0x03) && (atr[15]==0x84) && (atr[16]==0x55)))
 	{
 		cs_ri_log(reader, "detect irdeto tunneled nagra card");
-		if(!reader->has_rsa)
+		if(check_filled(reader->rsa_mod, 64) == 0)
 		{
 			cs_ri_log(reader, "no rsa key configured -> using irdeto mode");
 			return ERROR;
@@ -787,10 +787,10 @@ static int nagra2_card_info(struct s_reader * reader)
               int  euro=0;
               char *tier_name = NULL;
               time_t rawtime;
-              struct tm * timeinfo;
+              struct tm timeinfo;
               time ( &rawtime );
-              timeinfo = localtime ( &rawtime );
-              sprintf(currdate, "%02d/%02d/%04d", timeinfo->tm_mday, timeinfo->tm_mon+1, timeinfo->tm_year+1900);
+              localtime_r(&rawtime, &timeinfo);
+              sprintf(currdate, "%02d/%02d/%04d", timeinfo.tm_mday, timeinfo.tm_mon+1, timeinfo.tm_year+1900);
               
               for (i = 0; i < num_records; ++i)
               {  

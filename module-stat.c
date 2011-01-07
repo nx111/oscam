@@ -189,17 +189,17 @@ void save_stat_to_file()
 /**
  * Adds caid/prid/srvid to stat-list for reader ridx with time/rc
  */
-void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int ecm_time, int rc)
+void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int ecm_time, int rc)
 {
-	if (!rdr)
+	if (!rdr || !er)
 		return;
-	READER_STAT *stat = get_stat(rdr, caid, prid, srvid);
+	READER_STAT *stat = get_stat(rdr, er->caid, er->prid, er->srvid);
 	if (!stat) {
 		stat = malloc(sizeof(READER_STAT));
 		memset(stat, 0, sizeof(READER_STAT));
-		stat->caid = caid;
-		stat->prid = prid;
-		stat->srvid = srvid;
+		stat->caid = er->caid;
+		stat->prid = er->prid;
+		stat->srvid = er->srvid;
 		stat->time_avg = UNDEF_AVG_TIME; //dummy placeholder
 		ll_append(rdr->lb_stat, stat);
 	}
@@ -211,11 +211,11 @@ void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int e
 	// 2 = cache2      #
 	// 3 = emu         +
 	// 4 = not found   -
-	// 5 = timeout     #
+	// 5 = timeout     -2
 	// 6 = sleeping    #
 	// 7 = fake        #
-	// 8 = invalid     -
-	// 9 = corrupt     -
+	// 8 = invalid     #
+	// 9 = corrupt     #
 	// 10= no card     #
 	// 11= expdate     #
 	// 12= disabled    #
@@ -224,6 +224,7 @@ void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int e
 	//        + = adds statistic values
 	//        # = ignored because of duplicate values, temporary failures or softblocks
 	//        - = causes loadbalancer to block this reader for this caid/prov/sid
+	//        -2 = causes loadbalancer to block if happens too often
 	
 	if (stat->ecm_count < 0)
 		stat->ecm_count=0;
@@ -264,7 +265,7 @@ void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int e
 	}
 	else if (rc == 4) { //not found
 		stat->rc = rc;
-		stat->last_received = time(NULL);
+		//stat->last_received = time(NULL); do not change time, this would prevent reopen
 		//stat->ecm_count = 0; Keep ecm_count!
 	}
 	else if (rc == 5) { //timeout
@@ -274,14 +275,14 @@ void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int e
 	else
 	{
 		if (rc >= 0)
-			cs_debug_mask(D_TRACE, "loadbalancer: nhandled stat for reader %s: rc %d caid %04hX prid %06lX srvid %04hX time %dms usagelevel %d",
-				rdr->label, rc, caid, prid, srvid, ecm_time, rdr->lb_usagelevel);
+			cs_debug_mask(D_TRACE, "loadbalancer: not handled stat for reader %s: rc %d caid %04hX prid %06lX srvid %04hX time %dms usagelevel %d",
+				rdr->label, rc, er->caid, er->prid, er->srvid, ecm_time, rdr->lb_usagelevel);
 	
 		return;
 	}
 		
 	cs_debug_mask(D_TRACE, "loadbalancer: adding stat for reader %s: rc %d caid %04hX prid %06lX srvid %04hX time %dms usagelevel %d",
-				rdr->label, rc, caid, prid, srvid, ecm_time, rdr->lb_usagelevel);
+				rdr->label, rc, er->caid, er->prid, er->srvid, ecm_time, rdr->lb_usagelevel);
 	
 	//debug only:
 	if (cfg->lb_save) {
@@ -360,7 +361,7 @@ int get_best_reader(ECM_REQUEST *er)
 			stat = get_stat(rdr, er->caid, er->prid, er->srvid);
 			if (!stat) {
 				cs_debug_mask(D_TRACE, "loadbalancer: starting statistics for reader %s", rdr->label);
-				add_stat(rdr, er->caid,  er->prid, er->srvid, 1, -1);
+				add_stat(rdr, er, 1, -1);
 				result[i] = 1; //no statistics, this reader is active (now) but we need statistics first!
 				continue;
 			}
@@ -376,16 +377,18 @@ int get_best_reader(ECM_REQUEST *er)
 				result[i] = 1; //need more statistics!
 			}
 			
-			if (stat->rc == 0 && stat->request_count > cfg->lb_min_ecmcount) { // 5 unanswered requests or timeouts?
+			int hassrvid = has_srvid(rdr->client, er);
+			
+			if (!hassrvid && stat->rc == 0 && stat->request_count > cfg->lb_min_ecmcount) { // 5 unanswered requests or timeouts?
 				cs_debug_mask(D_TRACE, "loadbalancer: reader %s does not answer, blocking", rdr->label);
-				add_stat(rdr, er->caid, er->prid, er->srvid, 1, 4); //reader marked as unuseable 
+				add_stat(rdr, er, 1, 4); //reader marked as unuseable 
 				result[i] = 0;
 				continue;
 			}
 				
 
 			//Reader can decode this service (rc==0) and has lb_min_ecmcount ecms:
-			if (stat->rc == 0) {
+			if (stat->rc == 0 || hassrvid) {
 				if (cfg->preferlocalcards && !(rdr->typ & R_IS_NETWORK))
 					nlocal_readers++; //Prefer local readers!
 			

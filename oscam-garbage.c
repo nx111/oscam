@@ -48,7 +48,7 @@ void start_garbage_collector() {
         pthread_attr_t attr;
         pthread_attr_init(&attr);
 #ifndef TUXBOX
-        pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
+				pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
 #endif
         pthread_create(&temp, &attr, (void*)&garbage_collector, NULL);
         pthread_detach(temp);

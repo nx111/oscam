@@ -118,9 +118,8 @@
 #define CS_LOGFILE    "/var/log/oscam.log"
 #endif
 #define CS_QLEN       128 // size of request queue
-#define CS_MAXQLEN    128 // size of request queue for cardreader
 #define CS_MAXCAIDTAB 32  // max. caid-defs/user
-#define CS_MAXTUNTAB  16  // max. betatunnel mappings
+#define CS_MAXTUNTAB  20  // max. betatunnel mappings
 #define CS_MAXPROV    32
 #define CS_MAXPORTS   32  // max server ports
 #define CS_MAXFILTERS   16
@@ -514,6 +513,24 @@ struct s_module
   int num;
 };
 
+struct s_ATR ;
+
+struct s_cardreader
+{
+	int	active;
+	char	desc[16];
+	int	(*reader_init)(struct s_reader*);
+	int	(*get_status)(struct s_reader*, int*);
+	int	(*activate)(struct s_reader*, struct s_ATR *);
+	int	(*transmit)(struct s_reader*, unsigned char *sent, unsigned int size);
+	int	(*receive)(struct s_reader*, unsigned char *data, unsigned int size);
+	int	(*close)(struct s_reader*);
+	int	(*set_parity)(struct s_reader*, uchar parity);
+	int	(*write_settings)(struct s_reader*, unsigned long ETU, unsigned long EGT, unsigned char P, unsigned char I);
+	int	(*set_protocol)(struct s_reader*, unsigned char * params, unsigned *length, uint len_request);
+	int	(*set_baudrate)(struct s_reader*, ulong baud); //set only for readers which need baudrate setting and timings need to be guarded by OSCam
+};
+
 struct s_cardsystem
 {
 	char *desc;
@@ -775,10 +792,8 @@ struct s_reader  //contains device info, reader info and card info
   ulong     boxid;
   int       nagra_read; // read nagra ncmed records: 0 disabled (default), 1 read all records, 2 read valid records only
   uchar	    nagra_boxkey[16]; //n3 boxkey 8byte  or tiger idea key 16byte
-  int       has_rsa;
   char      country_code[3]; // irdeto country code.
   int       force_irdeto;
-  uchar     aes_key[16];
   uchar     rsa_mod[120]; //rsa modulus for nagra cards.
   uchar     atr[64];
   int		atrlen;
@@ -805,6 +820,7 @@ struct s_reader  //contains device info, reader info and card info
   int       card_status;
   int       deprecated; //if 0 ATR obeyed, if 1 default speed (9600) is chosen; for devices that cannot switch baudrate
   struct    s_module ph;
+  struct    s_cardreader crdr;
   uchar     ncd_key[16];
   uchar     ncd_skey[16];
   int       ncd_disable_server_filt;
@@ -825,8 +841,6 @@ struct s_reader  //contains device info, reader info and card info
   time_t    last_g;       // get (if last_s-last_g>tcp_rto - reconnect )
   time_t    last_s;       // send
   uchar     show_cls;     // number of classes subscription showed on kill -31
-  int       maxqlen;      // max queue length
-  int       qlen;         // current queue length
   FTAB      fchid;
   FTAB      ftab;
   CLASSTAB  cltab;
@@ -1239,8 +1253,6 @@ extern ulong cs_atoi(char *, int, int);
 extern int byte_atob(char *);
 extern long word_atob(char *);
 extern long dyn_word_atob(char *asc);
-extern int key_atob(char *, uchar *);
-extern int key_atob14(char *, uchar *);
 extern int key_atob_l(char *, uchar *, int);
 extern char *key_btoa(char *, uchar *);
 extern char *cs_hexdump(int, const uchar *, int);
@@ -1258,6 +1270,7 @@ extern void cs_sleepus(unsigned int);
 extern int bytes_available(int);
 extern void cs_setpriority(int);
 extern struct s_auth *find_user(char *);
+extern int check_filled(uchar *value, int length);
 #ifdef WEBIF
 extern int x2i(int i);
 extern void urldecode(char *s);
@@ -1266,9 +1279,7 @@ extern char *urlencode(char *str);
 extern char *char_to_hex(const unsigned char* p_array, unsigned int p_array_len, char hex2ascii[256][2]);
 extern void create_rand_str(char *dst, int size);
 #endif
-extern void sidtabbits2bitchar(SIDTABBITS value, char *result);
-extern void long2bitchar(long value, char *result);
-extern void uint642bitchar(uint64 value, char *result);
+extern void uint64ToBitchar(uint64 value, int size, char *result);
 extern int file_exists(const char * filename);
 extern void clear_sip(struct s_ip **sip);
 extern void clear_ptab(struct s_ptab *ptab);
@@ -1309,6 +1320,7 @@ extern char cs_confdir[];
 extern char loghist[CS_MAXLOGHIST*CS_LOGHISTSIZE];
 extern struct s_module ph[CS_MAX_MOD];
 extern struct s_cardsystem cardsystem[CS_MAX_MOD];
+extern struct s_cardreader cardreader[CS_MAX_MOD];
 //extern ECM_REQUEST *ecmtask;
 
 #ifdef CS_ANTICASC
@@ -1354,6 +1366,7 @@ extern ECM_REQUEST *get_ecmtask(void);
 extern void request_cw(ECM_REQUEST *, int, int);
 extern int send_dcw(struct s_client *, ECM_REQUEST *);
 extern int process_input(uchar *, int, int);
+extern int has_srvid(struct s_client *cl, ECM_REQUEST *er);
 extern int chk_srvid(struct s_client *, ECM_REQUEST *);
 extern int chk_srvid_match(ECM_REQUEST *, SIDTAB *);
 extern int chk_sfilter(ECM_REQUEST *, PTAB*);
@@ -1449,6 +1462,8 @@ extern char *mk_t_ftab(FTAB *ftab);
 extern char *mk_t_camd35tcp_port();
 extern char *mk_t_aeskeys(struct s_reader *rdr);
 extern char *mk_t_newcamd_port();
+extern char *mk_t_nano(struct s_reader *rdr, uchar flag);
+extern char *mk_t_service( uint64 sidtabok, uint64 sidtabno);
 
 //Todo #ifdef CCCAM
 extern int init_provid();
@@ -1516,7 +1531,7 @@ extern void reader_device_close(struct s_reader * reader);
 extern void init_stat();
 extern int get_best_reader(ECM_REQUEST *er);
 extern void clear_reader_stat(struct s_reader *reader);
-extern void add_stat(struct s_reader *rdr, ushort caid, ulong prid, ushort srvid, int ecm_time, int rc);
+extern void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int ecm_time, int rc);
 extern void load_stat_from_file();
 extern void save_stat_to_file();
 #ifdef HAVE_PCSC
@@ -1535,6 +1550,8 @@ void reader_videoguard2();
 void reader_videoguard12();
 void reader_dre();
 void reader_tongfang();
+
+void cardreader_mouse();
 
 // protocol modules
 extern int  monitor_send_idx(struct s_client *, char *);

@@ -192,11 +192,6 @@ define class in hex for reader
 example: class = 01,02,!1b,!2b
 .RE
 .PP
-\fBmaxqlen\fP = \fBsize\fP
-.RS 3n
-size of request queue for reader, default:128
-.RE
-.PP
 \fBgroup\fP = \fBgroupname\fP
 .RS 3n
 reader assingment to group, \fIrequired\fR
@@ -334,29 +329,19 @@ read Nagravison records (on NCMED cards only):
   2 = read records with valid rights only
 .RE
 .PP
-\fBn3_rsakey\fP|\fBrsakey\fP = \fBRSA key\fP
+\fBrsakey\fP = \fBRSA key\fP
 .RS 3n
-RSA key for Nagravision SCs / CAM key data for Irdeto SCs 
+RSA key for Nagravision/Tiger SCs / CAM key data for Irdeto SCs 
 .RE
 .PP
-\fBn3_boxkey\fP|\fBboxkey\fP = \fBbox key\fP
+\fBboxkey\fP = \fBbox key\fP
 .RS 3n
 box key for Nagravision SCs / CAM key for Irdeto SCs
 .RE
 .PP
-\fBtiger_rsakey\fP = \fBRSA key\fP
-.RS 3n
-RSA key for Tiger Nagravision SCs
-.RE
-.PP
-\fBaeskey\fP = \fBAES key\fP
-.RS 3n
-16 bytes AES key for Viaccess SCs
-.RE
-.PP
 \fBaeskeys\fP = \fBCAID #0\fP@\fBident\fP:\fBAES key #0 CAID #0\fP[,\fBAES key #1 CAID #0\fP],...[;\fBCAID #1\fP@\fBident\fP:\fBAES key #0 CAID #1\fP[,\fBAES key #1 CAID #1\fP],...]...
 .RS 3n
-multiple 16 bytes AES keys for Viaccess SCs
+multiple 16 bytes AES keys for Viaccess SCs (the used postprocessing AES key # is specified through the D2 nano of the ECM)
 
 special AES keys:
 
@@ -365,7 +350,7 @@ special AES keys:
 
 example: 
 
- aeskeys = 0100@012345:000102030405060708090a0b0c0d0e0f;0200@543210:0,0,0f0e0d0c0b0a090807060504030201
+ aeskeys = 0500@012345:000102030405060708090a0b0c0d0e0f;0500@543210:000102030405060708090a0b0c0d0e0f,0,0f0e0d0c0b0a090807060504030201
 .RE
 .PP
 \fBshowcls\fP = \fBquantity\fP

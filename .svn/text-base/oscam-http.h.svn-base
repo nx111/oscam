@@ -43,6 +43,8 @@ textarea.bt{font-family: Arial; font-size: 12px;}\n\
 textarea.editor {width:100%; height:450px;border:1px dotted #AAAAAA; background-color: #FAFAFA; padding:10; font-family:\"Courier New\", monospace; color:#666666; font-size: 11px; word-wrap:break-word; text-align:left; }\n\
 input{font-family: Arial; font-size: 12px;}\n\
 A:link {color: #050840;}\n\
+A.debugls:link {color: white;background-color:red;}\n\
+A.debugls:visited {color: white;background-color:red;}\n\
 A:visited {color: #050840;}\n\
 A:active {color: #050840;}\n\
 A:hover {color: #ff9e5f;}\n\
@@ -355,16 +357,16 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 
 #define TPLDEBUGSELECT "\
 	<SPAN CLASS=\"debugt\"> Switch Debug from&nbsp;##ACTDEBUG## to&nbsp;</SPAN>\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=0##CUSTOMPARAM##\" title=\"no debugging (default)\">0</A>&nbsp;\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=1##CUSTOMPARAM##\" title=\"detailed error messages\">1</A>&nbsp;\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=2##CUSTOMPARAM##\" title=\"ATR parsing info, ECM dumps, CW dumps\">2</A>&nbsp;\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=4##CUSTOMPARAM##\" title=\"traffic from/to the reader\">4</A>&nbsp;\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=8##CUSTOMPARAM##\" title=\"traffic from/to the clients\">8</A>&nbsp;\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=16##CUSTOMPARAM##\" title=\"traffic to the reader-device on IFD layer\">16</A>&nbsp;\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=32##CUSTOMPARAM##\" title=\"traffic to the reader-device on I/O layer\">32</A>&nbsp;\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=64##CUSTOMPARAM##\" title=\"EMM logging\">64</A>&nbsp;\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=128##CUSTOMPARAM##\" title=\"DVBAPI logging\">128</A>&nbsp;\n\
-	<A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=255##CUSTOMPARAM##\" title=\"debug all\">255</A>\n"
+	<SPAN CLASS=\"debugl\"><A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=0##CUSTOMPARAM##\" title=\"no debugging (default)\">&nbsp;0&nbsp;</A></SPAN>\n\
+	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS1##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL1####CUSTOMPARAM##\" title=\"detailed error messages\">&nbsp;1&nbsp;</A></SPAN>\n\
+	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS2##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL2####CUSTOMPARAM##\" title=\"ATR parsing info, ECM dumps, CW dumps\">&nbsp;2&nbsp;</A></SPAN>\n\
+	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS4##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL4####CUSTOMPARAM##\" title=\"traffic from/to the reader\">&nbsp;4&nbsp;</A></SPAN>\n\
+	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS8##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL8####CUSTOMPARAM##\" title=\"traffic from/to the clients\">&nbsp;8&nbsp;</A></SPAN>\n\
+	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS16##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL16####CUSTOMPARAM##\" title=\"traffic to the reader-device on IFD layer\">&nbsp;16&nbsp;</A></SPAN>\n\
+	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS32##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL32####CUSTOMPARAM##\" title=\"traffic to the reader-device on I/O layer\">&nbsp;32&nbsp;</A></SPAN>\n\
+	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS64##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL64####CUSTOMPARAM##\" title=\"EMM logging\">&nbsp;64&nbsp;</A></SPAN>\n\
+	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS128##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL128####CUSTOMPARAM##\" title=\"DVBAPI logging\">&nbsp;128&nbsp;</A></SPAN>\n\
+	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS255##\" HREF=\"##NEXTPAGE##?debug=255##CUSTOMPARAM##\" title=\"debug all\">&nbsp;255&nbsp;</A></SPAN>\n"
 
 #define TPLFAILBAN "\
 ##TPLHEADER##\
@@ -461,7 +463,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 		<TD align=\"center\">##CSIDX##</TD>\n\
 		<TD align=\"center\">##CLIENTTYPE##</TD>\n\
 		<TD align=\"center\">##CLIENTCNR##</TD>\n\
-		<TD>##CLIENTUSER##</TD>\n\
+		<TD><SPAN TITLE\"##CLIENTDESCRIPTION##\">##CLIENTUSER##</SPAN></TD>\n\
 		<TD align=\"center\">##CLIENTCAU##</TD>\n\
 		<TD align=\"center\">##CLIENTCRYPTED##</TD>\n\
 		<TD align=\"center\">##CLIENTIP##</TD>\n\
@@ -837,14 +839,16 @@ totalblocked=\"##TOTALBLOCKED##\" totalerror=\"##TOTALERROR##\">\n##EMMSTATS##\
     <TR><TH COLSPAN=\"2\">Edit Reader ##READERNAME##</TH></TR>\n\
     <TR><TH>&nbsp;</TH><TH>Reader general settings</TH></TR>\n\
     <TR><TD>Enable:</TD><TD><input name=\"enable\" type=\"hidden\" value=\"0\"><input name=\"enable\" type=\"checkbox\" value=\"1\" ##ENABLED##></TD></TR>\n\
-    <TR><TD>AU disabled:</TD><TD><input name=\"audisabled\" type=\"hidden\" value=\"0\"><input name=\"audisabled\" type=\"checkbox\" value=\"1\" ##AUDISABLED##></TD></TR>\n\
-    <TR><TD>AU Provid:</TD><TD><input name=\"auprovid\" type=\"text\" size=\"10\" maxlength=\"6\" value=\"##AUPROVID##\"></TD></TR>\n\
-	<TR><TD>Fallback:</TD><TD><input name=\"fallback\" type=\"hidden\" value=\"0\"><input name=\"fallback\" type=\"checkbox\" value=\"1\" ##FALLBACKCHECKED##></TD></TR>\n\
+	  <TR><TD>Device:</TD><TD><input name=\"device\" type=\"text\" size=\"60\" maxlength=\"150\" value=\"##DEVICE##\"></TD></TR>\n\
     <TR><TD>Group:</TD><TD><input name=\"group\" type=\"text\" size=\"10\" maxlength=\"10\" value=\"##GRP##\"></TD></TR>\n\
-    <TR><TD>Device:</TD><TD><input name=\"device\" type=\"text\" size=\"60\" maxlength=\"150\" value=\"##DEVICE##\"></TD></TR>\n\
+    <TR><TD>Fallback:</TD><TD><input name=\"fallback\" type=\"hidden\" value=\"0\"><input name=\"fallback\" type=\"checkbox\" value=\"1\" ##FALLBACKCHECKED##></TD></TR>\n\
+    <TR><TD>Loadbalance weight:</TD><TD><input name=\"lb_weight\" type=\"text\" size=\"5\" maxlength=\"4\" value=\"##LBWEIGHT##\"></TD></TR>\n\
     <TR><TD>Caid:</TD><TD><input name=\"caid\" type=\"text\" size=\"60\" maxlength=\"100\" value=\"##CAIDS##\"></TD></TR>\n\
     <TR><TD>Ident:</TD>     <TD><textarea name=\"ident\"      cols=\"58\" rows=\"3\" class=\"bt\">##IDENTS##</textarea></TD></TR>\n\
     <TR><TD>CHID:</TD>     <TD><textarea name=\"chid\"      cols=\"58\" rows=\"3\" class=\"bt\">##CHIDS##</textarea></TD></TR>\n\
+    <TR><TD>Services:</TD><TD>\n<TABLE cellspacing=\"0\" class=\"invisible\">##SIDS##</TD>\n</TR>\n</TABLE>\n\
+    <TR><TD>AU disabled:</TD><TD><input name=\"audisabled\" type=\"hidden\" value=\"0\"><input name=\"audisabled\" type=\"checkbox\" value=\"1\" ##AUDISABLED##></TD></TR>\n\
+    <TR><TD>AU Provid:</TD><TD><input name=\"auprovid\" type=\"text\" size=\"10\" maxlength=\"6\" value=\"##AUPROVID##\"></TD></TR>\n\
     <TR><TD>Emmcache:</TD><TD><input name=\"emmcache\" type=\"text\" size=\"10\" maxlength=\"10\" value=\"##EMMCACHE##\"></TD></TR>\n\
     <TR><TD>Blockemm:</TD><TD>\n<TABLE cellspacing=\"0\" class=\"invisible\">\
 		<TR><TD align=\"center\">unknown</TD><TD align=\"center\">unique</TD><TD align=\"center\">shared</TD><TD align=\"center\">global</TD></TR>\
@@ -853,8 +857,6 @@ totalblocked=\"##TOTALBLOCKED##\" totalerror=\"##TOTALERROR##\">\n##EMMSTATS##\
 			<TD align=\"center\"><input name=\"blockemm-s\" type=\"hidden\" value=\"0\"><input name=\"blockemm-s\" type=\"checkbox\" value=\"1\" ##BLOCKEMMSHAREDCHK##></TD>\n\
 			<TD align=\"center\"><input name=\"blockemm-g\" type=\"hidden\" value=\"0\"><input name=\"blockemm-g\" type=\"checkbox\" value=\"1\" ##BLOCKEMMGLOBALCHK##></TD></TR>\n\
     </TD>\n</TR>\n</TABLE>\n\
-    <TR><TD>Loadbalance weight:</TD><TD><input name=\"lb_weight\" type=\"text\" size=\"5\" maxlength=\"4\" value=\"##LBWEIGHT##\"></TD></TR>\n\
-	<TR><TD>Services:</TD><TD>\n<TABLE cellspacing=\"0\" class=\"invisible\">##SIDS##</TD>\n</TR>\n</TABLE>\n\
     <TR><TH>&nbsp;</TH><TH>Reader specific settings for protocol ##PROTOCOL##</TH></TR>\n\
     ##READERDEPENDINGCONFIG##\
     <TR><TD colspan=\"2\" align=\"right\"><input type=\"submit\" name=\"action\" value=\"Save\" ##BTNDISABLED##>\n</TD></TR>\n\
@@ -874,24 +876,20 @@ totalblocked=\"##TOTALBLOCKED##\" totalerror=\"##TOTALERROR##\">\n##EMMSTATS##\
           </TR>\n"
 
 #define TPLREADERCONFIGSTDHWREADERBIT "\
-    <TR><TD>Smargopatch:<input name=\"smargopatch\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"smargopatch\" type=\"checkbox\" value=\"1\" ##SMARGOPATCHCHECKED##></TD></TR>\n\
-    <TR><TD>Pincode:</TD><TD><input name=\"pincode\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##PINCODE##\"></TD></TR>\n\
-    <TR><TD>Disableserverfilter:</TD><TD><input name=\"disableserverfilter\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##DISABLESERVERFILTER##\"></TD></TR>\n\
-    <TR><TD>Force Irdeto:<input name=\"force_irdeto\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"force_irdeto\" type=\"checkbox\" value=\"1\" ##FORCEIRDETOCHECKED##></TD></TR>\n\
-    <TR><TD>Boxid:</TD><TD><input name=\"boxid\" type=\"text\" size=\"15\" maxlength=\"8\" value=\"##BOXID##\"></TD></TR>\n\
-    <TR><TD>AES Key:</TD><TD><input name=\"aeskey\" type=\"text\" size=\"35\" maxlength=\"32\" value=\"##AESKEY##\"></TD></TR>\n\
-    <TR><TD>AES Keys:</TD><TD><textarea name=\"aeskeys\" cols=\"98\" rows=\"4\" class=\"bt\" maxlength=\"128\">##AESKEYS##</textarea></TD></TR>\n\
-    <TR><TD>RSA key:</TD><TD><textarea name=\"rsakey\" cols=\"98\" rows=\"4\" class=\"bt\" maxlength=\"128\">##RSAKEY##</textarea></TD></TR>\n\
-    <TR><TD>Tiger RSA key:</TD><TD><textarea name=\"tiger_rsakey\" cols=\"98\" rows=\"6\" class=\"bt\" maxlength=\"240\">##TIGERRSAKEY##</textarea></TD></TR>\n\
-    <TR><TD>Boxkey:</TD><TD><input name=\"boxkey\" type=\"text\" size=\"20\" maxlength=\"16\" value=\"##BOXKEY##\"></TD></TR>\n\
-    <TR><TD>ATR:</TD><TD><input name=\"atr\" type=\"text\" size=\"100\" maxlength=\"54\" value=\"##ATR##\"></TD></TR>\n\
-    <TR><TD>Detect:</TD><TD><input name=\"detect\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##DETECT##\"></TD></TR>\n\
     <TR><TD>Mhz:</TD><TD><input name=\"mhz\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##MHZ##\"></TD></TR>\n\
     <TR><TD>Cardmhz:</TD><TD><input name=\"cardmhz\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##CARDMHZ##\"></TD></TR>\n\
-    <TR><TD>Deprecated:<input name=\"deprecated\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"deprecated\" type=\"checkbox\" value=\"1\" ##DEPRECATEDCHCHECKED##></TD></TR>\n\
+    <TR><TD>Pincode:</TD><TD><input name=\"pincode\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##PINCODE##\"></TD></TR>\n\
+    <TR><TD>Detect:</TD><TD><input name=\"detect\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##DETECT##\"></TD></TR>\n\
     <TR><TD>Readnano:</TD><TD><input name=\"readnano\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##EMMFILE##\"></TD></TR>\n\
     <TR><TD>Blocknano:</TD><TD><input name=\"blocknano\" type=\"text\" size=\"50\" maxlength=\"50\" value=\"##BLOCKNANO##\"></TD></TR>\n\
     <TR><TD>Savenano:</TD><TD><input name=\"savenano\" type=\"text\" size=\"50\" maxlength=\"50\" value=\"##SAVENANO##\"></TD></TR>\n\
+    <TR><TD>ATR:</TD><TD><input name=\"atr\" type=\"text\" size=\"100\" maxlength=\"54\" value=\"##ATR##\"></TD></TR>\n\
+    <TR><TD>Boxid:</TD><TD><input name=\"boxid\" type=\"text\" size=\"15\" maxlength=\"8\" value=\"##BOXID##\"></TD></TR>\n\
+    <TR><TD>AES Keys:</TD><TD><textarea name=\"aeskeys\" cols=\"98\" rows=\"4\" class=\"bt\" maxlength=\"128\">##AESKEYS##</textarea></TD></TR>\n\
+    <TR><TD>RSA Key:</TD><TD><textarea name=\"rsakey\" cols=\"98\" rows=\"4\" class=\"bt\" maxlength=\"128\">##RSAKEY##</textarea></TD></TR>\n\
+    <TR><TD>Boxkey:</TD><TD><input name=\"boxkey\" type=\"text\" size=\"20\" maxlength=\"16\" value=\"##BOXKEY##\"></TD></TR>\n\
+    <TR><TD>Showcls:</TD><TD><input name=\"showcls\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##SHOWCLS##\"></TD></TR>\n\
+    <TR><TD>Force Irdeto:<input name=\"force_irdeto\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"force_irdeto\" type=\"checkbox\" value=\"1\" ##FORCEIRDETOCHECKED##></TD></TR>\n\
     <TR><TD>Force NDS Version:</TD><TD><SELECT name=\"ndsversion\">\
                         <OPTION  value=\"0\" ##NDSVERSION0##>0 - AUTO</OPTION>\
                         <OPTION  value=\"1\" ##NDSVERSION1##>1 - NDS1 Forced</OPTION>\
@@ -903,6 +901,8 @@ totalblocked=\"##TOTALBLOCKED##\" totalerror=\"##TOTALERROR##\">\n##EMMSTATS##\
                         <OPTION  value=\"1\" ##NAGRAREAD1##>1 - Read all records</OPTION>\
                         <OPTION  value=\"2\" ##NAGRAREAD2##>2 - Read only valid records</OPTION>\
                 </SELECT></TD></TR>\n\
+    <TR><TD>Deprecated:<input name=\"deprecated\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"deprecated\" type=\"checkbox\" value=\"1\" ##DEPRECATEDCHCHECKED##></TD></TR>\n\
+    <TR><TD>Smargopatch:<input name=\"smargopatch\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"smargopatch\" type=\"checkbox\" value=\"1\" ##SMARGOPATCHCHECKED##></TD></TR>\n\
     <TR><TD>Device Out Endpoint:</TD><TD>##DEVICEEP##</TD></TR>\n"
 
 #ifdef LIBUSB
@@ -917,34 +917,30 @@ totalblocked=\"##TOTALBLOCKED##\" totalerror=\"##TOTALERROR##\">\n##EMMSTATS##\
 #define TPLREADERCONFIGCAMD35BIT "\
     <TR><TD>Account:</TD><TD><input name=\"account\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##ACCOUNT##\"></TD></TR>\n\
     <TR><TD>Password:</TD><TD><input name=\"password\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##PASSWORD##\"></TD></TR>\n\
-    <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n\
-    <TR><TD>Disable server filter:</TD><TD><input name=\"disableserverfilter\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##DISABLESERVERFILTER##\"></TD></TR>\n"
+    <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n"
 #define TPLREADERCONFIGCS378XBIT "\
     <TR><TD>Account:</TD><TD><input name=\"account\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##ACCOUNT##\"></TD></TR>\n\
     <TR><TD>Password:</TD><TD><input name=\"password\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##PASSWORD##\"></TD></TR>\n\
-    <TR><TD>Key:</TD><TD><input name=\"key\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##NCD_KEY##\"></TD></TR>\n\
-    <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n\
-    <TR><TD>Disable server filter:</TD><TD><input name=\"disableserverfilter\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##DISABLESERVERFILTER##\"></TD></TR>\n"
+    <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n"
 #define TPLREADERCONFIGRADEGASTBIT "\
 	<TR><TD>Account:</TD><TD><input name=\"account\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##ACCOUNT##\"></TD></TR>\n\
 	<TR><TD>Password:</TD><TD><input name=\"password\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##PASSWORD##\"></TD></TR>\n\
     <TR><TD>Inactivity timeout:</TD><TD><input name=\"inactivitytimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##INACTIVITYTIMEOUT##\"></TD></TR>\n\
-    <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n\
-    <TR><TD>Disable server filter:</TD><TD><input name=\"disableserverfilter\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##DISABLESERVERFILTER##\"></TD></TR>\n"
+    <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n"
 #define TPLREADERCONFIGNCD525BIT "\
 	<TR><TD>Account:</TD><TD><input name=\"account\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##ACCOUNT##\"></TD></TR>\n\
 	<TR><TD>Password:</TD><TD><input name=\"password\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##PASSWORD##\"></TD></TR>\n\
     <TR><TD>Key:</TD><TD><input name=\"key\" type=\"text\" size=\"40\" maxlength=\"28\" value=\"##NCD_KEY##\"></TD></TR>\n\
     <TR><TD>Inactivity timeout:</TD><TD><input name=\"inactivitytimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##INACTIVITYTIMEOUT##\"></TD></TR>\n\
     <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n\
-    <TR><TD>Disable server filter:</TD><TD><input name=\"disableserverfilter\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##DISABLESERVERFILTER##\"></TD></TR>\n"
+    <TR><TD>Disable server Filter:<input name=\"disableserverfilter\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"disableserverfilter\" type=\"checkbox\" value=\"1\" ##DISABLESERVERFILTERCHECKED##></TD></TR>\n"
 #define TPLREADERCONFIGNCD524BIT "\
 	<TR><TD>Account:</TD><TD><input name=\"account\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##ACCOUNT##\"></TD></TR>\n\
 	<TR><TD>Password:</TD><TD><input name=\"password\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##PASSWORD##\"></TD></TR>\n\
     <TR><TD>Key:</TD><TD><input name=\"key\" type=\"text\" size=\"40\" maxlength=\"28\" value=\"##NCD_KEY##\"></TD></TR>\n\
     <TR><TD>Inactivity timeout:</TD><TD><input name=\"inactivitytimeout\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##INACTIVITYTIMEOUT##\"></TD></TR>\n\
     <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n\
-    <TR><TD>Disable server filter:</TD><TD><input name=\"disableserverfilter\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##DISABLESERVERFILTER##\"></TD></TR>\n"
+    <TR><TD>Disable server Filter:<input name=\"disableserverfilter\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"disableserverfilter\" type=\"checkbox\" value=\"1\" ##DISABLESERVERFILTERCHECKED##></TD></TR>\n"
 #define TPLREADERCONFIGCCCAMBIT "\
 	<TR><TD>Account:</TD><TD><input name=\"account\" type=\"text\" size=\"63\" maxlength=\"63\" value=\"##ACCOUNT##\"></TD></TR>\n\
 	<TR><TD>Password:</TD><TD><input name=\"password\" type=\"text\" size=\"63\" maxlength=\"63\" value=\"##PASSWORD##\"></TD></TR>\n\
@@ -960,15 +956,13 @@ totalblocked=\"##TOTALBLOCKED##\" totalerror=\"##TOTALERROR##\">\n##EMMSTATS##\
     <TR><TD>Maxhop:</TD><TD><input name=\"cccmaxhop\" type=\"text\" size=\"3\" maxlength=\"2\" value=\"##CCCMAXHOP##\"></TD></TR>\n\
     <TR><TD>Want Emu:<input name=\"cccwantemu\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"cccwantemu\" type=\"checkbox\" value=\"1\" ##CCCWANTEMUCHECKED##></TD></TR>\n\
     <TR><TD>Reconnect-timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n\
-    <TR><TD>Disable server filter:</TD><TD><input name=\"disableserverfilter\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##DISABLESERVERFILTER##\"></TD></TR>\n\
     <TR><TD>Keep alive:</TD><TD><SELECT NAME=\"ccckeepalive\"><OPTION VALUE=\"0\">NO</OPTION><OPTION VALUE=\"1\" ##KEEPALIVECHECKED##>YES</OPTION></SELECT></TD></TR>\n"
 #ifdef CS_WITH_GBOX
 #define TPLREADERCONFIGGBOXBIT "\
 	<TR><TD>Account:</TD><TD><input name=\"account\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##ACCOUNT##\"></TD></TR>\n\
     <TR><TD>Password:</TD><TD><input name=\"password\" type=\"text\" size=\"10\" maxlength=\"8\" value=\"##PASSWORD##\"></TD></TR>\n\
     <TR><TD>Inactivity timeout:</TD><TD><input name=\"inactivitytimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##INACTIVITYTIMEOUT##\"></TD></TR>\n\
-    <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n\
-    <TR><TD>Disable server filter:</TD><TD><input name=\"disableserverfilter\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##DISABLESERVERFILTER##\"></TD></TR>\n"
+    <TR><TD>Reconnect timeout:</TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n"
 #endif
 
 #define TPLCONFIGGBOX "\
@@ -1041,8 +1035,8 @@ totalblocked=\"##TOTALBLOCKED##\" totalerror=\"##TOTALERROR##\">\n##EMMSTATS##\
 			<OPTION value=\"2.1.2\" ##VERSIONSELECTED2##>2.1.2</OPTION>\
 			<OPTION value=\"2.1.3\" ##VERSIONSELECTED3##>2.1.3</OPTION>\
 			<OPTION value=\"2.1.4\" ##VERSIONSELECTED4##>2.1.4</OPTION>\
-			<OPTION value=\"2.2.0\" ##VERSIONSELECTED5##>2.2.0 (experimental)</OPTION>\
-			<OPTION value=\"2.2.1\" ##VERSIONSELECTED6##>2.2.1 (experimental)</OPTION>\
+			<OPTION value=\"2.2.0\" ##VERSIONSELECTED5##>2.2.0</OPTION>\
+			<OPTION value=\"2.2.1\" ##VERSIONSELECTED6##>2.2.1</OPTION>\
 		</SELECT></TD></TR>\n\
 		<TR><TD>Update Interval:</TD><TD><input name=\"updateinterval\" type=\"text\" size=\"5\" maxlength=\"4\" value=\"##UPDATEINTERVAL##\"></TD></TR>\n\
 		<TR><TD>Minimize cards:</TD><TD><SELECT name=\"minimizecards\">\

@@ -145,9 +145,6 @@ DESCRIPTIONS
 
 	  example: class = 01,02,!1b,!2b
 
-       maxqlen = size
-	  size of request queue for reader, default:128
-
        group = groupname
 	  reader assingment to group, required
 
@@ -246,21 +243,15 @@ DESCRIPTIONS
 	    1 = read all records with expired rights
 	    2 = read records with valid rights only
 
-       n3_rsakey|rsakey = RSA key
-	  RSA key for Nagravision SCs / CAM key data for Irdeto SCs
+       rsakey = RSA key
+	  RSA key for Nagravision/Tiger SCs / CAM key data for Irdeto SCs
 
-       n3_boxkey|boxkey = box key
+       boxkey = box key
 	  box key for Nagravision SCs / CAM key for Irdeto SCs
-
-       tiger_rsakey = RSA key
-	  RSA key for Tiger Nagravision SCs
-
-       aeskey = AES key
-	  16 bytes AES key for Viaccess SCs
 
        aeskeys = CAID #0@ident:AES key #0 CAID #0[,AES key #1 CAID #0],...[;CAID #1@ident:AES key #0 CAID #1[,AES key  #1
        CAID #1],...]...
-	  multiple 16 bytes AES keys for Viaccess SCs
+	  multiple 16 bytes AES keys for Viaccess SCs (the used postprocessing AES key # is specified through the D2 nano of the ECM)
 
 	  special AES keys:
 
@@ -269,7 +260,7 @@ DESCRIPTIONS
 
 	  example:
 
-	   aeskeys = 0100@012345:000102030405060708090a0b0c0d0e0f;0200@543210:0,0,0f0e0d0c0b0a090807060504030201
+	   aeskeys = 0500@012345:000102030405060708090a0b0c0d0e0f;0500@543210:000102030405060708090a0b0c0d0e0f,0,0f0e0d0c0b0a090807060504030201
 
        showcls = quantity
 	  number of classes subscriptions to show for Viaccess SCs, default=10
