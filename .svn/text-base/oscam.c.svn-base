@@ -160,6 +160,7 @@ static void usage()
   fprintf(stderr, "OSCam cardserver v%s, build #%s (%s) - (w) 2009-2011 Streamboard SVN\n", CS_VERSION_X, CS_SVN_VERSION, CS_OSTYPE);
   fprintf(stderr, "\tsee http://streamboard.gmc.to/oscam/ for more details\n");
   fprintf(stderr, "\tbased on Streamboard mp-cardserver v0.9d - (w) 2004-2007 by dukat\n");
+  fprintf(stderr, "\tThis program is distributed under GPL.\n");
   fprintf(stderr, "\tinbuilt modules: ");
 #ifdef WEBIF
   fprintf(stderr, "webinterface ");
@@ -557,6 +558,14 @@ static void cleanup_thread(struct s_client *cl)
 	if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
 	if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
 
+	if(cl->typ == 'r' && cl->reader){
+		if(cl->reader->aes_list) {
+			aes_clear_entries(cl->reader);
+		}
+		// Maybe we also need a "nullclose" mechanism here...
+		ICC_Async_Close(cl->reader);
+	}
+
 	cleanup_ecmtasks(cl);
 	add_garbage(cl->emmcache);
 	add_garbage(cl->req);
@@ -789,17 +798,21 @@ struct s_client * cs_fork(in_addr_t ip) {
 
 		cl->login=cl->last=time((time_t *)0);
 		//increase cwcache
-		struct s_ecm *ecmc;
+		struct s_ecm *ecmc, *ecmn;
 		for (ecmc=cwcache; ecmc->next ; ecmc=ecmc->next); //ends on last cwcache entry
-		ecmc->next = malloc(sizeof(struct s_ecm));
-		if (ecmc->next)
-			memset(ecmc->next, 0, sizeof(struct s_ecm));
+		ecmn = malloc(sizeof(struct s_ecm));
+		if (ecmn) {
+			memset(ecmn, 0, sizeof(struct s_ecm));
+			ecmc->next = ecmn;
+                }
 
 		//increase ecmcache
 		for (ecmc=ecmcache; ecmc->next ; ecmc=ecmc->next); //ends on last ecmcache entry
-		ecmc->next = malloc(sizeof(struct s_ecm));
-		if (ecmc->next)
-			memset(ecmc->next, 0, sizeof(struct s_ecm));
+		ecmn = malloc(sizeof(struct s_ecm));
+		if (ecmn) {
+			memset(ecmn, 0, sizeof(struct s_ecm));
+			ecmc->next = ecmn;
+                }
 
                 //Now add new client to the list:
 		struct s_client *last;
@@ -875,6 +888,7 @@ static void init_shm()
     fprintf(stderr, "Could not allocate memory for master client, exiting...");
   exit(1);
   }
+  memset(first_client, 0, sizeof(struct s_auth));
   first_client->next = NULL; //terminate clients list with NULL
   first_client->login=time((time_t *)0);
   first_client->ip=cs_inet_addr("127.0.0.1");
@@ -1114,7 +1128,8 @@ void start_anticascader()
 void restart_cardreader(struct s_reader *rdr, int restart) {
 	int i;
 	if (restart) //kill old thread, even when .deleted flag is set
-		kill_thread(rdr->client);
+		if (rdr->client)
+			kill_thread(rdr->client);
 
 	rdr->tcp_connected = 0;
 	rdr->card_status = NO_CARD;
@@ -2543,7 +2558,11 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 			}
                 }
 
-		if (cfg->lb_mode) {
+                //we have to go through matching_reader() to check services, then check ecm-cache:
+                if (er->reader_avail && check_and_store_ecmcache(er, client->grp))
+                  return; //Found in ecmcache - answer by distribute ecm
+
+		if (cfg->lb_mode && er->reader_avail) {
 			cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X",
 				username(client), er->caid, er->prid, er->srvid);
 			get_best_reader(er);
@@ -2569,10 +2588,6 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
                                 }
 		}
 	}
-
-	if (er->rc > 99 && check_and_store_ecmcache(er, client->grp))
-                return;
-
 
 	if (er->rc < 100) {
 		if (cfg->delay)
@@ -3173,6 +3188,9 @@ static void restart_daemon()
 
 int main (int argc, char *argv[])
 {
+
+/* init random number generator with seed. */
+srand((unsigned int)time((time_t *)NULL));
 
 if (pthread_key_create(&getclient, NULL)) {
   fprintf(stderr, "Could not create getclient, exiting...");

@@ -338,8 +338,8 @@ void chk_t_global(const char *token, char *value)
 	if (!strcmp(token, "logfile")) {
 		NULLFREE(cfg->logfile);
 		if (strlen(value) > 0) {
-			if(asprintf(&(cfg->logfile), "%s", value) < 0)
-				fprintf(stderr, "Error allocating string for cfg->logfile\n");
+			if(!cs_malloc(&(cfg->logfile), strlen(value) + 1, -1)) return;
+			memcpy(cfg->logfile, value, strlen(value) + 1);
 		}
 		return;
 	}
@@ -347,8 +347,8 @@ void chk_t_global(const char *token, char *value)
 	if (!strcmp(token, "usrfile")) {
 		NULLFREE(cfg->usrfile);
 		if (strlen(value) > 0) {
-			if(asprintf(&(cfg->usrfile), "%s", value) < 0)
-				fprintf(stderr, "Error allocating string for cfg->usrfile\n");
+			if(!cs_malloc(&(cfg->usrfile), strlen(value) + 1, -1)) return;
+			memcpy(cfg->usrfile, value, strlen(value) + 1);
 		}
 		return;
 	}
@@ -356,8 +356,8 @@ void chk_t_global(const char *token, char *value)
 	if (!strcmp(token, "cwlogdir")) {
 		NULLFREE(cfg->cwlogdir);
 		if (strlen(value) > 0) {
-			if(asprintf(&(cfg->cwlogdir), "%s", value) < 0)
-				fprintf(stderr, "Error allocating string for cfg->cwlogdir\n");
+			if(!cs_malloc(&(cfg->cwlogdir), strlen(value) + 1, -1)) return;
+			memcpy(cfg->cwlogdir, value, strlen(value) + 1);
 		}
 		return;
 	}
@@ -482,27 +482,32 @@ void chk_t_global(const char *token, char *value)
 	}
 
 	if (!strcmp(token, "lb_nbest_readers")) {
-		cfg->lb_nbest_readers = strToIntVal(value, 0);
+		cfg->lb_nbest_readers = strToIntVal(value, DEFAULT_NBEST);
 		return;
 	}
 
 	if (!strcmp(token, "lb_nfb_readers")) {
-		cfg->lb_nfb_readers = strToIntVal(value, 0);
+		cfg->lb_nfb_readers = strToIntVal(value, DEFAULT_NFB);
 		return;
 	}
 
 	if (!strcmp(token, "lb_min_ecmcount")) {
-		cfg->lb_min_ecmcount = strToIntVal(value, 0);
+		cfg->lb_min_ecmcount = strToIntVal(value, DEFAULT_MIN_ECM_COUNT);
 		return;
 	}
 
 	if (!strcmp(token, "lb_max_ecmcount")) {
-		cfg->lb_max_ecmcount = strToIntVal(value, 0);
+		cfg->lb_max_ecmcount = strToIntVal(value, DEFAULT_MAX_ECM_COUNT);
 		return;
 	}
 
 	if (!strcmp(token, "lb_reopen_seconds")) {
-		cfg->lb_reopen_seconds = strToIntVal(value, 0);
+		cfg->lb_reopen_seconds = strToIntVal(value, DEFAULT_REOPEN_SECONDS);
+		return;
+	}
+
+	if (!strcmp(token, "lb_retrylimit")) {
+		cfg->lb_retrylimit = strToIntVal(value, DEFAULT_RETRYLIMIT);
 		return;
 	}
 
@@ -1349,8 +1354,8 @@ int init_config()
 	fclose(fp);
 #ifdef CS_LOGFILE
 	if (cfg->logfile == NULL) {
-		if(asprintf(&(cfg->logfile), "%s", CS_LOGFILE) < 0)
-			fprintf(stderr, "Error allocating string for cfg->logfile\n");
+		cs_malloc(&(cfg->logfile), strlen(CS_LOGFILE) + 1, 1);
+		memcpy(cfg->logfile, value, strlen(CS_LOGFILE) + 1);
 	}
 #endif
 	cs_init_log();
@@ -1771,6 +1776,8 @@ int write_config()
 		fprintf_conf(f, CONFVARWIDTH, "lb_max_ecmcount", "%d\n", cfg->lb_max_ecmcount);
 	if (cfg->lb_reopen_seconds != DEFAULT_REOPEN_SECONDS ||(cfg->lb_reopen_seconds == DEFAULT_REOPEN_SECONDS  && cfg->http_full_cfg))
 		fprintf_conf(f, CONFVARWIDTH, "lb_reopen_seconds", "%d\n", cfg->lb_reopen_seconds);
+	if (cfg->lb_retrylimit != DEFAULT_RETRYLIMIT || cfg->http_full_cfg)
+		fprintf_conf(f, CONFVARWIDTH, "lb_retrylimit", "%d\n", cfg->lb_retrylimit);
 
 	if (cfg->resolve_gethostbyname ||(!cfg->resolve_gethostbyname && cfg->http_full_cfg))
 		fprintf_conf(f, CONFVARWIDTH, "resolvegethostbyname", "%d\n", cfg->resolve_gethostbyname);
@@ -2258,7 +2265,7 @@ int write_server()
 			if (rdr->smargopatch && isphysical)
 				fprintf_conf(f, CONFVARWIDTH, "smargopatch", "%d\n", rdr->smargopatch);
 
-			if (rdr->show_cls && isphysical)
+			if (rdr->show_cls != 10 && isphysical)
 				fprintf_conf(f, CONFVARWIDTH, "showcls", "%d\n", rdr->show_cls);
 
 			if (rdr->fallback)
@@ -2597,7 +2604,8 @@ int init_free_userdb(struct s_auth *ptr) {
 	for (nro = 0; ptr; nro++) {
 		struct s_auth *ptr_next;
 		ptr_next = ptr->next;
-		free(ptr);
+		ptr->next = NULL;
+		add_garbage(ptr);
 		ptr = ptr_next;
 	}
 	cs_log("userdb %d accounts freed", nro);
@@ -3110,8 +3118,8 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 	if (!strcmp(token, "readnano")) {
 		NULLFREE(rdr->emmfile);
 		if (strlen(value) > 0) {
-			if(asprintf(&(rdr->emmfile), "%s", value) < 0)
-				fprintf(stderr, "Error allocating string for rdr->emmfile\n");
+			if(!cs_malloc(&(rdr->emmfile), strlen(value) + 1, -1)) return;
+			memcpy(rdr->emmfile, value, strlen(value) + 1);
 		}
 		return;
 	}

@@ -259,6 +259,7 @@ extern char *RDR_CD_TXT[];
 #define DEFAULT_MAX_ECM_COUNT 500
 #define DEFAULT_NBEST 1
 #define DEFAULT_NFB 1
+#define DEFAULT_RETRYLIMIT 800
 
 enum {E1_GLOBAL=0, E1_USER, E1_READER, E1_SERVER, E1_LSERVER};
 enum {E2_GLOBAL=0, E2_GROUP, E2_CAID, E2_IDENT, E2_CLASS, E2_CHID, E2_QUEUE,
@@ -403,42 +404,6 @@ typedef struct s_ptab
   int    nports;
   PORT   ports[CS_MAXPORTS];
 } GCC_PACK PTAB;
-
-#if defined(LIBUSB)
-typedef struct  {
-    int F;
-    float D;
-    int fs;
-    int N;
-    int T;
-    int inv;
-    int parity;
-    int irdeto;
-    int running;
-	libusb_device *usb_dev;
-	libusb_device_handle *usb_dev_handle;
-    enum smartreader_chip_type type;
-    uint8_t in_ep;  // 0x01
-    uint8_t out_ep; // 0x82
-    int index;
-    /** usb read timeout */
-    int usb_read_timeout;
-    /** usb write timeout */
-    int usb_write_timeout;
-    unsigned int writebuffer_chunksize;
-    unsigned char bitbang_enabled;
-    int baudrate;
-    int interface;   // 0 or 1
-    /** maximum packet size. Needed for filtering modem status bytes every n packets. */
-    unsigned int max_packet_size;
-    unsigned char g_read_buffer[4096];
-    unsigned int g_read_buffer_size;
-    pthread_mutex_t g_read_mutex;
-    pthread_mutex_t g_usb_mutex;
-    pthread_t rt;
-    unsigned char modem_status;
-} SR_CONFIG;
-#endif
 
 typedef struct aes_entry {
     ushort      keyid;
@@ -871,7 +836,7 @@ struct s_reader  //contains device info, reader info and card info
 #endif
 #ifdef LIBUSB
   uint8_t  device_endpoint; // usb endpoint for Infinity USB Smart in smartreader mode.
-  SR_CONFIG *sr_config;
+  struct s_sr_config *sr_config;
 #endif
 #ifdef AZBOX
   int mode;
@@ -1155,7 +1120,7 @@ struct s_config
 	int		lb_min_ecmcount; // minimal ecm count to evaluate lbvalues
 	int     lb_max_ecmcount; // maximum ecm count before reseting lbvalues
 	int     lb_reopen_seconds; //time between retrying failed readers/caids/prov/srv
-
+	int	lb_retrylimit; //reopen only happens if reader response time > retrylimit
 	int             resolve_gethostbyname;
 
 #ifdef CS_WITH_DOUBLECHECK
@@ -1273,12 +1238,11 @@ extern int bytes_available(int);
 extern void cs_setpriority(int);
 extern struct s_auth *find_user(char *);
 extern int check_filled(uchar *value, int length);
+extern void *cs_malloc(void *result, size_t size, int quiterror);
+extern void *cs_realloc(void *result, size_t size, int quiterror);
 #ifdef WEBIF
-extern int x2i(int i);
-extern void urldecode(char *s);
 extern char to_hex(char code);
-extern char *urlencode(char *str);
-extern char *char_to_hex(const unsigned char* p_array, unsigned int p_array_len, char hex2ascii[256][2]);
+extern void char_to_hex(const unsigned char* p_array, unsigned int p_array_len, unsigned char *result);
 extern void create_rand_str(char *dst, int size);
 #endif
 extern void uint64ToBitchar(uint64 value, int size, char *result);
@@ -1497,10 +1461,11 @@ extern void cs_log(const char *,...);
 extern void cs_debug_mask(unsigned short, const char *,...);
 extern void cs_ddump_mask(unsigned short, const uchar *, int, char *, ...);
 #else
-#define cs_debug(...)
-#define cs_debug_mask(...)
-#define cs_ddump(...)
-#define cs_ddump_mask(...)
+#define nop() asm volatile("nop")
+#define cs_debug(...) nop()
+#define cs_debug_mask(...) nop()
+#define cs_ddump(...) nop()
+#define cs_ddump_mask(...) nop()
 #endif
 extern void cs_close_log(void);
 extern int  cs_init_statistics();

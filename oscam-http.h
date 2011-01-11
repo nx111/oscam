@@ -23,6 +23,7 @@ TR.h TD {background-color:#e1e1ef;}\n\
 TR.r TD {background-color:#fff3e7;}\n\
 TR.p TD {background-color:#fdfbe1;}\n\
 TR.c TD {background-color:#f1f5e6;}\n\
+TR.a TD {background-color:#33ff00;}\n\
 TR.online TD {background-color:#f1f5e6;}\n\
 TR.expired TD {background-color:#ffe2d4;}\n\
 TR.usrcfg_anticasc TD {background-color:#FEF9BF;}\n\
@@ -355,6 +356,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
   </FORM>\n\
   ##TPLFOOTER##"
 
+#ifdef WITH_DEBUG
 #define TPLDEBUGSELECT "\
 	<SPAN CLASS=\"debugt\"> Switch Debug from&nbsp;##ACTDEBUG## to&nbsp;</SPAN>\n\
 	<SPAN CLASS=\"debugl\"><A CLASS=\"debugl\" HREF=\"##NEXTPAGE##?debug=0##CUSTOMPARAM##\" title=\"no debugging (default)\">&nbsp;0&nbsp;</A></SPAN>\n\
@@ -367,6 +369,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS64##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL64####CUSTOMPARAM##\" title=\"EMM logging\">&nbsp;64&nbsp;</A></SPAN>\n\
 	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS128##\" HREF=\"##NEXTPAGE##?debug=##DEBUGVAL128####CUSTOMPARAM##\" title=\"DVBAPI logging\">&nbsp;128&nbsp;</A></SPAN>\n\
 	<SPAN CLASS=\"debugl\"><A CLASS=\"##DCLASS255##\" HREF=\"##NEXTPAGE##?debug=255##CUSTOMPARAM##\" title=\"debug all\">&nbsp;255&nbsp;</A></SPAN>\n"
+#endif
 
 #define TPLFAILBAN "\
 ##TPLHEADER##\
@@ -1230,6 +1233,7 @@ totalblocked=\"##TOTALBLOCKED##\" totalerror=\"##TOTALERROR##\">\n##EMMSTATS##\
 		<TR><TD>Number of fallback readers:</TD><TD><input name=\"lb_nfb_readers\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBNFBREADERS##\"></TD></TR>\n\
 		<TR><TD>Min ECM count:</TD><TD><input name=\"lb_min_ecmcount\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBMINECMCOUNT##\"></TD></TR>\n\
 		<TR><TD>Max ECM count:</TD><TD><input name=\"lb_max_ecmcount\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBMAXECEMCOUNT##\"></TD></TR>\n\
+		<TR><TD>Retry Limit:</TD><TD><input name=\"lb_retrylimit\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBRETRYLIMIT##\"></TD></TR>\n\
 		<TR><TD>Time to reopen:</TD><TD><input name=\"lb_reopen_seconds\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBREOPENSECONDS##\"></TD></TR>\n\
 		<TR><TD colspan=\"2\" align=\"right\"><input type=\"submit\" value=\"OK\" ##BTNDISABLED##>\n</TD></TR>\n\
 	</TABLE>\n\
@@ -1489,7 +1493,6 @@ char *tpl[]={
 	"CONFIGMENU",
 	"FILEMENU",
 	"FILE",
-	"DEBUGSELECT",
 	"FAILBAN",
 	"FAILBANBIT",
 	"CONFIGGBOX",
@@ -1532,6 +1535,20 @@ char *tpl[]={
 #ifdef LIBUSB
 	,"READERCONFIGDEVICEEPBIT"
 #endif
+#ifdef WITH_DEBUG
+	,"DEBUGSELECT"
+#endif
+	,"ICMAI"
+	,"ICSTA"
+	,"ICDEL"
+	,"ICEDI"
+	,"ICENT"
+	,"ICREF"
+	,"ICKIL"
+	,"ICDIS"
+	,"ICENA"
+	,"ICHID"
+	,"ICRES"
 };
 
 char *tplmap[]={
@@ -1588,7 +1605,6 @@ char *tplmap[]={
 	TPLCONFIGMENU,
 	TPLFILEMENU,
 	TPLFILE,
-	TPLDEBUGSELECT,
 	TPLFAILBAN,
 	TPLFAILBANBIT,
 	TPLCONFIGGBOX,
@@ -1631,6 +1647,20 @@ char *tplmap[]={
 #ifdef LIBUSB
 	,TPLREADERCONFIGDEVICEEPBIT
 #endif
+#ifdef WITH_DEBUG
+	,TPLDEBUGSELECT
+#endif
+	,ICMAI
+	,ICSTA
+	,ICDEL
+	,ICEDI
+	,ICENT
+	,ICREF
+	,ICKIL
+	,ICDIS
+	,ICENA
+	,ICHID
+	,ICRES
 };
 
 struct templatevars {
@@ -1649,25 +1679,7 @@ struct uriparams {
 	char *values[MAXGETPARAMS];
 };
 
-static char hex2ascii[256][2];
 static char noncekey[33];
 
-
-char *tpl_addVar(struct templatevars *vars, int append, char *name, char *value);
-char *tpl_addTmp(struct templatevars *vars, char *value);
-char *tpl_printf(struct templatevars *vars, int append, char *varname, char *fmtstring, ...);
-char *tpl_getVar(struct templatevars *vars, char *name);
-struct templatevars *tpl_create();
-void tpl_clear(struct templatevars *vars);
-char *tpl_getUnparsedTpl(const char* name);
-char *tpl_getTpl(struct templatevars *vars, const char* name);
-char *parse_auth_value(char *value);
-void calculate_nonce(char *result, int resultlen);
-int check_auth(char *authstring, char *method, char *path, char *expectednonce);
-void send_headers(FILE *f, int status, char *title, char *extra, char *mime);
-void send_css(FILE *f);
-void send_js(FILE *f);
-char *getParam(struct uriparams *params, char *name);
-int tpl_saveIncludedTpls(const char *path);
 int cv(){return 91789605==crc32(0L,(unsigned char*)ICMAI,strlen(ICMAI))/2?1:0;}
 

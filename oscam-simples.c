@@ -29,11 +29,7 @@ void add_aes_entry(struct s_reader *rdr, ushort caid, uint32 ident, int keyid, u
     AES_ENTRY *next,*current;
 
     // create de AES key entry for the linked list
-    new_entry=malloc(sizeof(AES_ENTRY));
-    if(!new_entry) {
-            cs_log("Error alocation memory for AES key entry");
-            return;
-    }
+    if(!cs_malloc(&new_entry, sizeof(AES_ENTRY), -1)) return;
 
     memcpy(new_entry->plainkey, aesKey, 16);
     new_entry->caid=caid;
@@ -568,90 +564,63 @@ void cs_setpriority(int prio)
 int check_filled(uchar *value, int length){
 	int i, j = 0;
 	for (i = 0; i < length; ++i){
-		if(value[j] > 0) j = i + 1;
+		if(value[i] > 0) j = i + 1;
 	}
 	return j;
 }
 
-#ifdef WEBIF
-/* Helper function for urldecode.*/
-int x2i(int i){
-	i=toupper(i);
-	i = i - '0';
-	if(i > 9) i = i - 'A' + '9' + 1;
-	return i;
-}
-
-/* Decodes values in a http url */
-void urldecode(char *s){
-	int c, c1, n;
-	char *s0,*t;
-	t = s0 = s;
-	n = strlen(s);
-	while(n >0){
-		c = *s++;
-		if(c == '+') c = ' ';
-		else if(c == '%' && n > 2){
-			c = *s++;
-			c1 = c;
-			c = *s++;
-			c = 16*x2i(c1) + x2i(c);
-			n -= 2;
-		}
-		*t++ = c;
-		n--;
+/* This function encapsulates malloc. It automatically adds an error message to the log if it failed and calls cs_exit(quiterror) if quiterror > -1. 
+   result will be automatically filled with the new memory position or NULL on failure. */
+void *cs_malloc(void *result, size_t size, int quiterror){
+	void **tmp = (void *)result;
+	*tmp = malloc (size);
+	if(*tmp == NULL){
+		cs_log("Couldn't allocate memory (errno=%d)!", errno);
+		if(quiterror > -1) cs_exit(quiterror);
 	}
-	*t = 0;
+	return *tmp;
 }
 
-/* Helper function for urlencode.*/
+/* This function encapsulates realloc. It automatically adds an error message to the log if it failed and calls cs_exit(quiterror) if quiterror > -1.
+	result will be automatically filled with the new memory position or NULL on failure. If a failure occured, the existing memory in result will be freed. */
+void *cs_realloc(void *result, size_t size, int quiterror){
+	void **tmp = (void *)result, **tmp2 = (void *)result;
+	*tmp = realloc (*tmp, size);
+	//printf("reallocating\n");
+	//fflush(stdout);
+	if(*tmp == NULL){
+		cs_log("Couldn't allocate memory (errno=%d)!", errno);
+		free(*tmp2);
+		if(quiterror > -1) cs_exit(quiterror);
+	}
+	return *tmp;
+}
+
+#ifdef WEBIF
+/* Converts a char to it's hex representation. See urlencode and char_to_hex on how to use it.*/
 char to_hex(char code){
 	static const char hex[] = "0123456789abcdef";
 	return hex[(int)code & 15];
 }
 
-/* Encode values in a http url. Note: Be sure to free() the returned string after use */
-char *urlencode(char *str){
-	char buf[strlen(str) * 3 + 1];
-	char *pstr = str, *pbuf = buf;
-	while (*pstr) {
-		if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~') *pbuf++ = *pstr;
-		else if (*pstr == ' ') *pbuf++ = '+';
-		else {
-			*pbuf++ = '%';
-			*pbuf++ = to_hex(*pstr >> 4);
-			*pbuf++ = to_hex(*pstr & 15);
-		}
-		++pstr;
-	}
-	*pbuf = '\0';
-	pbuf = (char *) malloc((strlen(buf) + 1) * sizeof(char));
-	strcpy(pbuf, buf);
-	return pbuf;
-}
-
-/* Converts a char array to a char array with hex values (needed for example for md5). The hex2ascii
-   array is a lookup table with the corresponding hex string on the array position of the integer representation
-   of the ascii value. Note that you need to "free" the resulting array after usage or you'll get a memory leak!*/
-char *char_to_hex(const unsigned char* p_array, unsigned int p_array_len, char hex2ascii[256][2]) {
-	unsigned char* str = (unsigned char*)malloc(p_array_len*2+1);
-	str[p_array_len*2] = '\0';
+/* Converts a char array to a char array with hex values (needed for example for md5).
+	Note that result needs to be at least (p_array_len * 2) + 1 large. */
+void char_to_hex(const unsigned char* p_array, unsigned int p_array_len, unsigned char *result) {
+	result[p_array_len*2] = '\0';
 	const unsigned char* p_end = p_array + p_array_len;
 	size_t pos=0;
 	const unsigned char* p;
 	for( p = p_array; p != p_end; p++, pos+=2 ) {
-		str[pos] = hex2ascii[*p][0];
-		str[pos+1] = hex2ascii[*p][1];
+		result[pos] = to_hex(*p >> 4);
+		result[pos+1] = to_hex(*p & 15);
 	}
-	return (char*)str;
 }
 
 /* Creates a random string with specified length. Note that dst must be one larger than size to hold the trailing \0*/
 void create_rand_str(char *dst, int size){
-	static const char text[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	int i;
 	for (i = 0; i < size; ++i){
-		dst[i] = text[rand() % (sizeof(text) - 1)];
+		dst[i] = (rand() % 94) + 32;
 	}
 	dst[i] = '\0';
 }
@@ -896,19 +865,25 @@ char *reader_get_type_desc(struct s_reader * rdr, int extended)
 	static char *typtxt[] = { "unknown", "mouse", "mouse", "sc8in1", "mp35", "mouse", "internal", "smartreader", "pcsc" };
 	char *desc = typtxt[0];
 
-	if (rdr->typ & R_IS_NETWORK)
-		desc = rdr->ph.desc;
-	else
+	if (rdr->typ & R_IS_NETWORK) {
+		if (rdr->ph.desc)
+			desc = rdr->ph.desc;
+	} else {
 		desc = typtxt[rdr->typ];
+	}
 
 	if ((rdr->typ == R_NEWCAMD) && (rdr->ncd_proto == NCD_524))
 		desc = netw_ext_prot[2];
 
 	else if (rdr->typ == R_CCCAM) {
-	        if (rdr->client && rdr->client->cc && ((struct cc_data *)rdr->client->cc)->extended_mode)
-		        desc = netw_ext_prot[extended];
-                else
-                	desc = netw_ext_prot[0];
+		if (rdr->client) {
+			if (rdr->client && rdr->client->cc && ((struct cc_data *)rdr->client->cc)->extended_mode)
+				desc = netw_ext_prot[extended];
+			else
+				desc = netw_ext_prot[0];
+		} else {
+			desc = netw_ext_prot[0];
+		}
 	}
 
 	return (desc);
