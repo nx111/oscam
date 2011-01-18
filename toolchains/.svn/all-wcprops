@@ -1,19 +1,19 @@
 K 25
 svn:wc:ra_dav:version-url
 V 41
-/svn/oscam/!svn/ver/3759/trunk/toolchains
-END
-toolchain-mips-dir825.cmake
-K 25
-svn:wc:ra_dav:version-url
-V 69
-/svn/oscam/!svn/ver/3036/trunk/toolchains/toolchain-mips-dir825.cmake
+/svn/oscam/!svn/ver/4466/trunk/toolchains
 END
 toolchain-arm-dockstar-openwrt.cmake
 K 25
 svn:wc:ra_dav:version-url
 V 78
 /svn/oscam/!svn/ver/2953/trunk/toolchains/toolchain-arm-dockstar-openwrt.cmake
+END
+toolchain-mips-dir825.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/oscam/!svn/ver/3036/trunk/toolchains/toolchain-mips-dir825.cmake
 END
 toolchain-arm-coolstream.cmake
 K 25
@@ -39,17 +39,29 @@ svn:wc:ra_dav:version-url
 V 69
 /svn/oscam/!svn/ver/1389/trunk/toolchains/toolchain-mips-agv2_w.cmake
 END
+toolchain-mips-tuxbox.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/oscam/!svn/ver/109/trunk/toolchains/toolchain-mips-tuxbox.cmake
+END
 toolchain-sh4-amino.cmake
 K 25
 svn:wc:ra_dav:version-url
 V 66
 /svn/oscam/!svn/ver/109/trunk/toolchains/toolchain-sh4-amino.cmake
 END
-toolchain-mips-tuxbox.cmake
+toolchain-sparc-padre.cmake
 K 25
 svn:wc:ra_dav:version-url
-V 68
-/svn/oscam/!svn/ver/109/trunk/toolchains/toolchain-mips-tuxbox.cmake
+V 69
+/svn/oscam/!svn/ver/4466/trunk/toolchains/toolchain-sparc-padre.cmake
+END
+toolchain-mips-fonera2.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/oscam/!svn/ver/109/trunk/toolchains/toolchain-mips-fonera2.cmake
 END
 toolchain-mips-wrt54g.cmake
 K 25
@@ -57,11 +69,11 @@ svn:wc:ra_dav:version-url
 V 68
 /svn/oscam/!svn/ver/791/trunk/toolchains/toolchain-mips-wrt54g.cmake
 END
-toolchain-mips-fonera2.cmake
+toolchain-arm-wrt350nv2-openwrt.cmake
 K 25
 svn:wc:ra_dav:version-url
-V 69
-/svn/oscam/!svn/ver/109/trunk/toolchains/toolchain-mips-fonera2.cmake
+V 79
+/svn/oscam/!svn/ver/4465/trunk/toolchains/toolchain-arm-wrt350nv2-openwrt.cmake
 END
 toolchain-powerpc-tuxbox.cmake
 K 25
@@ -75,17 +87,17 @@ svn:wc:ra_dav:version-url
 V 74
 /svn/oscam/!svn/ver/964/trunk/toolchains/toolchain-arm-nslu2-unslung.cmake
 END
-toolchain-arm-nslu2-openwrt.cmake
-K 25
-svn:wc:ra_dav:version-url
-V 74
-/svn/oscam/!svn/ver/964/trunk/toolchains/toolchain-arm-nslu2-openwrt.cmake
-END
 toolchain-arm-none.cmake
 K 25
 svn:wc:ra_dav:version-url
 V 65
 /svn/oscam/!svn/ver/594/trunk/toolchains/toolchain-arm-none.cmake
+END
+toolchain-arm-nslu2-openwrt.cmake
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svn/oscam/!svn/ver/964/trunk/toolchains/toolchain-arm-nslu2-openwrt.cmake
 END
 toolchain-mipsel-tuxbox.cmake
 K 25

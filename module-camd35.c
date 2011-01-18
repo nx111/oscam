@@ -17,7 +17,7 @@ static int camd35_send(uchar *buf)
 {
 	int l;
 	unsigned char rbuf[REQ_SIZE+15+4], *sbuf = rbuf + 4;
-  struct s_client *cl = cur_client();
+	struct s_client *cl = cur_client();
 
 	if (!cl->udp_fd) return(-1);
 	l = 20 + buf[1] + (((buf[0] == 3) || (buf[0] == 4)) ? 0x34 : 0);
@@ -147,7 +147,7 @@ static void camd35_request_emm(ECM_REQUEST *er)
 	int i;
 	time_t now;
 	uchar mbuf[1024];
-  struct s_client *cl = cur_client();
+	struct s_client *cl = cur_client();
 
 	struct s_reader *aureader = cl->aureader;
 	if (!aureader)
@@ -220,8 +220,10 @@ static void camd35_request_emm(ECM_REQUEST *er)
 		mbuf[20] = mbuf[39] = mbuf[40] = mbuf[47] = mbuf[49] = 1;
 
 	memcpy(mbuf + 10, mbuf + 20, 2);
+	cs_sleepms(500);
 	camd35_send(mbuf);		// send with data-len 111 for camd3 > 3.890
 	mbuf[1]++;
+	cs_sleepms(500);
 	camd35_send(mbuf);		// send with data-len 112 for camd3 < 3.890
 }
 
@@ -230,14 +232,14 @@ static void camd35_send_dcw(struct s_client *client, ECM_REQUEST *er)
 	uchar *buf;
 	buf = client->req + (er->cpti * REQ_SIZE);	// get orig request
 
-	if (((er->rcEx > 0) || (er->rc == 8)) && !client->c35_suppresscmd08)
+	if (((er->rcEx > 0) || (er->rc == E_INVALID)) && !client->c35_suppresscmd08)
 	{
 		buf[0] = 0x08;
 		buf[1] = 2;
 		memset(buf + 20, 0, buf[1]);
 		buf[22] = er->rc; //put rc in byte 22 - hopefully don't break legacy camd3
 	}
-	else if (er->rc == 13)
+	else if (er->rc == E_STOPPED)
 	{
 		buf[0] = 0x08;
 		buf[1] = 2;
@@ -253,7 +255,7 @@ static void camd35_send_dcw(struct s_client *client, ECM_REQUEST *er)
 	else
 	{
 		// Send CW
-		if ((er->rc < 4) || (er->rc == 7))
+		if ((er->rc < E_NOTFOUND) || (er->rc == E_FAKE))
 		{
 			if (buf[0]==3)
 				memmove(buf + 20 + 16, buf + 20 + buf[1], 0x34);

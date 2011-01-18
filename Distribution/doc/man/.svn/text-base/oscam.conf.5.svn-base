@@ -19,9 +19,9 @@ bind service to specified IP address, default:all
 value to delay cached requests, default:0
 .RE
 .PP
-\fBlogfile\fP = \fBfilename\fP|\fB/dev/null\fP|\fB/dev/tty\fP|\fBsyslog\fP
+\fBlogfile\fP = \fBfilename\fP[\fB;/dev/null\fP][\fB;/dev/tty\fP][\fB;syslog\fP]
 .RS 3n
-logging target, default: /var/log/oscam.log
+logging targets, default: /var/log/oscam.log
 .RE
 .PP
 \fBdisablelog\fP = \fB0\fP|\fB1\fP
@@ -101,11 +101,6 @@ set mode for DNS resolving:
 
   0 = getadressinfo (default)
   1 = gethostbyname
-.RE
-.PP
-\fBresolvedelay\fP = \fBseconds\fP
-.RS 3n
-delay for DNS resolving, default:30
 .RE
 .PP
 \fBclientdyndns\fP = \fB0\fP|\fB1\fP
@@ -222,6 +217,11 @@ time between retrying failed readers/CAIDs/providers/services, default:900
 \fBlb_retrylimit\fP = \fBmilli seconds\fP
 .RS 3n
 retry next readers only if response time is higher then lb_retrylimit, default:800
+.RE
+.PP
+\fBlb_savepath\fP = \fBfilename\fP
+.RS 3n
+filenanme for saving loadbalancing statistics, default:/tmp/.oscam/stat
 .RE
 .SS "The [monitor] section"
 .PP
@@ -345,11 +345,6 @@ write config:
 \fBhttpreadonly\fP = \fB0\fP|\fB1\fP
 .RS 3n
 1 = read only modus for web interface, default:0
-.RE
-.PP
-\fBhttpjsicons\fP = \fB0\fP|\fB1\fP
-.RS 3n
-1= use Javascript to set base64 icons, default:1
 .RE
 .SS "The [camd33] section"
 .PP
@@ -669,7 +664,7 @@ PMT mode:
  3 = read PMT file on startup only
 .RE
 .PP
-\fBboxtype\fP = \fBdbox2\fP|\fBdreambox\fP|\fBdm7000\fP|\fBduckbox\fP|\fBufs910\fP|\fBipbox\fP|\fBipbox-pmt\fP
+\fBboxtype\fP = \fBdbox2\fP|\fBdreambox\fP|\fBdm7000\fP|\fBduckbox\fP|\fBufs910\fP|\fBipbox\fP|\fBipbox-pmt\fP|\fBqboxhd\fP|\fBcoolstream\fP|\fBneumo\fP
 .RS 3n
 set boxtype, auto detection of DVB API will be aspired, default:dreambox
 

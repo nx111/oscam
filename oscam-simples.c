@@ -562,6 +562,7 @@ void cs_setpriority(int prio)
 /* Checks an array if it is filled (a value > 0) and returns the last position (1...length) where something was found.
    length specifies the maximum length to check for. */
 int check_filled(uchar *value, int length){
+	if(value == NULL) return 0;
 	int i, j = 0;
 	for (i = 0; i < length; ++i){
 		if(value[i] > 0) j = i + 1;
@@ -577,6 +578,8 @@ void *cs_malloc(void *result, size_t size, int quiterror){
 	if(*tmp == NULL){
 		cs_log("Couldn't allocate memory (errno=%d)!", errno);
 		if(quiterror > -1) cs_exit(quiterror);
+	} else {
+		memset(*tmp, 0, size);
 	}
 	return *tmp;
 }
@@ -586,8 +589,6 @@ void *cs_malloc(void *result, size_t size, int quiterror){
 void *cs_realloc(void *result, size_t size, int quiterror){
 	void **tmp = (void *)result, **tmp2 = (void *)result;
 	*tmp = realloc (*tmp, size);
-	//printf("reallocating\n");
-	//fflush(stdout);
 	if(*tmp == NULL){
 		cs_log("Couldn't allocate memory (errno=%d)!", errno);
 		free(*tmp2);
@@ -865,6 +866,9 @@ char *reader_get_type_desc(struct s_reader * rdr, int extended)
 	static char *typtxt[] = { "unknown", "mouse", "mouse", "sc8in1", "mp35", "mouse", "internal", "smartreader", "pcsc" };
 	char *desc = typtxt[0];
 
+	if (rdr->crdr.active==1)
+		return rdr->crdr.desc;
+
 	if (rdr->typ & R_IS_NETWORK) {
 		if (rdr->ph.desc)
 			desc = rdr->ph.desc;
@@ -932,3 +936,15 @@ char *get_ncd_client_name(char *client_id)
 
         return ncd_service_names[max_id_idx+1];
 }
+
+char *strnew(char *str)
+{
+  if (!str)
+    return NULL;
+    
+  char *newstr = cs_malloc(&newstr, strlen(str)+1, 1);
+  strcpy(newstr, str);
+  
+  return newstr;
+}
+

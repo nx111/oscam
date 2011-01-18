@@ -1,9 +1,5 @@
 #include "globals.h"
-#include <sys/time.h>
 
-#define CHECK_HEALTH_PERIOD 1000 //check health only every X milliseconds
-
-struct timeval last_time_health_checked = {0,0};
 int logfd=0;
 
 void reader_do_idle(struct s_reader * reader);
@@ -179,8 +175,7 @@ int hostResolve(struct s_reader *rdr)
      cl->udp_sa.sin_addr.s_addr = 0;
      cl->ip = 0;
    } else if (cl->ip != last_ip) {
-     uchar *ip = (uchar*) &cl->ip;
-     cs_log("%s: resolved ip=%d.%d.%d.%d", rdr->device, ip[3], ip[2], ip[1], ip[0]);
+     cs_log("%s: resolved ip=%s", rdr->device, cs_inet_ntoa(cl->ip));
    }
 
    pthread_mutex_unlock(&gethostbyname_lock);
@@ -507,7 +502,7 @@ static int reader_store_emm(uchar *emm, uchar type)
 static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
 {
   //cs_log("hallo idx:%d rc:%d caid:%04X",er->idx,er->rc,er->caid);
-  if ((er->rc<10) )
+  if ((er->rc<E_NOCARD) ) //FIXME should this not be <= E_STOPPED?
     {
       send_dcw(reader->client, er);
       return;
@@ -518,14 +513,14 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
   {
     cs_debug_mask(D_READER, "caid %04X filtered", er->caid);
     er->rcEx=E2_CAID;
-    er->rc=0;
+    er->rc = E_FOUND;
     write_ecm_answer(reader, er);
     return;
   }
   // cache2
   if (check_cwcache2(er, er->client->grp))
   {
-    er->rc=2;
+    er->rc = E_CACHE2;
     write_ecm_answer(reader, er);
     return;
   }
@@ -562,7 +557,7 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
 		//drop
 		cs_debug_mask(D_READER, "ratelimit could not find space for srvid %04X. Dropping.",er->srvid);
 		er->rcEx=32;
-		er->rc=0;
+		er->rc = E_FOUND;
 		int clcw;
 		for (clcw=0;clcw<16;clcw++) er->cw[clcw]=(uchar)0;
 		snprintf( er->msglog, MSGLOGSIZE, "ECMratelimit no space for srvid" );
@@ -772,14 +767,7 @@ static int reader_listen(struct s_reader * reader, int fd1, int fd2)
   }
 
 #ifdef WITH_CARDREADER
-  if (!(reader->typ & R_IS_CASCADING)) {
-    struct timeval cur_time;
-    gettimeofday(&cur_time,0);
-    if ((((cur_time.tv_sec-last_time_health_checked.tv_sec)*1000) + ((cur_time.tv_usec-last_time_health_checked.tv_usec)/1000L)) >= CHECK_HEALTH_PERIOD) {
-      reader_checkhealth(reader);
-      gettimeofday(&last_time_health_checked,0);
-    }
-  }
+  if (!(reader->typ & R_IS_CASCADING)) reader_checkhealth(reader);
 #endif
   return(0);
 }

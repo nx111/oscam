@@ -29,7 +29,6 @@
 
 #include <pthread.h>
 
-#include "module-obj-llist.h"
 #include "module-datastruct-llist.h"
 
 //for reader-nagra variables in s_reader:
@@ -111,9 +110,6 @@
 #ifndef CS_CONFDIR
 #define CS_CONFDIR    "/usr/local/etc"
 #endif
-#ifndef CS_MMAPFILE
-#define CS_MMAPFILE   "/tmp/oscam.mem"
-#endif
 #ifndef CS_LOGFILE
 #define CS_LOGFILE    "/var/log/oscam.log"
 #endif
@@ -136,7 +132,6 @@
 #define CS_CLIENT_MAXIDLE 120
 #define CS_BIND_TIMEOUT   120
 #define CS_DELAY          0
-#define CS_RESOLVE_DELAY  30
 #define CS_MAXLOGHIST     30
 #define CS_LOGHISTSIZE    193 // 32+128+33: username + logline + channelname
 #define CS_MAXREADERCAID  16
@@ -192,6 +187,25 @@
 #define R_IS_NETWORK    0x60
 #define R_IS_CASCADING  0xE0
 
+//ECM rc codes:
+#define E_FOUND			0
+#define E_CACHE1		1
+#define E_CACHE2		2
+#define E_EMU				3
+///////above is all found
+#define E_NOTFOUND	4  //for selection of found, use < E_NOTFOUND
+#define E_TIMEOUT		5
+#define E_SLEEPING	6
+#define E_FAKE			7
+#define E_INVALID		8
+#define E_CORRUPT		9
+#define E_NOCARD		10
+#define E_EXPDATE		11
+#define	E_DISABLED	12
+#define	E_STOPPED		13 //for selection of error, use <= E_STOPPED and exclude selection of found
+///////above is all notfound, some error or problem
+#define E_99				99 //this code is undocumented
+#define E_UNHANDLED	100 //for selection of unhandled, use >= E_UNHANDLED
 
 #define CS_MAX_MOD 20
 #define MOD_CONN_TCP    1
@@ -213,7 +227,9 @@
 #define BOXTYPE_IPBOX_PMT	6
 #define BOXTYPE_DM7000	7
 #define BOXTYPE_QBOXHD	8
-#define BOXTYPES		8
+#define BOXTYPE_COOLSTREAM	9
+#define BOXTYPE_NEUMO	10
+#define BOXTYPES		10
 extern const char *boxdesc[];
 #endif
 
@@ -248,7 +264,8 @@ extern char *RDR_CD_TXT[];
 #define NCD_525     2
 
 // moved from reader-common.h
-#define NO_CARD        0
+#define UNKNOWN        0
+#define NO_CARD        4
 #define CARD_NEED_INIT 1
 #define CARD_INSERTED  2
 #define CARD_FAILURE   3
@@ -260,6 +277,7 @@ extern char *RDR_CD_TXT[];
 #define DEFAULT_NBEST 1
 #define DEFAULT_NFB 1
 #define DEFAULT_RETRYLIMIT 800
+#define DEFAULT_LB_STAT_CLEANUP 336
 
 enum {E1_GLOBAL=0, E1_USER, E1_READER, E1_SERVER, E1_LSERVER};
 enum {E2_GLOBAL=0, E2_GROUP, E2_CAID, E2_IDENT, E2_CLASS, E2_CHID, E2_QUEUE,
@@ -494,6 +512,8 @@ struct s_cardreader
 	int	(*write_settings)(struct s_reader*, unsigned long ETU, unsigned long EGT, unsigned char P, unsigned char I);
 	int	(*set_protocol)(struct s_reader*, unsigned char * params, unsigned *length, uint len_request);
 	int	(*set_baudrate)(struct s_reader*, ulong baud); //set only for readers which need baudrate setting and timings need to be guarded by OSCam
+	int	flush;
+	int	typ; //fixme: workaround, remove when all old code is converted
 };
 
 struct s_cardsystem
@@ -535,8 +555,8 @@ typedef struct ecm_request_t
   ushort        idx;
   ulong         prid;
   struct s_reader *selected_reader;
-  int           rdr_count;
-  uint8         *matching_rdr;
+  LLIST         *matching_rdr; //list of matching readers
+  LL_NODE       *fallback; // in *matching_rdr, at position "fallback" the first fallback reader is in the list
   struct s_client *client; //contains pointer to 'c' client while running in 'r' client
   int           cpti;   // client pending table index
   int           stage;    // processing stage in server module
@@ -1026,13 +1046,13 @@ struct s_config
 	int		ulparent;
 	ulong		delay;
 	int		bindwait;
-	int		resolvedelay;
-	int		clientdyndns;
 	int		tosleep;
 	in_addr_t	srvip;
 	char		*usrfile;
 	char		*cwlogdir;
 	char		*logfile;
+	uint8	logtostdout;
+	uint8 logtosyslog;
 	int		disablelog;
 	int		disableuserfile;
 	int		usrfileflag;
@@ -1065,12 +1085,11 @@ struct s_config
 	uchar		http_dyndns[64];
 	int			http_use_ssl;
 	char		http_cert[128];
-	int			http_js_icons;
 #endif
 	int			http_full_cfg;
 	int			failbantime;
 	int			failbancount;
-	LLIST_D_ 		*v_list; //failban list
+	LLIST 		*v_list; //failban list
 	int		c33_port;
 	in_addr_t	c33_srvip;
 	uchar		c33_key[16];
@@ -1120,6 +1139,9 @@ struct s_config
 	int     lb_max_ecmcount; // maximum ecm count before reseting lbvalues
 	int     lb_reopen_seconds; //time between retrying failed readers/caids/prov/srv
 	int	lb_retrylimit; //reopen only happens if reader response time > retrylimit
+	char	*lb_savepath; //path where the stat file is save. Empty=default=/tmp/.oscam/stat
+	int	lb_stat_cleanup; //duration in hours for cleaning old statistics
+	
 	int             resolve_gethostbyname;
 
 #ifdef CS_WITH_DOUBLECHECK
@@ -1146,6 +1168,7 @@ struct s_config
 	char		dvbapi_usr[64];
 	int		dvbapi_boxtype;
 	int		dvbapi_pmtmode;
+	int		dvbapi_requestmode;
 	SIDTABBITS    dvbapi_sidtabok;	// positiv services
 	SIDTABBITS    dvbapi_sidtabno;	// negative services
 #endif
@@ -1263,6 +1286,7 @@ extern int hexserialset(struct s_reader *rdr);
 extern char *monitor_get_proto(struct s_client *);
 extern char *reader_get_type_desc(struct s_reader * rdr, int extended);
 extern char *get_ncd_client_name(char *client_id);
+extern char *strnew(char *str);
 
 extern pthread_key_t getclient;
 extern struct s_client * cur_client(void);
@@ -1310,17 +1334,15 @@ extern struct s_client * get_client_by_tid(unsigned long);
 extern int chk_bcaid(ECM_REQUEST *, CAIDTAB *);
 extern void cs_exit(int sig);
 extern int comp_timeb(struct timeb *tpa, struct timeb *tpb);
-extern struct s_client * cs_fork(in_addr_t);
+extern struct s_client * create_client(in_addr_t);
 extern int cs_auth_client(struct s_client *, struct s_auth *, const char*);
 extern void cs_disconnect_client(struct s_client *);
 extern int check_cwcache2(ECM_REQUEST *, uint64);
 extern int write_to_pipe(int, int, uchar *, int);
 extern int read_from_pipe(int, uchar **, int);
-extern int write_ecm_request(int, ECM_REQUEST *);
 extern int write_ecm_answer(struct s_reader *, ECM_REQUEST *);
 extern void log_emm_request(struct s_reader *);
 extern ulong chk_provid(uchar *, ushort);
-extern void guess_cardsystem(ECM_REQUEST *);
 #ifdef IRDETO_GUESSING
 extern void guess_irdeto(ECM_REQUEST *);
 #endif
@@ -1345,6 +1367,7 @@ extern int process_client_pipe(struct s_client *cl, uchar *buf, int l);
 extern void update_reader_config(uchar *ptr);
 extern int chk_ctab(ushort caid, CAIDTAB *ctab);
 extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid);
+extern void nullclose(int *fd);
 extern void kill_thread(struct s_client *cl);
 extern int get_threadnum(struct s_client *client);
 extern int get_ridx(struct s_reader *reader);
@@ -1428,6 +1451,7 @@ extern char *mk_t_aeskeys(struct s_reader *rdr);
 extern char *mk_t_newcamd_port();
 extern char *mk_t_nano(struct s_reader *rdr, uchar flag);
 extern char *mk_t_service( uint64 sidtabok, uint64 sidtabno);
+extern char *mk_t_logfile();
 
 //Todo #ifdef CCCAM
 extern int init_provid();
@@ -1499,6 +1523,9 @@ extern void clear_reader_stat(struct s_reader *reader);
 extern void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int ecm_time, int rc);
 extern void load_stat_from_file();
 extern void save_stat_to_file();
+extern void clear_all_stat();
+extern void housekeeping_stat(int force);
+
 #ifdef HAVE_PCSC
 // reader-pcsc
 extern void pcsc_close(struct s_reader *pcsc_reader);
@@ -1516,7 +1543,10 @@ void reader_videoguard12();
 void reader_dre();
 void reader_tongfang();
 
-void cardreader_mouse();
+void cardreader_mouse(struct s_cardreader *crdr);
+#ifdef WITH_STAPI
+void cardreader_stapi(struct s_cardreader *crdr);
+#endif
 
 // protocol modules
 extern int  monitor_send_idx(struct s_client *, char *);
@@ -1545,5 +1575,6 @@ extern void http_srv();
 // oscam-garbage
 extern void add_garbage(void *data);
 extern void start_garbage_collector();
+extern void stop_garbage_collector();
 
 #endif  // CS_GLOBALS

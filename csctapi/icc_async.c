@@ -56,6 +56,25 @@
 #define PPS_HAS_PPS2(block)       ((block[1] & 0x20) == 0x20)
 #define PPS_HAS_PPS3(block)       ((block[1] & 0x40) == 0x40)
 
+//declare locking stuff for sc8in1 reader
+static pthread_mutex_t sc8in1; //semaphore for SC8in1, FIXME should not be global, but one per SC8in1
+
+#define LOCK_SC8IN1 \
+{ \
+	if (reader->typ == R_SC8in1) { \
+		pthread_mutex_lock(&sc8in1); \
+		cs_debug_mask(D_ATR, "SC8in1: locked for access of slot %i", reader->slot); \
+		Sc8in1_Selectslot(reader, reader->slot); \
+	} \
+}
+
+#define UNLOCK_SC8IN1 \
+{	\
+	if (reader->typ == R_SC8in1) { \
+		cs_debug_mask(D_ATR, "SC8in1: unlocked for access of slot %i", reader->slot); \
+		pthread_mutex_unlock(&sc8in1); \
+	} \
+}
 
 /*
  * Not exported functions declaration
@@ -219,7 +238,7 @@ int ICC_Async_GetStatus (struct s_reader *reader, int * card)
 	int in=0;
 
 	if (reader->crdr.active==1 && reader->crdr.get_status) {
-		reader->crdr.get_status(reader, &in);
+		call(reader->crdr.get_status(reader, &in));
 
 		if (in)
 			*card = TRUE;
@@ -299,7 +318,7 @@ int ICC_Async_Activate (struct s_reader *reader, ATR * atr, unsigned short depre
 		ATR_InitFromArray(atr, reader->atr, ATR_MAX_SIZE);
 	}
 	else {
-		if (reader->crdr.active && reader->crdr.activate) {
+		if (reader->crdr.active==1 && reader->crdr.activate) {
 			call(reader->crdr.activate(reader, atr));
 		} else {
 
@@ -398,32 +417,32 @@ int ICC_Async_CardWrite (struct s_reader *reader, unsigned char *command, unsign
 
 	LOCK_SC8IN1;
 
-	switch (reader->protocol_type) {
+	int try = 1;
+	do {
+	 switch (reader->protocol_type) {
+		if (try > 1)
+			cs_log("Warning: reader %s needed try nr %i, next ECM has some delay:", reader->label, try);
 		case ATR_PROTOCOL_TYPE_T0:
 			ret = Protocol_T0_Command (reader, command, command_len, rsp, lr);
 			break;
 		case ATR_PROTOCOL_TYPE_T1:
-		 {
-			int try = 1;
-			do {
-				ret = Protocol_T1_Command (reader, command, command_len, rsp, lr);
-				if (ret == OK)
-					break;
-				try++;
+			ret = Protocol_T1_Command (reader, command, command_len, rsp, lr);
+			if (ret != OK) {
 				//try to resync
 				unsigned char resync[] = { 0x21, 0xC0, 0x00, 0xE1 };
 				Protocol_T1_Command (reader, resync, sizeof(resync), rsp, lr);
 				reader->ifsc = DEFAULT_IFSC;
-			} while (try <= 3);
+			}
 			break;
-		 }
 		case ATR_PROTOCOL_TYPE_T14:
 			ret = Protocol_T14_ExchangeTPDU (reader, command, command_len, rsp, lr);
 			break;
 		default:
 			cs_log("Error, unknown protocol type %i",reader->protocol_type);
 			ret = ERROR;
-	}
+	 }
+	try++;
+	} while ((try < 3) && (ret != OK)); //always do one retry when failing
 
 	UNLOCK_SC8IN1;
 
@@ -832,7 +851,8 @@ static int ICC_Async_SetParity (struct s_reader * reader, unsigned short parity)
 	if (reader->crdr.active && reader->crdr.set_parity) {
 		call(reader->crdr.set_parity(reader, parity));
 		return OK;
-	}
+	} else if(reader->crdr.active)
+		return OK;
 
 	switch(reader->typ) {
 		case R_MP35:
@@ -866,6 +886,12 @@ static int SetRightParity (struct s_reader * reader)
 		parity = PARITY_NONE;
 
 	call (ICC_Async_SetParity(reader, parity));
+
+	if (reader->crdr.active) {
+		if (reader->crdr.flush==1)
+			IO_Serial_Flush(reader);
+		return OK;
+	}
 
 #if defined(COOL) || defined(WITH_STAPI) || defined(AZBOX)
 	if (reader->typ != R_INTERNAL)

@@ -1,57 +1,105 @@
+#include <pthread.h>
+
 #include "globals.h"
 #include "module-datastruct-llist.h"
-
-LLIST *garbage_list;
 
 struct cs_garbage {
         time_t time;
         void * data;
+        struct cs_garbage *next;
 };
+
+struct cs_garbage *garbage_first = NULL;
+pthread_mutex_t garbage_lock;
+pthread_t garbage_thread;
+int garbage_collector_active = 0;
 
 void add_garbage(void *data) {
         if (!data)
                 return;
                 
-        pthread_mutex_lock(&garbage_list->lock);
-        
+        if (!garbage_collector_active) {
+          free(data);
+          return;
+        }
+                
+        pthread_mutex_lock(&garbage_lock);
+
         struct cs_garbage *garbage = malloc(sizeof(struct cs_garbage));
         garbage->time = time(NULL);
         garbage->data = data;
-        ll_append(garbage_list, garbage);
-        
-        pthread_mutex_unlock(&garbage_list->lock);
+        garbage->next = garbage_first;
+        garbage_first = garbage;
+
+        pthread_mutex_unlock(&garbage_lock);
 }
 
 void garbage_collector() {
-        LL_ITER *it;
         time_t now;
-        struct cs_garbage *garbage;
-        while (1) {
-                cs_sleepms(1000);
+        struct cs_garbage *garbage, *next, *prev;
+        
+        while (garbage_collector_active) {
                 
+                pthread_mutex_lock(&garbage_lock);
+              
                 now = time(NULL);
-                it = ll_iter_create(garbage_list);
-                while ((garbage = ll_iter_next(it))) {
+
+                prev = NULL;
+                garbage = garbage_first;  
+                while (garbage) {
+                        next = garbage->next;
                         if (now > garbage->time+5) { //5 seconds!
                                 free(garbage->data);
-                                ll_iter_remove_data(it);
+                                
+                                if (prev)
+                                        prev->next = next;
+                                else
+                                        garbage_first = next;
+                                free(garbage);
                         }
+                        else
+                                prev = garbage;
+                        garbage = next;
                 }
-                ll_iter_release(it);       
+                pthread_mutex_unlock(&garbage_lock);
+
+                cs_sleepms(1000);
         }
 }
 
 void start_garbage_collector() {
 
-        garbage_list = ll_create();
-        pthread_t temp;
+        pthread_mutex_init(&garbage_lock, NULL);
+
+        garbage_first = NULL;
         pthread_attr_t attr;
         pthread_attr_init(&attr);
+
+        garbage_collector_active = 1;
+
 #ifndef TUXBOX
-				pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
+        pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
 #endif
-        pthread_create(&temp, &attr, (void*)&garbage_collector, NULL);
-        pthread_detach(temp);
+        pthread_create(&garbage_thread, &attr, (void*)&garbage_collector, NULL);
+        pthread_detach(garbage_thread);
         pthread_attr_destroy(&attr);                                                  
 }
 
+void stop_garbage_collector()
+{
+        if (garbage_collector_active) {
+                garbage_collector_active = 0;
+                pthread_mutex_lock(&garbage_lock);
+                
+                pthread_cancel(garbage_thread);
+                
+                while (garbage_first) {
+                  struct cs_garbage *next = garbage_first->next;
+                  free(garbage_first->data);
+                  free(garbage_first);
+                  garbage_first = next;
+                }
+                pthread_mutex_unlock(&garbage_lock);
+                pthread_mutex_destroy(&garbage_lock);
+        }
+}
