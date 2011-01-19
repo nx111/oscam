@@ -444,6 +444,7 @@ int casc_process_ecm(struct s_reader * reader, ECM_REQUEST *er)
     return(-2);
   }
   memcpy(&cl->ecmtask[n], er, sizeof(ECM_REQUEST));
+  cl->ecmtask[n].matching_rdr = NULL; //This avoids double free of matching_rdr!
   if( reader->typ == R_NEWCAMD )
     cl->ecmtask[n].idx=(reader->ncd_msgid==0)?2:reader->ncd_msgid+1;
   else
@@ -513,7 +514,7 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
   {
     cs_debug_mask(D_READER, "caid %04X filtered", er->caid);
     er->rcEx=E2_CAID;
-    er->rc = E_FOUND;
+    er->rc = E_RDR_NOTFOUND;
     write_ecm_answer(reader, er);
     return;
   }
@@ -557,7 +558,7 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
 		//drop
 		cs_debug_mask(D_READER, "ratelimit could not find space for srvid %04X. Dropping.",er->srvid);
 		er->rcEx=32;
-		er->rc = E_FOUND;
+		er->rc = E_RDR_NOTFOUND;
 		int clcw;
 		for (clcw=0;clcw<16;clcw++) er->cw[clcw]=(uchar)0;
 		snprintf( er->msglog, MSGLOGSIZE, "ECMratelimit no space for srvid" );
