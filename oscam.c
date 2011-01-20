@@ -1484,6 +1484,7 @@ static void store_cw_in_cache(ECM_REQUEST *er, uint64 grp)
 	//cs_ddump(cwcache[*cwidx].ecmd5, CS_ECMSTORESIZE, "ECM stored (idx=%d)", *cwidx);
 }
 
+/*
 // only for debug
 static struct s_client * get_thread_by_pipefd(int fd)
 {
@@ -1493,6 +1494,7 @@ static struct s_client * get_thread_by_pipefd(int fd)
 			return cl;
 	return first_client; //master process
 }
+*/
 
 /*
  * write_to_pipe():
@@ -1791,12 +1793,15 @@ ECM_REQUEST *get_ecmtask()
 		er->cpti=n;
 		er->client=cl;
 		cs_ftime(&er->tps);
-		if (save) {
-		  ll_clear(save);
-		  er->matching_rdr = save;
+		
+		if (cl->typ=='c') { //for clients only! Not for readers!
+  		  if (save) {
+		    ll_clear(save);
+		    er->matching_rdr = save;
+                  }
+                  else
+                    er->matching_rdr = ll_create();
                 }
-                else
-                  er->matching_rdr = ll_create_nolock();
 	}
 	
 	
@@ -2494,13 +2499,13 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 			if (matching_reader(er, rdr)) {
 				if (rdr->fallback) {
 					if (er->fallback == NULL) //first fallbackreader to be added
-						er->fallback=ll_append_nolock(er->matching_rdr, rdr);
+						er->fallback=ll_append(er->matching_rdr, rdr);
 					else
-						ll_append_nolock(er->matching_rdr, rdr);
+						ll_append(er->matching_rdr, rdr);
 					
 				}
 				else {
-					ll_insert_at_nolock(er->matching_rdr, rdr, 0);
+					ll_prepend(er->matching_rdr, rdr);
 				}
 				if (cfg->lb_mode || !rdr->fallback)
 					er->reader_avail++;
