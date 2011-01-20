@@ -1,3 +1,5 @@
+#include <sys/time.h>
+
 #include "globals.h"
 
 int logfd=0;
@@ -243,7 +245,7 @@ int network_tcp_connection_open()
            if (r == 0) {
               fcntl(sd, F_SETFL, fl);
               clear_block_delay(rdr);
-              return sd; //now we are connected
+              return sd; //tv we are connected
            }
 	}
      }
@@ -736,10 +738,10 @@ static int reader_listen(struct s_reader * reader, int fd1, int fd2)
   {
     if (tcp_toflag)
     {
-      time_t now;
+      time_t tv;
       int time_diff;
-      time(&now);
-      time_diff = abs(now-reader->last_s);
+      time(&tv);
+      time_diff = abs(tv-reader->last_s);
       if (time_diff>(reader->tcp_ito*60))
       {
         if (reader->ph.c_idle)
@@ -768,7 +770,19 @@ static int reader_listen(struct s_reader * reader, int fd1, int fd2)
   }
 
 #ifdef WITH_CARDREADER
-  if (!(reader->typ & R_IS_CASCADING)) reader_checkhealth(reader);
+  if (!(reader->typ & R_IS_CASCADING)) { 
+      struct timeval tv;    
+      
+#define CHECK_HEALTH_PERIOD 1000
+      if (reader->card_status == CARD_INSERTED) {
+          gettimeofday(&tv, NULL);
+          if (((tv.tv_sec * 1000 + tv.tv_usec / 1000) - reader->last_health_check >= CHECK_HEALTH_PERIOD)) {
+              reader_checkhealth(reader);
+              gettimeofday(&tv, NULL);
+              reader->last_health_check = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+          }
+      }
+  }
 #endif
   return(0);
 }

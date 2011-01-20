@@ -1535,10 +1535,12 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 
 		if(value && value[0] == '1')
 			account->autoau = 1;
+		LL_ITER *itr = ll_iter_create(configured_readers);
 		struct s_reader *rdr;
-		for (rdr=first_reader; rdr ; rdr=rdr->next)
+		while ((rdr = ll_iter_next(itr)))
 			if ((rdr->label[0]) && (!strncmp(rdr->label, value, strlen(rdr->label))))
 				account->aureader = rdr;
+		ll_iter_release(itr);
 		return;
 	}
 
@@ -2204,8 +2206,9 @@ int write_server()
 	fprintf(f,"# Read more: http://streamboard.gmc.to/oscam/browser/trunk/Distribution/doc/txt/oscam.server.txt\n\n");
 
 	struct s_reader *rdr;
-	for (rdr=first_reader; rdr ; rdr=rdr->next) {
-		if ( rdr->label[0] && !rdr->deleted) {
+	LL_ITER *itr = ll_iter_create(configured_readers);
+	while((rdr = ll_iter_next(itr))) {
+		if ( rdr->label[0]) {
 			int isphysical = (rdr->typ & R_IS_NETWORK)?0:1;
 			fprintf(f,"[reader]\n");
 
@@ -2419,6 +2422,7 @@ int write_server()
 			fprintf(f, "\n\n");
 		}
 	}
+	ll_iter_release(itr);
 	fclose(f);
 
 	return(safe_overwrite_with_bak(destfile, tmpfile, bakfile, 0));
@@ -3725,7 +3729,7 @@ int init_irdeto_guess_tab()
 }
 #endif
 
-int init_cccamcfg()
+int init_cccamcfg(int mode)
 {
 	FILE *fp;
 	char line[2048];
@@ -3741,9 +3745,11 @@ int init_cccamcfg()
 		return(1);
 	}
 
-	struct s_reader *rdr = first_reader;
-	while (rdr){
-		rdr=rdr->next;
+	struct s_reader *rdr, *first_reader=NULL;
+	LL_ITER *itr = ll_iter_create(configured_readers);
+	while((rdr = ll_iter_next(itr))) {
+		if(!first_reader)
+			first_reader = rdr;
 	}
 
 	while (fgets(token,sizeof(token),fp)) {
@@ -3774,11 +3780,14 @@ int init_cccamcfg()
 
 		if(rdr){
 			struct s_reader *newreader = (struct s_reader*) malloc (sizeof(struct s_reader));
-			rdr->next = newreader; //add reader to list
+			ll_append(configured_readers, newreader);
 			rdr = newreader; //and advance to end of list
 		}
-		else
+		else{
 			rdr=(struct s_reader*) malloc (sizeof(struct s_reader));
+			ll_append(configured_readers, rdr);
+		}
+
 		if(!first_reader)
 			first_reader=rdr;
 		memset(rdr, 0, sizeof(struct s_reader));
@@ -3821,9 +3830,27 @@ int init_cccamcfg()
 		cs_strncpy(rdr->label,token,sizeof(rdr->label));
 		rdr->enable = 1;
 		rdr->grp = 1;	
-//		cs_log("Add reader(%d) device=%s,%d",rcount,rdr->device,rdr->r_port);
+		cs_log("Add reader device=%s,%d",rdr->device,rdr->r_port);
 	}
 	fclose(fp);
+	ll_iter_release(itr);
+	
+	if(!mode)return 0;
+	itr = ll_iter_create(configured_readers);
+	struct s_reader *cur=NULL;
+	while((rdr = ll_iter_next(itr))) //build active readers list
+		if (rdr->enable) {
+			if (!first_active_reader) {
+				first_active_reader = rdr; //init list
+				cur = rdr;
+			}
+			else {
+				cur->next = rdr; //add to end of list
+				cur = cur->next; //advance list
+			}
+		}
+	ll_iter_release(itr);
+
 	return(0);
 }
 
@@ -3837,13 +3864,14 @@ int init_readerdb()
 	if (!(fp=fopen(token, "r"))) {
 		cs_log("can't open file \"%s\" (errno=%d)", token, errno);
 		if(cfg->cc_cfgfile)
-			return(init_cccamcfg());
+			return(init_cccamcfg(1));
 		else
 			return(1);
 	}
 	struct s_reader *rdr;
 	cs_malloc(&rdr, sizeof(struct s_reader), SIGINT);
-	first_reader = rdr;
+	configured_readers = ll_create();
+	ll_append(configured_readers, rdr);
 	while (fgets(token, sizeof(token), fp)) {
 		int i, l;
 		if ((l = strlen(trim(token))) < 3)
@@ -3854,8 +3882,8 @@ int init_readerdb()
 			if (rdr->label[0] && rdr->typ) {
 				struct s_reader *newreader;
 				if(cs_malloc(&newreader, sizeof(struct s_reader), -1)){
-					rdr->next = newreader; //add reader to list
-					rdr = newreader; //and advance to end of list
+					ll_append(configured_readers, newreader);
+					rdr = newreader;
 				}
 			}
 			memset(rdr, 0, sizeof(struct s_reader));
@@ -3885,9 +3913,25 @@ int init_readerdb()
 		*value++ ='\0';
 		chk_reader(trim(strtolower(token)), trim(value), rdr);
 	}
-	fclose(fp);
 	if(cfg->cc_cfgfile)
-		init_cccamcfg();
+		init_cccamcfg(0);
+
+	LL_ITER *itr = ll_iter_create(configured_readers);
+	struct s_reader *cur=NULL;
+	while((rdr = ll_iter_next(itr))) //build active readers list
+		if (rdr->enable) {
+			if (!first_active_reader) {
+				first_active_reader = rdr; //init list
+				cur = rdr;
+			}
+			else {
+				cur->next = rdr; //add to end of list
+				cur = cur->next; //advance list
+			}
+		}
+	ll_iter_release(itr);
+	
+	fclose(fp);
 
 	return(0);
 }
