@@ -4,6 +4,7 @@
 
 static FILE *fp=(FILE *)0;
 static FILE *fps=(FILE *)0;
+static short logStarted = 0;
 
 pthread_mutex_t switching_log;
 #ifdef CS_LOGHISTORY
@@ -43,8 +44,10 @@ static void switch_log(char* file, FILE **f, int (*pfinit)(void))
 					fprintf(stderr, "rename(%s, %s) failed (errno=%d)\n", file, prev_log, errno);
 				}
 				else
-					if( pfinit())
-						fprintf(stderr, "Initialisation of log file failed, continuing without logging thread %8X.", (unsigned int)pthread_self());
+					if( pfinit()){
+						fprintf(stderr, "Initialisation of log file failed, continuing without logging thread %8X. Log will be output to stdout!", (unsigned int)pthread_self());
+						cfg->logtostdout = 1;
+					}
 			}
 			else //I am not the first to detect a switchlog is needed, so I need to wait for the first thread to complete
 				pthread_mutex_lock(&switching_log); //wait on 1st thread
@@ -58,8 +61,10 @@ void cs_write_log(char *txt)
 #ifdef CS_ANTICASC
 	if( cur_client()->typ == 'a' && fpa ) {
 		switch_log(cfg->ac_logfile, &fpa, ac_init_log);
-		fprintf(fpa, "%s", txt);
-		fflush(fpa);
+		if (fpa) {
+				fputs(txt, fpa);
+				fflush(fpa);
+		}
 	}
 	else
 #endif
@@ -67,33 +72,30 @@ void cs_write_log(char *txt)
 		if(txt[0] == 's') {
 			if (fps) {
 				switch_log(cfg->usrfile, &fps, cs_init_statistics);
-				fprintf(fps, "%s", txt + 1); // remove the leading 's' and write to file
-				fflush(fps);
+				if (fps) {
+						fputs(txt + 1, fps); // remove the leading 's' and write to file
+						fflush(fps);
+				}
 			}
 		} else {
 			if(!cfg->disablelog){
 				if (fp){
-					switch_log(cfg->logfile, &fp, cs_init_log);
-					fprintf(fp, "%s", txt);
-					fflush(fp);
+					switch_log(cfg->logfile, &fp, cs_open_logfiles);
+					if (fp) {
+							fputs(txt, fp);
+							fflush(fp);
+					}		
 				}
 				if(cfg->logtostdout){
-					fprintf(stdout, "%s", txt);
-					fflush(fp);
+					fputs(txt, stdout);
+					fflush(stdout);
 				}
 			}
 		}
 }
 
-int cs_init_log(void)
+int cs_open_logfiles()
 {
-	static char *head = ">> OSCam <<  cardserver started version " CS_VERSION ", build #" CS_SVN_VERSION " (" CS_OSTYPE ")";
-
-	pthread_mutex_init(&switching_log, NULL);
-#ifdef CS_LOGHISTORY
-	pthread_mutex_init(&loghistory_lock, NULL);
-#endif
-
 	if (!fp) {	//log to file
 		if ((fp = fopen(cfg->logfile, "a+")) <= (FILE *)0) {
 			fp = (FILE *)0;
@@ -108,12 +110,26 @@ int cs_init_log(void)
 				fprintf(fp, "\n%s\n>> OSCam <<  cardserver started at %s%s\n", line, ctime(&t), line);
 		}
 	}
-	if (cfg->logtosyslog) { //log to syslog
-		openlog("oscam", LOG_NDELAY, LOG_DAEMON);
-	}
-	cs_log(head);
+	// according to syslog docu: calling closelog is not necessary and calling openlog multiple times is safe
+	// We use openlog to set the default syslog settings so that it's possible to allow switching syslog on and off
+	openlog("oscam", LOG_NDELAY, LOG_DAEMON);
+	
+	cs_log(">> OSCam <<  cardserver started version " CS_VERSION ", build #" CS_SVN_VERSION " (" CS_OSTYPE ")");
 	cs_log_config();
 	return(fp <= (FILE *)0);
+}
+
+int cs_init_log(void)
+{
+	if(logStarted == 0){
+		pthread_mutex_init(&switching_log, NULL);
+#ifdef CS_LOGHISTORY
+		pthread_mutex_init(&loghistory_lock, NULL);
+#endif
+	}
+	int rc = cs_open_logfiles();
+	logStarted = 1;
+	return rc;
 }
 
 static void get_log_header(int m, char *txt)
@@ -141,7 +157,7 @@ static void write_to_log(int flag, char *txt)
 #else
 	if (cfg->logtosyslog) // system-logfile
 #endif
-		syslog(LOG_INFO, "%s", txt);
+		syslog(LOG_INFO, txt);
 
 	time(&t);
 	localtime_r(&t, &lt);

@@ -3830,15 +3830,13 @@ int init_cccamcfg(int mode)
 		cs_strncpy(rdr->label,token,sizeof(rdr->label));
 		rdr->enable = 1;
 		rdr->grp = 1;	
-		cs_log("Add reader device=%s,%d",rdr->device,rdr->r_port);
+//		cs_log("Add reader device=%s,%d",rdr->device,rdr->r_port);
 	}
 	fclose(fp);
-	ll_iter_release(itr);
-	
-	if(!mode)return 0;
-	itr = ll_iter_create(configured_readers);
+
 	struct s_reader *cur=NULL;
-	while((rdr = ll_iter_next(itr))) //build active readers list
+	ll_iter_reset(itr);
+	while(mode && (rdr = ll_iter_next(itr))) //build active readers list
 		if (rdr->enable) {
 			if (!first_active_reader) {
 				first_active_reader = rdr; //init list
@@ -3849,6 +3847,7 @@ int init_cccamcfg(int mode)
 				cur = cur->next; //advance list
 			}
 		}
+
 	ll_iter_release(itr);
 
 	return(0);

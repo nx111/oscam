@@ -47,6 +47,8 @@ struct  s_ecm     *cwidx;
 struct  s_ecm     *ecmcache;
 struct  s_ecm     *ecmidx;
 
+//cachesize
+int cache_size = 0;
 #ifdef CS_WITH_GBOX
 struct  card_struct Cards[CS_MAXCARDS];
 //struct  idstore_struct  idstore[CS_MAXPID];
@@ -584,28 +586,22 @@ static void cleanup_thread(struct s_client *cl)
 
 	//decrease cwcache
 	struct s_ecm *ecmc;
-	if (cwidx->next) {
-		if (cwidx->next->next) {
-			ecmc=cwidx->next->next;
-			add_garbage(cwidx->next);
-			cwidx->next=ecmc;
-		} else {
-			add_garbage(cwidx->next);
-			cwidx->next = NULL;
-                }
-	} else {
-		ecmc=cwcache->next;
-		add_garbage(cwcache);
-		cwcache=ecmc;
+	if (cwcache->next) {
+		ecmc = cwcache;
+		cwcache = cwcache->next;
+		if (cwidx == ecmc)
+				cwidx = cwcache;
+		add_garbage(ecmc);
 	}
 
 	//decrease ecmache
-	if (ecmcache->next != NULL) { //keep it at least on one entry big
-		for (ecmc=ecmcache; ecmc->next->next ; ecmc=ecmc->next) ; //find last element
-		if (ecmidx==ecmc->next)
-		  ecmidx = ecmcache;
-		add_garbage(ecmc->next); //free last element
-		ecmc->next = NULL;
+	if (ecmcache->next) { //keep it at least on one entry big
+		//for (ecmc=ecmcache; ecmc->next->next; ecmc=ecmc->next) ; //find last element
+		ecmc = ecmcache;
+		ecmcache = ecmcache->next;
+		if (ecmidx == ecmc)
+				ecmidx = ecmcache;
+		add_garbage(ecmc);
 	}
 }
 
@@ -806,7 +802,7 @@ struct s_client * create_client(in_addr_t ip) {
 		if (ecmn) {
 			memset(ecmn, 0, sizeof(struct s_ecm));
 			ecmc->next = ecmn;
-                }
+		}
 
 		//increase ecmcache
 		for (ecmc=ecmcache; ecmc->next ; ecmc=ecmc->next); //ends on last ecmcache entry
@@ -814,9 +810,9 @@ struct s_client * create_client(in_addr_t ip) {
 		if (ecmn) {
 			memset(ecmn, 0, sizeof(struct s_ecm));
 			ecmc->next = ecmn;
-                }
+		}
 
-                //Now add new client to the list:
+        //Now add new client to the list:
 		struct s_client *last;
 		for (last=first_client; last->next != NULL; last=last->next); //ends with cl on last client
 		last->next = cl;
@@ -1448,9 +1444,9 @@ static int check_cwcache1(ECM_REQUEST *er, uint64 grp)
  **/
 int check_cwcache2(ECM_REQUEST *er, uint64 grp)
 {
-	struct s_reader *save = er->selected_reader;
+	//struct s_reader *save = er->selected_reader;
 	int rc = check_cwcache1(er, grp);
-	er->selected_reader = save;
+	//er->selected_reader = save;
   return rc;
 }
 
@@ -2483,7 +2479,9 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		// cache1
 		if (check_cwcache1(er, client->grp))
 			er->rc = E_CACHE1;
-
+		else if (check_and_store_ecmcache(er, client->grp))
+				return;
+				
 #ifdef CS_ANTICASC
 		ac_chk(er, 0);
 #endif
@@ -2509,8 +2507,8 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 			}
 		}
 		//we have to go through matching_reader() to check services, then check ecm-cache:
-		if (er->reader_avail && check_and_store_ecmcache(er, client->grp))
-			return; //Found in ecmcache - answer by distribute ecm
+		//if (er->reader_avail && check_and_store_ecmcache(er, client->grp))
+		//	return; //Found in ecmcache - answer by distribute ecm
 
 		if (cfg->lb_mode && er->reader_avail) {
 			cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X",
@@ -3216,6 +3214,7 @@ if (pthread_key_create(&getclient, NULL)) {
   void (*cardreader_def[])(struct s_cardreader *)=
   {
 	cardreader_mouse,
+	cardreader_smargo,
 #ifdef WITH_STAPI
 	cardreader_stapi,
 #endif
