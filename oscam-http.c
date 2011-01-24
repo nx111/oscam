@@ -538,6 +538,11 @@ char *send_oscam_config_monitor(struct templatevars *vars, struct uriparams *par
 	} while (entry);
 	closedir(hdir);
 
+	if (cfg->http_help_lang[0])
+		tpl_addVar(vars, TPLADD, "HTTPHELPLANG", cfg->http_help_lang);
+	else
+		tpl_addVar(vars, TPLADD, "HTTPHELPLANG", "en");
+
 	tpl_printf(vars, TPLADD, "HTTPREFRESH", "%d", cfg->http_refresh);
 	tpl_addVar(vars, TPLADD, "HTTPTPL", cfg->http_tpl);
 	tpl_addVar(vars, TPLADD, "HTTPSCRIPT", cfg->http_script);
@@ -1672,12 +1677,12 @@ char *send_oscam_user_config(struct templatevars *vars, struct uriparams *params
 	/* List accounts*/
 	char *status, *expired, *classname, *lastchan;
 	time_t now = time((time_t)0);
-	int isec = 0, isonline = 0;
+	int isec = 0, isconnected = 0;
 
 	for (account=cfg->account; (account); account=account->next) {
 		//clear for next client
 		status = "offline"; lastchan = "&nbsp;", expired = ""; classname = "offline";
-		isonline = 0; isec = 0;
+		isconnected = 0; isec = 0;
 
 		if(account->expirationdate && account->expirationdate < time(NULL)) {
 			expired = " (expired)";
@@ -1701,18 +1706,23 @@ char *send_oscam_user_config(struct templatevars *vars, struct uriparams *params
 		char *proto = "";
 
 		//search account in active clients
-		struct s_client *cl = get_client_by_name(account->usr);
-		if (cl) {
-			//set client to offline depending on hideclient_to
-			if ((now - cl->lastecm) < hideclient) {
-				status = "<b>connected</b>"; classname = "online";
-				isonline = 1;
-				proto = monitor_get_proto(cl);
-				lastchan = xml_encode(vars, get_servicename(cl->last_srvid, cl->last_caid));
-				lastresponsetm = cl->cwlastresptime;
-				isec = now - cl->last;
-				if(isec < cfg->mon_hideclient_to)
+		int isactive = 0;
+		struct s_client *cl;
+		for (cl=first_client; cl ; cl=cl->next) {
+			if (cl->account && !strcmp(cl->account->usr, account->usr)) {
+				isconnected = 1;
+
+				if (!isactive)
+					status = "<b>connected</b>"; classname = "online";
+
+				if(isec < cfg->mon_hideclient_to) {
+					proto = monitor_get_proto(cl);
 					status = "<b>online</b>";
+					lastchan = xml_encode(vars, get_servicename(cl->last_srvid, cl->last_caid));
+					lastresponsetm = cl->cwlastresptime;
+					isec = now - cl->last;
+					isactive++;
+				}
 			}
 		}
 
@@ -1725,7 +1735,7 @@ char *send_oscam_user_config(struct templatevars *vars, struct uriparams *params
 		tpl_printf(vars, TPLADDONCE, "EMMOK", "%d", account->emmok);
 		tpl_printf(vars, TPLADDONCE, "EMMNOK", "%d", account->emmnok);
 
-		if ( isonline > 0 || !cfg->http_hide_idle_clients) {
+		if ( isconnected > 0 || !cfg->http_hide_idle_clients) {
 			tpl_addVar(vars, TPLADDONCE, "LASTCHANNEL", lastchan);
 			tpl_printf(vars, TPLADDONCE, "CWLASTRESPONSET", "%d", lastresponsetm);
 			tpl_addVar(vars, TPLADDONCE, "CLIENTPROTO", proto);
@@ -1816,7 +1826,27 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
 						tpl_printf(vars, TPLAPPEND, "HOST", "<BR>\nUA_Oscam:%s", cs_hexdump(0, serbuf, 8));
 						tpl_printf(vars, TPLAPPEND, "HOST", "<BR>\nUA_CCcam:%s", cs_hexdump(0, card->hexserial, 8));
 					}
-
+#ifdef WITH_DEBUG
+   					if (!apicall) {
+								int n;
+								LL_ITER *its = ll_iter_create(card->goodsids);
+								struct cc_srvid *srv;
+								n=0;
+								tpl_printf(vars, TPLADD, "SERVICESGOOD", "");
+								while ((srv=ll_iter_next(its))) {
+										tpl_printf(vars, TPLAPPEND, "SERVICESGOOD", "%04X%s", srv->sid, ++n%10==0?"<BR>\n":" ");
+								}
+								ll_iter_release(its);
+								
+								its = ll_iter_create(card->badsids);
+								n=0;
+								tpl_printf(vars, TPLADD, "SERVICESBAD", "");
+								while ((srv=ll_iter_next(its))) {
+										tpl_printf(vars, TPLAPPEND, "SERVICESBAD", "%04X%s", srv->sid, ++n%10==0?"<BR>\n":" ");
+								}
+								ll_iter_release(its);
+					}
+#endif
 
 					int cs = get_cardsystem(card->caid);
 					
@@ -3112,9 +3142,11 @@ int process_request(FILE *f, struct in_addr in) {
 			tpl_printf(vars, TPLADD, "APIUPTIME", "%u", now - first_client->login);
 		}
 
-		//Placeholder for language code in helplink
-		//fixme: use a parameter for e.g. http_helplanguage=de|en|fr
-		tpl_addVar(vars, TPLADD, "LANGUAGE", "en");
+		// language code in helplink
+		if (cfg->http_help_lang[0])
+			tpl_addVar(vars, TPLADD, "LANGUAGE", cfg->http_help_lang);
+		else
+			tpl_addVar(vars, TPLADD, "LANGUAGE", "en");
 
 		tpl_addVar(vars, TPLADD, "UPTIME", sec2timeformat(vars, (now - first_client->login)));
 		tpl_printf(vars, TPLADD, "CURIP", "%s", inet_ntoa(*(struct in_addr *)&in));

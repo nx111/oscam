@@ -152,7 +152,7 @@ static time_t chid_date(struct s_reader * reader, ulong date, char *buf, int l)
     // now check for specific providers base date
     int i=0;
     while(table[i].caid) {
-        if(reader->caid[0]==table[i].caid && reader->acs==table[i].acs && !memcmp(reader->country_code,table[i].c_code,3) ) {
+        if(reader->caid==table[i].caid && reader->acs==table[i].acs && !memcmp(reader->country_code,table[i].c_code,3) ) {
             date_base = table[i].base;
             break;
         }
@@ -219,7 +219,7 @@ static int irdeto_card_init_provider(struct s_reader * reader)
 
 			// maps the provider id for Betacrypt from FFFFFF to 000000,
 			// fixes problems with cascading CCcam and OSCam
-			if ((reader->caid[0] >= 0x1700) && (reader->caid[0] <= 0x1799))
+			if ((reader->caid >= 0x1700) && (reader->caid <= 0x1799))
 				memset(&reader->prid[i][0], 0, 4);
 			else
 				memcpy(&reader->prid[i][0], cta_res+acspadd, 4);
@@ -312,10 +312,10 @@ static int irdeto_card_init(struct s_reader * reader, ATR newatr)
 		reader_chk_cmd(sc_GetCountryCode, 18);
 	}
 	reader->acs = (cta_res[0+acspadd] << 8) | cta_res[1+acspadd];
-	reader->caid[0] = (cta_res[5+acspadd] << 8) | cta_res[6+acspadd];
+	reader->caid = (cta_res[5+acspadd] << 8) | cta_res[6+acspadd];
 	memcpy(reader->country_code,cta_res + 13 + acspadd, 3);
 	cs_ri_log(reader, "caid: %04X, acs: %x.%02x, country code: %c%c%c",
-			reader->caid[0], cta_res[0+acspadd], cta_res[1+acspadd], cta_res[13+acspadd], cta_res[14+acspadd], cta_res[15+acspadd]);
+			reader->caid, cta_res[0+acspadd], cta_res[1+acspadd], cta_res[13+acspadd], cta_res[14+acspadd], cta_res[15+acspadd]);
 
 	/*
 	 * Ascii/Hex-Serial
@@ -368,7 +368,7 @@ static int irdeto_card_init(struct s_reader * reader, ATR newatr)
 	 */
 	if (((atr[14] == 0x03) && (atr[15] == 0x84) && (atr[16] == 0x55)) || (((atr[14]==0x53) && (atr[15]==0x20) && (atr[16]==0x56))))
 	{
-		switch (reader->caid[0])
+		switch (reader->caid)
 		{
 		case 0x1702: camkey = 1; break;
 		case 0x1722: camkey = 2; break;
@@ -537,7 +537,8 @@ static int irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr) {
 static void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
 {
 	filter[0]=0xFF;
-	filter[1]=3;
+
+	int numfilter = 3;
 
 	int base = rdr->hexserial[3];
 	int emm_g = base * 8;
@@ -550,7 +551,7 @@ static void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
 	filter[4+0]    = 0x82;
 	filter[4+0+16] = 0xFF;
 	filter[4+1]    = emm_g;
-	filter[4+1+16] = 0x0F;
+	filter[4+1+16] = 0x0F; // why ignore base?, should be 0x07 for filter addrlen only
 
 	filter[36]=SHARED;
 	filter[37]=0;
@@ -569,6 +570,30 @@ static void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
 	filter[72+1+16] = 0xFF;
 	memcpy(filter+72+2, rdr->hexserial, 3);
 	memset(filter+72+2+16, 0xFF, 3);
+
+	int i, pos=104;
+
+	for(i = 0; i < rdr->nprov; i++) {
+		if (rdr->prid[i][1]==0xFF)
+			continue;
+
+		filter[pos]=SHARED;
+		filter[pos+1]=0;
+		filter[pos+2+0]    = 0x82;
+		filter[pos+2+0+16] = 0xFF;
+		filter[pos+2+1]    = 0x02; // base = 0, len = 2
+		filter[pos+2+1+16] = 0xFF;
+		memcpy(filter+pos+2+2, &rdr->prid[i][1], 2);
+		memset(filter+pos+2+2+16, 0xFF, 2);
+		pos+=34;
+		numfilter++;
+
+		if (numfilter>=10)
+			break;
+	}
+
+	filter[1]=numfilter;
+
 
 	return;
 }

@@ -31,7 +31,7 @@ int streamguard_card_init(struct s_reader *reader, ATR newatr)
   
   if ((atr_size != 4) || (atr[0] != 0x3b) || (atr[1] != 0x02)) return ERROR;
 
-  reader->caid[0] = 0x4AD2;
+  reader->caid = 0x4AD2;
   // For now, only one provider, 0000
   reader->nprov = 1;
   memset(reader->prid, 0x00, sizeof(reader->prid));
@@ -55,7 +55,7 @@ int streamguard_card_init(struct s_reader *reader, ATR newatr)
   memcpy(reader->hexserial + 2, data + 3, 4); // might be incorrect offset
 
   cs_ri_log(reader, "type: StreamGuard, caid: %04X, serial: %llu, hex serial: %02x%02x%02x%02x",
-            reader->caid[0], b2ll(6, reader->hexserial), reader->hexserial[2],
+            reader->caid, b2ll(6, reader->hexserial), reader->hexserial[2],
             reader->hexserial[3], reader->hexserial[4], reader->hexserial[5]);
 
   return OK;

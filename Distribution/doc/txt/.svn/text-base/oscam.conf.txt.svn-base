@@ -19,9 +19,9 @@ DESCRIPTIONS
 	  value to delay cached requests, default:0
 
        logfile = [filename][;syslog][;stdout]
-	  logging targets, default: /var/log/oscam.log. You can define a maximum of one filename and 
-	  additionally to log to stdout or syslog (you can also only log to stdout or syslog and omit 
-	  the filename).
+	  logging  targets, default: /var/log/oscam.log. You can define a maximum of one filename
+	  and additionally to log to stdout or syslog (you can also only log to stdout or  syslog
+	  and omit the filename).
 
        disablelog = 0|1
 	  1 = disable log file, default:0
@@ -246,6 +246,9 @@ DESCRIPTIONS
        httpreadonly = 0|1
 	  1 = read only modus for web interface, default:0
 
+       httphelplang = en|de|fr|<available wiki languages>
+	  set right language for wiki entry point, default:en
+
    The [camd33] section
        port = 0|port
 	  TCP/IP port for camd 3.3x clients, 0 = disabled, default:0
@@ -466,15 +469,24 @@ DESCRIPTIONS
 	  CAIDs and provider IDs to be prioritized, default:CAIDs and provider IDs of  local  SCs
 	  will be prioritized
 
-       au = 0|1
-	  1 = enable AU, default:0
+       au = 0|1|2
+	  AU mode:
+	   0 = disable AU, default
+	   1 = enable AU
+	   2 = enable AU, override AU settings of client, set answering reader as AU reader
 
-       pmt_mode = 0|1|2|3
+       pmt_mode = 0|1|2|3|4
 	  PMT mode:
 	   0 = use camd.socket and PMT file, default
 	   1 = disable reading PMT file
 	   2 = disable camd.socket
 	   3 = read PMT file on startup only
+	   4 = do not use signal handler for monitoring /tmp
+
+       request_mode = 0|1
+	  CAID request mode:
+	   0 = try all possible CAIDs one by one, default
+	   1 = try all CAIDs simultaneously
 
        boxtype = dbox2|dreambox|dm7000|duckbox|ufs910|ipbox|ipbox-pmt|qboxhd|coolstream|neumo
 	  set boxtype, auto detection of DVB API will be aspired, default:dreambox

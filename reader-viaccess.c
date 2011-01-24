@@ -205,14 +205,14 @@ static int viaccess_card_init(struct s_reader * reader, ATR newatr)
 //    default: ver="unknown"; break;
 //  }
       
-  reader->caid[0]=0x500;
+  reader->caid=0x500;
   memset(reader->prid, 0xff, sizeof(reader->prid));
   insac[2]=0xa4; write_cmd(insac, NULL); // request unique id
   insb8[4]=0x07; write_cmd(insb8, NULL); // read unique id
   memcpy(reader->hexserial, cta_res+2, 5);
 //  cs_log("[viaccess-reader] type: Viaccess, ver: %s serial: %llu", ver, b2ll(5, cta_res+2));
   cs_ri_log(reader, "type: Viaccess (%sstandard atr), caid: %04X, serial: %llu",
-        atr[9]==0x68?"":"non-",reader->caid[0], b2ll(5, cta_res+2));
+        atr[9]==0x68?"":"non-",reader->caid, b2ll(5, cta_res+2));
 
   i=0;
   insa4[2]=0x00; write_cmd(insa4, NULL); // select issuer 0
@@ -1000,6 +1000,7 @@ int viaccess_reassemble_emm(uchar *buffer, uint *len) {
 				//add F0 08 nano + 8 subsequent bytes of emm content
 				memcpy(&nano_buffer[nano_counter][0], "\xF0\x08", 2);
 				memcpy(&nano_buffer[nano_counter][2], buffer+39, 8);
+				nano_counter++;
 			}
 			else {
 				cs_debug_mask(D_DVBAPI, "viaccess_reassemble_emm: found variable emm");
@@ -1012,6 +1013,8 @@ int viaccess_reassemble_emm(uchar *buffer, uint *len) {
 				k=0;
 			}
 
+			cs_debug_mask(D_DVBAPI, "viaccess_reassemble_emm: nano_counter=%d", nano_counter);
+
 			//sort nanos according to ascending pi
 			qsort(&nano_buffer, nano_counter, sizeof(*nano_buffer), cmp_nanos);
 
@@ -1020,7 +1023,7 @@ int viaccess_reassemble_emm(uchar *buffer, uint *len) {
 			pos=7;
 
 			//add nanos in sorted order to emmbuf
-			for (i=0; i<=nano_counter; i++) {
+			for (i=0; i<nano_counter; i++) {
 				memcpy(&emmbuf[pos], &nano_buffer[i][0], nano_buffer[i][1]+2);
 				pos+=nano_buffer[i][1]+2;
 			}
@@ -1036,6 +1039,7 @@ int viaccess_reassemble_emm(uchar *buffer, uint *len) {
 			//place assembled emm
 			memcpy(buffer, emmbuf, pos);
 			*len=pos;
+			cs_debug_mask(D_DVBAPI, "viaccess_reassemble_emm: exit len=%d", pos);
 			break;
 	}
 	return 1;

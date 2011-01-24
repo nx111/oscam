@@ -794,7 +794,7 @@ struct s_client * create_client(in_addr_t ip) {
 		cl->fd_m2c = fdp[1]; //store client read fd
 		cl->ip=ip;
 		cl->account = first_client->account;
-
+		
 		//master part
 		cl->stat=1;
 
@@ -1325,7 +1325,7 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 				{
 					struct s_reader *rdr;
 					for (rdr=first_active_reader; rdr ; rdr=rdr->next)
-						if(rdr->caid[0]==cfg->ncd_ptab.ports[client->port_idx].ftab.filts[0].caid) {
+						if(rdr->caid==cfg->ncd_ptab.ports[client->port_idx].ftab.filts[0].caid) {
 							client->aureader=rdr;
 							break;
 						}
@@ -1400,7 +1400,6 @@ static int check_and_store_ecmcache(ECM_REQUEST *er, uint64 grp)
 	memcpy(ecmidx->ecmd5, er->ecmd5, CS_ECMSTORESIZE);
 	ecmidx->caid = er->caid;
 	ecmidx->grp = grp;
-	ecmidx->reader = er->selected_reader;
 
 	return(0);
 }
@@ -1426,7 +1425,7 @@ static int check_cwcache1(ECM_REQUEST *er, uint64 grp)
 		if (memcmp(ecmc->ecmd5, er->ecmd5, CS_ECMSTORESIZE))
 			continue;
 
-		cs_debug_mask(D_TRACE, "cache: ecm %04X found: ccaid=%04X caid=%04X grp=%lld cgrp=%lld count=%d", lc, er->caid, ecmc->caid, grp, ecmc->grp, count);
+		//cs_debug_mask(D_TRACE, "cache: ecm %04X found: ccaid=%04X caid=%04X grp=%lld cgrp=%lld count=%d", lc, er->caid, ecmc->caid, grp, ecmc->grp, count);
 
 		if (!(grp & ecmc->grp))
 			continue;
@@ -1438,7 +1437,7 @@ static int check_cwcache1(ECM_REQUEST *er, uint64 grp)
 		er->selected_reader = ecmc->reader;
 		return 1;
 	}
-	cs_debug_mask(D_TRACE, "cache: %04X not found count=%d", lc, count);
+	//cs_debug_mask(D_TRACE, "cache: %04X not found count=%d", lc, count);
 	return 0;
 }
 
@@ -1476,7 +1475,7 @@ static void store_cw_in_cache(ECM_REQUEST *er, uint64 grp)
 		ushort lc, *lp;
 		for (lp=(ushort *)er->ecm+(er->l>>2), lc=0; lp>=(ushort *)er->ecm; lp--)
 			lc^=*lp;
-		cs_debug_mask(D_TRACE, "store_cw_in_cache: ecm=%04X grp=%lld", lc, grp);
+		//cs_debug_mask(D_TRACE, "store_cw_in_cache: ecm=%04X grp=%lld", lc, grp);
 	}
 	//cs_ddump(cwcache[*cwidx].ecmd5, CS_ECMSTORESIZE, "ECM stored (idx=%d)", *cwidx);
 }
@@ -1665,6 +1664,7 @@ void distribute_ecm(ECM_REQUEST *er)
   struct s_client *cl;
   ECM_REQUEST *ecm;
   int n, i;
+
   if (er->rc == E_RDR_FOUND) //found converted to cache...
     er->rc = E_CACHE2; //cache
 
@@ -1674,7 +1674,7 @@ void distribute_ecm(ECM_REQUEST *er)
       n=(ph[cl->ctyp].multi)?CS_MAXPENDING:1;
       for (i=0; i<n; i++) {
         ecm = &cl->ecmtask[i];
-        if (ecm->rc == E_99 && ecm->caid==er->caid && memcmp(ecm->ecmd5, er->ecmd5, CS_ECMSTORESIZE)==0) {
+        if (ecm->rc == E_99 && (ecm->caid==er->caid || ecm->ocaid==er->ocaid) && !memcmp(ecm->ecmd5, er->ecmd5, CS_ECMSTORESIZE)) {
           er->cpti = ecm->cpti;
           //cs_log("distribute %04X:%06X:%04X cpti %d to client %s", ecm->caid, ecm->prid, ecm->srvid, ecm->cpti, username(cl));
           write_ecm_request(cl->fd_m2c, er);
@@ -1710,7 +1710,10 @@ int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
 #else
   if (er->rc==E_RDR_FOUND) {
 #endif
+
+#ifndef CS_WITH_DOUBLECHECK
     store_cw_in_cache(er, reader->grp);
+#endif
 
     /* CWL logging only if cwlogdir is set in config */
     if (cfg->cwlogdir != NULL)
@@ -1723,7 +1726,6 @@ int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
     res = write_ecm_request(er->client->fd_m2c, er);
     //return(write_ecm_request(first_client->fd_m2c, er)); //does this ever happen? Schlocke: should never happen!
   }
-  distribute_ecm(er);
 
   return res;
 }
@@ -1774,7 +1776,7 @@ ECM_REQUEST *get_ecmtask()
 		if (ph[cl->ctyp].multi)
 		{
 			for (i=0; (n<0) && (i<CS_MAXPENDING); i++)
-				if (cl->ecmtask[i].rc<99)
+				if (cl->ecmtask[i].rc<E_99)
 					er=&cl->ecmtask[n=i];
 		}
 		else
@@ -1852,10 +1854,17 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 			else
 				snprintf(sby, sizeof(sby)-1, " by %s", er->selected_reader->label);
 	}
+	else {
+			struct s_reader *err_reader = ll_has_elements(er->matching_rdr);
+			if (err_reader)
+					snprintf(sby, sizeof(sby)-1, " by %s", err_reader->label);
+	}
 	if (er->rc < E_NOTFOUND) er->rcEx=0;
 	if (er->rcEx)
 		snprintf(erEx, sizeof(erEx)-1, "rejected %s%s", stxtWh[er->rcEx>>4],
 				stxtEx[er->rcEx&0xf]);
+				
+
 
 	if(cfg->mon_appendchaninfo)
 		snprintf(schaninfo, sizeof(schaninfo)-1, " - %s", get_servicename(er->srvid, er->caid));
@@ -1885,28 +1894,28 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 
 	if(!client->ncd_server && client->autoau && er->rcEx==0 && er->selected_reader)
 	{
-		if(client->aureader && er->caid!=client->aureader->caid[0])
+		if(client->aureader && er->caid!=client->aureader->caid)
 		{
 			client->aureader=NULL;
 		}
 
 		struct s_reader *cur = er->selected_reader;
 
-		if (cur->typ == R_CCCAM && !cur->caid[0] && !cur->audisabled &&
+		if (cur->typ == R_CCCAM && !cur->caid && !cur->audisabled &&
 				cur->card_system == get_cardsystem(er->caid) && hexserialset(er->selected_reader))
 			client->aureader= er->selected_reader;
-		else if((er->caid == cur->caid[0]) && (!cur->audisabled)) {
+		else if((er->caid == cur->caid) && (!cur->audisabled)) {
 			client->aureader = er->selected_reader; // First chance - check whether actual reader can AU
 		} else {
 			for (cur=first_active_reader; cur ; cur=cur->next) { //second chance loop through all readers to find an AU reader
 				if (matching_reader(er, cur)) {
-					if (cur->typ == R_CCCAM && !cur->caid[0] && !cur->audisabled &&
+					if (cur->typ == R_CCCAM && !cur->caid && !cur->audisabled &&
 						cur->card_system == get_cardsystem(er->caid) && hexserialset(cur))
 					{
 						client->aureader = cur;
 						break;
 					}
-					else if((er->caid == cur->caid[0]) && (er->prid == cur->auprovid) && (!cur->audisabled))
+					else if((er->caid == cur->caid) && (er->prid == cur->auprovid) && (!cur->audisabled))
 					{
 						client->aureader = cur;
 						break;
@@ -2029,61 +2038,49 @@ void chk_dcw(struct s_client *cl, ECM_REQUEST *er)
 
   ECM_REQUEST *ert;
 
-  //cs_log("dcw check from reader %d for idx %d (rc=%d)", er->selected_reader, er->cpti, er->rc);
+  //cs_log("dcw check from reader %s for idx %d (rc=%d)", er->selected_reader->label, er->cpti, er->rc);
   ert=&cl->ecmtask[er->cpti];
   if (ert->rc<E_99) {
 	//cs_debug_mask(D_TRACE, "chk_dcw: already done rc=%d %s", er->rc, er->selected_reader->label);
 	send_reader_stat(er->selected_reader, er, (er->rc <= E_RDR_NOTFOUND)?E_NOTFOUND:E_FOUND);
 	return; // already done
   }
-  if( (er->caid!=ert->caid) || memcmp(er->ecmd5, ert->ecmd5, sizeof(er->ecmd5)) )
+  if( (er->caid!=ert->caid && er->ocaid!=ert->ocaid) || memcmp(er->ecmd5, ert->ecmd5, sizeof(er->ecmd5)) ) {
+    //cs_debug_mask(D_TRACE, "OBSOLETE? %04X / %04X", er->caid, ert->caid);
     return; // obsolete
+  }
 
-	ert->rcEx=er->rcEx;
-	strcpy(ert->msglog, er->msglog);
 	ert->selected_reader=er->selected_reader;
 
-  if (er->rc>=E_RDR_FOUND)
-  {
-    switch(er->rc)
-    {
-      case E_CACHE2:
-        ert->rc=E_CACHE2;
-        break;
-      case E_EMU:
-        ert->rc=E_EMU;
-        break;
-      default:
-        ert->rc=E_FOUND;
-    }
-    
-    ert->rcEx=0;
-    memcpy(ert->cw , er->cw , sizeof(er->cw));
-#ifdef CS_WITH_GBOX
-    ert->gbxCWFrom=er->gbxCWFrom;
-#endif
-	} else { // not found (from ONE of the readers !) er->rc==E_RDR_NOTFOUND
-		struct s_reader *rdr;
-		if (er->selected_reader) {
-			LL_ITER *itr = ll_iter_create(er->matching_rdr);
-			while ((rdr = ll_iter_next(itr)))
-				if (rdr == er->selected_reader) {
-					ll_iter_remove(itr);
-					break;
-				}
-			ll_iter_release(itr);
-		}
+	if (er->rc>=E_RDR_FOUND)
+	{
+		ert->rc=E_FOUND;
+		if (er->rc == E_CACHE2 || er->rc == E_EMU)
+			ert->rc=er->rc;
 
-		if (ert)
-			if (ll_has_elements(ert->matching_rdr)) {//we have still another chance
+		ert->rcEx=0;
+		memcpy(ert->cw , er->cw , sizeof(er->cw));
+#ifdef CS_WITH_GBOX
+    	ert->gbxCWFrom=er->gbxCWFrom;
+#endif
+  } else { // not found (from ONE of the readers !) er->rc==E_RDR_NOTFOUND
+		ert->rcEx=er->rcEx;
+		strcpy(ert->msglog, er->msglog);
+
+		ll_remove(ert->matching_rdr, er->selected_reader);
+
+		if (ll_has_elements(ert->matching_rdr)) {//we have still another chance
 				ert->selected_reader=NULL;
 				ert=NULL;
-			}
+		}
 		//at this point ert is only not NULL when it has no matching readers...
 		if (ert) ert->rc=E_NOTFOUND; //so we set the return code
 		else send_reader_stat(er->selected_reader, er, E_NOTFOUND);
 	}
-	if (ert) send_dcw(cl, ert);
+	if (ert) {
+			 send_dcw(cl, ert);
+			 distribute_ecm(er);
+    }
 	return;
 }
 
@@ -2482,7 +2479,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 
 		// cache1
 		if (check_cwcache1(er, client->grp))
-			er->rc = E_CACHE1;
+				er->rc = E_CACHE1;
 		else if (check_and_store_ecmcache(er, client->grp))
 				return;
 				
@@ -2551,7 +2548,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 void log_emm_request(struct s_reader *rdr)
 {
 	cs_log("%s emm-request sent (reader=%s, caid=%04X, auprovid=%06lX)",
-			username(cur_client()), rdr->label, rdr->caid[0],
+			username(cur_client()), rdr->label, rdr->caid,
 			rdr->auprovid ? rdr->auprovid : b2i(4, rdr->prid[0]));
 }
 
@@ -2733,7 +2730,7 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 	//cs_log("num pend=%d", i);
 
 	for (--i; i>=0; i--) {
-		if (cl->ecmtask[i].rc>=99) { // check all pending ecm-requests
+		if (cl->ecmtask[i].rc>=E_99) { // check all pending ecm-requests
 			int act=1;
 			er=&cl->ecmtask[i];
 			tpc=er->tps;
@@ -2952,7 +2949,7 @@ void cs_waitforcardinit()
 			card_init_done = 1;
 			struct s_reader *rdr;
 			for (rdr=first_active_reader; rdr ; rdr=rdr->next)
-				if (((rdr->typ & R_IS_CASCADING) == 0) && rdr->enable && (rdr->card_status == CARD_NEED_INIT || rdr->card_status == UNKNOWN)) {
+				if (((rdr->typ & R_IS_CASCADING) == 0) && (rdr->card_status == CARD_NEED_INIT || rdr->card_status == UNKNOWN)) {
 					card_init_done = 0;
 					break;
 				}

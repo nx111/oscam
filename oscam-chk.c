@@ -317,7 +317,7 @@ int chk_rsfilter(struct s_reader * reader, ECM_REQUEST *er)
   }
 
   rc=prid=0;
-  caid = reader->caid[0];
+  caid = reader->caid;
   if( caid==er->caid )
   {
     for( i=0; (!rc) && (i<reader->nprov); i++ )
@@ -405,12 +405,6 @@ int matching_reader(ECM_REQUEST *er, struct s_reader *rdr) {
   if (!((rdr->fd) && (rdr->grp&cur_cl->grp)))
     return(0);
 
-  //Checking enabled and not deleted:
-  if (!rdr->enable) {
-    //cs_debug_mask(D_TRACE, "reader disabled/deleted %s", rdr->label);
-    return(0);
-  }
-    
   //Schlocke reader-defined function, reader-self-check: 
   if (rdr->ph.c_available && !rdr->ph.c_available(rdr, AVAIL_CHECK_CONNECTED)) {
     //cs_debug_mask(D_TRACE, "reader unavailable %s", rdr->label);
@@ -422,7 +416,9 @@ int matching_reader(ECM_REQUEST *er, struct s_reader *rdr) {
     //cs_debug_mask(D_TRACE, "caid %04X not found in caidlist reader %s", er->caid, rdr->label);
     return 0;
   }
-    
+  if ((!(rdr->typ & R_IS_NETWORK)) && ((rdr->caid != er->caid) && (rdr->caid != er->ocaid)))
+    return 0;
+
   //Checking services:
   if (!chk_srvid(rdr->client, er)) {
     //cs_debug_mask(D_TRACE, "service %04X not matching  reader %s", er->srvid, rdr->label);

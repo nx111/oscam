@@ -42,7 +42,7 @@ static void reader_nullcard(struct s_reader * reader)
   reader->card_system=0;
   memset(reader->hexserial, 0   , sizeof(reader->hexserial));
   memset(reader->prid     , 0xFF, sizeof(reader->prid     ));
-  memset(reader->caid     , 0   , sizeof(reader->caid     ));
+  reader->caid=0;
   memset(reader->availkeys, 0   , sizeof(reader->availkeys));
   reader->acs=0;
   reader->nprov=0;
@@ -329,8 +329,6 @@ int reader_ecm(struct s_reader * reader, ECM_REQUEST *er)
   int rc=-1;
   if( (rc=reader_checkhealth(reader)) )
   {
-    if((reader->caid[0] >> 8) == ((er->caid >> 8) & 0xFF))
-    {
       cur_client()->last_srvid=er->srvid;
       cur_client()->last_caid=er->caid;
       cur_client()->last=time((time_t)0);
@@ -339,10 +337,6 @@ int reader_ecm(struct s_reader * reader, ECM_REQUEST *er)
 		rc=cardsystem[reader->card_system-1].do_ecm(reader, er);
 	else
 		rc=0;
-
-    }
-    else
-      rc=0;
   }
   return(rc);
 }
@@ -408,5 +402,5 @@ int reader_emm(struct s_reader * reader, EMM_PACKET *ep)
 
 int check_emm_cardsystem(struct s_reader * rdr, EMM_PACKET *ep)
 {
-	return (rdr->fd && (rdr->caid[0] == b2i(2,ep->caid) || rdr->typ == R_CCCAM));
+	return (rdr->fd && (rdr->caid == b2i(2,ep->caid) || rdr->typ == R_CCCAM));
 }

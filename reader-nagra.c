@@ -220,10 +220,10 @@ static int NegotiateSessionKey_Tiger(struct s_reader * reader)
 	reader->prid[0][1]=0x00;
 	reader->prid[0][2]=parte_variable[73];
 	reader->prid[0][3]=parte_variable[74];
-	reader->caid[0] =(SYSTEM_NAGRA|parte_variable[76]);
+	reader->caid =(SYSTEM_NAGRA|parte_variable[76]);
 	memcpy(sk,&parte_variable[79],8);                                                                           
 	memcpy(sk+8,&parte_variable[79],8); 
-  	cs_ri_log(reader, "type: NAGRA, caid: %04X, IRD ID: %s",reader->caid[0], cs_hexdump (1,reader->irdId,4));
+  	cs_ri_log(reader, "type: NAGRA, caid: %04X, IRD ID: %s",reader->caid, cs_hexdump (1,reader->irdId,4));
   	cs_ri_log(reader, "ProviderID: %s",cs_hexdump (1,reader->prid[0],4));
 
 	memset(random, 0, 88);
@@ -522,9 +522,9 @@ static int ParseDataType(struct s_reader * reader, unsigned char dt, unsigned ch
 			memcpy(reader->sa[1], reader->sa[0], 4);
  			reader->nprov+=1;
  					
-			reader->caid[0] =(SYSTEM_NAGRA|cta_res[11]);
+			reader->caid =(SYSTEM_NAGRA|cta_res[11]);
     				memcpy(reader->irdId,cta_res+14,4);
-    				cs_debug_mask(D_READER, "[nagra-reader] type: NAGRA, caid: %04X, IRD ID: %s",reader->caid[0], cs_hexdump (1,reader->irdId,4));
+    				cs_debug_mask(D_READER, "[nagra-reader] type: NAGRA, caid: %04X, IRD ID: %s",reader->caid, cs_hexdump (1,reader->irdId,4));
     				cs_debug_mask(D_READER, "[nagra-reader] ProviderID: %s",cs_hexdump (1,reader->prid[0],4));
     				return OK;
      		}
@@ -577,7 +577,7 @@ static int nagra2_card_init(struct s_reader * reader, ATR newatr)
  	reader->swapCW = 0; 
  	memset(reader->irdId, 0xff, 4);
 	memset(reader->hexserial, 0, 8); 
-	reader->caid[0]=SYSTEM_NAGRA;
+	reader->caid=SYSTEM_NAGRA;
 	
 	if(memcmp(atr+11,"DNASP240",8)==0 || memcmp(atr+11,"DNASP241", 8)==0) {
 		cs_ri_log(reader, "detect nagra 3 NA card");
@@ -691,7 +691,7 @@ typedef struct
    uint16_t price;
 } ncmed_rec;
 
-int reccmp(const void *r1, const void *r2)
+static int reccmp(const void *r1, const void *r2)
 {
    int v1, v2, y, m, d;
    sscanf(((ncmed_rec *)r1)->date1, "%02d/%02d/%04d", &d, &m, &y);
@@ -701,6 +701,21 @@ int reccmp(const void *r1, const void *r2)
    return (v1 == v2) ? 0 : (v1 < v2) ? -1 : 1;
 }
 
+static int reccmp2(const void *r1, const void *r2)
+{
+   char rec1[13], rec2[13];
+   sprintf(rec1, "%04X", ((ncmed_rec *)r1)->value);
+   memcpy(rec1+4, ((ncmed_rec *)r1)->date2+6, 4);
+   memcpy(rec1+8, ((ncmed_rec *)r1)->date2+3, 2);
+   memcpy(rec1+10, ((ncmed_rec *)r1)->date2, 2);
+   sprintf(rec2, "%04X", ((ncmed_rec *)r2)->value);
+   memcpy(rec2+4, ((ncmed_rec *)r2)->date2+6, 4);
+   memcpy(rec2+8, ((ncmed_rec *)r2)->date2+3, 2);
+   memcpy(rec2+10, ((ncmed_rec *)r2)->date2, 2);
+   rec1[12] = rec2[12] = 0;
+   return strcmp(rec2, rec1);
+}
+
 static int nagra2_card_info(struct s_reader * reader)
 {
 	int i;
@@ -708,7 +723,7 @@ static int nagra2_card_info(struct s_reader * reader)
 	cs_ri_log(reader, "ROM:    %c %c %c %c %c %c %c %c", reader->rom[0], reader->rom[1], reader->rom[2],reader->rom[3], reader->rom[4], reader->rom[5], reader->rom[6], reader->rom[7]);
 	cs_ri_log(reader, "REV:    %c %c %c %c %c %c", reader->rom[9], reader->rom[10], reader->rom[11], reader->rom[12], reader->rom[13], reader->rom[14]);
 	cs_ri_log(reader, "SER:    %s", cs_hexdump (1, reader->hexserial+2, 4));
-	cs_ri_log(reader, "CAID:   %04X",reader->caid[0]);
+	cs_ri_log(reader, "CAID:   %04X",reader->caid);
 	cs_ri_log(reader, "Prv.ID: %s(sysid)",cs_hexdump (1,reader->prid[0],4));
 	for (i=1; i<reader->nprov; i++)
 	{
@@ -782,7 +797,10 @@ static int nagra2_card_info(struct s_reader * reader)
                     }
                  }
               }
-              qsort(records, num_records, sizeof(ncmed_rec), reccmp);
+              if (reader->nagra_read == 1)
+                 qsort(records, num_records, sizeof(ncmed_rec), reccmp);
+              else
+                 qsort(records, num_records, sizeof(ncmed_rec), reccmp2);
 
               int  euro=0;
               char *tier_name = NULL;
@@ -798,7 +816,7 @@ static int nagra2_card_info(struct s_reader * reader)
                  {
                     case 0x00:
                     case 0x01:  
-                       tier_name = get_tiername(records[i].value, reader->caid[0]);
+                       tier_name = get_tiername(records[i].value, reader->caid);
                        if( (reader->nagra_read == 2) && (reccmp(records[i].date2,currdate) >= 0) )
                          cs_ri_log(reader, "Tier : %04X, expiry date: %s %s",
                                    records[i].value, records[i].date2, tier_name);
@@ -814,11 +832,16 @@ static int nagra2_card_info(struct s_reader * reader)
                     case 0x21:
                        if( (reader->nagra_read == 2) && (reccmp(records[i].date2,currdate) >= 0) )
                        {
-                         tier_name = get_tiername(records[i].value, reader->caid[0]);
+                         tier_name = get_tiername(records[i].value, reader->caid);
                          cs_ri_log(reader, "Tier : %04X, expiry date: %s %s",
                                    records[i].value, records[i].date2, tier_name);
                        }
                        break;
+                 }
+                 if (reader->nagra_read == 2)
+                 {
+                    while (i < num_records - 1 && records[i].value == records[i+1].value)
+                       ++i;
                  }
               }  
 
@@ -844,7 +867,7 @@ static int nagra2_card_info(struct s_reader * reader)
                        {
                          euro = records[i].price / 100;
                          credit -= euro;
-                         tier_name = get_tiername(records[i].value, reader->caid[0]);
+                         tier_name = get_tiername(records[i].value, reader->caid);
                          cs_ri_log(reader, "Subscription   : ( %04X ) from %s to %s  (%3d euro) %s",
                                    records[i].value, records[i].date1, records[i].date2, euro, tier_name);
                        }
@@ -1064,8 +1087,7 @@ static int nagra2_do_emm(struct s_reader * reader, EMM_PACKET *ep)
 	
 		//   emm_data: 82 70 8E 00 00 00 00 00 D3 87 8D 11 C0 F4 B1 27 2C 3D 25 94 ...
 		//serial_data: A0 CA 00 00 8C D3 8A 01 00 00 00 00 C0 F4 B1 27 2C 3D 25 94 ...
-		unsigned char emm_trim[150];
-		memset(emm_trim, 0, 150);
+		unsigned char emm_trim[150] = { 0x01, 0x00, 0x00, 0x00, 0x00 };
 		memcpy(&emm_trim[5], ep->emm+3+5+2+2, ep->emm[9]+2);
 		if(!do_cmd(reader, ep->emm[8],ep->emm[9]+5,0x53,0x16, emm_trim,cta_res,&cta_lr))
 		{
