@@ -247,7 +247,7 @@ cs_log("[viaccess-reader] name: %s", cta_res);
   reader->nprov=i;
   cs_ri_log(reader, "providers: %d (%s)", reader->nprov, buf+1);
    
-    if (cfg->ulparent)
+    if (cfg.ulparent)
         unlock_parental(reader);
 
     cs_log("[viaccess-reader] ready for requests");
@@ -363,7 +363,7 @@ static int viaccess_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
             // we can't assume that if the nano len is 5 or more we have an ecm number
             // as some card don't support this
             if( reader->last_geo.number_ecm > 0 ) {
-                if(reader->last_geo.number_ecm ==curnumber_ecm ) {
+                if(reader->last_geo.number_ecm ==curnumber_ecm && ecm88Data[8] == 0x00) { //ecm88Data[8] == 0x00 force use ECM nano 40 ending with 00
                     keynr=ecm88Data[5];
                     cs_debug_mask(D_READER, "keyToUse = %02x",ecm88Data[5]);
                 }
