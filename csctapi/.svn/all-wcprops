@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/4603/trunk/csctapi
+/svn/oscam/!svn/ver/4612/trunk/csctapi
 END
 ifd_smartreader.h
 K 25
@@ -163,7 +163,7 @@ ifd_smargo.c
 K 25
 svn:wc:ra_dav:version-url
 V 51
-/svn/oscam/!svn/ver/4579/trunk/csctapi/ifd_smargo.c
+/svn/oscam/!svn/ver/4612/trunk/csctapi/ifd_smargo.c
 END
 io_serial.h
 K 25

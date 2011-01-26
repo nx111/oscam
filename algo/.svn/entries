@@ -1,15 +1,15 @@
 10
 
 dir
-4604
+4612
 http://streamboard.gmc.to/svn/oscam/trunk/algo
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-12-20T13:18:29.383827Z
-4176
-cogsi
+2011-01-25T14:18:26.250520Z
+4608
+schlocke
 
 
 
@@ -100,11 +100,11 @@ file
 
 
 
-2011-01-14T12:58:04.897854Z
-e9e3898f5e985b4fcc08232c90622c59
-2010-12-20T13:18:29.383827Z
-4176
-cogsi
+2011-01-26T01:02:06.722876Z
+e0d7eec5c1e61149b6b1ba82ebb4da85
+2011-01-25T14:03:49.769253Z
+4607
+schlocke
 
 
 
@@ -127,4 +127,72 @@ cogsi
 
 
 2503
+
+CMakeLists.txt
+file
+
+
+
+
+2011-01-26T01:02:06.722876Z
+ccc950e03d4422b7d7c33e64e4d6f5ad
+2011-01-25T13:32:10.198628Z
+4606
+cogsi
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+652
+
+Makefile
+file
+
+
+
+
+2011-01-26T01:02:06.722876Z
+18069f7082f459f605a48a80a92bfd81
+2011-01-25T14:18:26.250520Z
+4608
+schlocke
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+320
 

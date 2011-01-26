@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 35
-/svn/oscam/!svn/ver/4176/trunk/algo
+/svn/oscam/!svn/ver/4608/trunk/algo
 END
 lzoconf.h
 K 25
@@ -19,5 +19,17 @@ minilzo.h
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/4176/trunk/algo/minilzo.h
+/svn/oscam/!svn/ver/4607/trunk/algo/minilzo.h
+END
+CMakeLists.txt
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/svn/oscam/!svn/ver/4606/trunk/algo/CMakeLists.txt
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/oscam/!svn/ver/4608/trunk/algo/Makefile
 END
