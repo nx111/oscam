@@ -213,9 +213,9 @@ char *send_oscam_config_loadbalancer(struct templatevars *vars, struct uriparams
 	tpl_printf(vars, TPLADD, "LBRETRYLIMIT", "%d",cfg.lb_retrylimit);
 	tpl_printf(vars, TPLADD, "LBREOPENSECONDS", "%d",cfg.lb_reopen_seconds);
 	tpl_printf(vars, TPLADD, "LBCLEANUP", "%d",cfg.lb_stat_cleanup);
-	
-	return tpl_getTpl(vars, "CONFIGLOADBALANCER");
+	if (cfg.lb_use_locking) tpl_addVar(vars, TPLADD, "USELOCKINGCHECKED", "selected");
 
+	return tpl_getTpl(vars, "CONFIGLOADBALANCER");
 }
 
 char *send_oscam_config_camd33(struct templatevars *vars, struct uriparams *params, struct in_addr in) {
@@ -899,6 +899,7 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 		tpl_addVar(vars, TPLADD, "ENABLED", "checked");
 
 	tpl_printf(vars, TPLADD, "ACCOUNT",  "%s", rdr->r_usr);
+	tpl_printf(vars, TPLADD, "PASSWORD",  "%s", rdr->r_pwd); 
 
 	for (i=0; i<14; i++)
 		tpl_printf(vars, TPLAPPEND, "NCD_KEY", "%02X", rdr->ncd_key[i]);
@@ -1360,7 +1361,6 @@ char *send_oscam_user_config_edit(struct templatevars *vars, struct uriparams *p
 		}
 		memset(account, 0, sizeof(struct s_auth));
 		cs_strncpy((char *)account->usr, user, sizeof(account->usr));
-		account->aureader=NULL;
 		account->monlvl=cfg.mon_level;
 		account->tosleep=cfg.tosleep;
 		for (i=1; i<CS_MAXCAIDTAB; account->ctab.mask[i++]=0xffff);
@@ -1457,18 +1457,29 @@ char *send_oscam_user_config_edit(struct templatevars *vars, struct uriparams *p
 	tpl_printf(vars, TPLADD, "TMP", "MONSELECTED%d", account->monlvl);
 	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
 
-	//AU Selector
-	if (!account->aureader) tpl_addVar(vars, TPLADD, "AUSELECTED", "selected");
-	if (account->autoau == 1) tpl_addVar(vars, TPLADD, "AUTOAUSELECTED", "selected");
-	struct s_reader *rdr;
-	LL_ITER *itr = ll_iter_create(configured_readers);
-	while((rdr = ll_iter_next(itr)) && (rdr->device[0])) {
-		tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
-		if (account->aureader == rdr) tpl_addVar(vars, TPLADD, "SELECTED", "selected");
-		else tpl_addVar(vars, TPLADD, "SELECTED", "");
-		tpl_addVar(vars, TPLAPPEND, "RDROPTION", tpl_getTpl(vars, "USEREDITRDRSELECTED"));
+	//Au
+	if (account->autoau == 1)
+		tpl_addVar(vars, TPLADD, "AUREADER", "1");
+	else if (account->aureader_list) {
+		char buf[512];
+		buf[0]='\0';
+
+		struct s_reader *rdr;
+
+		LL_ITER *itr = ll_iter_create(account->aureader_list);
+
+		int pos=0;
+		while ((rdr = ll_iter_next(itr))) {
+			if (pos==0)
+				sprintf(buf + pos, "%s", rdr->label);
+			else
+				sprintf(buf + pos, ",%s", rdr->label);
+			pos+=strlen(rdr->label);
+		}
+		ll_iter_release(itr);
+
+		tpl_addVar(vars, TPLADD, "AUREADER", buf);
 	}
-	ll_iter_release(itr);
 
 	/* SERVICES */
 	//services - first we have to move the long sidtabok/sidtabno to a binary array
@@ -1791,10 +1802,10 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
 					}
 #endif
 
-					int cs = get_cardsystem(card->caid);
+					struct s_cardsystem *cs = get_cardsystem_by_caid(card->caid);
 					
 					if (cs)
-						tpl_addVar(vars, TPLADD, "SYSTEM", cardsystem[cs-1].desc);
+						tpl_addVar(vars, TPLADD, "SYSTEM", cs->desc ? cs->desc : "");
 					else
 						tpl_addVar(vars, TPLADD, "SYSTEM", "???");
 
@@ -2046,7 +2057,7 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 				else if ((cl->tosleep) && (now-cl->lastswitch>cl->tosleep)) con=1;
 				else con=0;
 
-				if( (cau=get_ridx(cl->aureader)+1) && (now-cl->lastemm)/60 > cfg.mon_aulow) cau=-cau;
+				//if( (cau=get_ridx(cl->aureader)+1) && (now-cl->lastemm)/60 > cfg.mon_aulow) cau=-cau;
 
 				localtime_r(&cl->login, &lt);
 
@@ -2860,8 +2871,7 @@ int process_request(FILE *f, struct in_addr in) {
 					if (cfg.http_dynip == addr)
 						ok = v;
 				} else {
-					cs_log("can't resolve %s", cfg.http_dyndns);
-				}
+					cs_log("can't resolve %s", cfg.http_dyndns); }
 				pthread_mutex_unlock(&gethostbyname_lock);
 
 			} else {

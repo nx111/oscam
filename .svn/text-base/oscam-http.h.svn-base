@@ -620,15 +620,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 					</select>\n\
 				</TD>\n\
 			</TR>\n\
-			<TR><TD>##TPLHELPPREFIX##user#au##TPLHELPSUFFIX##AU:</A></TD>\n\
-				<TD>\n\
-					<select name=\"au\">\n\
-						<option value=\" \" ##AUSELECTED##>none</option>\n\
-						<option value=\"1\" ##AUTOAUSELECTED##>auto</option>\n\
-##RDROPTION##\n\
-						</select>\n\
-					</TD>\n\
-			</TR>\n\
+			<TR><TD>##TPLHELPPREFIX##user#au##TPLHELPSUFFIX##AU:</A></TD><TD><input name=\"au\" type=\"text\" size=\"60\" maxlength=\"50\" value=\"##AUREADER##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##user#services##TPLHELPSUFFIX##Services:</A></TD>\n\
 				<TD>\n\
 					<TABLE class=\"invisible\">\n\
@@ -1312,6 +1304,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 			<TR><TD>##TPLHELPPREFIX##conf#lb_retrylimit##TPLHELPSUFFIX##Retry Limit:</A></TD><TD><input name=\"lb_retrylimit\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBRETRYLIMIT##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#lb_reopen_seconds##TPLHELPSUFFIX##Time to reopen:</A></TD><TD><input name=\"lb_reopen_seconds\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBREOPENSECONDS##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#lb_stat_cleanup##TPLHELPSUFFIX##Hours to cleanup older than:</A></TD><TD><input name=\"lb_stat_cleanup\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBCLEANUP##\"></TD></TR>\n\
+			<TR><TD>##TPLHELPPREFIX##conf#lb_use_locking##TPLHELPSUFFIX##Use locking:</A></TD><TD><SELECT NAME=\"lb_use_locking\"><OPTION VALUE=\"0\">NO</OPTION><OPTION VALUE=\"1\" ##USELOCKINGCHECKED##>YES</OPTION></SELECT></TD></TR>\n\
 			<TR><TD colspan=\"2\" align=\"right\"><input type=\"submit\" value=\"Save\" ##BTNDISABLED##></TD></TR>\n\
 		</TABLE>\n\
 	</form>\n\

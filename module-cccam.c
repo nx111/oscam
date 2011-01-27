@@ -316,7 +316,6 @@ void cc_cli_close(struct s_client *cl, int call_conclose) {
 	rdr->tcp_connected = 0;
 	rdr->card_status = NO_CARD;
 	rdr->available = 0;
-	rdr->card_system = 0;
 	rdr->ncd_msgid = 0;
 	rdr->last_s = rdr->last_g = 0;
 
@@ -671,20 +670,20 @@ int cc_get_nxt_ecm(struct s_client *cl) {
 			if (n < 0 || cl->ecmtask[n].tps.time - cl->ecmtask[i].tps.time < 0) {
 					
 				//check for already pending:
-				//if (((struct cc_data*)cl->cc)->extended_mode) {
-				//	int j,found;
-				//	for (found=j=0;j<CS_MAXPENDING;j++) {
-				//		if (i!=j && cl->ecmtask[j].rc == 101 &&
-				//			cl->ecmtask[i].caid==cl->ecmtask[j].caid &&
-				//			cl->ecmtask[i].ecmd5==cl->ecmtask[j].ecmd5) {
-				//			found=1;
-				//			break;
-				//		}
-				//	}
-				//	if (!found)
-				//		n = i;
-				//}
-				//else
+				if (((struct cc_data*)cl->cc)->extended_mode) {
+					int j,found;
+					for (found=j=0;j<CS_MAXPENDING;j++) {
+						if (i!=j && cl->ecmtask[j].rc == 101 &&
+							cl->ecmtask[i].caid==cl->ecmtask[j].caid &&
+							cl->ecmtask[i].ecmd5==cl->ecmtask[j].ecmd5) {
+							found=1;
+							break;
+						}
+					}
+					if (!found)
+						n = i;
+				}
+				else
 					n = i;
 			}
 		}
@@ -897,12 +896,11 @@ void set_au_data(struct s_client *cl, struct s_reader *rdr, struct cc_card *card
 	struct cc_data *cc = cl->cc;	
 	cc->last_emm_card = card;
 
-	rdr->card_system = get_cardsystem(card->caid);
 	cc_UA_cccam2oscam(card->hexserial, rdr->hexserial, rdr->caid);
 
 	cs_debug_mask(D_EMM,
-			"%s au info: caid %04X card system: %d UA: %s",
-			getprefix(), card->caid, rdr->card_system, cs_hexdump(0,
+			"%s au info: caid %04X UA: %s",
+			getprefix(), card->caid, cs_hexdump(0,
 					rdr->hexserial, 8));
 
 	rdr->nprov = 0;
@@ -2131,7 +2129,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 			cc->recv_ecmtask = -1;
 			struct cc_extended_ecm_idx *eei = get_extended_ecm_idx(cl,
 					cc->extended_mode ? cc->g_flag : 1, TRUE);
-			if (eei == NULL) {
+			if (!eei) {
 				cs_debug_mask(D_READER, "%s received extended ecm id %d but not found!",
 						getprefix(), cc->g_flag);
 			}
@@ -2367,7 +2365,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 			if (l > 4) {
 				cs_debug_mask(D_EMM, "%s EMM Request received!", getprefix());
 
-				if (!cl->aureader) {
+				if (!ll_count(cl->aureader_list)) {
 						cs_debug_mask(
 							D_EMM,
 							"%s EMM Request discarded because au is not assigned to an reader!",
@@ -2550,10 +2548,7 @@ int cc_recv(struct s_client *cl, uchar *buf, int l) {
  * This function checks for hexserial changes on cards.
  * We update the share-list if a card has changed
  */
-ulong get_reader_hexserial_crc(struct s_client *cl) {
-	if (!cl->aureader)
-		return 0;
-
+ulong get_reader_hexserial_crc(struct s_client *UNUSED(cl)) {
 	ulong crc = 0;
 	struct s_reader *rdr;
 	for (rdr = first_active_reader; rdr; rdr = rdr->next) {
@@ -2997,7 +2992,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 	cc->card_removed_count = 0;
 	cc->card_dup_count = 0;
 
-	int isau = (cl->aureader)?1:0;
+	int isau = (ll_count(cl->aureader_list))?1:0;
 
 	//User-Services:
 	if (cfg.cc_reshare_services==3 && cfg.sidtab && cl->sidtabok) {
@@ -3552,7 +3547,7 @@ int cc_srv_connect(struct s_client *cl) {
 			int needs_card_updates = (cfg.cc_update_interval >= 0)
 					&& comp_timeb(&cur_time, &timeout) > 0;
 
-			if (needs_card_updates) {
+			if (needs_card_updates || !cc->cards_modified) {
 				cc->ecm_time = cur_time;
 				ulong new_hexserial_crc = get_reader_hexserial_crc(cl);
 				int cards_modified = cc_cards_modified();
@@ -3943,6 +3938,7 @@ void module_cccam(struct s_module *ph) {
 	ph->watchdog = 1;
 	ph->recv = cc_recv;
 	ph->cleanup = cc_cleanup;
+	ph->multi = 1;
 	ph->c_multi = 1;
 	ph->c_init = cc_cli_init;
 	ph->c_idle = cc_idle;

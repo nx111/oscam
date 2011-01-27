@@ -148,8 +148,17 @@ static void camd35_request_emm(ECM_REQUEST *er)
 	time_t now;
 	uchar mbuf[1024];
 	struct s_client *cl = cur_client();
+	struct s_reader *aureader = NULL, *rdr = NULL;
 
-	struct s_reader *aureader = cl->aureader;
+	LL_ITER *itr = ll_iter_create(cl->aureader_list);
+	while ((rdr = ll_iter_next(itr))) {
+		if (!(rdr->typ & R_IS_CASCADING) && rdr->caid == er->caid) {
+			aureader=rdr;
+			break;
+		}
+	}
+	ll_iter_release(itr);
+
 	if (!aureader)
 		return;  // TODO
 
@@ -293,7 +302,6 @@ static void camd35_process_emm(uchar *buf)
 {
 	EMM_PACKET epg;
 	memset(&epg, 0, sizeof(epg));
-	if (!cur_client()->aureader ) return;  // TODO
 	epg.l = buf[1];
 	memcpy(epg.caid, buf + 10, 2);
 	memcpy(epg.provid, buf + 12 , 4);
@@ -592,7 +600,6 @@ static int camd35_recv_chk(struct s_client *client, uchar *dcw, int *rc, uchar *
 		rdr->blockemm_g = (buf[128]==1) ? 0: 1;
 		rdr->blockemm_s = (buf[129]==1) ? 0: 1;
 		rdr->blockemm_u = (buf[130]==1) ? 0: 1;
-		rdr->card_system = get_cardsystem(rdr->caid);
 		cs_log("%s CMD05 AU request for caid: %04X auprovid: %06lX",
 				rdr->label,
 				rdr->caid,

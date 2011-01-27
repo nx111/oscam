@@ -56,11 +56,6 @@ set endpoint address for FTDI chips,default:0x82
 key for newcamd remote reader encryption
 .RE
 .PP
-\fBpremium\fP = \fB???\fP
-.RS 3n
-for gbox reader
-.RE
-.PP
 \fBaccount\fP = \fBuser,password\fP \fI(delimiter not allowed, obsolete)\fR
 .RS 3n
 user and password for remote reader, overrides password of \fBpassword\fP, first come first serve
@@ -453,7 +448,8 @@ camd 3.78x reader
  label    = mycamd378xreader
  protocol = cs378x
  device   = 192.168.0.1,1234
- account  = user,password
+ user     = user1
+ password = password1
  group    = 3
 .TP 3n
 \(bu
@@ -464,21 +460,23 @@ newcamd reader
  protocol = newcamd
  key      = 0102030405060708091011121314
  device   = 192.168.0.2,2345
- account  = user,password
+ user     = user2
+ password = password2
  group    = 4
 .TP 3n
 \(bu
 CCcam reader
  
  [reader]
- label = mycccamreader
- protocol = cccam
- device = 192.168.0.3,3456
- account = user,password
- group = 5
- caid = 0300,0400,0500
+ label      = mycccamreader
+ protocol   = cccam
+ device     = 192.168.0.3,3456
+ user       = user3
+ password   = password3
+ group      = 5
+ caid       = 0300,0400,0500
  cccversion = 1.2.3
- cccbuild = 4567
+ cccbuild   = 4567
 .TP 3n
 \(bu
 PCSC reader
@@ -514,6 +512,7 @@ internal reader
 .TP 3n.
 \(bu
 sc8in1 reader
+
  [reader]
  label    = mysc8in1reader
  protocol = sc8in1
@@ -523,11 +522,22 @@ sc8in1 reader
 .TP 3n 
 \(bu
 constant CW
+
  [reader]
  label    = myconstantcw
  protocol = constcw
  device   = /var/keys/constant.cw
  group    = 10
+.TP 3n
+\(bu
+gbox reader
+
+ [reader]
+ label    = mygboxreader
+ protocol = gbox
+ device   = host.example.com
+ group    = 11
+ caid     = 1100
 .SH "SEE ALSO"
 \fBlist_smargo\fR(1), \fBoscam\fR(1), \fBoscam.ac\fR(5), \fBoscam.cert\fR(5), \fBoscam.conf\fR(5), \fBoscam.dvbapi\fR(5), \fBoscam.guess\fR(5), \fBoscam.ird\fR(5), \fBoscam.provid\fR(5), \fBoscam.services\fR(5), \fBoscam.srvid\fR(5), \fBoscam.tiers\fR(5),
 \fBoscam.user\fR(5)

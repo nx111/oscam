@@ -33,6 +33,7 @@ int cs_restart_mode=1; //Restartmode: 0=off, no restart fork, 1=(default)restart
 #endif
 char  cs_tmpdir[200]={0x00};
 pthread_mutex_t gethostbyname_lock;
+pthread_mutex_t get_cw_lock;
 pthread_key_t getclient;
 
 //Cache for **found** cws:
@@ -693,7 +694,7 @@ void cs_reinit_clients(struct s_auth *new_accounts)
 			if (account && cl->pcrc == crc32(0L, MD5((uchar *)account->pwd, strlen(account->pwd), cur_client()->dump), 16)) {
                                 cl->account = account;
 				cl->grp		= account->grp;
-				cl->aureader		= account->aureader;
+				cl->aureader_list		= account->aureader_list;
 				cl->autoau	= account->autoau;
 				cl->expirationdate = account->expirationdate;
 				cl->allowedtimeframe[0] = account->allowedtimeframe[0];
@@ -880,7 +881,6 @@ static void init_first_client()
   first_client->login=time((time_t *)0);
   first_client->ip=cs_inet_addr("127.0.0.1");
   first_client->typ='s';
-  first_client->aureader=NULL;
   first_client->thread=pthread_self();
   struct s_auth *null_account = malloc(sizeof(struct s_auth));
   memset(null_account, 0, sizeof(struct s_auth));
@@ -892,6 +892,7 @@ static void init_first_client()
 
 
   pthread_mutex_init(&gethostbyname_lock, NULL);
+  pthread_mutex_init(&get_cw_lock, NULL);
 
 #ifdef CS_LOGHISTORY
   loghistidx=0;
@@ -1117,7 +1118,6 @@ void start_anticascader()
 #endif
 
 void restart_cardreader(struct s_reader *rdr, int restart) {
-	int i;
 	if (restart) //kill old thread
 		if (rdr->client)
 			kill_thread(rdr->client);
@@ -1128,10 +1128,6 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 	cs_ftime(&rdr->tcp_block_connect_till);
 
 	if (rdr->device[0] && (rdr->typ & R_IS_CASCADING)) {
-		for (i=0; i<CS_MAX_MOD; i++)
-			if (ph[i].num && rdr->typ==ph[i].num)
-				rdr->ph=ph[i];
-
 		if (!rdr->ph.num) {
 			cs_log("Protocol Support missing. (typ=%d)", rdr->typ);
 			return;
@@ -1206,7 +1202,7 @@ static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr
 			if (uniq  == 3 || uniq == 4)
 			{
 				cl->dup = 1;
-				cl->aureader = NULL;
+				cl->aureader_list = NULL;
 				cs_log("client(%8X) duplicate user '%s' from %s set to fake (uniq=%d)", cl->thread, usr, cs_inet_ntoa(ip), uniq);
 				if (cl->failban & BAN_DUPLICATE) {
 					cs_add_violation(ip);
@@ -1215,7 +1211,7 @@ static void cs_fake_client(struct s_client *client, char *usr, int uniq, in_addr
 			else
 			{
 				client->dup = 1;
-				client->aureader = NULL;
+				client->aureader_list = NULL;
 				cs_log("client(%8X) duplicate user '%s' from %s set to fake (uniq=%d)", pthread_self(), usr, cs_inet_ntoa(ip), uniq);
 				if (cl->failban & BAN_DUPLICATE) {
 					cs_add_violation(ip);
@@ -1239,7 +1235,6 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 	char *t_msg[]= { buf, "invalid access", "invalid ip", "unknown reason" };
 	memset(&client->grp, 0xff, sizeof(uint64));
 	//client->grp=0xffffffffffffff;
-	client->aureader=NULL;
 	client->account=first_client->account;
 	switch((long)account)
 	{
@@ -1278,7 +1273,7 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 				client->c35_suppresscmd08 = account->c35_suppresscmd08;
 				client->ncd_keepalive = account->ncd_keepalive;
 				client->grp = account->grp;
-				client->aureader = account->aureader;
+				client->aureader_list = account->aureader_list;
 				client->autoau = account->autoau;
 				client->tosleep = (60*account->tosleep);
 				client->c35_sleepsend = account->c35_sleepsend;
@@ -1300,33 +1295,13 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 		client->monlvl=account->monlvl;
 		client->account = account;
 	case -1:            // anonymous grant access
-	if (rc)
-		t_grant=t_reject;
-	else
-		if (client->typ=='m')
-			sprintf(t_msg[0], "lvl=%d", client->monlvl);
+		if (rc)
+			t_grant=t_reject;
 		else
-			if(client->autoau)
-				if(client->ncd_server)
-				{
-					struct s_reader *rdr;
-					for (rdr=first_active_reader; rdr ; rdr=rdr->next)
-						if(rdr->caid==cfg.ncd_ptab.ports[client->port_idx].ftab.filts[0].caid) {
-							client->aureader=rdr;
-							break;
-						}
-					if(!client->aureader)
-						sprintf(t_msg[0], "au(auto)=0"); //FIXME dont think this is correct, but this was old behaviour
-					else
-						sprintf(t_msg[0], "au(auto)=%s", client->aureader->label);
-				}
-				else
-					sprintf(t_msg[0], "au=auto");
+			if (client->typ=='m')
+				sprintf(t_msg[0], "lvl=%d", client->monlvl);
 			else
-				if(!client->aureader)
-					sprintf(t_msg[0], "au(auto)=0"); //FIXME dont think this is correct, but this was old behaviour
-				else
-					sprintf(t_msg[0], "au=%s", client->aureader->label);
+				sprintf(t_msg[0], "au=%d", ll_count(client->aureader_list));
 
 	if(client->ncd_server)
 	{
@@ -1412,7 +1387,7 @@ static int check_cwcache1(ECM_REQUEST *er, uint64 grp)
 
 		//cs_debug_mask(D_TRACE, "cache: ecm %04X found: ccaid=%04X caid=%04X grp=%lld cgrp=%lld count=%d", lc, er->caid, ecmc->caid, grp, ecmc->grp, count);
 
-		if (!(grp & ecmc->grp))
+		if (grp && !(grp & ecmc->grp))
 			continue;
 
 		if (ecmc->caid != er->caid)
@@ -1430,10 +1405,10 @@ static int check_cwcache1(ECM_REQUEST *er, uint64 grp)
  * cache 2: reader-invoked
  * returns 1 if found in cache. cw is copied to er
  **/
-int check_cwcache2(ECM_REQUEST *er, uint64 grp)
+int check_cwcache2(ECM_REQUEST *er)
 {
 	//struct s_reader *save = er->selected_reader;
-	int rc = check_cwcache1(er, grp);
+	int rc = check_cwcache1(er, 0);
 	//er->selected_reader = save;
   return rc;
 }
@@ -1659,7 +1634,7 @@ void distribute_ecm(ECM_REQUEST *er)
       n=(ph[cl->ctyp].multi)?CS_MAXPENDING:1;
       for (i=0; i<n; i++) {
         ecm = &cl->ecmtask[i];
-        if (ecm->rc == E_99 && (ecm->caid==er->caid || ecm->ocaid==er->ocaid) && !memcmp(ecm->ecmd5, er->ecmd5, CS_ECMSTORESIZE)) {
+        if (ecm->rc >= E_99 && (ecm->caid==er->caid || ecm->ocaid==er->ocaid) && !memcmp(ecm->ecmd5, er->ecmd5, CS_ECMSTORESIZE)) {
           er->cpti = ecm->cpti;
           //cs_log("distribute %04X:%06X:%04X cpti %d to client %s", ecm->caid, ecm->prid, ecm->srvid, ecm->cpti, username(cl));
           write_ecm_request(cl->fd_m2c, er);
@@ -1692,9 +1667,7 @@ int write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
 
   if (er->rc==E_RDR_FOUND) {
 
-#ifndef CS_WITH_DOUBLECHECK
-    store_cw_in_cache(er, reader->grp);
-#endif
+	store_cw_in_cache(er, reader->grp);
 
     /* CWL logging only if cwlogdir is set in config */
     if (cfg.cwlogdir != NULL)
@@ -1766,6 +1739,7 @@ ECM_REQUEST *get_ecmtask()
 		cs_log("WARNING: ecm pending table overflow !");
 	else
 	{
+			
                 LLIST *save = er->matching_rdr;                
 		memset(er, 0, sizeof(ECM_REQUEST));
 		er->rc=E_UNHANDLED;
@@ -1780,6 +1754,8 @@ ECM_REQUEST *get_ecmtask()
                   }
                   else
                     er->matching_rdr = ll_create();
+                    
+                    //cs_log("client %s ECMTASK %d multi %d ctyp %d", username(cl), n, (ph[cl->ctyp].multi)?CS_MAXPENDING:1, cl->ctyp);
                 }
 	}
 	
@@ -1862,43 +1838,6 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 	else
 		snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s", stxt[er->rc]);
 #endif
-
-	if(!client->ncd_server && client->autoau && er->rcEx==0 && er->selected_reader)
-	{
-		if(client->aureader && er->caid!=client->aureader->caid)
-		{
-			client->aureader=NULL;
-		}
-
-		struct s_reader *cur = er->selected_reader;
-
-		if (cur->typ == R_CCCAM && !cur->caid && !cur->audisabled &&
-				cur->card_system == get_cardsystem(er->caid) && hexserialset(er->selected_reader))
-			client->aureader= er->selected_reader;
-		else if((er->caid == cur->caid) && (!cur->audisabled)) {
-			client->aureader = er->selected_reader; // First chance - check whether actual reader can AU
-		} else {
-			for (cur=first_active_reader; cur ; cur=cur->next) { //second chance loop through all readers to find an AU reader
-				if (matching_reader(er, cur)) {
-					if (cur->typ == R_CCCAM && !cur->caid && !cur->audisabled &&
-						cur->card_system == get_cardsystem(er->caid) && hexserialset(cur))
-					{
-						client->aureader = cur;
-						break;
-					}
-					else if((er->caid == cur->caid) && (er->prid == cur->auprovid) && (!cur->audisabled))
-					{
-						client->aureader = cur;
-						break;
-					}
-				}
-			}
-			if(!cur) {
-				client->aureader=NULL;
-			}
-		}
-		//}
-	}
 
 	er->caid = er->ocaid;
 	switch(er->rc) {
@@ -2427,6 +2366,16 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		}
 	}
 
+    //Use locking - now default=FALSE, activate on problems!
+	int locked;
+	if (cfg.lb_mode && cfg.lb_use_locking) {
+			pthread_mutex_lock(&get_cw_lock);
+			locked=1;
+	}
+	else
+			locked=0;
+			
+	
 	//Schlocke: above checks could change er->rc so
 	if (er->rc >= E_UNHANDLED) {
 		/*BetaCrypt tunneling
@@ -2449,8 +2398,6 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		// cache1
 		if (check_cwcache1(er, client->grp))
 				er->rc = E_CACHE1;
-		else if (check_and_store_ecmcache(er, client->grp))
-				er->rc = E_99;
 				
 #ifdef CS_ANTICASC
 		ac_chk(er, 0);
@@ -2497,7 +2444,14 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 			if (er->matching_rdr->initial == er->fallback) { //fallbacks only
 					er->fallback = NULL; //switch them
 			}
+		
+		//we have to go through matching_reader() to check services!
+		if (er->rc == E_UNHANDLED && check_and_store_ecmcache(er, client->grp))
+				er->rc = E_99;
 	}
+	
+	if (locked)
+		pthread_mutex_unlock(&get_cw_lock);
 	
 	if (er->rc == E_99)
 			return; //ECM already requested / found in ECM cache
@@ -2525,149 +2479,144 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 {
 	char *typtext[]={"unknown", "unique", "shared", "global"};
 
-	struct s_reader *aureader = client->aureader;
+	struct s_reader *aureader = NULL;
 	cs_ddump_mask(D_EMM, ep->emm, ep->l, "emm:");
 
-	//Unique Id matching for pay-per-view channels:
-	if (client->autoau) {
-		struct s_reader *rdr;
-		for (rdr=first_active_reader; rdr ; rdr=rdr->next)
-			if (rdr->card_system>0 && !rdr->audisabled)
-				if (reader_get_emm_type(ep, rdr)) //decodes ep->type and ep->hexserial from the EMM
-					if (memcmp(ep->hexserial, rdr->hexserial, sizeof(ep->hexserial))==0) {
-						aureader = rdr;
-						break; //
-					}
-	}
+	LL_ITER *itr = ll_iter_create(client->aureader_list);
+	while ((aureader = ll_iter_next(itr))) {
+		if (!aureader->enable)
+			continue;
 
-	if (!aureader) {
-		cs_debug_mask(D_EMM, "emm disabled, client has no au-reader!");
-		return;
-	}
+		ushort caid = b2i(2, ep->caid);
 
-	//2nd check for audisabled.
-	if (aureader->audisabled) {
-		cs_debug_mask(D_EMM, "AU is disabled for reader %s", aureader->label);
-		return;
-	}
-
-	if (aureader->card_system>0) {
-		if (!reader_get_emm_type(ep, aureader)) { //decodes ep->type and ep->hexserial from the EMM
-			cs_debug_mask(D_EMM, "emm skipped");
-			return;
-		}
-	}
-	else {
-		cs_debug_mask(D_EMM, "emm skipped, reader %s has no cardsystem defined!", aureader->label);
-		return;
-	}
-
-	//test: EMM becomes skipped if auprivid doesn't match with provid from EMM
-	if(aureader->auprovid && b2i(4, ep->provid)) {
-		if(aureader->auprovid != b2i(4, ep->provid)) {
-			cs_debug_mask(D_EMM, "emm skipped, reader %s auprovid doesn't match %06lX != %06lX!", aureader->label, aureader->auprovid, b2i(4, ep->provid));
-			return;
-		}
-	}
-
-	cs_debug_mask(D_EMM, "emmtype %s. Reader %s has serial %s.", typtext[ep->type], aureader->label, cs_hexdump(0, aureader->hexserial, 8));
-	cs_ddump_mask(D_EMM, ep->hexserial, 8, "emm UA/SA:");
-
-	client->last=time((time_t)0);
-	if (aureader->b_nano[ep->emm[0]] & 0x02) //should this nano be saved?
-	{
-		char token[256];
-		FILE *fp;
-		time_t rawtime;
-		time (&rawtime);
-		struct tm timeinfo;
-		localtime_r (&rawtime, &timeinfo);	/* to access LOCAL date/time info */
-		char buf[80];
-		strftime (buf, 80, "%Y/%m/%d %H:%M:%S", &timeinfo);
-		sprintf (token, "%s%s_emm.log", cs_confdir, aureader->label);
-		int emm_length = ((ep->emm[1] & 0x0f) << 8) | ep->emm[2];
-
-		if (!(fp = fopen (token, "a")))
-		{
-			cs_log ("ERROR: Cannot open file '%s' (errno=%d: %s)\n", token, errno, strerror(errno));
-		}
-		else
-		{
-			fprintf (fp, "%s   %s   ", buf, cs_hexdump(0, ep->hexserial, 8));
-			fprintf (fp, "%s\n", cs_hexdump(0, ep->emm, emm_length + 3));
-			fclose (fp);
-			cs_log ("Succesfully added EMM to %s.", token);
+		if (aureader->audisabled) {
+			cs_debug_mask(D_EMM, "AU is disabled for reader %s", aureader->label);
+			continue;
 		}
 
-		sprintf (token, "%s%s_emm.bin", cs_confdir, aureader->label);
-		if (!(fp = fopen (token, "ab")))
-		{
-			cs_log ("ERROR: Cannot open file '%s' (errno=%d: %s)\n", token, errno, strerror(errno));
+		if (!(aureader->grp & client->grp)) {
+			cs_debug_mask(D_EMM, "skip emm reader %s group mismatch", aureader->label);
+			continue;
 		}
-		else
-		{
-			if ((int)fwrite(ep->emm, 1, emm_length+3, fp) == emm_length+3)
-			{
-				cs_log ("Succesfully added binary EMM to %s.", token);
+
+		if (aureader->typ & R_IS_CASCADING) { // network reader (R_CAMD35 R_NEWCAMD R_CS378X R_CCCAM)
+			if (!aureader->ph.c_send_emm) // no emm support
+				continue;
+
+			if (aureader->caid != caid || !hexserialset(aureader)) {
+				cs_debug_mask(D_EMM, "emm reader %s caid mismatch %04X != %04X", aureader->label, aureader->caid, caid);
+				continue;
 			}
-			else
-			{
-				cs_log ("ERROR: Cannot write binary EMM to %s (errno=%d: %s)\n", token, errno, strerror(errno));
+
+			//we need provider and shared addresses set for this
+			//function should check caid to make sure we have no false positive
+			int i;
+			for (i=0; i<CS_MAX_MOD; i++) {
+				if (cardsystem[i].get_emm_type) {
+					if (cardsystem[i].get_emm_type(ep, aureader))
+						break;
+				}
 			}
-			fclose (fp);
+		} else { // local reader
+			if (aureader->caid != caid) {
+				cs_debug_mask(D_EMM, "emm reader %s caid mismatch %04X != %04X", aureader->label, aureader->caid, caid);
+
+				//is this useful?
+				client->emmnok++;
+				if (client->account)
+					client->account->emmnok++;
+				first_client->emmnok++;
+
+				continue;
+			}
+
+			if (!reader_get_emm_type(ep, aureader)) { //decodes ep->type and ep->hexserial from the EMM
+				cs_debug_mask(D_EMM, "emm skipped, reader %s", aureader->label);
+				continue;
+			}
 		}
-	}
 
-	int is_blocked = 0;
-	switch (ep->type) {
-		case UNKNOWN: is_blocked = aureader->blockemm_unknown;
-			break;
-		case UNIQUE: is_blocked = aureader->blockemm_u;
-			break;
-		case SHARED: is_blocked = aureader->blockemm_s;
-			break;
-		case GLOBAL: is_blocked = aureader->blockemm_g;
-			break;
-	}
+		cs_debug_mask(D_EMM, "emmtype %s. Reader %s has serial %s.", typtext[ep->type], aureader->label, cs_hexdump(0, aureader->hexserial, 8));
+		cs_ddump_mask(D_EMM, ep->hexserial, 8, "emm UA/SA:");
 
-	if (is_blocked != 0) {
+		client->last=time((time_t)0);
+		if (aureader->b_nano[ep->emm[0]] & 0x02) { //should this nano be saved?
+			char token[256];
+			FILE *fp;
+			time_t rawtime;
+			time (&rawtime);
+			struct tm timeinfo;
+			localtime_r (&rawtime, &timeinfo);	/* to access LOCAL date/time info */
+			char buf[80];
+			strftime (buf, 80, "%Y/%m/%d %H:%M:%S", &timeinfo);
+			sprintf (token, "%s%s_emm.log", cs_confdir, aureader->label);
+			int emm_length = ((ep->emm[1] & 0x0f) << 8) | ep->emm[2];
+
+			if (!(fp = fopen (token, "a"))) {
+				cs_log ("ERROR: Cannot open file '%s' (errno=%d: %s)\n", token, errno, strerror(errno));
+			} else {
+				fprintf (fp, "%s   %s   ", buf, cs_hexdump(0, ep->hexserial, 8));
+				fprintf (fp, "%s\n", cs_hexdump(0, ep->emm, emm_length + 3));
+				fclose (fp);
+				cs_log ("Succesfully added EMM to %s.", token);
+			}
+
+			sprintf (token, "%s%s_emm.bin", cs_confdir, aureader->label);
+			if (!(fp = fopen (token, "ab"))) {
+				cs_log ("ERROR: Cannot open file '%s' (errno=%d: %s)\n", token, errno, strerror(errno));
+			} else {
+				if ((int)fwrite(ep->emm, 1, emm_length+3, fp) == emm_length+3)	{
+					cs_log ("Succesfully added binary EMM to %s.", token);
+				} else {
+					cs_log ("ERROR: Cannot write binary EMM to %s (errno=%d: %s)\n", token, errno, strerror(errno));
+				}
+				fclose (fp);
+			}
+		}
+
+		int is_blocked = 0;
+		switch (ep->type) {
+			case UNKNOWN: is_blocked = aureader->blockemm_unknown;
+				break;
+			case UNIQUE: is_blocked = aureader->blockemm_u;
+				break;
+			case SHARED: is_blocked = aureader->blockemm_s;
+				break;
+			case GLOBAL: is_blocked = aureader->blockemm_g;
+				break;
+		}
+
+		if (is_blocked != 0) {
 #ifdef WEBIF
-		aureader->emmblocked[ep->type]++;
-		is_blocked = aureader->emmblocked[ep->type];
+			aureader->emmblocked[ep->type]++;
+			is_blocked = aureader->emmblocked[ep->type];
 #endif
-		/* we have to write the log for blocked EMM here because
-	  	 this EMM never reach the reader module where the rest
-		 of EMM log is done. */
-		if (aureader->logemm & 0x08)  {
-			cs_log("%s emmtype=%s, len=%d, idx=0, cnt=%d: blocked (0 ms) by %s",
-					client->account->usr,
-					typtext[ep->type],
-					ep->emm[2],
-					is_blocked,
-					aureader->label);
+			/* we have to write the log for blocked EMM here because
+	  		 this EMM never reach the reader module where the rest
+			 of EMM log is done. */
+			if (aureader->logemm & 0x08)  {
+				cs_log("%s emmtype=%s, len=%d, idx=0, cnt=%d: blocked (0 ms) by %s",
+						client->account->usr,
+						typtext[ep->type],
+						ep->emm[2],
+						is_blocked,
+						aureader->label);
+			}
+			continue;
 		}
-		return;
-	}
 
+		client->lastemm = time((time_t)0);
 
-	client->lastemm = time((time_t)0);
-
-	if (aureader->card_system > 0) {
-		if (!check_emm_cardsystem(aureader, ep)) {   // wrong caid
-			client->emmnok++;
-			if (client->account)
-			  client->account->emmnok++;
-			first_client->emmnok++;
-			return;
-		}
 		client->emmok++;
 		if (client->account)
-		  client->account->emmok++;
+			client->account->emmok++;
 		first_client->emmok++;
+
+		ep->client = cur_client();
+		cs_debug_mask(D_EMM, "emm is being sent to reader %s.", aureader->label);
+		write_to_pipe(aureader->fd, PIP_ID_EMM, (uchar *) ep, sizeof(EMM_PACKET));
 	}
-	ep->client = cur_client();
-	cs_debug_mask(D_EMM, "emm is being sent to reader %s.", aureader->label);
-	write_to_pipe(aureader->fd, PIP_ID_EMM, (uchar *) ep, sizeof(EMM_PACKET));
+	ll_iter_release(itr);
 }
 
 int comp_timeb(struct timeb *tpa, struct timeb *tpb)
@@ -2705,7 +2654,7 @@ struct timeval *chk_pending(struct timeb tp_ctimeout)
 			er=&cl->ecmtask[i];
 
 			//additional cache check:			
-			if (check_cwcache2(er, cl->grp)) {
+			if (check_cwcache2(er)) {
 					//cs_log("found lost entry in cache! %s %04X&%06X/%04X", username(cl), er->caid, er->prid, er->srvid);
 					er->rc = E_CACHE2;
 					send_dcw(cl, er);

@@ -272,6 +272,7 @@ extern char *RDR_CD_TXT[];
 #define DEFAULT_NFB 1
 #define DEFAULT_RETRYLIMIT 800
 #define DEFAULT_LB_STAT_CLEANUP 336
+#define DEFAULT_LB_USE_LOCKING 0
 
 enum {E1_GLOBAL=0, E1_USER, E1_READER, E1_SERVER, E1_LSERVER};
 enum {E2_GLOBAL=0, E2_GROUP, E2_CAID, E2_IDENT, E2_CLASS, E2_CHID, E2_QUEUE,
@@ -460,7 +461,7 @@ struct emm_packet_t ;
 
 struct s_module
 {
-  //int  fd;
+  int  active;
   int  multi;
   int  type;
   int  watchdog;
@@ -517,6 +518,7 @@ struct s_cardreader
 
 struct s_cardsystem
 {
+	int active;
 	char *desc;
 	int  (*card_init)();
 	int  (*card_info)();
@@ -596,7 +598,7 @@ struct s_client
   uint64	grp;
   int		crypted;
   int		dup;
-  struct s_reader *aureader; //the reader that needs EMMs from this client
+  LLIST	*aureader_list;
   int		autoau;
   int		monlvl;
   CAIDTAB	ctab;
@@ -745,7 +747,6 @@ struct s_reader  //contains device info, reader info and card info
   uint64    grp;
   int       fallback;
   int       typ;
-  int       card_system;
   char      label[64];
   char      device[128];
   void      *spec_dev;  //pointer to structure that contains specific device data
@@ -800,6 +801,7 @@ struct s_reader  //contains device info, reader info and card info
   int       deprecated; //if 0 ATR obeyed, if 1 default speed (9600) is chosen; for devices that cannot switch baudrate
   struct    s_module ph;
   struct    s_cardreader crdr;
+  struct    s_cardsystem csystem;
   uchar     ncd_key[16];
   uchar     ncd_skey[16];
   int       ncd_disable_server_filt;
@@ -942,7 +944,7 @@ struct s_auth
   char     description[64];
 #endif
   int      uniq;
-  struct s_reader *aureader;
+  LLIST    *aureader_list;
   int      autoau;
   int      monlvl;
   uint64   grp;
@@ -1130,6 +1132,7 @@ struct s_config
 	int	lb_retrylimit; //reopen only happens if reader response time > retrylimit
 	char	*lb_savepath; //path where the stat file is save. Empty=default=/tmp/.oscam/stat
 	int	lb_stat_cleanup; //duration in hours for cleaning old statistics
+	int lb_use_locking; //use a mutex lock while searching for readers (get_cw())
 	
 	int             resolve_gethostbyname;
 
@@ -1321,7 +1324,7 @@ extern int comp_timeb(struct timeb *tpa, struct timeb *tpb);
 extern struct s_client * create_client(in_addr_t);
 extern int cs_auth_client(struct s_client *, struct s_auth *, const char*);
 extern void cs_disconnect_client(struct s_client *);
-extern int check_cwcache2(ECM_REQUEST *, uint64);
+extern int check_cwcache2(ECM_REQUEST *);
 extern int write_to_pipe(int, int, uchar *, int);
 extern int read_from_pipe(int, uchar **, int);
 extern int write_ecm_answer(struct s_reader *, ECM_REQUEST *);
@@ -1494,8 +1497,7 @@ extern void reader_post_process(struct s_reader * reader);
 extern int reader_ecm(struct s_reader * reader, ECM_REQUEST *);
 extern int reader_emm(struct s_reader * reader, EMM_PACKET *);
 int reader_get_emm_type(EMM_PACKET *ep, struct s_reader * reader);
-void get_emm_filter(struct s_reader * rdr, uchar *filter);
-int get_cardsystem(ushort caid);
+struct s_cardsystem *get_cardsystem_by_caid(ushort caid);
 extern int check_emm_cardsystem(struct s_reader * rdr, EMM_PACKET *ep);
 extern void reader_device_close(struct s_reader * reader);
 
