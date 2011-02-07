@@ -381,18 +381,24 @@ in_addr_t cs_inet_order(in_addr_t n)
 char *cs_inet_ntoa(in_addr_t n)
 {
   struct in_addr in;
-  in.s_addr=cs_inet_order(n);
+  in.s_addr=n;
   return((char *)inet_ntoa(in));
 }
 
 in_addr_t cs_inet_addr(char *txt)
 {
-  if (!inet_byteorder)
-    inet_byteorder=((inet_addr("1.2.3.4")+1)==inet_addr("1.2.3.5")) ? 1 : 2;
-  if (inet_byteorder == 1)
     return(inet_addr(txt));
-  else
-    return(inet_network(txt));
+}
+
+
+int check_ip(struct s_ip *ip, in_addr_t n)
+{
+	struct s_ip *p_ip;
+	int ok = 0;
+	for (p_ip=ip; (p_ip) && (!ok); p_ip=p_ip->next)
+		ok=((cs_inet_order(n)>=cs_inet_order(p_ip->ip[0])) && (cs_inet_order(n)<=cs_inet_order(p_ip->ip[1])));
+
+	return ok;
 }
 
 ulong b2i(int n, uchar *b)

@@ -783,6 +783,8 @@ int get_UA_ofs(uint16 caid) {
 	case 0x09: //VIDEOGUARD:
 	case 0x0B: //CONAX:
 	case 0x18: //NAGRA:
+	case 0x17: //BETACRYPT
+	case 0x06: //IRDETO:
 		ofs = 2;
 		break;
 	}
@@ -826,9 +828,9 @@ void UA_right(uint8 *in, uint8 *out, int len) {
  * cccam uses UA right justified
  **/
 void cc_UA_oscam2cccam(uint8 *in, uint8 *out, uint16 caid) {
-	//uint8 tmp[8];
-	
+	uint8 tmp[8];
 	memset(out, 0, 8);
+	memset(tmp, 0, 8);
 	//switch (caid>>8) {
 	//	case 0x17: //IRDETO/Betacrypt:
 	//		//oscam: AA BB CC DD 00 00 00 00
@@ -841,8 +843,8 @@ void cc_UA_oscam2cccam(uint8 *in, uint8 *out, uint16 caid) {
 	//		
 	//	//Place here your own adjustments!
 	//}
-	hexserial_to_newcamd(in, out+2, caid);
-	UA_right(in, out, 8);
+	hexserial_to_newcamd(in, tmp+2, caid);
+	UA_right(tmp, out, 8);
 }
 
 /**
@@ -867,7 +869,7 @@ void cc_UA_cccam2oscam(uint8 *in, uint8 *out, uint16 caid) {
 	int ofs = get_UA_ofs(caid);
 	int len = 8-ofs;
 	UA_left(in, tmp+ofs, len);
-	newcamd_to_hexserial(tmp+2, out, caid);
+	newcamd_to_hexserial(tmp, out, caid);
 }
 
 void cc_SA_oscam2cccam(uint8 *in, uint8 *out) {
@@ -2973,12 +2975,13 @@ int cc_srv_report_cards(struct s_client *cl) {
 	int j;
 	uint k;
 	uint8 hop = 0;
-	int reshare, usr_reshare, reader_reshare, maxhops, flt = 0;
+	int reshare, usr_reshare, usr_ignorereshare, reader_reshare, maxhops, flt = 0;
 	
 	struct cc_data *cc = cl->cc;
 
 	maxhops = cl->account->cccmaxhops;
 	usr_reshare = cl->account->cccreshare;
+	usr_ignorereshare = cl->account->cccignorereshare;
 
 	LLIST *server_cards = ll_create();
 	if (!cc->reported_carddatas)
@@ -3043,6 +3046,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 				}
 			}
 
+			isau = ll_contains(cl->aureader_list, rdr);
 			int au_allowed = !rdr->audisabled && isau;
 
 			flt = 0;
@@ -3198,7 +3202,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 							if (card->hop <= maxhops && chk_ctab(card->caid, &cl->ctab)
 									&& chk_ctab(card->caid, &rdr->ctab)) {
 							
-								if ((cfg.cc_ignore_reshare || card->maxdown > 0)) {
+								if ((cfg.cc_ignore_reshare || usr_ignorereshare || card->maxdown > 0)) {
 									int ignore = 0;
 
 									LL_ITER *it2 = ll_iter_create(card->providers);
@@ -3216,7 +3220,7 @@ int cc_srv_report_cards(struct s_client *cl) {
 								
 									if (!ignore) { //Filtered by service
 										int new_reshare =
-												cfg.cc_ignore_reshare ? reshare
+												( cfg.cc_ignore_reshare || usr_ignorereshare ) ? reshare
 													: (card->maxdown - 1);
 										if (new_reshare > reshare)
 											new_reshare = reshare;
@@ -3437,6 +3441,10 @@ int cc_srv_connect(struct s_client *cl) {
 	if (cl->dup) {
 		cs_log("account '%s' duplicate login, disconnect!", usr);
 		return -3;
+	}
+	if (account->cccmaxhops<0) {
+			cs_log("account '%s' has cccmaxhops<0, cccam can't handle this, disconnect!", usr);
+			return -3; 
 	}
 	
 
@@ -3826,7 +3834,7 @@ int cc_cli_init_int(struct s_client *cl) {
 			(void *)&cfg.netprio, sizeof(ulong));
 #endif
 	rdr->tcp_ito = 1; //60sec...This now invokes ph_idle()
-	if (rdr->cc_maxhop <= 0)
+	if (rdr->cc_maxhop < 0)
 		rdr->cc_maxhop = 10;
 
 	memset((char *) &cl->udp_sa, 0, sizeof(cl->udp_sa));

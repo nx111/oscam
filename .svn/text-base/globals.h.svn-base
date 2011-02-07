@@ -825,7 +825,7 @@ struct s_reader  //contains device info, reader info and card info
   FTAB      fchid;
   FTAB      ftab;
   CLASSTAB  cltab;
-
+  char      *init_history;
   int       init_history_pos;
   int       brk_pos;
   int       msg_idx;
@@ -970,6 +970,7 @@ struct s_auth
   int       ncd_keepalive;
   int       cccmaxhops;
   int       cccreshare;
+  int       cccignorereshare;
   int       disabled;
   int 		failban;
   
@@ -1273,6 +1274,7 @@ extern char *get_ncd_client_name(char *client_id);
 extern char *strnew(char *str);
 extern void hexserial_to_newcamd(uchar *source, uchar *dest, ushort caid);
 extern void newcamd_to_hexserial(uchar *source, uchar *dest, ushort caid);
+extern int check_ip(struct s_ip *ip, in_addr_t n);
 
 extern pthread_key_t getclient;
 extern struct s_client * cur_client(void);
@@ -1346,6 +1348,7 @@ extern int chk_sfilter(ECM_REQUEST *, PTAB*);
 extern int chk_ufilters(ECM_REQUEST *);
 extern int chk_rsfilter(struct s_reader * reader, ECM_REQUEST *);
 extern int matching_reader(ECM_REQUEST *, struct s_reader *);
+extern int emm_reader_match(struct s_reader *reader, ushort caid, ulong provid);
 extern void set_signal_handler(int , int , void (*));
 extern void cs_log_config(void);
 extern void cs_waitforcardinit(void);
@@ -1357,7 +1360,6 @@ extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid);
 extern void nullclose(int *fd);
 extern void kill_thread(struct s_client *cl);
 extern int get_threadnum(struct s_client *client);
-extern int get_ridx(struct s_reader *reader);
 extern void cs_add_violation(uint ip);
 
 extern void cs_card_info(void);

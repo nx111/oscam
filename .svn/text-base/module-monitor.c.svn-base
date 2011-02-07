@@ -5,12 +5,10 @@
 static void monitor_check_ip()
 {
 	int ok=0;
-	struct s_ip *p_ip;
 	struct s_client *cur_cl = cur_client();
 	
 	if (cur_cl->auth) return;
-	for (p_ip=cfg.mon_allowed; (p_ip) && (!ok); p_ip=p_ip->next)
-		ok=((cur_cl->ip>=p_ip->ip[0]) && (cur_cl->ip<=p_ip->ip[1]));
+	ok = check_ip(cfg.mon_allowed, cur_cl->ip);
 	if (!ok)
 	{
 		cs_auth_client(cur_cl, (struct s_auth *)0, "invalid ip");
@@ -235,7 +233,7 @@ static char *monitor_client_info(char id, struct s_client *cl){
 
 	if (cl){
 		char ldate[16], ltime[16], *usr;
-		int lsec, isec, con, cau, lrt;
+		int lsec, isec, con, cau, lrt =- 1;
 		time_t now;
 		struct tm lt;
 		now=time((time_t)0);
@@ -257,15 +255,31 @@ static char *monitor_client_info(char id, struct s_client *cl){
 					con = 1;
 				else
 					con = 0;
-			
+
 			//if( (cau = get_ridx(cl->aureader) + 1) )
 			//	if ((now-cl->lastemm) /60 > cfg.mon_aulow)
 			//		cau=-cau;
+			// workaround: no AU reader == 0 / AU ok == 1 / Last EMM > aulow == -1
+			if (!cl->aureader_list) {
+				cau = 0;
+			} else {
+				if ((now-cl->lastemm)/60 > cfg.mon_aulow)
+					cau = -1;
+				else
+					cau = 1;
+			}
+
+
 			if( cl->typ == 'r')
 			{
-			    lrt = get_ridx(cl->reader);
-			    if( lrt >= 0 )
-                    lrt = 10 + cl->reader->card_status;
+				int i;
+				struct s_reader *rdr;
+				for (i=0,rdr=first_active_reader; rdr ; rdr=rdr->next, i++)
+					if (cl->reader == rdr)
+						lrt=i;
+
+				if( lrt >= 0 )
+					lrt = 10 + cl->reader->card_status;
 			}
 			else
                 lrt = cl->cwlastresptime;
@@ -385,17 +399,12 @@ static void monitor_process_details_master(char *buf, unsigned long pid){
 static void monitor_process_details_reader(struct s_client *cl) {
 
 	if (cfg.saveinithistory) {
-		FILE *fp;
-		char filename[32];
-		char buffer[128];
-		sprintf(filename, "%s/reader%d", get_tmp_dir(), get_ridx(cl->reader));
-		fp = fopen(filename, "r");
-
-		if (fp) {
-			while(fgets(buffer, 128, fp) != NULL) {
-				monitor_send_details(buffer, (unsigned long)(cl->thread));
+		if (cl->reader->init_history) {
+			char *ptr,*ptr1 = NULL;
+			for (ptr=strtok_r(cl->reader->init_history, "\n", &ptr1); ptr; ptr=strtok_r(NULL, "\n", &ptr1)) {
+				monitor_send_details(ptr, (unsigned long)(cl->thread));
+				ptr1[-1]='\n';
 			}
-			fclose(fp);
 		}
 	} else {
 		monitor_send_details("Missing reader index or entitlement not saved!", (unsigned long)(cl->thread));

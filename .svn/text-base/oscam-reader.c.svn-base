@@ -18,42 +18,21 @@ void cs_ri_log(struct s_reader * reader, char *fmt,...)
 
 	va_list params;
 	va_start(params, fmt);
-	vsprintf(txt, fmt, params);
+	vsnprintf(txt, sizeof(txt), fmt, params);
 	va_end(params);
 	cs_log("%s", txt);
 
 	if (cfg.saveinithistory) {
-		FILE *fp;
-		char filename[256];
-		char *buffer;
-		int filelen = 0;
-		sprintf(filename, "%s/reader%d", get_tmp_dir(), get_ridx(reader));
-		int size = reader->init_history_pos+strlen(txt)+1;
-		buffer = malloc(size+1);
+		int size = reader->init_history_pos+strlen(txt)+2;
 
-		if (buffer == NULL)
+		cs_realloc(&reader->init_history, size, -1);
+
+		if (!reader->init_history)
 			return;
 
-		memset(buffer, 32, size);
-
-		fp = fopen(filename, "r");
-
-		if (fp) {
-			filelen = fread(buffer, 1, reader->init_history_pos, fp);
-			fclose(fp);
-		}
-
-		sprintf(buffer + filelen, "%s\n", txt);
-
-		fp = fopen(filename, "w");
-		if (fp) {
-			fwrite(buffer, 1, filelen + strlen(txt)+1, fp);
-			fclose(fp);
-		}
-
-		free(buffer);
+		snprintf(reader->init_history+reader->init_history_pos, strlen(txt)+2, "%s\n", txt);
+		reader->init_history_pos+=strlen(txt)+1;
 	}
-	reader->init_history_pos+=strlen(txt)+1;
 }
 
 static void casc_check_dcw(struct s_reader * reader, int idx, int rc, uchar *cw)
@@ -145,7 +124,7 @@ int hostResolve(struct s_reader *rdr)
        result = 0;
      } else {
        memcpy(&cl->udp_sa.sin_addr, rht->h_addr, sizeof(cl->udp_sa.sin_addr));
-       cl->ip=cs_inet_order(cl->udp_sa.sin_addr.s_addr);
+       cl->ip=cl->udp_sa.sin_addr.s_addr;
        result = 1;
      }
    }
@@ -162,7 +141,7 @@ int hostResolve(struct s_reader *rdr)
        result = 0;
      } else {
        cl->udp_sa.sin_addr.s_addr = ((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr;
-       cl->ip = cs_inet_order(cl->udp_sa.sin_addr.s_addr);
+       cl->ip = cl->udp_sa.sin_addr.s_addr;
        result = 1;
      }
      if (res) freeaddrinfo(res);

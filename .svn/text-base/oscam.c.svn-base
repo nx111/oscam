@@ -53,15 +53,6 @@ int     loghistidx;  // ptr to current entry
 char    loghist[CS_MAXLOGHIST*CS_LOGHISTSIZE];     // ptr of log-history
 #endif
 
-int get_ridx(struct s_reader *reader) {
-	int i;
-	struct s_reader *rdr;
-	for (i=0,rdr=first_active_reader; rdr ; rdr=rdr->next, i++)
-		if (reader == rdr)
-			return i;
-	return -1;
-}
-
 int get_threadnum(struct s_client *client) {
 	struct s_client *cl;
 	int count=0;
@@ -564,8 +555,6 @@ static void cleanup_thread(struct s_client *cl)
 		ICC_Async_Close(cl->reader);
 	}
 	if (cl->reader) {
-	        ll_destroy_data(cl->reader->lb_stat);
-	        cl->reader->lb_stat = NULL;
 		cl->reader->client = NULL;
 		cl->reader = NULL;
         }
@@ -595,6 +584,34 @@ static void cleanup_thread(struct s_client *cl)
 				ecmidx = ecmcache;
 		add_garbage(ecmc);
 	}
+}
+
+static void cs_cleanup()
+{
+		if (cfg.lb_mode && cfg.lb_save) {
+				save_stat_to_file();
+				cfg.lb_save = 0; //this is for avoiding duplicate saves
+		}
+
+        //cleanup clients:
+        struct s_client *cl;
+        for (cl=first_client->next; cl; cl=cl->next) { 
+                if (cl->typ=='c')
+                        kill_thread(cl);
+        }
+        
+        //cleanup readers:
+        struct s_reader *rdr;
+        for (rdr=first_active_reader; rdr ; rdr=rdr->next) {
+                cs_log("killing reader %s", rdr->label);
+                kill_thread(rdr->client);
+        }
+        first_active_reader = NULL;
+                                                                
+        //cleaning all others:
+        while (first_client->next) {
+                kill_thread(first_client->next);
+        }
 }
 
 void cs_exit(int sig)
@@ -675,7 +692,9 @@ void cs_exit(int sig)
 
 	cs_log("cardserver down");
 	cs_close_log();
-
+	
+	cs_cleanup();
+	
 	if (!exit_oscam)
 	  exit_oscam = sig?sig:1;
 }
@@ -1039,7 +1058,7 @@ int cs_user_resolve(struct s_auth *account)
 				cs_log("can't resolve %s", account->dyndns);
 			else {
 				memcpy(&udp_sa.sin_addr, rht->h_addr, sizeof(udp_sa.sin_addr));
-				account->dynip=cs_inet_order(udp_sa.sin_addr.s_addr);
+				account->dynip=udp_sa.sin_addr.s_addr;
 				result=1;
 			}
 		}
@@ -1055,7 +1074,7 @@ int cs_user_resolve(struct s_auth *account)
 				cs_log("can't resolve %s, error: %s", account->dyndns, err ? gai_strerror(err) : "unknown");
 			}
 			else {
-				account->dynip=cs_inet_order(((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr);
+				account->dynip=((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr;
 				result=1;
 			}
 			if (res) freeaddrinfo(res);
@@ -1297,33 +1316,31 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 	case -1:            // anonymous grant access
 		if (rc)
 			t_grant=t_reject;
-		else
+		else {
 			if (client->typ=='m')
 				sprintf(t_msg[0], "lvl=%d", client->monlvl);
-			else
-				sprintf(t_msg[0], "au=%d", ll_count(client->aureader_list));
+			else {
+				int rcount = ll_count(client->aureader_list);
+				sprintf(buf, "au=");
+				if (!rcount)
+					sprintf(buf+3, "off");
+				else {
+					if (client->autoau)
+						sprintf(buf+3, "auto (%d reader)", rcount);
+					else
+						sprintf(buf+3, "on (%d reader)", rcount);
+				}
+			}
+		}
 
-	if(client->ncd_server)
-	{
-		cs_log("%s %s:%d-client %s%s (%s, %s)",
-				client->crypted ? t_crypt : t_plain,
-				e_txt ? e_txt : ph[client->ctyp].desc,
-				cfg.ncd_ptab.ports[client->port_idx].s_port,
-				client->ip ? cs_inet_ntoa(client->ip) : "",
-				client->ip ? t_grant : t_grant+1,
-				username(client), t_msg[rc]);
-	}
-	else
-	{
 		cs_log("%s %s-client %s%s (%s, %s)",
-				client->crypted ? t_crypt : t_plain,
-				e_txt ? e_txt : ph[client->ctyp].desc,
-				client->ip ? cs_inet_ntoa(client->ip) : "",
-				client->ip ? t_grant : t_grant+1,
-				username(client), t_msg[rc]);
-	}
+			client->crypted ? t_crypt : t_plain,
+			e_txt ? e_txt : ph[client->ctyp].desc,
+			client->ip ? cs_inet_ntoa(client->ip) : "",
+			client->ip ? t_grant : t_grant+1,
+			username(client), t_msg[rc]);
 
-	break;
+		break;
 	}
 	return(rc);
 }
@@ -2488,6 +2505,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 			continue;
 
 		ushort caid = b2i(2, ep->caid);
+		ulong provid = b2i(4, ep->provid);
 
 		if (aureader->audisabled) {
 			cs_debug_mask(D_EMM, "AU is disabled for reader %s", aureader->label);
@@ -2499,39 +2517,33 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 			continue;
 		}
 
+		//TODO: provider possibly not set yet, this is done in get_emm_type()
+		if (!emm_reader_match(aureader, caid, provid))
+			continue;
+
+		struct s_cardsystem *cs = NULL;
+
 		if (aureader->typ & R_IS_CASCADING) { // network reader (R_CAMD35 R_NEWCAMD R_CS378X R_CCCAM)
 			if (!aureader->ph.c_send_emm) // no emm support
 				continue;
 
-			if (aureader->caid != caid || !hexserialset(aureader)) {
-				cs_debug_mask(D_EMM, "emm reader %s caid mismatch %04X != %04X", aureader->label, aureader->caid, caid);
+			cs = get_cardsystem_by_caid(caid);
+			if (!cs) {
+				cs_debug_mask(D_EMM, "unable to find cardsystem for caid %04X, reader %s", caid, aureader->label);
 				continue;
 			}
-
-			//we need provider and shared addresses set for this
-			//function should check caid to make sure we have no false positive
-			int i;
-			for (i=0; i<CS_MAX_MOD; i++) {
-				if (cardsystem[i].get_emm_type) {
-					if (cardsystem[i].get_emm_type(ep, aureader))
-						break;
-				}
-			}
 		} else { // local reader
-			if (aureader->caid != caid) {
-				cs_debug_mask(D_EMM, "emm reader %s caid mismatch %04X != %04X", aureader->label, aureader->caid, caid);
-
-				//is this useful?
+			if (aureader->csystem.active)
+				cs=&aureader->csystem;
+		}
+			
+		if (cs && cs->get_emm_type) {
+			if(!cs->get_emm_type(ep, aureader)) {
+				cs_debug_mask(D_EMM, "emm skipped, get_emm_type() returns error, reader %s", aureader->label);
 				client->emmnok++;
 				if (client->account)
 					client->account->emmnok++;
 				first_client->emmnok++;
-
-				continue;
-			}
-
-			if (!reader_get_emm_type(ep, aureader)) { //decodes ep->type and ep->hexserial from the EMM
-				cs_debug_mask(D_EMM, "emm skipped, reader %s", aureader->label);
 				continue;
 			}
 		}
@@ -2902,7 +2914,7 @@ int accept_connection(int i, int j) {
 
 		if ((n=recvfrom(ph[i].ptab->ports[j].fd, buf+3, sizeof(buf)-3, 0, (struct sockaddr *)&cad, (socklen_t *)&scad))>0) {
 			struct s_client *cl;
-			cl=idx_from_ip(cs_inet_order(cad.sin_addr.s_addr), ntohs(cad.sin_port));
+			cl=idx_from_ip(cad.sin_addr.s_addr, ntohs(cad.sin_port));
 
 			unsigned short rl;
 			rl=n;
@@ -2910,11 +2922,11 @@ int accept_connection(int i, int j) {
 			memcpy(buf+1, &rl, 2);
 
 			if (!cl) {
-				if (cs_check_violation((uint)cs_inet_order(cad.sin_addr.s_addr)))
+				if (cs_check_violation((uint)cad.sin_addr.s_addr))
 					return 0;
 				//printf("IP: %s - %d\n", inet_ntoa(*(struct in_addr *)&cad.sin_addr.s_addr), cad.sin_addr.s_addr);
 
-				cl = create_client(cs_inet_order(cad.sin_addr.s_addr));
+				cl = create_client(cad.sin_addr.s_addr);
 				if (!cl) return 0;
 
 				cl->ctyp=i;
@@ -2944,12 +2956,12 @@ int accept_connection(int i, int j) {
 		int pfd3;
 		if ((pfd3=accept(ph[i].ptab->ports[j].fd, (struct sockaddr *)&cad, (socklen_t *)&scad))>0) {
 
-			if (cs_check_violation((uint)cs_inet_order(cad.sin_addr.s_addr))) {
+			if (cs_check_violation((uint)cad.sin_addr.s_addr)) {
 				close(pfd3);
 				return 0;
 			}
 
-			struct s_client * cl = create_client(cs_inet_order(cad.sin_addr.s_addr));
+			struct s_client * cl = create_client(cad.sin_addr.s_addr);
 			if (cl == NULL) {
 				close(pfd3);
 				return 0;
@@ -3376,29 +3388,8 @@ if (pthread_key_create(&getclient, NULL)) {
   }
 #endif
 
-        //cleanup clients:
-        struct s_client *cl;
-        for (cl=first_client->next; cl; cl=cl->next) { 
-                if (cl->typ=='c')
-                        kill_thread(cl);
-        }
-        
-        //cleanup readers:
-        struct s_reader *rdr;
-        for (rdr=first_active_reader; rdr ; rdr=rdr->next) {
-                cs_log("killing reader %s", rdr->label);
-                kill_thread(rdr->client);
-        }
-        first_active_reader = NULL;
-                                                                
-        //cleaning all others:
-        while (first_client->next) {
-                kill_thread(first_client->next);
-        }
-
-        if (cfg.lb_mode && cfg.lb_save)
-				save_stat_to_file();        		
-
+		cs_cleanup();
+		
         stop_garbage_collector();
         
 	return exit_oscam;

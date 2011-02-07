@@ -82,6 +82,9 @@ DESCRIPTIONS
 	  1  =	enable	DNS  resolving	of  clients, if you have already defined a hostname for your clients the parameter must be 1, otherwise no
 	  authentication will be possible for this clients, default:0
 
+       failbancount = count
+	  number of incorrect logins after an ip address will be blocked, default:0
+
        failbantime = minutes
 	  time for IP based blocking for clients with an invalid login attempt, 0 = failban is disabled, default:0
 
@@ -160,6 +163,9 @@ DESCRIPTIONS
        lb_stat_cleanup = hour
 	  hours after the loadbalancing statistics will be deleted, default:336
 
+       lb_use_locking = 0|1
+	  1 = disable parallel and identical ECM requests, default:0
+
    The [monitor] section
        port = 0|port
 	  UDP port for monitor, port=0 monitor disabled, default:0
@@ -213,9 +219,6 @@ DESCRIPTIONS
 
        httprefresh = seconds
 	  status refresh in seconds, default:none
-
-       httptpl = path
-	  path for external templates, default:none
 
        httphideidleclients = 0|1
 	  1 = enables hiding clients after idle time set in parameter hideclient_to, default:0

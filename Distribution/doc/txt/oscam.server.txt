@@ -212,10 +212,12 @@ DESCRIPTIONS
 
        cccmaxhops = hops
 	  define CCcam maximum SC distance hops, default:10
-	   0 = local SCs only
-	   1 = local SCs and + 1 hop
-	   2 = local SCs and + 2 hops
+	   0 = remote local SCs only
+	   1 = remote local SCs and + 1 hop
+	   2 = remote local SCs and + 2 hops
 	   and so on
+
+	  After reading this SC hop will be incremented by one.
 
        cccwantemu = 0|1
 	  1 = request to provide emu from CCCam server, too, default:0
@@ -410,7 +412,7 @@ EXAMPLES
 	   [reader]
 	   label    = mygboxreader
 	   protocol = gbox
-	   device   = host.example.com
+	   device   = host.example.com,4567
 	   group    = 11
 	   caid     = 1100
 

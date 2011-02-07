@@ -305,6 +305,31 @@ void dvbapi_start_filter(int demux_id, int pidindex, unsigned short pid, uchar t
 	dvbapi_set_filter(demux_id, selected_api, pid, filter, filter+16, timeout, pidindex, count, type);
 }
 
+void dvbapi_sort_nanos(unsigned char *dest, const unsigned char *src, int len)
+{
+	int w=0, c=-1, j=0;
+	while(1) {
+		int n=0x100;
+		for(j=0; j<len;) {
+			int l=src[j+1]+2;
+				if(src[j]==c) {
+					if(w+l>len) {
+						cs_debug_mask(D_DVBAPI, "sortnanos: sanity check failed. Exceeding memory area. Probably corrupted nanos!");
+						memset(dest,0,len); // zero out everything
+						return;
+					}
+					memcpy(&dest[w],&src[j],l);
+				w+=l;
+			} else if(src[j]>c && src[j]<n)
+				n=src[j];
+			j+=l;
+		}
+		if(n==0x100) break;
+		c=n;
+	}
+}
+
+
 int dvbapi_find_emmpid(int demux_id, uint8 type) {
 	int k;
 	for (k=0; k<demux[demux_id].EMMpidcount; k++) {
@@ -1983,8 +2008,8 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 			client->last=time((time_t)0);
 
 			FILE *ecmtxt;
-			ecmtxt = fopen(ECMINFO_FILE, "w");
-			if(ecmtxt != NULL) {
+			ecmtxt = fopen(ECMINFO_FILE, "w"); 
+			if(ecmtxt != NULL) { 
 				if(!cfg.dvbapi_ecm_infomode){	//oscam
 					fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
 					fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
@@ -2168,7 +2193,6 @@ void * azbox_main(void *cli) {
 	while ((ret = openxcas_get_message(&msg, 0)) >= 0) {
 		cs_sleepms(10);
 
-		process_client_pipe(dvbapi_client, NULL, 0);
 		chk_pending(tp);
 
 		if (ret) {
@@ -2276,21 +2300,25 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 	cs_debug_mask(D_DVBAPI, "openxcas: send_dcw");
 
     FILE *ecmtxt;
-    ecmtxt = fopen(ECMINFO_FILE, "w");
-    if(ecmtxt != NULL) {
-        fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
-        fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
-        if (er->selected_reader->typ & R_IS_CASCADING)
-            fprintf(ecmtxt, "from: %s\n", er->selected_reader->device);
-        else
-            fprintf(ecmtxt, "from: local\n");
-        fprintf(ecmtxt, "protocol: %s\n", er->selected_reader->ph.desc);
-        fprintf(ecmtxt, "hops: %d\n", er->selected_reader->cc_currenthops);
-        fprintf(ecmtxt, "ecm time: %.3f\n", (float) client->cwlastresptime/1000);
-        fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[0].lastcw[0],8));
-        fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[0].lastcw[1],8));
-        fclose(ecmtxt);
-        ecmtxt = NULL;
+    if ((ecmtxt = fopen(ECMINFO_FILE, "w")) {
+    	if(er->rc <= E_EMU) {
+			fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
+			fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
+			if (er->selected_reader->typ & R_IS_CASCADING)
+				fprintf(ecmtxt, "from: %s\n", er->selected_reader->device);
+			else
+				fprintf(ecmtxt, "from: local\n");
+			fprintf(ecmtxt, "protocol: %s\n", er->selected_reader->ph.desc);
+			fprintf(ecmtxt, "hops: %d\n", er->selected_reader->cc_currenthops);
+			fprintf(ecmtxt, "ecm time: %.3f\n", (float) client->cwlastresptime/1000);
+			fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[0].lastcw[0],8));
+			fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[0].lastcw[1],8));
+			fclose(ecmtxt);
+			ecmtxt = NULL;
+		} else {
+			fprintf(ecmtxt, "ECM information not found\n");
+			fclose(ecmtxt);
+		}
     }
 
 	openxcas_busy = 0;

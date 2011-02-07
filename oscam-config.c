@@ -324,7 +324,7 @@ void chk_t_global(const char *token, char *value)
 			cfg.srvip = 0;
 			return;
 		} else {
-			cfg.srvip=inet_addr(value);
+			cfg.srvip=cs_inet_addr(value);
 			return;
 		}
 	}
@@ -621,7 +621,7 @@ void chk_t_monitor(char *token, char *value)
 			cfg.mon_srvip = 0;
 			return;
 		} else {
-			cfg.mon_srvip=inet_addr(value);
+			cfg.mon_srvip=cs_inet_addr(value);
 			return;
 		}
 	}
@@ -782,7 +782,7 @@ void chk_t_camd33(char *token, char *value)
 			cfg.c33_srvip = 0;
 			return;
 		} else {
-			cfg.c33_srvip = inet_addr(value);
+			cfg.c33_srvip = cs_inet_addr(value);
 			return;
 		}
 	}
@@ -830,7 +830,7 @@ void chk_t_camd35(char *token, char *value)
 			cfg.c35_srvip = 0;
 			return;
 		} else {
-			cfg.c35_srvip = inet_addr(value);
+			cfg.c35_srvip = cs_inet_addr(value);
 			return;
 		}
 	}
@@ -861,7 +861,7 @@ void chk_t_camd35_tcp(char *token, char *value)
 			cfg.c35_tcp_srvip = 0;
 			return;
 		} else {
-			cfg.c35_tcp_srvip = inet_addr(value);
+			cfg.c35_tcp_srvip = cs_inet_addr(value);
 			return;
 		}
 	}
@@ -887,7 +887,7 @@ void chk_t_newcamd(char *token, char *value)
 			cfg.ncd_srvip = 0;
 			return;
 		} else {
-			cfg.ncd_srvip = inet_addr(value);
+			cfg.ncd_srvip = cs_inet_addr(value);
 			return;
 		}
 	}
@@ -932,7 +932,7 @@ void chk_t_cccam(char *token, char *value)
 		cfg.cc_port = strToIntVal(value, 0);
 		return;
 	}
-	//if (!strcmp(token, "serverip")) { cfg.cc_srvip=inet_addr(value); return; }
+	//if (!strcmp(token, "serverip")) { cfg.cc_srvip=cs_inet_addr(value); return; }
 
 	if (!strcmp(token, "reshare")) {
 		cfg.cc_reshare = strToIntVal(value, 0);
@@ -1009,7 +1009,7 @@ void chk_t_radegast(char *token, char *value)
 			cfg.rad_srvip = 0;
 			return;
 		} else {
-			cfg.rad_srvip = inet_addr(value);
+			cfg.rad_srvip = cs_inet_addr(value);
 			return;
 		}
 	}
@@ -1491,6 +1491,16 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 			return;
 		} else {
 			account->cccreshare = atoi(value);
+			return;
+		}
+	}
+
+	if (!strcmp(token, "cccignorereshare")) {
+		if (strlen(value) == 0) {
+			account->cccignorereshare = 0;
+			return;
+		} else {
+			account->cccignorereshare = atoi(value);
 			return;
 		}
 	}
@@ -2104,25 +2114,16 @@ int write_userdb(struct s_auth *authptr)
 		if (account->autoau == 1)
 			fprintf_conf(f, CONFVARWIDTH, "au", "1\n");
 		else if (account->aureader_list) {
-			char buf[512];
-			buf[0]='\0';
-
 			struct s_reader *rdr;
-
 			LL_ITER *itr = ll_iter_create(account->aureader_list);
-
-			int pos=0;
+			char *dot = "";
+			fprintf_conf(f, CONFVARWIDTH, "au", "");
 			while ((rdr = ll_iter_next(itr))) {
-				if (pos==0)
-					sprintf(buf + pos, "%s", rdr->label);
-				else
-					sprintf(buf + pos, ",%s", rdr->label);
-				pos+=strlen(rdr->label);
+				fprintf(f, "%s%s", dot, rdr->label);
+				dot = ",";
 			}
-
 			ll_iter_release(itr);
-
-			fprintf_conf(f, CONFVARWIDTH, "au", "%s\n", buf);
+			fprintf(f, "\n");
 		}
 
 		value = mk_t_service((uint64)account->sidtabok, (uint64)account->sidtabno);
@@ -2166,6 +2167,9 @@ int write_userdb(struct s_auth *authptr)
 
 		if ((account->cccreshare != cfg.cc_reshare) || ((account->cccreshare == cfg.cc_reshare) && cfg.http_full_cfg))
 			fprintf_conf(f, CONFVARWIDTH, "cccreshare", "%d\n", account->cccreshare);
+
+		if ((account->cccignorereshare != cfg.cc_ignore_reshare) || ((account->cccignorereshare == cfg.cc_ignore_reshare) && cfg.http_full_cfg))
+			fprintf_conf(f, CONFVARWIDTH, "cccignorereshare", "%d\n", account->cccignorereshare);
 
 		if (account->c35_sleepsend || (!account->c35_sleepsend && cfg.http_full_cfg))
 			fprintf_conf(f, CONFVARWIDTH, "sleepsend", "%d\n", account->c35_sleepsend);
@@ -2666,6 +2670,7 @@ struct s_auth *init_userdb()
 			account->c35_suppresscmd08 = cfg.c35_suppresscmd08;
 			account->cccmaxhops = 10;
 			account->cccreshare = cfg.cc_reshare;
+			account->cccignorereshare = cfg.cc_ignore_reshare;
 			account->ncd_keepalive = cfg.ncd_keepalive;
 			for (i = 1; i < CS_MAXCAIDTAB; account->ctab.mask[i++] = 0xffff);
 			for (i = 1; i < CS_MAXTUNTAB; account->ttab.bt_srvid[i++] = 0x0000);

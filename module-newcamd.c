@@ -582,13 +582,10 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
     uchar key[16];
     uchar passwdcrypt[120];
     struct s_reader *aureader = NULL, *rdr = NULL;
-    struct s_ip *p_ip;
     struct s_client *cl = cur_client();
     uchar mbuf[1024];
 
-    ok = cfg.ncd_allowed ? 0 : 1;
-    for (p_ip=cfg.ncd_allowed; (p_ip) && (!ok); p_ip=p_ip->next)
-	ok=((ip>=p_ip->ip[0]) && (ip<=p_ip->ip[1]));
+    ok = cfg.ncd_allowed ? check_ip(cfg.ncd_allowed, ip) : 1;
 
     if (!ok)
     {
@@ -638,8 +635,9 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
         if (strcmp((char *)pwd, (const char *)passwdcrypt) == 0)
         {
           cl->crypted=1;
-
-          if(cs_auth_client(cl, account, NULL) == 2) {
+          char e_txt[20];
+	   snprintf(e_txt, 20, "%s:%d", ph[cl->ctyp].desc, cfg.ncd_ptab.ports[cl->port_idx].s_port);
+          if(cs_auth_client(cl, account, e_txt) == 2) {
             cs_log("hostname or ip mismatch for user %s (%s)", usr, client_name);
             break;
           }
@@ -675,10 +673,15 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
 	if (ok) {
 		LL_ITER *itr = ll_iter_create(cl->aureader_list);
 		while ((rdr = ll_iter_next(itr))) {
-			if (!(rdr->typ & R_IS_CASCADING) && rdr->caid == cfg.ncd_ptab.ports[cl->port_idx].ftab.filts[0].caid) {
-				aureader=rdr;
-				break;
+			int n;
+			for (n=0;n<cfg.ncd_ptab.ports[cl->port_idx].ftab.filts[0].nprids;n++) {
+				if (emm_reader_match(rdr, cfg.ncd_ptab.ports[cl->port_idx].ftab.filts[0].caid, cfg.ncd_ptab.ports[cl->port_idx].ftab.filts[0].prids[n])) {
+					aureader=rdr;
+					break;
+				}
 			}
+			if (aureader)
+				break;
 		}
 		ll_iter_release(itr);
 
@@ -1186,14 +1189,40 @@ static int newcamd_send_emm(EMM_PACKET *ep)
 
 static int newcamd_recv_chk(struct s_client *client, uchar *dcw, int *rc, uchar *buf, int n)
 {
-  ushort idx; 
-  *client = *client; //suppress compiler error, but recv_chk should comply to other recv_chk routines...
-  if( n<21 )	// no cw, ignore others
-    return(-1);
-  *rc = 1;
-  idx = (buf[0] << 8) | buf[1];
-  memcpy(dcw, buf+5, 16);
-  return(idx);
+	ushort idx = -1;
+	*client = *client; //suppress compiler error, but recv_chk should comply to other recv_chk routines...
+
+	if (n<5)
+		return -1;
+
+	switch(buf[2]) {
+		case 0x80:
+		case 0x81:
+			idx = (buf[0] << 8) | buf[1];
+			if (n==5) { //not found on server
+				*rc = 0;
+				memset(dcw, 0, 16);
+				break;
+			}
+
+			if (n<21) {
+				cs_debug_mask(D_CLIENT, "invaild newcamd answer");
+				return(-1);
+			}
+
+			*rc = 1;
+			memcpy(dcw, buf+5, 16);
+			break;
+		case MSG_KEEPALIVE:
+			return -1;
+		default:
+			if (buf[2]>0x81 && buf[2]<0x90) { //answer to emm
+				return -1;
+			}
+			cs_debug_mask(D_CLIENT, "unknown newcamd command from server");
+			return -1;
+	}
+	return(idx);
 }
 
 void module_newcamd(struct s_module *ph)
@@ -1202,7 +1231,6 @@ void module_newcamd(struct s_module *ph)
   ph->type=MOD_CONN_TCP;
   ph->logtxt = ", crypted";
   ph->multi=1;
-  ph->watchdog=1;
   ph->s_ip=cfg.ncd_srvip;
   ph->s_handler=newcamd_server;
   ph->recv=newcamd_recv;

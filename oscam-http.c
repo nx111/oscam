@@ -832,7 +832,7 @@ char *send_oscam_reader(struct templatevars *vars, struct uriparams *params, str
 }
 
 char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *params, struct in_addr in) {
-	int i, ridx=0;
+	int i;
 	char *reader_ = getParam(params, "label");
 	char *value;
 
@@ -891,7 +891,6 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 	}
 
 	rdr = get_reader_by_label(reader_);
-	ridx = get_ridx(rdr); //do we really need this index number, would like to get rid of get_ridx ...
 
 	tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
 
@@ -1168,7 +1167,7 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 #endif
 		default :
 			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Error: protocol not resolvable</b><BR>");
-			tpl_printf(vars, TPLAPPEND, "MESSAGE", "<b>Error: protocol number: %d readername: %s readeridx: %d</b><BR>", rdr->typ, rdr->label, ridx);
+			tpl_printf(vars, TPLAPPEND, "MESSAGE", "<b>Error: protocol number: %d readername: %s</b><BR>", rdr->typ, rdr->label);
 			break;
 
 	}
@@ -1411,6 +1410,7 @@ char *send_oscam_user_config_edit(struct templatevars *vars, struct uriparams *p
 			refresh_oscam(REFR_ACCOUNTS, in);
 		else
 			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
+
 		// need to reget account as writing to disk changes account!
 		for (account = cfg.account; account != NULL && strcmp(user, account->usr) != 0; account = account->next);
 	}
@@ -1461,24 +1461,14 @@ char *send_oscam_user_config_edit(struct templatevars *vars, struct uriparams *p
 	if (account->autoau == 1)
 		tpl_addVar(vars, TPLADD, "AUREADER", "1");
 	else if (account->aureader_list) {
-		char buf[512];
-		buf[0]='\0';
-
 		struct s_reader *rdr;
-
 		LL_ITER *itr = ll_iter_create(account->aureader_list);
-
-		int pos=0;
+		char *dot = "";
 		while ((rdr = ll_iter_next(itr))) {
-			if (pos==0)
-				sprintf(buf + pos, "%s", rdr->label);
-			else
-				sprintf(buf + pos, ",%s", rdr->label);
-			pos+=strlen(rdr->label);
+			tpl_printf(vars, TPLAPPEND, "AUREADER", "%s%s", dot, rdr->label);
+			dot = ",";
 		}
 		ll_iter_release(itr);
-
-		tpl_addVar(vars, TPLADD, "AUREADER", buf);
 	}
 
 	/* SERVICES */
@@ -1540,6 +1530,8 @@ char *send_oscam_user_config_edit(struct templatevars *vars, struct uriparams *p
 
 	tpl_printf(vars, TPLADD, "CCCMAXHOPS", "%d", account->cccmaxhops);
 	tpl_printf(vars, TPLADD, "CCCRESHARE", "%d", account->cccreshare);
+	if (account->cccignorereshare)
+		tpl_printf(vars, TPLADD, "CCCIGNORERESHARE", "selected");
 
 	//Failban
 	tpl_printf(vars, TPLADD, "FAILBAN", "%d", account->failban);
@@ -1667,14 +1659,15 @@ char *send_oscam_user_config(struct templatevars *vars, struct uriparams *params
 				isconnected = 1;
 
 				if (!isactive)
-					status = "<b>connected</b>"; classname = "online";
+					status = "<b>connected</b>"; classname = "connected";
 
+				isec = now - cl->last;
 				if(isec < cfg.mon_hideclient_to) {
 					proto = monitor_get_proto(cl);
 					status = "<b>online</b>";
+					classname = "online";
 					lastchan = xml_encode(vars, get_servicename(cl->last_srvid, cl->last_caid));
 					lastresponsetm = cl->cwlastresptime;
-					isec = now - cl->last;
 					isactive++;
 				}
 			}
@@ -1689,7 +1682,7 @@ char *send_oscam_user_config(struct templatevars *vars, struct uriparams *params
 		tpl_printf(vars, TPLADDONCE, "EMMOK", "%d", account->emmok);
 		tpl_printf(vars, TPLADDONCE, "EMMNOK", "%d", account->emmnok);
 
-		if ( isconnected > 0 || !cfg.http_hide_idle_clients) {
+		if ( isactive > 0 || !cfg.http_hide_idle_clients) {
 			tpl_addVar(vars, TPLADDONCE, "LASTCHANNEL", lastchan);
 			tpl_printf(vars, TPLADDONCE, "CWLASTRESPONSET", "%d", lastresponsetm);
 			tpl_addVar(vars, TPLADDONCE, "CLIENTPROTO", proto);
@@ -1903,22 +1896,17 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
 		} else {
 			tpl_addVar(vars, TPLADD, "LOGHISTORY", "->");
 			// normal non-cccam reader
-			FILE *fp;
-			char filename[256];
-			char buffer[128];
 
 			rdr = get_reader_by_label(reader_);
-			int ridx = get_ridx(rdr);
 
-			snprintf(filename, sizeof(filename), "%s/reader%d", get_tmp_dir(), ridx);
-			fp = fopen(filename, "r");
-
-			if (fp) {
-				while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%s<BR>\n", buffer);
+			if (rdr->init_history) {
+				char *ptr, *ptr1 = NULL;
+				for (ptr=strtok_r(rdr->init_history, "\n", &ptr1); ptr; ptr=strtok_r(NULL, "\n", &ptr1)) {
+					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%s<BR />", ptr);
+					ptr1[-1]='\n';	
 				}
-				fclose(fp);
 			}
+
 			tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
 			tpl_addVar(vars, TPLADD, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTGENERICBIT"));
 		}
@@ -1938,7 +1926,7 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
 char *send_oscam_status(struct templatevars *vars, struct uriparams *params, struct in_addr in, int apicall) {
 	int i;
 	char *usr;
-	int lsec, isec, con, cau;
+	int lsec, isec, con, cau = 0;
 	time_t now = time((time_t)0);
 	struct tm lt;
 
@@ -2058,6 +2046,15 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 				else con=0;
 
 				//if( (cau=get_ridx(cl->aureader)+1) && (now-cl->lastemm)/60 > cfg.mon_aulow) cau=-cau;
+				// workaround: no AU reader == 0 / AU ok == 1 / Last EMM > aulow == -1
+				if (!cl->aureader_list) {
+					cau = 0;
+				} else {
+					if ((now-cl->lastemm)/60 > cfg.mon_aulow)
+						cau = -1;
+					else
+						cau = 1;
+				}
 
 				localtime_r(&cl->login, &lt);
 
@@ -2128,7 +2125,7 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 
 					tpl_printf(vars, TPLADD, "CLIENTCAID", "%04X", cl->last_caid);
 					tpl_printf(vars, TPLADD, "CLIENTSRVID", "%04X", cl->last_srvid);
-					tpl_printf(vars, TPLADD, "CLIENTLASTRESPONSETIME", "%d", cl->cwlastresptime);
+					tpl_printf(vars, TPLADD, "CLIENTLASTRESPONSETIME", "%d", cl->cwlastresptime?cl->cwlastresptime:1);
 
 					int j, found = 0;
 					struct s_srvid *srvid = cfg.srvid;
@@ -2843,11 +2840,9 @@ int process_request(FILE *f, struct in_addr in) {
 	cur_client()->last = time((time_t)0); //reset last busy time
 
 	int ok=0,v=cv();
-	struct s_ip *p_ip;
-	in_addr_t addr = cs_inet_order(in.s_addr);
+	in_addr_t addr = in.s_addr;
 
-	for (p_ip = cfg.http_allowed; (p_ip) && (!ok); p_ip = p_ip->next)
-		ok =((addr >= p_ip->ip[0]) && (addr <= p_ip->ip[1]))?v:0;
+	ok = check_ip(cfg.http_allowed, in.s_addr) ? v : 0;
 
 	if (!ok && cfg.http_dyndns[0]) {
 		if(cfg.http_dynip && cfg.http_dynip == addr) {
@@ -2864,7 +2859,7 @@ int process_request(FILE *f, struct in_addr in) {
 				rht = gethostbyname((const char *) cfg.http_dyndns);
 				if (rht) {
 					memcpy(&udp_sa.sin_addr, rht->h_addr, sizeof(udp_sa.sin_addr));
-					cfg.http_dynip = cs_inet_order(udp_sa.sin_addr.s_addr);
+					cfg.http_dynip = udp_sa.sin_addr.s_addr;
 					cs_debug_mask(D_TRACE, "WebIf: dynip resolved %s access from %s",
 							cs_inet_ntoa(cfg.http_dynip),
 							cs_inet_ntoa(addr));
@@ -2887,7 +2882,7 @@ int process_request(FILE *f, struct in_addr in) {
 					cs_log("can't resolve %s, error: %s", cfg.http_dyndns, err ? gai_strerror(err) : "unknown");
 				}
 				else {
-					cfg.http_dynip = cs_inet_order(((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr);
+					cfg.http_dynip = ((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr;
 					cs_debug_mask(D_TRACE, "WebIf: dynip resolved %s access from %s",
 							cs_inet_ntoa(cfg.http_dynip),
 							cs_inet_ntoa(addr));
