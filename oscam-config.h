@@ -138,7 +138,7 @@
 #endif
 
 #ifndef CS_LOGHISTORY
-#define CS_LOGHISTORY
+//#define CS_LOGHISTORY
 #endif
 
 #ifdef OS_FREEBSD

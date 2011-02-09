@@ -1,15 +1,15 @@
 10
 
 dir
-4685
+4699
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-02-05T19:28:13.755746Z
-4685
-_network
+2011-02-09T07:13:16.325877Z
+4699
+alno
 has-props
 
 
@@ -35,17 +35,8 @@ has-props
 
 ((conflict datastruct-llist.c file update deleted edited (version http://streamboard.gmc.to/svn/oscam 4 3599 trunk/datastruct-llist.c file) (version http://streamboard.gmc.to/svn/oscam 4 3640 trunk/datastruct-llist.c none)))
 
-Maketype
-file
-
-
-
-
-
-666fcd083bd9f892635b0915d9e70732
-2011-01-25T14:18:26.250520Z
-4608
-schlocke
+Distribution
+dir
 
 module-cccam.h
 file
@@ -81,7 +72,19 @@ schlocke
 
 4600
 
-Distribution
+Maketype
+file
+
+
+
+
+
+666fcd083bd9f892635b0915d9e70732
+2011-01-25T14:18:26.250520Z
+4608
+schlocke
+
+openxcas
 dir
 
 module-camd35.c
@@ -117,9 +120,6 @@ _network
 
 
 19834
-
-openxcas
-dir
 
 reader-viaccess.c
 file
@@ -359,6 +359,9 @@ dingo35
 
 9758
 
+toolchains
+dir
+
 module-gbox.c
 file
 
@@ -392,9 +395,6 @@ has-props
 
 
 19739
-
-toolchains
-dir
 
 reader-videoguard-common.h
 file
@@ -529,10 +529,10 @@ file
 
 
 
-e47fd3d313ae490534ffebd91fc83a54
-2011-02-05T19:28:13.755746Z
-4685
-_network
+93f8015a1eb3c25c5e6d3526cccae28f
+2011-02-08T21:45:40.924055Z
+4697
+schlocke
 
 reader-tongfang.c
 file
@@ -575,10 +575,10 @@ file
 
 
 
-6fba48a2e2bacb99056c82ac1d3041d5
-2011-02-04T07:55:40.955230Z
-4677
-schlocke
+ec2312b0d17ea89bf526cb721c33a899
+2011-02-09T07:13:16.325877Z
+4699
+alno
 
 cscrypt
 dir
@@ -737,11 +737,11 @@ file
 
 
 
-2011-02-07T04:57:10.690709Z
-1e467f3db44e0dead54a8129ab9e2f02
-2011-02-04T07:55:40.955230Z
-4677
-schlocke
+2011-02-09T13:18:04.273165Z
+c653c364459f9ae74b6d3f0e92933eb4
+2011-02-08T21:12:59.908217Z
+4696
+alno
 
 
 
@@ -763,7 +763,7 @@ schlocke
 
 
 
-117480
+117556
 
 oscam-http.h
 file
@@ -833,17 +833,17 @@ dingo35
 
 26103
 
-oscam-garbage.c
+reader-common.c
 file
 
 
 
 
-2011-01-19T05:18:24.398386Z
-7ba37f58102997e0cf79ff62eb78a335
-2011-01-18T13:14:35.309083Z
-4517
-schlocke
+2011-02-09T13:18:04.273165Z
+7d632587ef0b2ad67d149a72a4b94974
+2011-02-08T09:39:14.858431Z
+4693
+_network
 
 
 
@@ -865,7 +865,7 @@ schlocke
 
 
 
-3084
+10150
 
 reader-nagra.c
 file
@@ -901,17 +901,17 @@ _network
 
 35537
 
-reader-common.c
+oscam-garbage.c
 file
 
 
 
 
-2011-01-27T05:19:55.376021Z
-0c62986dee15bfef56da7956c4eaeb0f
-2011-01-26T20:42:40.868614Z
-4626
-_network
+2011-01-19T05:18:24.398386Z
+7ba37f58102997e0cf79ff62eb78a335
+2011-01-18T13:14:35.309083Z
+4517
+schlocke
 
 
 
@@ -933,7 +933,7 @@ _network
 
 
 
-10274
+3084
 
 reader-videoguard12.c
 file
@@ -975,11 +975,11 @@ file
 
 
 
-2011-01-14T12:58:04.941854Z
-0243eca6f2ad9b13cb0445107776b97c
-2010-12-20T09:29:23.252660Z
-4166
-dingo35
+2011-02-09T13:18:04.273165Z
+e194182896e18d44b4325c9161ca0855
+2011-02-08T09:39:14.858431Z
+4693
+_network
 
 
 
@@ -1001,7 +1001,7 @@ dingo35
 
 
 
-816
+750
 
 module-newcamd.c
 file
@@ -1046,11 +1046,11 @@ file
 
 
 
-2011-01-24T12:33:07.867811Z
-9254c2f470036fe7e9a7954931beb226
-2011-01-24T09:31:03.302255Z
-4582
-dingo35
+2011-02-09T13:18:04.273165Z
+2a3a78463679fd6fcd4a80e63cbdb4a9
+2011-02-08T09:16:39.890079Z
+4692
+_network
 has-props
 
 
@@ -1072,7 +1072,7 @@ has-props
 
 
 
-15151
+16357
 
 oscam-http-helpers.c
 file
@@ -1207,10 +1207,10 @@ file
 
 
 
-2011-02-07T04:57:10.694709Z
-c32d7c3419d3118eb5bf8c97fc806a81
-2011-01-31T09:57:08.938705Z
-4659
+2011-02-09T13:18:04.273165Z
+efddf6c72be0e6de14c8d945d651eb95
+2011-02-07T20:00:00.725030Z
+4688
 schlocke
 
 
@@ -1233,7 +1233,7 @@ schlocke
 
 
 
-19824
+19773
 
 algo
 dir
@@ -1272,40 +1272,6 @@ _network
 
 23158
 
-module-stat.h
-file
-
-
-
-
-2011-01-17T02:20:01.271792Z
-6dfef17791a17d2482ab56a511a8de69
-2011-01-16T17:52:51.391139Z
-4491
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-552
-
 module-constcw.c
 file
 
@@ -1339,6 +1305,40 @@ schlocke
 
 
 4236
+
+module-stat.h
+file
+
+
+
+
+2011-01-17T02:20:01.271792Z
+6dfef17791a17d2482ab56a511a8de69
+2011-01-16T17:52:51.391139Z
+4491
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+552
 
 oscam-chk.c
 file
@@ -1442,40 +1442,6 @@ _network
 
 20669
 
-reader-videoguard2.c
-file
-
-
-
-
-2011-01-25T13:02:06.165892Z
-659ddf2fb73b53f030f2f30e0e51888e
-2011-01-24T13:21:29.401070Z
-4588
-dingo35
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-25390
-
 reader-seca.c
 file
 
@@ -1509,6 +1475,40 @@ dingo35
 
 
 12537
+
+reader-videoguard2.c
+file
+
+
+
+
+2011-01-25T13:02:06.165892Z
+659ddf2fb73b53f030f2f30e0e51888e
+2011-01-24T13:21:29.401070Z
+4588
+dingo35
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+25390
 
 README
 file
@@ -1547,10 +1547,10 @@ landlord
 OSCam.xcodeproj
 dir
 
-utils
+cygwin
 dir
 
-cygwin
+utils
 dir
 
 .gitignore
@@ -1628,10 +1628,10 @@ file
 
 
 
-56ed043f005f0fb96ac841c1f1f30e0b
-2011-02-04T07:16:27.193040Z
-4676
-schlocke
+95142e3c30ac3f346ba489e8f6a2095c
+2011-02-08T09:39:14.858431Z
+4693
+_network
 
 module-cccam.c
 file
@@ -1640,10 +1640,10 @@ file
 
 
 
-ca52468b08c3bcbc40b9431877cc8565
-2011-02-05T19:28:13.755746Z
-4685
-_network
+7145f621a98dafce6b6d3fdd333d9da0
+2011-02-07T20:36:29.783613Z
+4690
+schlocke
 has-props
 
 module-datastruct-llist.h

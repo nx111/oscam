@@ -1932,7 +1932,7 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 		break;
 	case MSG_NEW_CARD_SIDINFO: 
 	case MSG_NEW_CARD: {
-		if (buf[14] >= rdr->cc_maxhop)
+		if (buf[14] >= rdr->cc_maxhop+1)
 			break;
 
 		if (!chk_ctab(b2i(2, buf + 12), &rdr->ctab))
@@ -3444,6 +3444,10 @@ int cc_srv_connect(struct s_client *cl) {
 	if (cl->dup) {
 		cs_log("account '%s' duplicate login, disconnect!", usr);
 		return -3;
+	}
+	if (cl->disabled) {
+		cs_log("account '%s' disabled, blocking+disconnect!", usr);
+		return -2;
 	}
 	if (account->cccmaxhops<0) {
 			cs_log("account '%s' has cccmaxhops<0, cccam can't handle this, disconnect!", usr);

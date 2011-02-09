@@ -1298,6 +1298,7 @@ int init_config()
 	strcpy(cfg.http_css, "");
 	cfg.http_refresh = 0;
 	cfg.http_hide_idle_clients = 0;
+	cfg.mon_hideclient_to = 15;
 	strcpy(cfg.http_tpl, "");
 #endif
 	cfg.ncd_keepalive = 1;
@@ -2890,8 +2891,9 @@ int init_srvid()
 	int nr;
 	FILE *fp;
 	char *payload;
-	static struct s_srvid *srvid=(struct s_srvid *)0;
+	struct s_srvid *srvid=NULL, *new_cfg_srvid=NULL;
 	sprintf(token, "%s%s", cs_confdir, cs_srid);
+	
 
 	if (!(fp=fopen(token, "r"))) {
 		cs_log("can't open file \"%s\" (err=%d), no service-id's loaded", token, errno);
@@ -2915,7 +2917,7 @@ int init_srvid()
 		if (srvid)
 			srvid->next = ptr;
 		else
-			cfg.srvid = ptr;
+			new_cfg_srvid = ptr;
 
 		srvid = ptr;
 		memset(srvid, 0, sizeof(struct s_srvid));
@@ -2959,6 +2961,17 @@ int init_srvid()
 	else{
 		cs_log("oscam.srvid loading failed, old format");
 	}
+	
+	//this allows reloading of srvids, so cleanup of old data is needed:
+	srvid = cfg.srvid; //old data
+	cfg.srvid = new_cfg_srvid; //assign after loading, so everything is in memory
+	struct s_srvid *ptr;
+	while (srvid) { //cleanup old data:
+		ptr = srvid->next;
+		free(srvid);
+		srvid = ptr;
+	}
+	
 	return(0);
 }
 
@@ -2967,7 +2980,7 @@ int init_tierid()
 	int nr;
 	FILE *fp;
 	char *payload;
-	static struct s_tierid *tierid=(struct s_tierid *)0;
+	static struct s_tierid *tierid=NULL, *new_cfg_tierid=NULL;
 	sprintf(token, "%s%s", cs_confdir, cs_trid);
 
 	if (!(fp=fopen(token, "r"))) {
@@ -2992,7 +3005,7 @@ int init_tierid()
 		if (tierid)
 			tierid->next = ptr;
 		else
-			cfg.tierid = ptr;
+			new_cfg_tierid = ptr;
 
 		tierid = ptr;
 		memset(tierid, 0, sizeof(struct s_tierid));
@@ -3022,6 +3035,17 @@ int init_tierid()
 	else{
 		cs_log("%s loading failed", cs_trid);
 	}
+	
+	//reload function:
+	tierid = cfg.tierid;
+	cfg.tierid = new_cfg_tierid;
+	struct s_tierid *ptr;
+	while (tierid) {
+		ptr = tierid->next;
+		free(tierid);
+		tierid = ptr;
+	}
+	
 	return(0);
 }
 
