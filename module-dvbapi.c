@@ -892,16 +892,17 @@ int dvbapi_write_prio() {
 
 struct s_dvbapi_priority *dvbapi_check_prio_match(int demux_id, int pidindex, char type) {
 	struct s_dvbapi_priority *p;
+	struct s_ecmpids *ecmpid = &demux[demux_id].ECMpids[pidindex];
 	int i;
 
 	for (p=dvbapi_priority, i=0; p != NULL; p=p->next, i++) {
 		if (p->type != type) continue;
 
-		if (p->caid 	&& p->caid 	!= demux[demux_id].ECMpids[pidindex].CAID)	continue;
-		if (p->provid != 0xFFFFFF && p->provid != demux[demux_id].ECMpids[pidindex].PROVID)	continue;
-		if (p->ecmpid	&& p->ecmpid 	!= demux[demux_id].ECMpids[pidindex].ECM_PID)	continue;
+		if (p->caid 	&& p->caid 	!= ecmpid->CAID)	continue;
+		if (p->provid != 0xFFFFFF && p->provid != ecmpid->PROVID)	continue;
+		if (p->ecmpid	&& p->ecmpid 	!= ecmpid->ECM_PID)	continue;
 		if (p->srvid	&& p->srvid 	!= demux[demux_id].program_number)			continue;
-		if (p->chid	&& p->chid 	!= demux[demux_id].ECMpids[pidindex].irdeto_chid) continue;
+		if (p->chid	&& ecmpid->irdeto_chid	&& p->chid != ecmpid->irdeto_chid) continue;
 
 		return p;
 	}
@@ -1560,6 +1561,10 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 #ifdef COOL
 	cs_debug_mask(D_DVBAPI, "dvbapi_process_input: demux %d filter %d len %d buffer %x curtable %x curindex %d\n", demux_id, filter_num, len, buffer[0], curpid->table, demux[demux_id].curindex);
 #endif
+
+	if (pausecam)
+		return;
+
 	if (demux[demux_id].demux_fd[filter_num].type==TYPE_ECM) {
 		if (len != (((buffer[1] & 0xf) << 8) | buffer[2]) + 3) //invaild CAT length
 			return;
@@ -1580,9 +1585,13 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 			}
 
 			if (demux[demux_id].pidindex==-1) {
-				curpid->irdeto_chid = (buffer[6] << 8) | buffer[7];
-				struct s_dvbapi_priority *chidentry = dvbapi_check_prio_match(demux_id, demux[demux_id].demux_fd[filter_num].pidindex, 'i');
-				if (chidentry) {
+				int chid = (buffer[6] << 8) | buffer[7];
+				curpid->irdeto_chid = 0;
+				struct s_dvbapi_priority *chidentry = dvbapi_check_prio_match(demux_id, demux[demux_id].demux_fd[filter_num].pidindex, 'p');
+
+				curpid->irdeto_chid = chid;
+				struct s_dvbapi_priority *chidentry_ignore = dvbapi_check_prio_match(demux_id, demux[demux_id].demux_fd[filter_num].pidindex, 'i');
+				if (chidentry_ignore || (chidentry && chidentry->chid && chidentry->chid != chid)) {
 					cs_debug_mask(D_DVBAPI, "ignoring %04X:%06X:%02X", curpid->CAID, curpid->PROVID, curpid->irdeto_chid);
 					if (cfg.dvbapi_requestmode!=1) {
 						dvbapi_try_next_caid(demux_id);
@@ -1594,8 +1603,6 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 						curpid->table=0;
 						cs_log("trying irdeto chid index: %d", curpid->irdeto_curchid);
 					}
-
-					return;
 				}
 			}
 
@@ -1625,13 +1632,6 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 
 		if (cfg.dvbapi_au>0)
 			dvbapi_start_emm_filter(demux_id);
-
-        pthread_mutex_lock(&event_handler_lock);
-        if (pausecam) {
-            cs_debug_mask(D_DVBAPI, "paused, ignoring ecm");
-            return;
-        }
-        pthread_mutex_unlock(&event_handler_lock);
 
 		ECM_REQUEST *er;
 		if (!(er=get_ecmtask()))
@@ -1761,11 +1761,6 @@ void * dvbapi_main_local(void *cli) {
 		pfdcount = (listenfd > -1) ? 2 : 1;
 
 		chk_pending(tp);
-
-		if (pausecam==1) {
-			cs_sleepms(500);
-			continue;
-		}
 
 		for (i=0;i<MAX_DEMUX;i++) {
 			for (g=0;g<MAX_FILTER;g++) {
@@ -2300,7 +2295,7 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 	cs_debug_mask(D_DVBAPI, "openxcas: send_dcw");
 
     FILE *ecmtxt;
-    if ((ecmtxt = fopen(ECMINFO_FILE, "w"))) {
+    if (ecmtxt = fopen(ECMINFO_FILE, "w")) {
     	if(er->rc <= E_EMU) {
 			fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
 			fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);

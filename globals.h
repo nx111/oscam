@@ -119,6 +119,7 @@
 #define CS_MAXPROV    32
 #define CS_MAXPORTS   32  // max server ports
 #define CS_MAXFILTERS   16
+#define CS_MAX_LB_RETRYLIMIT 16
 
 #define CS_ECMSTORESIZE   16  // use MD5()
 #define CS_EMMSTORESIZE   16  // use MD5()
@@ -276,7 +277,8 @@ extern char *RDR_CD_TXT[];
 
 enum {E1_GLOBAL=0, E1_USER, E1_READER, E1_SERVER, E1_LSERVER};
 enum {E2_GLOBAL=0, E2_GROUP, E2_CAID, E2_IDENT, E2_CLASS, E2_CHID, E2_QUEUE,
-      E2_EA_LEN, E2_F0_LEN, E2_OFFLINE, E2_SID};
+      E2_EA_LEN, E2_F0_LEN, E2_OFFLINE, E2_SID, 
+      E2_CCCAM_NOCARD=0x27, E2_CCCAM_NOK1=0x28, E2_CCCAM_NOK2=0x29};
 
 typedef unsigned char uint8;
 typedef unsigned short uint16;
@@ -354,6 +356,13 @@ extern void qboxhd_led_blink(int color, int duration);
 
 //checking if (X) free(X) unneccessary since freeing a null pointer doesnt do anything
 #define NULLFREE(X) {if (X) {void *tmpX=X; X=NULL; free(tmpX); }}
+
+typedef struct s_retrylimittab
+{
+  ushort n;
+  ushort caid[CS_MAX_LB_RETRYLIMIT];
+  ushort time[CS_MAX_LB_RETRYLIMIT];
+} GCC_PACK RETRYLIMITTAB;
 
 typedef struct s_classtab
 {
@@ -575,6 +584,8 @@ typedef struct ecm_request_t
   uchar		cw_checked[16];
   struct s_reader *origin_reader;
 #endif
+
+  void * origin_card; //CCcam preferred card!
 
   char msglog[MSGLOGSIZE];
 
@@ -1110,8 +1121,10 @@ struct s_config
 	char		*cc_cfgfile;	//cccam.cfg file path
 	int		cc_stealth;
 	int		cc_reshare_services;
+	int     cc_forward_origin_card;
 	char	gbox_hostname[128];
 	char	gbox_key[9];
+	char	gbox_gsms_path[200];
 	int		gbox_port;
 	struct s_ip *rad_allowed;
 	char		rad_usr[32];
@@ -1132,6 +1145,7 @@ struct s_config
 	int     lb_max_ecmcount; // maximum ecm count before reseting lbvalues
 	int     lb_reopen_seconds; //time between retrying failed readers/caids/prov/srv
 	int	lb_retrylimit; //reopen only happens if reader response time > retrylimit
+	RETRYLIMITTAB lb_retrylimittab; 
 	char	*lb_savepath; //path where the stat file is save. Empty=default=/tmp/.oscam/stat
 	int	lb_stat_cleanup; //duration in hours for cleaning old statistics
 	int lb_use_locking; //use a mutex lock while searching for readers (get_cw())
@@ -1319,6 +1333,7 @@ extern void clear_all_account_stats();
 extern void clear_system_stats();
                               
 #endif
+extern void cs_reload_config();
 extern int recv_from_udpipe(uchar *);
 extern char* username(struct s_client *);
 extern struct s_client * get_client_by_tid(unsigned long);
@@ -1433,6 +1448,7 @@ extern int write_config();
 extern int write_server();
 extern void write_versionfile();
 extern char *mk_t_caidtab(CAIDTAB *ctab);
+extern char *mk_t_retrylimittab(RETRYLIMITTAB *tab);
 extern char *mk_t_tuntab(TUNTAB *ttab);
 extern char *mk_t_group(uint64 grp);
 extern char *mk_t_ftab(FTAB *ftab);
