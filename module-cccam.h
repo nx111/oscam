@@ -24,9 +24,13 @@
 #define MINIMIZE_NONE 0
 #define MINIMIZE_HOPS 1
 #define MINIMIZE_CAID 2
+#define MINIMIZE_TRANSPARENT 3
 
-#define CCCAM_MODE_NORMAL 0
+#define CCCAM_MODE_NOTINIT 0
+#define CCCAM_MODE_NORMAL 1
 #define CCCAM_MODE_SHUTDOWN 0xFF
+
+#define QUITERROR 1
 
 typedef enum {
 	DECRYPT, ENCRYPT
@@ -69,12 +73,19 @@ struct cc_provider {
 	uint8 sa[4]; //shared address
 };
 
+typedef enum {
+		CT_LOCALCARD,
+		CT_CARD_BY_SERVICE,
+		CT_CARD_BY_CAID,
+		CT_REMOTECARD
+} cc_card_type;
+
 struct cc_card {
-	uint32 id; // cccam card (share) id
+	uint32 id; // cccam card (share) id - reader
 	uint32 remote_id;
 	uint16 caid;
 	uint8 hop;
-	uint8 maxdown;
+	uint8 reshare;
 	uint8 hexserial[8]; // card serial (for au)
 	LLIST *providers; // providers (struct cc_provider)
 	LLIST *badsids; // sids that have failed to decode (struct cc_srvid)
@@ -83,6 +94,7 @@ struct cc_card {
 	LLIST *remote_nodes; //remote note id, 8 bytes
 	struct s_reader  *origin_reader;
 	uint32 origin_id;
+	cc_card_type card_type;
 };
 
 struct cc_auto_blocked {
@@ -154,12 +166,9 @@ struct cc_data {
 	uint8 receive_buffer[CC_MAXMSGSIZE];
 	
 	LLIST *cards; // cards list
-	int cards_modified;
 
 	int max_ecms;
 	int ecm_counter;
-	uint32 report_carddata_id; //Server only
-	LLIST *reported_carddatas; //struct cc_reported_carddata //struct cc_reported_carddata
 	int card_added_count;
 	int card_removed_count;
 	int card_dup_count;
@@ -175,6 +184,7 @@ struct cc_data {
 	ushort server_ecm_idx;
 	
 	pthread_mutex_t lock;
+	pthread_mutex_t lockcmd;
 	pthread_mutex_t ecm_busy;
 	pthread_mutex_t cards_busy;
 	struct timeb ecm_time;
@@ -206,5 +216,11 @@ void free_extended_ecm_idx(struct cc_data *cc);
 void cc_free_card(struct cc_card *card);
 int cc_UA_valid(uint8 *ua);
 void cc_UA_cccam2oscam(uint8 *in, uint8 *out, uint16 caid);
+int cc_cmd_send(struct s_client *cl, uint8 *buf, int len, cc_msg_type_t cmd);
+int sid_eq(struct cc_srvid *srvid1, struct cc_srvid *srvid2);
+int same_card(struct cc_card *card1, struct cc_card *card2);
+void cc_UA_oscam2cccam(uint8 *in, uint8 *out, uint16 caid);
+void cc_SA_oscam2cccam(uint8 *in, uint8 *out);
+void cc_free_cardlist(LLIST *card_list, int destroy_list);
 
 #endif /* MODULECCCAM_H_ */

@@ -311,6 +311,11 @@ After reading this SC hop will be incremented by one.
 1 = send keepalive messages to keep connection to remote CCCam server up, default:0
 .RE
 .PP
+\fBcccmindown\fP = \fBnumber\fP
+.RS 3n
+filters all readers with hops smaller than number, default:0
+.RE
+.PP
 \fBpincode\fP = \fBpincode\fP
 .RS 3n
 pincode for Conax and Cryptoworks SCs
@@ -340,6 +345,11 @@ read Nagravison records (on NCMED cards only):
 \fBrsakey\fP = \fBRSA key\fP
 .RS 3n
 RSA key for Nagravision/Tiger SCs / CAM key data for Irdeto SCs 
+.RE
+.PP
+\fBfix9993\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = enable fix for 9993 error with CAID 0919 SCs, default:0
 .RE
 .PP
 \fBboxkey\fP = \fBbox key\fP

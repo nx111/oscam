@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include "oscam-http-helpers.c"
 #include "module-cccam.h"
+#include "module-cccshare.h"
 #include "module-stat.h"
 
 extern void restart_cardreader(struct s_reader *rdr, int restart);
@@ -187,7 +188,8 @@ char *send_oscam_config_loadbalancer(struct templatevars *vars, struct uriparams
 	if (strcmp(getParam(params, "action"),"execute") == 0) {
 
 		memset(cfg.ser_device, 0, sizeof(cfg.ser_device));
-		memset(&cfg.lb_retrylimittab, 0, sizeof(RETRYLIMITTAB));
+		memset(&cfg.lb_retrylimittab, 0, sizeof(CAIDVALUETAB));
+		memset(&cfg.lb_nbest_readers_tab, 0, sizeof(CAIDVALUETAB));
 		for(i = 0; i < (*params).paramcount; ++i) {
 			if ((strcmp((*params).params[i], "part")) && (strcmp((*params).params[i], "action"))) {
 				//tpl_printf(vars, TPLAPPEND, "MESSAGE", "Parameter: %s set to Value: %s<BR>\n", (*params).params[i], (*params).values[i]);
@@ -208,12 +210,15 @@ char *send_oscam_config_loadbalancer(struct templatevars *vars, struct uriparams
 	tpl_printf(vars, TPLADD, "LBSAVEPATH", "%s", cfg.lb_savepath?cfg.lb_savepath:"");
 
 	tpl_printf(vars, TPLADD, "LBNBESTREADERS", "%d",cfg.lb_nbest_readers);
+	char *value = mk_t_caidvaluetab(&cfg.lb_nbest_readers_tab);
+	tpl_printf(vars, TPLADD, "LBNBESTPERCAID", value);
+	free(value);
 	tpl_printf(vars, TPLADD, "LBNFBREADERS", "%d",cfg.lb_nfb_readers);
 	tpl_printf(vars, TPLADD, "LBMINECMCOUNT", "%d",cfg.lb_min_ecmcount);
 	tpl_printf(vars, TPLADD, "LBMAXECEMCOUNT", "%d",cfg.lb_max_ecmcount);
 	tpl_printf(vars, TPLADD, "LBRETRYLIMIT", "%d",cfg.lb_retrylimit);
 	
-	char *value = mk_t_retrylimittab(&cfg.lb_retrylimittab);
+	value = mk_t_caidvaluetab(&cfg.lb_retrylimittab);
 	tpl_printf(vars, TPLADD, "LBRETRYLIMITS", value);
 	free(value);
 	
@@ -397,6 +402,15 @@ char *send_oscam_config_radegast(struct templatevars *vars, struct uriparams *pa
 }
 
 char *send_oscam_config_cccam(struct templatevars *vars, struct uriparams *params, struct in_addr in) {
+
+
+	if (strcmp(getParam(params, "button"), "Refresh global list") == 0) {
+		cs_debug_mask(D_TRACE, "Entitlements: Refresh Shares start");
+		refresh_shares();
+		cs_debug_mask(D_TRACE, "Entitlements: Refresh Shares finished");
+		tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Refresh Shares started</B><BR><BR>");
+	}
+
 	int i;
 	if (strcmp(getParam(params, "action"),"execute") == 0) {
 		for(i = 0; i < (*params).paramcount; ++i) {
@@ -707,9 +721,13 @@ char *send_oscam_reader(struct templatevars *vars, struct uriparams *params, str
 				struct s_reader *rdr2;
 				if (strcmp(getParam(params, "action"), "enable") == 0) {
 					if (!rdr->enable) {
-						rdr->next = NULL; //terminate active reader list 
-						for (rdr2 = first_active_reader; rdr2->next ; rdr2 = rdr2->next); //find last reader in active reader list
-						rdr2->next = rdr; //add 
+						rdr->next = NULL; //terminate active reader list
+						if (!first_active_reader) {
+							first_active_reader = rdr;
+						} else {
+							for (rdr2 = first_active_reader; rdr2->next ; rdr2 = rdr2->next); //find last reader in active reader list
+							rdr2->next = rdr; //add 
+						}
 						rdr->enable = 1;
 						restart_cardreader(rdr, 1);
 					}
@@ -861,8 +879,15 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 			if (strcmp((*params).params[i], "action"))
 				chk_reader((*params).params[i], (*params).values[i], newrdr);
 		}
+		if (newrdr->typ & R_IS_CASCADING) {
+			for (i=0; i<CS_MAX_MOD; i++) {
+				if (ph[i].num && newrdr->typ==ph[i].num) {
+					newrdr->ph=ph[i];
+					newrdr->ph.active=1;
+				}
+			}
+		}
 		reader_ = newrdr->label;
-
 	} else if(strcmp(getParam(params, "action"), "Save") == 0) {
 
 		rdr = get_reader_by_label(getParam(params, "label"));
@@ -1102,6 +1127,7 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
 
 	tpl_printf(vars, TPLADD, "CCCMAXHOP", "%d", rdr->cc_maxhop);
+	tpl_printf(vars, TPLADD, "CCCMINDOWN", "%d", rdr->cc_mindown);
 	if(rdr->cc_want_emu)
 		tpl_addVar(vars, TPLADD, "CCCWANTEMUCHECKED", "checked");
 
@@ -1470,14 +1496,9 @@ char *send_oscam_user_config_edit(struct templatevars *vars, struct uriparams *p
 	if (account->autoau == 1)
 		tpl_addVar(vars, TPLADD, "AUREADER", "1");
 	else if (account->aureader_list) {
-		struct s_reader *rdr;
-		LL_ITER *itr = ll_iter_create(account->aureader_list);
-		char *dot = "";
-		while ((rdr = ll_iter_next(itr))) {
-			tpl_printf(vars, TPLAPPEND, "AUREADER", "%s%s", dot, rdr->label);
-			dot = ",";
-		}
-		ll_iter_release(itr);
+		value = mk_t_aureader(account);
+		tpl_addVar(vars, TPLADD, "AUREADER", value);
+		free(value);
 	}
 
 	/* SERVICES */
@@ -1728,52 +1749,81 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
 
 	/* build entitlements from reader init history */
 	char *reader_ = getParam(params, "label");
+	char *sharelist_ = getParam(params, "globallist");
+	int show_global_list = sharelist_ && sharelist_[0]=='1';
 
 	struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
-	if ((cfg.saveinithistory && strlen(reader_) > 0) || rdr->typ == R_CCCAM) {
+	if (show_global_list || (cfg.saveinithistory && strlen(reader_) > 0) || rdr->typ == R_CCCAM) {
 
-		if (rdr->typ == R_CCCAM && rdr->enable == 1) {
+		if (show_global_list || (rdr->typ == R_CCCAM && rdr->enable == 1)) {
 
-			tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
-			tpl_addVar(vars, TPLADD, "APIHOST", rdr->device);
-			tpl_printf(vars, TPLADD, "APIHOSTPORT", "%d", rdr->r_port);
+			if (show_global_list) {
+					tpl_addVar(vars, TPLADD, "READERNAME", "GLOBAL");
+					tpl_addVar(vars, TPLADD, "APIHOST", "GLOBAL");
+					tpl_printf(vars, TPLADD, "APIHOSTPORT", "GLOBAL");
+			} else {	
+					tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
+					tpl_addVar(vars, TPLADD, "APIHOST", rdr->device);
+					tpl_printf(vars, TPLADD, "APIHOSTPORT", "%d", rdr->r_port);
+			}	
 
-			int caidcount = 0;
+			int cardcount = 0;
 			int providercount = 0;
 			int nodecount = 0;
 
 			char *provider = "";
 
 			struct cc_card *card;
-			struct s_client *rc = rdr->client;
-			struct cc_data *rcc = (rc)?rc->cc:NULL;
+			
+			LLIST *cards = NULL;
+			pthread_mutex_t *lock = NULL;
+			
+			if (show_global_list) {
+					cards = get_and_lock_sharelist();
+			} else {		
+					struct s_client *rc = rdr->client;
+					struct cc_data *rcc = (rc)?rc->cc:NULL;
 
-			if (rcc && rcc->cards) {
-				pthread_mutex_lock(&rcc->cards_busy);
+					if (rcc && rcc->cards) {
+							cards = rcc->cards;
+							lock = &rcc->cards_busy;
+							pthread_mutex_lock(lock);
+					}
+			}
+			
+			if (cards) {	
+							
 				uint8 serbuf[8];
 
                 // sort cards by hop
                 LL_ITER *it; 
                 int i;
-                for (i = 0; i < ll_count(rcc->cards); i++) {
-                    it  = ll_iter_create(rcc->cards);
+                for (i = 0; i < ll_count(cards); i++) {
+                    it  = ll_iter_create(cards);
                     while ((card = ll_iter_next(it))) {
-                        if (it->cur->nxt && card->hop > ((struct cc_card *)ll_iter_peek(it, 1))->hop) {
-                            it->cur->obj = it->cur->nxt->obj;
-                            it->cur->nxt->obj = card;
+                        if (it->cur->nxt) {
+							struct cc_card *card2 = ll_iter_peek(it, 1);
+							if (card->caid > card2->caid ||
+                        		(card->caid==card2->caid && card->hop > card2->hop)) {
+                        		it->cur->obj = it->cur->nxt->obj;
+                        		it->cur->nxt->obj = card;
+                        	}
                         }
                     }
                     ll_iter_release(it);
                 }
 				
-                it = ll_iter_create(rcc->cards);
+                it = ll_iter_create(cards);
                 while ((card = ll_iter_next(it))) {
 
 					if (!apicall) {
-						tpl_printf(vars, TPLADD, "HOST", "%s:%d", rdr->device, rdr->r_port);
+						if (show_global_list)
+							rdr = card->origin_reader;
+						if (rdr)
+							tpl_printf(vars, TPLADD, "HOST", "%s:%d", rdr->device, rdr->r_port);
 						tpl_printf(vars, TPLADD, "CAID", "%04X", card->caid);
 					} else {
-						tpl_printf(vars, TPLADD, "APICARDNUMBER", "%d", caidcount);
+						tpl_printf(vars, TPLADD, "APICARDNUMBER", "%d", cardcount);
 						tpl_printf(vars, TPLADD, "APICAID", "%04X", card->caid);
 					}
 
@@ -1814,7 +1864,7 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
                     tpl_printf(vars, TPLADD, "SHAREID", "%08X", card->id);
                     tpl_printf(vars, TPLADD, "REMOTEID", "%08X", card->remote_id);
 					tpl_printf(vars, TPLADD, "UPHOPS", "%d", card->hop);
-					tpl_printf(vars, TPLADD, "MAXDOWN", "%d", card->maxdown);
+					tpl_printf(vars, TPLADD, "MAXDOWN", "%d", card->reshare);
 
 					LL_ITER *pit = ll_iter_create(card->providers);
 					struct cc_provider *prov;
@@ -1879,28 +1929,31 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
 					else
 						tpl_addVar(vars, TPLAPPEND, "CARDLIST", tpl_getTpl(vars, "APICCCAMCARDBIT"));
 
-					caidcount++;
+					cardcount++;
 				}
 
 				ll_iter_release(it);
 				
-				pthread_mutex_unlock(&rcc->cards_busy);
-
 				if (!apicall) {
-					tpl_printf(vars, TPLADD, "TOTALS", "card count=%d", caidcount);
+					tpl_printf(vars, TPLADD, "TOTALS", "card count=%d", cardcount);
 					tpl_addVar(vars, TPLADD, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTCCCAMBIT"));
 				} else {
-					tpl_printf(vars, TPLADD, "APITOTALCARDS", "%d", caidcount);
+					tpl_printf(vars, TPLADD, "APITOTALCARDS", "%d", cardcount);
 				}
 
 			} else {
 				if (!apicall) {
 					tpl_addVar(vars, TPLADD, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTGENERICBIT"));
-					tpl_addVar(vars, TPLADD, "LOGHISTORY", "no cardfile found<BR>\n");
+					tpl_addVar(vars, TPLADD, "LOGHISTORY", "no cards found<BR>\n");
 				} else {
-					tpl_printf(vars, TPLADD, "APITOTALCARDS", "%d", caidcount);
+					tpl_printf(vars, TPLADD, "APITOTALCARDS", "%d", cardcount);
 				}
 			}
+
+			if (show_global_list)
+					unlock_sharelist();
+			else if (lock)
+					pthread_mutex_unlock(lock);
 
 		} else {
 			tpl_addVar(vars, TPLADD, "LOGHISTORY", "->");
@@ -2899,13 +2952,16 @@ int process_request(FILE *f, struct in_addr in) {
 	ok = check_ip(cfg.http_allowed, in.s_addr) ? v : 0;
 
 	if (!ok && cfg.http_dyndns[0]) {
+		cs_debug_mask(D_TRACE, "WebIf: IP not found in allowed range - test dyndns");
+
 		if(cfg.http_dynip && cfg.http_dynip == addr) {
 			ok = v;
+			cs_debug_mask(D_TRACE, "WebIf: dyndns address previously resolved and ok");
 
 		} else {
 
 			if (cfg.resolve_gethostbyname) {
-
+				cs_debug_mask(D_TRACE, "WebIf: try resolving IP with 'gethostbyname'");
 				pthread_mutex_lock(&gethostbyname_lock);
 				struct hostent *rht;
 				struct sockaddr_in udp_sa;
@@ -2924,7 +2980,7 @@ int process_request(FILE *f, struct in_addr in) {
 				pthread_mutex_unlock(&gethostbyname_lock);
 
 			} else {
-
+				cs_debug_mask(D_TRACE, "WebIf: try resolving IP with 'getaddrinfo'");
 				struct addrinfo hints, *res = NULL;
 				memset(&hints, 0, sizeof(hints));
 				hints.ai_socktype = SOCK_STREAM;
@@ -2947,6 +3003,9 @@ int process_request(FILE *f, struct in_addr in) {
 
 			}
 		}
+	} else {
+		if (cfg.http_dyndns[0])
+			cs_debug_mask(D_TRACE, "WebIf: IP found in allowed range - bypass dyndns");
 	}
 
 	if (!ok) {

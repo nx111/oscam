@@ -6,7 +6,6 @@
 #include <time.h>
 #include <sys/time.h>
 
-
 #include "module-datastruct-llist.h"
 #include "algo/minilzo.h"
 
@@ -23,8 +22,7 @@ enum {
 
 struct gbox_card {
   uint16 peer_id;
-  uint16 caid;
-  uint32 provid;
+  uint16 provid;
   int slot;
   int dist;
   int lvl;
@@ -40,6 +38,7 @@ struct gbox_peer {
   uchar *hostname;
   int online;
   int fail_count;
+  int hello_count;
 };
 
 struct gbox_data {
@@ -53,7 +52,6 @@ struct gbox_data {
   uchar cws[16];
   struct gbox_peer peer;
   pthread_mutex_t lock;
-  //char *hostname;
   uchar buf[1024];
   sem_t sem;
 };
@@ -80,14 +78,38 @@ static void gbox_calc_checkcode(struct gbox_data *gbox)
 
   // for all local cards do:
   /*
-    gbox->checkcode[0] ^= caid << 8;
-    gbox->checkcode[1] ^= caid & 0xff;
+    gbox->checkcode[0] ^= provid << 24;
+    gbox->checkcode[1] ^= provid << 16;
     gbox->checkcode[2] ^= provid << 8;
     gbox->checkcode[3] ^= provid & 0xff;
     gbox->checkcode[4] ^= slot;  // reader number
     gbox->checkcode[5] ^= gbox->id << 8;
     gbox->checkcode[6] ^= gbox->id & 0xff;
   */
+}
+
+uint32_t ecm_getcrc(ECM_REQUEST *er, int ecmlen)
+{
+
+  uint8 checksum[4];
+  int counter;
+
+  uchar ecm[0xFF];
+  memcpy(ecm, er->ecm, er->l);
+
+  checksum[3]= ecm[0];
+  checksum[2]= ecm[1];
+  checksum[1]= ecm[2];
+  checksum[0]= ecm[3];
+
+  for (counter=1; counter< (ecmlen/4) - 4; counter++) {
+    checksum[3] ^=ecm[counter*4];
+    checksum[2] ^=ecm[counter*4+1];
+    checksum[1] ^=ecm[counter*4+2];
+    checksum[0] ^=ecm[counter*4+3];
+  }
+
+  return checksum[3] << 24 | checksum[2]<<16 | checksum[1]<<8 | checksum[0];
 }
 
 static void gbox_encrypt_stage1(uchar *buf, int l, uchar *key)
@@ -203,11 +225,11 @@ static void gbox_decrypt(uchar *buf, int l, uchar *key)
 
 static void gbox_compress(struct gbox_data *gbox, uchar *buf, int unpacked_len, int *packed_len)
 {
-	  unsigned char *tmp = malloc(0x40000);
-	  unsigned char *tmp2 = malloc(0x40000);
+  unsigned char *tmp = malloc(0x40000);
+  unsigned char *tmp2 = malloc(0x40000);
 
-	  unpacked_len -= 12;
-	  memcpy(tmp2, buf + 12, unpacked_len);
+  unpacked_len -= 12;
+  memcpy(tmp2, buf + 12, unpacked_len);
 
   lzo_init();
 
@@ -376,6 +398,7 @@ static void gbox_send_hello(struct s_client *cli)
   buf[1] = MSG_HELLO & 0xff;
   memcpy(buf + 2, gbox->peer.key, 4);
   memcpy(buf + 6, gbox->key, 4);
+  buf[10] = gbox->peer.hello_count;
   buf[11] = 0x80;    // todo this needs adjusting if local card support is added
 
   memcpy(buf + 12, gbox->checkcode, 7);
@@ -389,6 +412,8 @@ static void gbox_send_hello(struct s_client *cli)
   gbox_compress(gbox, buf, len, &len);	// TODO: remove _re
 
   cs_ddump_mask(D_READER, buf, len, "send hello, compressed (len=%d):", len);
+
+  if (++gbox->peer.hello_count == 2) gbox->peer.hello_count = 0;
 
   gbox_send(cli, buf, len);
 }
@@ -447,7 +472,11 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
   switch (gbox_decode_cmd(data)) {
     case MSG_HELLO:
       {
-    	static int exp_seq = 0;
+        static int exp_seq = 0;
+
+        int ip_clien_gbox = cs_inet_addr(cli->reader->device);
+        cli->ip = ip_clien_gbox;
+        gbox->peer.online = 1;
 
         int payload_len = n;
 
@@ -474,8 +503,7 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
           // add cards to card list
           uchar *ptr = data + 12;
           while (ptr < data + payload_len - footer_len - checkcode_len - 1) {
-            uint16 caid = ptr[0] << 8 | ptr[1];
-            uint32 provid = ptr[2] << 8 | ptr[3];
+            uint32 provid = ptr[0] << 24 | ptr[1] << 16 | ptr[2] << 8 | ptr[3];
             int ncards = ptr[4];
 
             ptr += 5;
@@ -484,7 +512,6 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
             for (i = 0; i < ncards; i++) {
               struct gbox_card *card = malloc(sizeof(struct gbox_card));
 
-              card->caid = caid;
               card->provid = provid;
               card->slot = ptr[0];
               card->dist = ptr[1] & 0xf;
@@ -497,8 +524,7 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
 
               ncards_in_msg++;
 
-              cs_debug_mask(D_READER, "   card: caid=%04x, provid=%04x, slot=%d, level=%d, dist=%d, peer=%04x"
-                , card->caid, card->provid, card->slot, card->lvl, card->dist, card->peer_id);
+              cs_debug_mask(D_READER, "   card: provid=%08x, slot=%d, level=%d, dist=%d, peer=%04x", card->provid, card->slot, card->lvl, card->dist, card->peer_id);
 
               cli->reader->tcp_connected = 2; //we have card
               cli->reader->card_status = CARD_INSERTED;
@@ -517,8 +543,7 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
           // add cards to card list
           uchar *ptr = data + 12;
           while (ptr < data + payload_len - 1) {
-            uint16 caid = ptr[0] << 8 | ptr[1];
-            uint32 provid = ptr[2] << 8 | ptr[3];
+            uint32 provid = ptr[0] << 24 | ptr[1] << 16 | ptr[2] << 8 | ptr[3];
             int ncards = ptr[4];
 
             ptr += 5;
@@ -527,7 +552,6 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
             for (i = 0; i < ncards; i++) {
               struct gbox_card *card = malloc(sizeof(struct gbox_card));
 
-              card->caid = caid;
               card->provid = provid;
               card->slot = ptr[0];
               card->dist = ptr[1] & 0xf;
@@ -540,13 +564,13 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
 
               ncards_in_msg++;
 
-              cs_debug_mask(D_READER, "   card: caid=%04x, provid=%04x, slot=%d, level=%d, dist=%d, peer=%04x"
-                , card->caid, card->provid, card->slot, card->lvl, card->dist, card->peer_id);
+              cs_debug_mask(D_READER, "   card: provid=%08x, slot=%d, level=%d, dist=%d, peer=%04x", card->provid, card->slot, card->lvl, card->dist, card->peer_id);
             }
           }
         }
 
         if (final) exp_seq = 0;
+        // write_sahre_info() // TODO
 
         cs_log("gbox: received hello %d%s, %d providers from %s, version=2.%02X, checkcode=%s",
         		seqno, final ? " (final)" : "", ncards_in_msg, gbox->peer.hostname, gbox->peer.ver, cs_hexdump(0, gbox->peer.checkcode, 7));
@@ -568,9 +592,9 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
       break;
     case MSG_CW:
     	memcpy(gbox->cws, data + 14, 16);
-/*
-        cs_log("gbox: received cws=%s, peer=%04x, ecm_pid=%d, sid=%d",
-        		data[10] << 8 | data[11], data[6] << 8 | data[7], data[8] << 8 | data[9], cs_hexdump(0, gbox->cws, 16));*/
+
+    	cs_debug_mask(D_READER, "gbox: received cws=%s, peer=%04x, ecm_pid=%d, sid=%d",
+        		data[10] << 8 | data[11], data[6] << 8 | data[7], data[8] << 8 | data[9], cs_hexdump(0, gbox->cws, 16));
     	break;
     case MSG_CHECKCODE:
     	memcpy(gbox->peer.checkcode, data + 10, 7);
@@ -580,6 +604,8 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
     	//gbox_handle_gsms(peerid, gsms);
     	break;
     	*/
+    case MSG_ECM: //TODO:
+      break;
     default:
       cs_ddump_mask(D_READER, data, n, "gbox: unknown data received (%d bytes):", n);
   }
@@ -590,7 +616,7 @@ static int gbox_recv(struct s_client *cli, uchar *b, int l)
 
 static void gbox_send_dcw(struct s_client *cli, ECM_REQUEST *er)
 {
-  // server not yet supported
+  // TODO
 }
 
 static int gbox_client_init(struct s_client *cli)
@@ -749,12 +775,9 @@ static int gbox_send_ecm(struct s_client *cli, ECM_REQUEST *er, uchar *buf)
 		return 0;
 	}
 
-  uchar send_buf[0x1024], *ptr;
-  int len;
+  uchar send_buf[0x2048], *ptr;
 
   if (!er->l) return -1;
-
-  len = er->l + 18;
 
   gbox->ecm_idx = er->idx;
 
@@ -772,32 +795,32 @@ static int gbox_send_ecm(struct s_client *cli, ECM_REQUEST *er, uchar *buf)
   send_buf[15] = er->prid >> 8;
   send_buf[17] = er->prid;*/
   memcpy(send_buf + 18, er->ecm, er->l);
-  ptr = send_buf + len;
+  ptr = send_buf + 18 + er->l;
   *(ptr) = gbox->id >> 8;
   *(++ptr) = gbox->id;
   *(++ptr) = gbox->ver;
   ptr++;
   *(++ptr) = gbox->type;
   *(++ptr) = er->caid >> 8;
-  *(++ptr) = er->caid;
-  ptr += 3;
+  *(++ptr) = er->prid >> 16;
+  *(++ptr) = er->prid >> 8;
+  *(++ptr) = er->prid;
+  ptr++;
 
-  int found = 0;
   LL_ITER *it = ll_iter_create(gbox->peer.cards);
   struct gbox_card *card;
   while ((card = ll_iter_next(it))) {
-    if (card->caid == er->caid && card->provid == er->prid) {
+    //if (card->caid == er->caid && card->provid == er->prid) {
+    if (card->provid >> 24 == er->caid >> 8 && (card->provid & 0xffffff) == er->prid) {
       *(++ptr) = card->peer_id >> 8;
       *(++ptr) = card->peer_id;
       *(++ptr) = card->slot;
       send_buf[16]++;
-      found = 1;
     }
-    break;
   }
   ll_iter_release(it);
 
-  if (!found) {
+  if (!send_buf[16]) {
 		er->rc = E_RDR_NOTFOUND;
 		er->rcEx = 0x27;
 		cs_debug_mask(D_READER, "gbox: %s no suitable card found, discarding ecm", cli->reader->label);
@@ -810,9 +833,7 @@ static int gbox_send_ecm(struct s_client *cli, ECM_REQUEST *er, uchar *buf)
   ptr += 7;
   memcpy(ptr, gbox->peer.checkcode, 7);
 
-  len = ptr + 7 - send_buf;
-
-  gbox_send(cli, send_buf, len);
+  gbox_send(cli, send_buf, ptr + 7 - send_buf);
 
   return 0;
 }

@@ -18,9 +18,9 @@ void init_stat()
 		cfg.lb_nbest_readers = DEFAULT_NBEST;
 	if (cfg.lb_nfb_readers < 2)
 		cfg.lb_nfb_readers = DEFAULT_NFB;
-	if (cfg.lb_min_ecmcount < 1)
+	if (cfg.lb_min_ecmcount < 2)
 		cfg.lb_min_ecmcount = DEFAULT_MIN_ECM_COUNT;
-	if (cfg.lb_max_ecmcount < 2)
+	if (cfg.lb_max_ecmcount < 3)
 		cfg.lb_max_ecmcount = DEFAULT_MAX_ECM_COUNT;
 	if (cfg.lb_reopen_seconds < 10)
 		cfg.lb_reopen_seconds = DEFAULT_REOPEN_SECONDS;
@@ -407,9 +407,18 @@ static int get_retrylimit(ECM_REQUEST *er) {
 		int i;
 		for (i = 0; i < cfg.lb_retrylimittab.n; i++) {
 				if (cfg.lb_retrylimittab.caid[i] == er->caid)
-						return cfg.lb_retrylimittab.time[i];
+						return cfg.lb_retrylimittab.value[i];
 		}
 		return cfg.lb_retrylimit;
+}
+
+static int get_nbest_readers(ECM_REQUEST *er) {
+		int i;
+		for (i = 0; i < cfg.lb_nbest_readers_tab.n; i++) {
+				if (cfg.lb_nbest_readers_tab.caid[i] == er->caid)
+						return cfg.lb_nbest_readers_tab.value[i];
+		}
+		return cfg.lb_nbest_readers;
 }
 
 /**	
@@ -515,7 +524,7 @@ int get_best_reader(ECM_REQUEST *er)
 				
 			int hassrvid = has_srvid(rdr->client, er) || has_ident(&rdr->ftab, er);
 			
-			if (!hassrvid && stat->rc == 0 && stat->request_count > cfg.lb_min_ecmcount) { // 5 unanswered requests or timeouts?
+			if (!hassrvid && stat->rc == 0 && stat->request_count >= cfg.lb_min_ecmcount-1) { // 4 unanswered requests or timeouts?
 				cs_debug_mask(D_TRACE, "loadbalancer: reader %s does not answer, blocking", rdr->label);
 				add_stat(rdr, er, 1, 4); //reader marked as unuseable
 				continue;
@@ -573,7 +582,7 @@ int get_best_reader(ECM_REQUEST *er)
 	}
 	ll_iter_release(it);
 
-	int nbest_readers = cfg.lb_nbest_readers;
+	int nbest_readers = get_nbest_readers(er);
 	int nfb_readers = cfg.lb_nfb_readers;
 	if (nlocal_readers > nbest_readers) { //if we have local readers, we prefer them!
 		nlocal_readers = nbest_readers;

@@ -794,6 +794,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 #define TPLENTITLEMENTS "\
 ##TPLHEADER##\
 ##TPLMENU##\
+	<DIV CLASS=\"message\">##MESSAGE##</DIV>\
 	<BR><BR>Entitlements for ##READERNAME##<BR><BR>\n\
 ##ENTITLEMENTCONTENT##\
 ##TPLFOOTER##"
@@ -806,7 +807,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 
 #define TPLENTITLEMENTCCCAMBIT "\
 	<TABLE CLASS=\"stats\">\
-		<TR><TH>Host</TH><TH>Caid</TH><TH>System</TH><TH>share id</TH><TH>remote id</TH><TH>Uphops</TH><TH>Maxdown</TH><TH>Providers</TH><TH>Nodes</TH><TH>Good sids</TH><TH>Bad sids</TH></TR>\
+		<TR><TH>Host</TH><TH>Caid</TH><TH>System</TH><TH>share id</TH><TH>remote id</TH><TH>Uphops</TH><TH>Reshare</TH><TH>Providers</TH><TH>Nodes</TH><TH>Good sids</TH><TH>Bad sids</TH></TR>\
 ##CCCAMSTATSENTRY##\
 	</TABLE>\n\
 	<BR><DIV CLASS=\"cccamentitlementtotals\">##TOTALS##</DIV>"
@@ -1008,6 +1009,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 				</TD>\n\
 			</TR>\n\
 			<TR><TD>##TPLHELPPREFIX##server#cccmaxhops##TPLHELPSUFFIX##Maxhop:</A></TD><TD><input name=\"cccmaxhop\" type=\"text\" size=\"3\" maxlength=\"2\" value=\"##CCCMAXHOP##\"></TD></TR>\n\
+			<TR><TD>##TPLHELPPREFIX##server#cccmindown##TPLHELPSUFFIX##Mindown:</A></TD><TD><input name=\"cccmindown\" type=\"text\" size=\"3\" maxlength=\"2\" value=\"##CCCMINDOWN##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##server#cccwantemu##TPLHELPSUFFIX##Want Emu:</A><input name=\"cccwantemu\" type=\"hidden\" value=\"0\"></TD><TD><input name=\"cccwantemu\" type=\"checkbox\" value=\"1\" ##CCCWANTEMUCHECKED##></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##server#reconnecttimeout##TPLHELPSUFFIX##Reconnect-timeout:</A></TD><TD><input name=\"reconnecttimeout\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##RECEIVETIMEOUT##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##server#ccckeepalive##TPLHELPSUFFIX##Keep alive:</A></TD><TD><SELECT NAME=\"ccckeepalive\"><OPTION VALUE=\"0\">NO</OPTION><OPTION VALUE=\"1\" ##KEEPALIVECHECKED##>YES</OPTION></SELECT></TD></TR>\n"
@@ -1114,6 +1116,22 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 			<TR><TD colspan=\"2\" align=\"right\"><input type=\"submit\" value=\"Save\" ##BTNDISABLED##></TD></TR>\n\
 		</TABLE>\n\
 	</form>\n\
+	<BR><BR>\
+	<TABLE class=\"config\">\n\
+		<TR><TH COLSPAN=\"2\">Control</TH></TR>\n\
+		<TR>\n\
+			<TD STYLE=\"text-align:center;\">\
+				<form action=\"config.html\" method=\"get\">\n\
+				<input name=\"part\" type=\"hidden\" value=\"cccam\">\n\
+				<input type=\"submit\" name=\"button\" value=\"Refresh global list\" ##BTNDISABLED##>\n\
+				</form></TD>\n\
+			<TD STYLE=\"text-align:center;\">\
+				<form action=\"entitlements.html\" method=\"get\">\n\
+				<input name=\"globallist\" type=\"hidden\" value=\"1\">\n\
+				<input type=\"submit\" name=\"button\" value=\"Show global list\" ##BTNDISABLED##>\n\
+				</form></TD>\n\
+		</TR>\n\
+	</TABLE>\n\
 ##TPLFOOTER##"
 
 #define TPLCONFIGMONITOR "\
@@ -1305,6 +1323,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 			<TR><TD>##TPLHELPPREFIX##conf#lb_save##TPLHELPSUFFIX##Loadbalance save every:</A></TD><TD><input name=\"lb_save\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBSAVE##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#lb_savepath##TPLHELPSUFFIX##Statistics save path:</A></TD><TD><input name=\"lb_savepath\" type=\"text\" size=\"50\" maxlength=\"255\" value=\"##LBSAVEPATH##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#lb_nbest_readers##TPLHELPSUFFIX##Number of best readers:</A></TD><TD><input name=\"lb_nbest_readers\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBNBESTREADERS##\"></TD></TR>\n\
+			<TR><TD>##TPLHELPPREFIX##conf#lb_nbest_percaid##TPLHELPSUFFIX##Number of best readers per caid:</A></TD><TD><input name=\"lb_nbest_percaid\" type=\"text\" size=\"50\" maxlength=\"255\" value=\"##LBNBESTPERCAID##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#lb_nfb_readers##TPLHELPSUFFIX##Number of fallback readers:</A></TD><TD><input name=\"lb_nfb_readers\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBNFBREADERS##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#lb_min_ecmcount##TPLHELPSUFFIX##Min ECM count:</A></TD><TD><input name=\"lb_min_ecmcount\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBMINECMCOUNT##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#lb_max_ecmcount##TPLHELPSUFFIX##Max ECM count:</A></TD><TD><input name=\"lb_max_ecmcount\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"##LBMAXECEMCOUNT##\"></TD></TR>\n\
@@ -1434,6 +1453,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 			<option value=\"2\" ##PMTMODESELECTED2##>2 - disable camd.socket</option>\n\
 			<option value=\"3\" ##PMTMODESELECTED3##>3 - read PMT file on startup only</option>\n\
 			<option value=\"4\" ##PMTMODESELECTED4##>4 - ufs912, ufs922 with new libioctl.so</option>\n\
+			<option value=\"5\" ##PMTMODESELECTED5##>5 - ufs912, ufs922 with new libioctl.so & disable camd.socket</option>\n\
 		</SELECT></TD></TR>\n\
     <TR><TD colspan=\"2\" align=\"right\"><input type=\"submit\" value=\"Save\" ##BTNDISABLED##></TD></TR>\n\
 	</TABLE>\n\

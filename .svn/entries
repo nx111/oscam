@@ -1,15 +1,15 @@
 10
 
 dir
-4736
+4794
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-02-16T20:54:58.774444Z
-4736
-Deas
+2011-03-06T10:01:26.574881Z
+4794
+schlocke
 has-props
 
 
@@ -35,43 +35,6 @@ has-props
 
 ((conflict datastruct-llist.c file update deleted edited (version http://streamboard.gmc.to/svn/oscam 4 3599 trunk/datastruct-llist.c file) (version http://streamboard.gmc.to/svn/oscam 4 3640 trunk/datastruct-llist.c none)))
 
-Distribution
-dir
-
-module-cccam.h
-file
-
-
-
-
-2011-02-13T23:35:31.845208Z
-84737a8e0566251e0030be8f27496d3d
-2011-02-12T16:19:49.808468Z
-4712
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-4651
-
 Maketype
 file
 
@@ -79,12 +42,46 @@ file
 
 
 
-666fcd083bd9f892635b0915d9e70732
-2011-01-25T14:18:26.250520Z
-4608
+1beed798fc83852856162bdb5a669ccc
+2011-02-24T21:35:57.788283Z
+4748
 schlocke
 
-openxcas
+module-cccam.h
+file
+
+
+
+
+2011-03-06T10:53:45.956809Z
+865460eba7594048465859b1d757e6a8
+2011-03-05T12:41:51.524526Z
+4791
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+5113
+
+Distribution
 dir
 
 module-camd35.c
@@ -121,17 +118,20 @@ _network
 
 19834
 
+openxcas
+dir
+
 reader-viaccess.c
 file
 
 
 
 
-2011-02-17T05:52:34.168000Z
-518e023cd63af3627402cd94deba20b8
-2011-02-14T14:30:15.134174Z
-4726
-_network
+2011-03-06T10:53:45.956809Z
+e331eeb0c5f4fe04d06ad9a6c33bc544
+2011-02-20T15:23:30.884796Z
+4739
+jerdvb
 
 
 
@@ -153,7 +153,7 @@ _network
 
 
 
-32422
+32654
 
 VERSION
 file
@@ -359,19 +359,16 @@ schlocke
 
 9913
 
-toolchains
-dir
-
 module-gbox.c
 file
 
 
 
 
-2011-02-17T05:52:34.176000Z
-fbbdd766679a338cd9c570d76acb92ff
-2011-02-14T15:42:52.329435Z
-4733
+2011-03-06T10:53:45.960809Z
+f1ec5cc5723334c3936bac0025032a34
+2011-02-28T07:55:05.730874Z
+4765
 cogsi
 has-props
 
@@ -394,7 +391,10 @@ has-props
 
 
 
-21696
+22380
+
+toolchains
+dir
 
 reader-videoguard-common.h
 file
@@ -437,10 +437,10 @@ file
 
 
 
-58a10b92ecb00cbdfcd3fe8801fe7da3
-2011-02-16T20:54:58.774444Z
-4736
-Deas
+cce3d34d93e6e3f75c96d936680db975
+2011-03-05T17:12:51.407012Z
+4792
+_network
 
 Makefile
 file
@@ -448,10 +448,10 @@ file
 
 
 
-2011-02-17T05:52:34.180000Z
-133bad13cad5429871069da15f01a243
-2011-02-16T12:53:01.353369Z
-4735
+2011-03-06T10:53:45.960809Z
+5a9d92d6b68d6e11135c8fa4d34bd439
+2011-02-20T13:35:05.785801Z
+4738
 _network
 
 
@@ -474,7 +474,7 @@ _network
 
 
 
-25275
+25618
 
 module-dvbapi.h
 file
@@ -483,9 +483,9 @@ file
 
 
 
-a4543b9c1346461835db4056e1e0940b
-2011-01-16T18:29:12.427459Z
-4493
+6b48ba492c89547d65301ddab8ca17da
+2011-03-03T22:24:02.889016Z
+4771
 _network
 
 module-serial.c
@@ -529,10 +529,10 @@ file
 
 
 
-9660fecc69fff818ef19f37e2e4e2ac4
-2011-02-13T21:37:14.123038Z
-4724
-schlocke
+fb6b84e4f07a774461a038b52febdd52
+2011-03-05T17:12:51.407012Z
+4792
+_network
 
 reader-tongfang.c
 file
@@ -575,9 +575,9 @@ file
 
 
 
-1efd9f33a1140e6b7f75029bd073d717
-2011-02-12T16:19:49.808468Z
-4712
+6267782f9ed59913632995633a3c4f85
+2011-03-04T22:43:12.098919Z
+4788
 schlocke
 
 cscrypt
@@ -658,10 +658,10 @@ file
 
 
 
-e64375caf2c7c9900d1f79f07d4626c6
-2011-02-10T09:23:40.558594Z
-4702
-cogsi
+4838fe6d156367819e24f99bcfa07138
+2011-02-20T13:35:05.785801Z
+4738
+_network
 
 oscam-simples.c
 file
@@ -737,44 +737,10 @@ file
 
 
 
-2011-02-13T23:35:31.893208Z
-2007a645be75f3de900c7ef4a82abb96
-2011-02-13T19:35:47.888649Z
-4722
-Deas
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-119770
-
-oscam-http.h
-file
-
-
-
-
-2011-02-13T23:35:31.893208Z
-7ae6ccf4729fdd2bbfcfca15e5a8d934
-2011-02-13T20:40:21.843084Z
-4723
+2011-03-06T10:55:32.704809Z
+cbfa4f94c0ca5208897a3529783180e7
+2011-03-04T22:43:12.098919Z
+4788
 schlocke
 
 
@@ -797,7 +763,41 @@ schlocke
 
 
 
-101990
+121761
+
+oscam-http.h
+file
+
+
+
+
+2011-03-06T10:55:32.704809Z
+698376ab8d30e3e57afdfc73d9f73e5e
+2011-03-04T22:43:12.098919Z
+4788
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+103224
 
 reader-irdeto.c
 file
@@ -833,74 +833,6 @@ dingo35
 
 26103
 
-reader-common.c
-file
-
-
-
-
-2011-02-09T13:18:04.273165Z
-7d632587ef0b2ad67d149a72a4b94974
-2011-02-08T09:39:14.858431Z
-4693
-_network
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-10150
-
-reader-nagra.c
-file
-
-
-
-
-2011-02-07T04:57:10.694709Z
-67fba1ec237413ff3feeaea46c01d0d5
-2011-02-01T20:34:16.356151Z
-4669
-_network
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-35537
-
 oscam-garbage.c
 file
 
@@ -934,6 +866,74 @@ schlocke
 
 
 3084
+
+reader-nagra.c
+file
+
+
+
+
+2011-03-06T10:55:32.704809Z
+8fc36eecab6e03af985c35031284be16
+2011-02-20T22:17:16.082868Z
+4743
+_network
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+35667
+
+reader-common.c
+file
+
+
+
+
+2011-02-09T13:18:04.273165Z
+7d632587ef0b2ad67d149a72a4b94974
+2011-02-08T09:39:14.858431Z
+4693
+_network
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+10150
 
 reader-videoguard12.c
 file
@@ -975,10 +975,10 @@ file
 
 
 
-2011-02-09T13:18:04.273165Z
-e194182896e18d44b4325c9161ca0855
-2011-02-08T09:39:14.858431Z
-4693
+2011-03-06T10:55:32.708809Z
+d239ea7c3584d988f6c34c90b6a10a75
+2011-02-20T21:42:39.152168Z
+4742
 _network
 
 
@@ -1001,7 +1001,7 @@ _network
 
 
 
-750
+787
 
 module-newcamd.c
 file
@@ -1183,9 +1183,9 @@ file
 
 
 
-abf32d2db2cf30417a817c9e929863a3
-2011-02-16T12:53:01.353369Z
-4735
+a0c8d62936afffefb556a9d76e96682e
+2011-02-20T13:35:05.785801Z
+4738
 _network
 
 config.sh
@@ -1195,10 +1195,10 @@ file
 
 
 
-dc45fc02be940e6fb1e5fcb4ccb86dce
-2011-01-26T15:23:14.014920Z
-4623
-merek
+5d9f257a01dc7b2ca278105663f88fb0
+2011-03-04T15:45:34.261327Z
+4778
+landlord
 has-props
 
 module-stat.c
@@ -1207,10 +1207,10 @@ file
 
 
 
-2011-02-13T23:35:31.893208Z
-0af30e2c8342bbd337af51bc0a931ecf
-2011-02-12T16:19:49.808468Z
-4712
+2011-03-06T10:55:32.712809Z
+1c1ee73a0f85bec7c35ec79f681dc26e
+2011-03-04T22:07:41.306661Z
+4787
 schlocke
 
 
@@ -1233,7 +1233,41 @@ schlocke
 
 
 
-20636
+20891
+
+module-cccshare.c
+file
+
+
+
+
+2011-03-06T10:55:32.732809Z
+15221436cd08b3018457dc953934fa2b
+2011-03-06T10:01:26.574881Z
+4794
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+32388
 
 algo
 dir
@@ -1244,44 +1278,10 @@ file
 
 
 
-2011-02-07T04:57:10.694709Z
-a7fb83149191c679a56a413c14fafd5e
-2011-02-01T20:34:16.356151Z
-4669
-_network
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-23158
-
-module-constcw.c
-file
-
-
-
-
-2011-01-19T05:18:24.398386Z
-15451f0f57a48a1e26615b01ec997443
-2011-01-18T23:06:23.548455Z
-4523
+2011-03-06T10:55:32.712809Z
+0f700d9f5dfbb2a450417c89f1c1dc6d
+2011-03-04T18:20:52.024726Z
+4780
 schlocke
 
 
@@ -1304,7 +1304,7 @@ schlocke
 
 
 
-4236
+23098
 
 module-stat.h
 file
@@ -1340,16 +1340,84 @@ schlocke
 
 552
 
+module-constcw.c
+file
+
+
+
+
+2011-01-19T05:18:24.398386Z
+15451f0f57a48a1e26615b01ec997443
+2011-01-18T23:06:23.548455Z
+4523
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+4236
+
+module-cccshare.h
+file
+
+
+
+
+2011-03-06T10:55:32.732809Z
+f3feff94eac23912a2e35c65c9fc027b
+2011-02-26T09:19:21.798758Z
+4754
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1047
+
 oscam-chk.c
 file
 
 
 
 
-2011-02-13T23:35:31.893208Z
-e7fd544589454d725f04103e25e7fd5b
-2011-02-13T13:09:57.142266Z
-4718
+2011-03-06T10:55:32.712809Z
+20b131e8abd65b180a99d420e71229fc
+2011-02-20T16:51:29.852576Z
+4741
 _network
 
 
@@ -1372,7 +1440,7 @@ _network
 
 
 
-12430
+12327
 
 oscam-types.h
 file
@@ -1442,6 +1510,40 @@ _network
 
 20669
 
+reader-videoguard2.c
+file
+
+
+
+
+2011-03-06T10:55:32.716809Z
+9470aefae8f6e03bb04082d5629244c5
+2011-02-28T07:36:22.450268Z
+4764
+cogsi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+25716
+
 reader-seca.c
 file
 
@@ -1475,40 +1577,6 @@ dingo35
 
 
 12537
-
-reader-videoguard2.c
-file
-
-
-
-
-2011-01-25T13:02:06.165892Z
-659ddf2fb73b53f030f2f30e0e51888e
-2011-01-24T13:21:29.401070Z
-4588
-dingo35
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-25390
 
 README
 file
@@ -1547,10 +1615,10 @@ landlord
 OSCam.xcodeproj
 dir
 
-cygwin
+utils
 dir
 
-utils
+cygwin
 dir
 
 .gitignore
@@ -1593,11 +1661,11 @@ file
 
 
 
-2011-02-07T04:57:10.694709Z
-89d87be2888208f2cb00986c8abf25fe
-2011-01-28T09:13:47.713726Z
-4639
-_network
+2011-03-06T10:55:32.728809Z
+cada37b4958dcde1e660eee85589a5b1
+2011-02-24T21:19:46.537993Z
+4747
+schlocke
 has-props
 
 
@@ -1619,7 +1687,7 @@ has-props
 
 
 
-4367
+4909
 
 globals.h
 file
@@ -1628,9 +1696,9 @@ file
 
 
 
-d26a89528a293d7d2567110d8bbfdf73
-2011-02-12T16:19:49.808468Z
-4712
+a0dca54951580e9d0f5eb380b2704f5c
+2011-03-04T22:43:12.098919Z
+4788
 schlocke
 
 module-cccam.c
@@ -1640,9 +1708,9 @@ file
 
 
 
-fd60e4001e9962db1f962f0f7d4d4fb9
-2011-02-12T16:19:49.808468Z
-4712
+3b1943144b55d3137de6dc078b00c6b7
+2011-03-05T12:41:51.524526Z
+4791
 schlocke
 has-props
 
@@ -1652,11 +1720,11 @@ file
 
 
 
-2011-01-20T03:54:59.420090Z
-ff5fddfcb91aeead07432f0379580a97
-2011-01-19T08:43:42.199390Z
-4528
-cogsi
+2011-03-06T10:55:32.732809Z
+eb2480075264436a90f2b33f5959172a
+2011-02-24T21:19:46.537993Z
+4747
+schlocke
 has-props
 
 
@@ -1678,7 +1746,7 @@ has-props
 
 
 
-2067
+2122
 
 module-camd33.c
 file

@@ -161,6 +161,9 @@ static int NegotiateSessionKey_Tiger(struct s_reader * reader)
 	}
 	
 	BN_CTX *ctx = BN_CTX_new();
+#ifdef WITH_LIBCRYPTO
+	BN_CTX_start(ctx);
+#endif
 	BIGNUM *bnN = BN_CTX_get(ctx);
 	BIGNUM *bnE = BN_CTX_get(ctx);
 	BIGNUM *bnCT = BN_CTX_get(ctx);
@@ -191,13 +194,16 @@ static int NegotiateSessionKey_Tiger(struct s_reader * reader)
 	cs_debug_mask(D_READER, "[nagra-reader] ------------------------------------------");
 	
 	memcpy(reader->hexserial+2, parte_fija+15, 4);
-    memcpy(reader->sa[0], parte_fija+15, 2);
+	memcpy(reader->sa[0], parte_fija+15, 2);
 
 	memcpy(reader->irdId, parte_fija+19, 4);
 	memcpy(d1_rsa_modulo,parte_fija+23,88);
 	
 	ReverseMem(cta_res+2, 88);
 	BN_CTX *ctx1 = BN_CTX_new();
+#ifdef WITH_LIBCRYPTO
+	BN_CTX_start(ctx1);
+#endif
 	BIGNUM *bnN1 = BN_CTX_get(ctx1);
 	BIGNUM *bnE1 = BN_CTX_get(ctx1);
 	BIGNUM *bnCT1 = BN_CTX_get(ctx1);
@@ -211,10 +217,10 @@ static int NegotiateSessionKey_Tiger(struct s_reader * reader)
 	BN_CTX_end(ctx1);
 	BN_CTX_free (ctx1);
 
-        reader->ActivationDate[0] = parte_variable[65];
-        reader->ActivationDate[1] = parte_variable[66];
-        reader->ExpiryDate[0] = parte_variable[69];
-        reader->ExpiryDate[1] = parte_variable[70];
+	reader->ActivationDate[0] = parte_variable[65];
+	reader->ActivationDate[1] = parte_variable[66];
+	reader->ExpiryDate[0] = parte_variable[69];
+	reader->ExpiryDate[1] = parte_variable[70];
 	
 	reader->prid[0][0]=0x00;
 	reader->prid[0][1]=0x00;
@@ -232,6 +238,9 @@ static int NegotiateSessionKey_Tiger(struct s_reader * reader)
 	
 	
 	BN_CTX *ctx3 = BN_CTX_new();
+#ifdef WITH_LIBCRYPTO
+	BN_CTX_start(ctx3);
+#endif
 	BIGNUM *bnN3 = BN_CTX_get(ctx3);
 	BIGNUM *bnE3 = BN_CTX_get(ctx3);
 	BIGNUM *bnCT3 = BN_CTX_get(ctx3);
@@ -324,6 +333,9 @@ static int NegotiateSessionKey(struct s_reader * reader)
 	ReverseMem(cta_res+2, 64);
 	unsigned char vFixed[] = {0,1,2,3};
 	BN_CTX *ctx = BN_CTX_new();
+#ifdef WITH_LIBCRYPTO
+	BN_CTX_start(ctx);
+#endif
 	BIGNUM *bnN = BN_CTX_get(ctx);
 	BIGNUM *bnE = BN_CTX_get(ctx);
 	BIGNUM *bnCT = BN_CTX_get(ctx);
@@ -371,11 +383,10 @@ static int NegotiateSessionKey(struct s_reader * reader)
 			return ERROR;
 		}
 	}
-	else
-    if(!do_cmd(reader, 0x27,0x47,0xa7,0x02,cmd2b+10,cta_res,&cta_lr))	{
-			cs_debug_mask(D_READER, "[nagra-reader] CMD$27 failed");
-			return ERROR;
-		}
+	else if(!do_cmd(reader, 0x27,0x47,0xa7,0x02,cmd2b+10,cta_res,&cta_lr)) {
+		cs_debug_mask(D_READER, "[nagra-reader] CMD$27 failed");
+		return ERROR;
+	}
 	
 	cs_debug_mask(D_READER, "[nagra-reader] session key negotiated");
 	
@@ -569,15 +580,13 @@ static int nagra2_card_init(struct s_reader * reader, ATR newatr)
 	get_atr;
 	def_resp;
 	memset(reader->rom, 0, 15);
-	reader->nprov = 1;
 	reader->is_pure_nagra = 0; 
 	reader->is_tiger = 0; 
-    reader->is_n3_na = 0;
+	reader->is_n3_na = 0;
  	reader->has_dt08 = 0; 
  	reader->swapCW = 0; 
  	memset(reader->irdId, 0xff, 4);
 	memset(reader->hexserial, 0, 8); 
-	reader->caid=SYSTEM_NAGRA;
 	
 	if(memcmp(atr+11,"DNASP240",8)==0 || memcmp(atr+11,"DNASP241", 8)==0) {
 		cs_ri_log(reader, "detect nagra 3 NA card");
@@ -618,6 +627,8 @@ static int nagra2_card_init(struct s_reader * reader, ATR newatr)
 		memcpy(reader->rom,cta_res+2,15);
 	}
 	else return ERROR;
+
+	reader->nprov = 1;
 
 	if (!reader->is_tiger)
 	{

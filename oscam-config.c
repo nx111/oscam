@@ -143,37 +143,37 @@ void chk_caidtab(char *caidasc, CAIDTAB *ctab)
 	}
 }
 
-void chk_retrylimittab(char *lbrlt, RETRYLIMITTAB *tab)
+void chk_caidvaluetab(char *lbrlt, CAIDVALUETAB *tab)
 {
 		int i;
 		char *ptr1, *ptr2;
-		
-		memset(tab, 0, sizeof(RETRYLIMITTAB));
-		
-		for (i = 0, ptr1 = strtok(lbrlt, ","); (i < CS_MAX_LB_RETRYLIMIT) && (ptr1); ptr1 = strtok(NULL, ",")) {
-				long caid, time;
+
+		memset(tab, 0, sizeof(CAIDVALUETAB));
+
+		for (i = 0, ptr1 = strtok(lbrlt, ","); (i < CS_MAX_CAIDVALUETAB) && (ptr1); ptr1 = strtok(NULL, ",")) {
+				long caid, value;
 
 				if( (ptr2 = strchr(trim(ptr1), ':')) )
 						*ptr2++ = '\0';
 				else
 						ptr2 = "";
 
-				if (((caid = a2i(ptr1, 2)) < 0xFFFF) | ((time = atoi(ptr2)) < 10000)) {
+				if (((caid = a2i(ptr1, 2)) < 0xFFFF) | ((value = atoi(ptr2)) < 10000)) {
 						tab->caid[i] = caid;
-						tab->time[i] = time;
+						tab->value[i] = value;
 						tab->n = ++i;
 				}
 		}
 }
 
-char *mk_t_retrylimittab(RETRYLIMITTAB *tab)
+char *mk_t_caidvaluetab(CAIDVALUETAB *tab)
 {
 		int i, size = 2 + tab->n * (4 + 1 + 5 + 1); //caid + ":" + time + ","
 		char *buf = cs_malloc(&buf, size, SIGINT);
 		char *ptr = buf;
-				
+
 		for (i = 0; i < tab->n; i++) {
-				ptr += sprintf(ptr, "%s%04X:%d", i?",":"", tab->caid[i], tab->time[i]);
+				ptr += sprintf(ptr, "%s%04X:%d", i?",":"", tab->caid[i], tab->value[i]);
 		}
 		*ptr = 0;
 		return buf;
@@ -380,7 +380,7 @@ void chk_t_global(const char *token, char *value)
 					if(!cs_malloc(&(cfg.logfile), strlen(pch) + 1, -1)) continue;
 					else memcpy(cfg.logfile, pch, strlen(pch) + 1);
 				}
-			}			
+			}
 		}
 		return;
 	}
@@ -541,18 +541,23 @@ void chk_t_global(const char *token, char *value)
 		cfg.lb_retrylimit = strToIntVal(value, DEFAULT_RETRYLIMIT);
 		return;
 	}
-	
+
 	if (!strcmp(token, "lb_retrylimits")) {
-		chk_retrylimittab(value, &cfg.lb_retrylimittab);
+		chk_caidvaluetab(value, &cfg.lb_retrylimittab);
 		return;
 	}
 	
+	if (!strcmp(token, "lb_nbest_percaid")) {
+		chk_caidvaluetab(value, &cfg.lb_nbest_readers_tab);
+		return;
+	}
+
 	if (!strcmp(token, "lb_savepath")) {
 		NULLFREE(cfg.lb_savepath);
 		cfg.lb_savepath = strnew(value);
 		return;
 	}
-	
+
 	if (!strcmp(token, "lb_stat_cleanup")) {
 		cfg.lb_stat_cleanup = strToIntVal(value, DEFAULT_LB_STAT_CLEANUP);
 		return;
@@ -994,12 +999,12 @@ void chk_t_cccam(char *token, char *value)
 		cfg.cc_ignore_reshare = strToIntVal(value, 0);
 		return;
 	}
-	
+
 	if (!strcmp(token, "forward_origin_card")) {
 		cfg.cc_forward_origin_card = strToIntVal(value, 0);
 		return;
 	}
-	
+
 	// cccam version
 	if (!strcmp(token, "version")) {
 		if (strlen(value) > sizeof(cfg.cc_version) - 1) {
@@ -1013,9 +1018,9 @@ void chk_t_cccam(char *token, char *value)
 	// cccam: Update cards interval
 	if (!strcmp(token, "updateinterval")) {
 		if (value[0] == '-')
-			cfg.cc_update_interval = (-1);
+			cfg.cc_update_interval = DEFAULT_UPDATEINTERVAL;
 		else
-			cfg.cc_update_interval = strToIntVal(value, (4*60));//4x60s = 4min
+			cfg.cc_update_interval = strToIntVal(value, DEFAULT_UPDATEINTERVAL);
 		return;
 	}
 
@@ -1365,7 +1370,7 @@ int init_config()
 	strcpy(cfg.ac_logfile, "./oscam_ac.log");
 #endif
 #ifdef MODULE_CCCAM
-	cfg.cc_update_interval = 240;
+	cfg.cc_update_interval = DEFAULT_UPDATEINTERVAL;
 	cfg.cc_keep_connected = 1;
 	cfg.cc_cfgfile = NULL;
 #endif
@@ -1840,8 +1845,13 @@ int write_config()
 	if (cfg.lb_retrylimit != DEFAULT_RETRYLIMIT || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "lb_retrylimit", "%d\n", cfg.lb_retrylimit);
     if (cfg.lb_retrylimittab.n > 0 || cfg.http_full_cfg) {
-    	char *value = mk_t_retrylimittab(&cfg.lb_retrylimittab);
+    	char *value = mk_t_caidvaluetab(&cfg.lb_retrylimittab);
     	fprintf_conf(f, CONFVARWIDTH, "lb_retrylimits", "%s\n", value);
+    	free(value);
+    }
+    if (cfg.lb_nbest_readers_tab.n > 0 || cfg.http_full_cfg) {
+    	char *value = mk_t_caidvaluetab(&cfg.lb_nbest_readers_tab);
+    	fprintf_conf(f, CONFVARWIDTH, "lb_nbest_percaid", "%s\n", value);
     	free(value);
     }
 	if (cfg.lb_savepath)
@@ -2174,16 +2184,12 @@ int write_userdb(struct s_auth *authptr)
 		if (account->autoau == 1)
 			fprintf_conf(f, CONFVARWIDTH, "au", "1\n");
 		else if (account->aureader_list) {
-			struct s_reader *rdr;
-			LL_ITER *itr = ll_iter_create(account->aureader_list);
-			char *dot = "";
-			fprintf_conf(f, CONFVARWIDTH, "au", "");
-			while ((rdr = ll_iter_next(itr))) {
-				fprintf(f, "%s%s", dot, rdr->label);
-				dot = ",";
-			}
-			ll_iter_release(itr);
-			fprintf(f, "\n");
+
+			value = mk_t_aureader(account);
+			if (strlen(value) > 0)
+				fprintf_conf(f, CONFVARWIDTH, "au", "%s\n", value);
+			free(value);
+
 		}
 
 		value = mk_t_service((uint64)account->sidtabok, (uint64)account->sidtabno);
@@ -2282,7 +2288,7 @@ int write_server()
 			fprintf(f,"[reader]\n");
 
 			fprintf_conf(f, CONFVARWIDTH, "label", "%s\n", rdr->label);
-			fprintf_conf(f, CONFVARWIDTH, "enable", "%d\n", rdr->enable);
+      fprintf_conf(f, CONFVARWIDTH, "enable", "%d\n", rdr->enable);
 			char *ctyp = reader_get_type_desc(rdr, 0);
 
 			fprintf_conf(f, CONFVARWIDTH, "protocol", "%s\n", ctyp);
@@ -2355,6 +2361,8 @@ int write_server()
 
 			if (rdr->boxid && isphysical)
 				fprintf_conf(f, CONFVARWIDTH, "boxid", "%08X\n", rdr->boxid);
+
+      fprintf_conf(f, CONFVARWIDTH, "fix9993", "%d\n", rdr->fix_9993);
 
 			// rsakey
 			int len = check_filled(rdr->rsa_mod, 120);
@@ -2443,7 +2451,7 @@ int write_server()
 			if (strlen(value) > 0)
 				fprintf_conf(f, CONFVARWIDTH, "savenano", "%s\n", value);
 			free(value);
-			
+
 			//blocknano
 			value = mk_t_nano(rdr, 0x01);
 			if (strlen(value) > 0)
@@ -2454,8 +2462,11 @@ int write_server()
 				if (rdr->cc_version[0])
 					fprintf_conf(f, CONFVARWIDTH, "cccversion", "%s\n", rdr->cc_version);
 
-				if (rdr->cc_maxhop)
+				if (rdr->cc_maxhop >= 0)
 					fprintf_conf(f, CONFVARWIDTH, "cccmaxhops", "%d\n", rdr->cc_maxhop);
+					
+				if (rdr->cc_mindown >= 0)
+					fprintf_conf(f, CONFVARWIDTH, "cccmindown", "%d\n", rdr->cc_mindown);
 
 				if (rdr->cc_want_emu)
 					fprintf_conf(f, CONFVARWIDTH, "cccwantemu", "%d\n", rdr->cc_want_emu);
@@ -2530,11 +2541,6 @@ void write_versionfile() {
 #else
 	  fprintf(fp, "Dvbapi support:            no\n");
 #endif
-#ifdef MODULE_GBOX
-	  fprintf(fp, "Gbox support:              yes\n");
-#else
-	  fprintf(fp, "Gbox support:              no\n");
-#endif
 #ifdef CS_ANTICASC
 	  fprintf(fp, "Anticasc support:          yes\n");
 #else
@@ -2599,6 +2605,11 @@ void write_versionfile() {
 	  fprintf(fp, "Cccam:                     yes\n");
 #else
 	  fprintf(fp, "Cccam:                     no\n");
+#endif
+#ifdef MODULE_GBOX
+	  fprintf(fp, "Gbox:                      yes\n");
+#else
+	  fprintf(fp, "Gbox:                      no\n");
 #endif
 #ifdef MODULE_RADEGAST
 	  fprintf(fp, "Radegast:                  yes\n");
@@ -2684,7 +2695,7 @@ int init_free_userdb(struct s_auth *ptr) {
 		ptr = ptr_next;
 	}
 	cs_log("userdb %d accounts freed", nro);
-	
+
 	return nro;
 }
 
@@ -2952,7 +2963,7 @@ int init_srvid()
 	char *payload;
 	struct s_srvid *srvid=NULL, *new_cfg_srvid=NULL;
 	sprintf(token, "%s%s", cs_confdir, cs_srid);
-	
+
 
 	if (!(fp=fopen(token, "r"))) {
 		cs_log("can't open file \"%s\" (err=%d), no service-id's loaded", token, errno);
@@ -3020,7 +3031,7 @@ int init_srvid()
 	else{
 		cs_log("oscam.srvid loading failed, old format");
 	}
-	
+
 	//this allows reloading of srvids, so cleanup of old data is needed:
 	srvid = cfg.srvid; //old data
 	cfg.srvid = new_cfg_srvid; //assign after loading, so everything is in memory
@@ -3030,7 +3041,7 @@ int init_srvid()
 		free(srvid);
 		srvid = ptr;
 	}
-	
+
 	return(0);
 }
 
@@ -3094,7 +3105,7 @@ int init_tierid()
 	else{
 		cs_log("%s loading failed", cs_trid);
 	}
-	
+
 	//reload function:
 	tierid = cfg.tierid;
 	cfg.tierid = new_cfg_tierid;
@@ -3104,7 +3115,7 @@ int init_tierid()
 		free(tierid);
 		tierid = ptr;
 	}
-	
+
 	return(0);
 }
 
@@ -3276,15 +3287,20 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 		}
 	}
 
-	if (!strcmp(token, "boxid")) {
-		if(strlen(value) == 0) {
-			rdr->boxid = 0;
-			return;
-		} else {
-			rdr->boxid = a2i(value, 4);
-			return;
-		}
-	}
+  if (!strcmp(token, "boxid")) {
+    if(strlen(value) == 0) {
+      rdr->boxid = 0;
+      return;
+    } else {
+      rdr->boxid = a2i(value, 4);
+      return;
+    }
+  }
+
+  if (!strcmp(token, "fix9993")) {
+    rdr->fix_9993 = strToIntVal(value, 0);
+    return;
+  }
 
 	if (!strcmp(token, "rsakey")) {
 		int len = strlen(value);
@@ -3631,6 +3647,12 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 		return;
 	}
 
+	if (!strcmp(token, "cccmindown") ) { 
+		// cccam min downhops
+		rdr->cc_mindown  = strToIntVal(value, 0);
+		return;
+	}
+
 	if (!strcmp(token, "cccwantemu")) {
 		rdr->cc_want_emu  = strToIntVal(value, 0);
 		return;
@@ -3969,6 +3991,7 @@ int init_readerdb()
 			rdr->cc_reshare = cfg.cc_reshare; //set global value as init value
 			rdr->cc_keepalive = 120;
 			rdr->cc_maxhop = 10;
+			rdr->cc_mindown = 0;
 			rdr->lb_weight = 100;
 			strcpy(rdr->pincode, "none");
 			rdr->ndsversion = 0;
@@ -4012,7 +4035,7 @@ int init_readerdb()
 		}
 	}
 	ll_iter_release(itr);
-	
+
 	fclose(fp);
 
 	return(0);
@@ -4388,6 +4411,25 @@ char *mk_t_newcamd_port(){
 	return value;
 }
 
+char *mk_t_aureader(struct s_auth *account){
+	int pos = 0;
+	char *dot = "";
+
+	char *value;
+	if(!cs_malloc(&value, 256 * sizeof(char), -1)) return "";
+	value[0] = '\0';
+
+	struct s_reader *rdr;
+	LL_ITER *itr = ll_iter_create(account->aureader_list);
+	while ((rdr = ll_iter_next(itr))) {
+		pos += sprintf(value + pos, "%s%s", dot, rdr->label);
+		dot = ",";
+	}
+	ll_iter_release(itr);
+
+	return value;
+}
+
 /*combine function blocknano or savenano
  * flag 0x01 for blocknano or 0x02 for savenano */
 char *mk_t_nano(struct s_reader *rdr, uchar flag){
@@ -4398,7 +4440,7 @@ char *mk_t_nano(struct s_reader *rdr, uchar flag){
 	for(i = 0; i < 256; ++i)
 		if((rdr->b_nano[i] & flag))
 			needed++;
-			
+
 	char *value;
 	if (needed == 256) {
 		if(!cs_malloc(&value, (3 * sizeof(char)) + 1, -1)) return "";
@@ -4445,12 +4487,12 @@ char *mk_t_service( uint64 sidtabok, uint64 sidtabno){
 char *mk_t_logfile(){
 	int pos = 0, needed = 1;
 	char *value, *dot = "";
-	
+
 	if(cfg.logtostdout == 1) needed += 7;
 	if(cfg.logtosyslog == 1) needed += 7;
 	if(cfg.logfile != NULL) needed += strlen(cfg.logfile);
 	if(!cs_malloc(&value, needed * sizeof(char), -1)) return "";
-		
+
 	if(cfg.logtostdout == 1){
 		pos += sprintf(value + pos, "stdout");
 		dot = ";";
