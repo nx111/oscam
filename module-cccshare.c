@@ -10,6 +10,7 @@ static pthread_mutex_t cc_shares_lock;
 static int card_added_count = 0;
 static int card_removed_count = 0;
 static int card_dup_count = 0;
+static pthread_t share_updater_thread = 0;
 
 LLIST *get_and_lock_sharelist()
 {
@@ -113,6 +114,7 @@ int send_card_to_clients(struct cc_card *card, struct s_client *one_client) {
         for (cl = one_client?one_client:first_client; cl; cl=one_client?NULL:cl->next) {
                 struct cc_data *cc = cl->cc;
                 if (cl->typ=='c' && cc && (one_client || (ph[cl->ctyp].num == R_CCCAM && cc->mode == CCCAM_MODE_NORMAL))) { //CCCam-Client!
+                		int ext = cc->cccam220?MSG_NEW_CARD_SIDINFO:MSG_NEW_CARD;
                         if (card_valid_for_client(cl, card)) {
 								int usr_reshare = cl->account->cccreshare;
                                 int usr_ignorereshare = cl->account->cccignorereshare;
@@ -134,7 +136,7 @@ int send_card_to_clients(struct cc_card *card, struct s_client *one_client) {
 								//buf[10] = card->hop-1;
 								buf[11] = new_reshare;
 
-								cc_cmd_send(cl, buf, len, cc->cccam220?MSG_NEW_CARD_SIDINFO:MSG_NEW_CARD);
+								cc_cmd_send(cl, buf, len, ext);
 								count++;
                         }
                 }
@@ -155,7 +157,7 @@ void send_remove_card_to_clients(struct cc_card *card) {
 		struct s_client *cl;
 		for (cl = first_client; cl; cl=cl->next) {
 				struct cc_data *cc = cl->cc;
-				if (ph[cl->ctyp].num == R_CCCAM && cc && cc->mode == CCCAM_MODE_NORMAL) { //CCCam-Client!
+				if (cl->typ=='c' && cc && ph[cl->ctyp].num == R_CCCAM && cc->mode == CCCAM_MODE_NORMAL) { //CCCam-Client!
 						if (card_valid_for_client(cl, card)) {
 								cc_cmd_send(cl, buf, 4, MSG_CARD_REMOVED);
 						}
@@ -889,8 +891,8 @@ void update_card_list() {
     card_removed_count += cc_free_reported_carddata(reported_carddatas, new_reported_carddatas, TRUE);
     reported_carddatas = new_reported_carddatas;
 
-    cs_debug_mask(D_TRACE, "reported/updated +%d/-%d/dup %d of %d cards to sharelist",
-            card_added_count, card_removed_count, card_dup_count, ll_count(reported_carddatas));
+	cs_debug_mask(D_TRACE, "reported/updated +%d/-%d/dup %d of %d cards to sharelist",
+       		card_added_count, card_removed_count, card_dup_count, ll_count(reported_carddatas));
 }
 
 int cc_srv_report_cards(struct s_client *cl) {
@@ -916,18 +918,38 @@ void refresh_shares()
 
 void share_updater()
 {
-		int i = 20;
+		ulong last_check = 0;
 		while (TRUE) {
-				refresh_shares();
-					
-				if (i>0) {
-						cs_sleepms(1000);
-						i--;
+				cs_sleepms(1000);
+				
+				ulong cur_check = 0;
+				struct s_reader *rdr;
+				for (rdr=first_active_reader; rdr; rdr=rdr->next) {
+						if (rdr->client && rdr->client->cc) { //check cccam-cardlist:
+								struct cc_data *cc = rdr->client->cc;
+								cur_check += cc->card_added_count;
+								cur_check += cc->card_removed_count;
+						}
+						cur_check += crc32(0L, rdr->hexserial, 16); //check hexserial
+						cur_check += crc32(0L, (uint8*)&rdr->prid, rdr->nprov * sizeof(rdr->prid[0])); //check providers
+						cur_check += crc32(0L, (uint8*)&rdr->sa, rdr->nprov * sizeof(rdr->sa[0])); //check provider-SA
+						cur_check += crc32(0L, (uint8*)&rdr->ftab, sizeof(rdr->ftab)); //check reader 
+						cur_check += crc32(0L, (uint8*)&rdr->ctab, sizeof(rdr->ctab)); //check caidtab
+						cur_check += crc32(0L, (uint8*)&rdr->sidtabok, sizeof(rdr->sidtabok)); //check assigned ok services
+						cur_check += crc32(0L, (uint8*)&rdr->sidtabno, sizeof(rdr->sidtabno)); //check assigned no services
 				}
-				else {
-						if (cfg.cc_update_interval <= 0)
-								cfg.cc_update_interval = DEFAULT_UPDATEINTERVAL;
-						cs_sleepms(cfg.cc_update_interval*1000);
+				
+				//check defined services:
+				struct s_sidtab *ptr;
+		        for (ptr=cfg.sidtab; ptr; ptr=ptr->next) {
+		        		cur_check += crc32(0L, (uint8*)ptr, sizeof(struct s_sidtab));
+				}
+				
+				//only update cardlist if something has changed:
+				if (cur_check != last_check) {
+						cs_debug_mask(D_TRACE, "share-update %lu %lu", &cur_check, &last_check); 
+						refresh_shares();
+						last_check = cur_check;
 				}
 		}
 }
@@ -936,7 +958,8 @@ void init_share() {
 
 		reported_carddatas = ll_create();
 		pthread_mutex_init(&cc_shares_lock, NULL);
-		
+
+		share_updater_thread = 0;
 		pthread_t temp;
         pthread_attr_t attr;
         pthread_attr_init(&attr);
@@ -948,6 +971,14 @@ void init_share() {
 		else {
         		cs_debug_mask(D_TRACE, "share updater thread started");
         		pthread_detach(temp);
+        		share_updater_thread = temp;
         }
         pthread_attr_destroy(&attr);
 }            
+
+void done_share() {
+		if (share_updater_thread) {
+				pthread_cancel(share_updater_thread);
+				share_updater_thread = 0;
+		}
+}
