@@ -1083,7 +1083,7 @@ int cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 				if (is_sid_blocked(ncard, &cur_srvid))
 					continue;
 				
-				if (!cur_er->prid && !ll_count(ncard->providers)) { //card has no providers:
+				if (!ll_count(ncard->providers)) { //card has no providers:
 					if (h < 0 || ncard->hop < h || (ncard->hop == h
 							&& cc_UA_valid(ncard->hexserial))) {
 						// ncard is closer
@@ -2628,6 +2628,15 @@ int cc_srv_connect(struct s_client *cl) {
 		else
 			cs_log("password for '%s' invalid!", usr);
 		return -2;
+	}
+	if (cl->dup) { //Dup login kills existing client!
+		struct s_client *cls;
+		for (cls=first_client; cls; cls=cls->next) {
+				if (cls != cl && cls->account == account) {
+						kill_thread(cls);
+						cl->dup = 0;
+				}
+		}
 	}
 	if (cl->dup) {
 		cs_log("account '%s' duplicate login, disconnect!", usr);
