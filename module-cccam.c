@@ -1420,9 +1420,6 @@ void cc_free(struct s_client *cl) {
 		free_extended_ecm_idx(cc);
 	ll_destroy_data(cc->extended_ecm_idx);
 
-	pthread_mutex_unlock(&cc->lock);
-	pthread_mutex_destroy(&cc->lock);
-
 	pthread_mutex_unlock(&cc->lockcmd);
 	pthread_mutex_destroy(&cc->lockcmd);
 
@@ -2116,19 +2113,19 @@ int cc_parse_msg(struct s_client *cl, uint8 *buf, int l) {
 		break;
 
 	case MSG_KEEPALIVE:
-		cc->just_logged_in = 0;
 		if (cl->typ != 'c') {
 			cs_debug_mask(D_READER, "cccam: keepalive ack");
 		} else {
-			//Checking if last answer is one minute or ccckeepalive seconds ago:
+			//Checking if last answer is one minute ago:
 			ulong timeout=(rdr->cc_keepalive < 60 )? 60:rdr->cc_keepalive;
 			timeout=(timeout < cfg.cmaxidle - 10)? timeout: cfg.cmaxidle - 10;
-			if (cc->answer_on_keepalive + timeout <= (ulong)time(NULL)) {
+			if (cc->just_logged_in || cc->answer_on_keepalive + timeout <= (ulong)time(NULL)) {
 				cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE);
 				cs_debug_mask(D_CLIENT, "cccam: keepalive");
 				cc->answer_on_keepalive = time(NULL);
 			}
 		}
+		cc->just_logged_in = 0;
 		break;
 
 	case MSG_CMD_05:
@@ -2429,14 +2426,11 @@ void cc_send_dcw(struct s_client *cl, ECM_REQUEST *er) {
 int cc_recv(struct s_client *cl, uchar *buf, int l) {
 	int n;
 	uchar *cbuf;
-	struct cc_data *cc = cl->cc;
 
 	if (buf == NULL || l <= 0)
 		return -1;
 	cbuf = cs_malloc(&cbuf, l, QUITERROR);
 	memcpy(cbuf, buf, l); // make a copy of buf
-
-	pthread_mutex_lock(&cc->lock);
 
 	n = cc_msg_recv(cl, cbuf, l); // recv and decrypt msg
 
@@ -2455,8 +2449,6 @@ int cc_recv(struct s_client *cl, uchar *buf, int l) {
 		memcpy(buf, cbuf, l);
 	}
 
-	pthread_mutex_unlock(&cc->lock);
-
 	NULLFREE(cbuf);
 
 	if (n == -1) {
@@ -2468,7 +2460,6 @@ int cc_recv(struct s_client *cl, uchar *buf, int l) {
 }
 
 void cc_init_cc(struct cc_data *cc) {
-	pthread_mutex_init(&cc->lock, NULL); //No recursive lock
 	pthread_mutex_init(&cc->lockcmd, NULL); //No recursive lock
 	pthread_mutex_init(&cc->ecm_busy, NULL); //No recusive lock
 	pthread_mutex_init(&cc->cards_busy, NULL); //No (more) recursive lock
@@ -2629,7 +2620,7 @@ int cc_srv_connect(struct s_client *cl) {
 			cs_log("password for '%s' invalid!", usr);
 		return -2;
 	}
-	if (cl->dup) { //Dup login kills existing client!
+/*	if (cl->dup) { //Dup login kills existing client!
 		struct s_client *cls;
 		for (cls=first_client; cls; cls=cls->next) {
 				if (cls != cl && cls->account == account) {
@@ -2637,7 +2628,7 @@ int cc_srv_connect(struct s_client *cl) {
 						cl->dup = 0;
 				}
 		}
-	}
+	}*/
 	if (cl->dup) {
 		cs_log("account '%s' duplicate login, disconnect!", usr);
 		return -3;
@@ -2688,6 +2679,8 @@ int cc_srv_connect(struct s_client *cl) {
 		return -1;
 
 	cc->cccam220 = check_cccam_compat(cc);
+	cc->just_logged_in = TRUE;
+	cc->answer_on_keepalive = time(NULL);
 	
 	//Wait for Partner detection (NOK1 with data) before reporting cards
 	//When Partner is detected, cccam220=1 is set. then we can report extended card data
@@ -2725,9 +2718,9 @@ int cc_srv_connect(struct s_client *cl) {
 					if (wait_for_keepalive<3 || wait_for_keepalive == 100) {
 						if (cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE) < 0)
 							break;
-	        		                cs_debug_mask(D_CLIENT, "cccam: keepalive");
-        			                cc->answer_on_keepalive = time(NULL);
-        			                wait_for_keepalive++;
+						cs_debug_mask(D_CLIENT, "cccam: keepalive");
+        			    cc->answer_on_keepalive = time(NULL);
+        			    wait_for_keepalive++;
 					}
 					else if (wait_for_keepalive<100) break;
 				} else {

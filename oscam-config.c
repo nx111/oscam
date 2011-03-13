@@ -1,5 +1,7 @@
 //FIXME Not checked on threadsafety yet; after checking please remove this line
 
+#include <net/if.h>
+
 #include "globals.h"
 #ifdef CS_WITH_BOXKEYS
 #  include "oscam-boxkeys.np"
@@ -1031,7 +1033,9 @@ void chk_t_cccam(char *token, char *value)
 	if (!strcmp(token, "cccamcfgfile")) {
 		NULLFREE(cfg.cc_cfgfile);
 		if (strlen(value) > 0) {
-			if(asprintf(&(cfg.cc_cfgfile), "%s", value) < 0)
+			if(cs_malloc(&(cfg.cc_cfgfile), strlen(value) + 1, SIGINT))
+				memcpy(cfg.cc_cfgfile, value, strlen(value) + 1);
+			else
 				fprintf(stderr, "Error allocating string for cfg.cc_cfgfile\n");
 		}
 		return;
@@ -3165,6 +3169,78 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 		cs_strncpy(rdr->r_usr, value, sizeof(rdr->r_usr));
 		return;
 	}
+
+  if (!strcmp(token, "mg-encrypted")) {
+    uchar key[16];
+    uchar mac[6];
+    uchar *buf;
+    int len;
+
+    memset(&key, 0, 16);
+    memset(&mac, 0, 6);
+
+    for (i = 0, ptr = strtok(value, ","); (i < 2) && (ptr); ptr = strtok(NULL, ","), i++) {
+      trim(ptr);
+      switch(i) {
+        case 0:
+          len = strlen(ptr) / 2 + (16 - (strlen(ptr) / 2) % 16);
+          buf = calloc(1, len);
+          key_atob_l(ptr, buf, strlen(ptr));
+          cs_log("enc %d: %s", len, ptr);
+          break;
+
+        case 1:
+          key_atob_l(ptr, mac, 12);
+          cs_log("mac: %s", ptr);
+          break;
+      }
+    }
+
+    if (!memcmp(mac, "\x00\x00\x00\x00\x00\x00", 6)) {
+      // no mac address specified so use mac of eth0 on local box
+      int fd = socket(PF_INET, SOCK_STREAM, 0);
+
+      struct ifreq ifreq;
+      memset(&ifreq, 0, sizeof(ifreq));
+      sprintf(ifreq.ifr_name, "eth0");
+
+      ioctl(fd, SIOCGIFHWADDR, &ifreq);
+      memcpy(mac, ifreq.ifr_ifru.ifru_hwaddr.sa_data, 6);
+
+      close(fd);
+    }
+
+    // decrypt encrypted mgcamd gbox line
+    for (i = 0; i < 6; i++)
+      key[i * 2] = mac[i];
+
+    AES_KEY aeskey;
+    AES_set_decrypt_key(key, 128, &aeskey);
+    for (i = 0; i < len; i+=16)
+      AES_decrypt(buf + i,buf + i, &aeskey);
+
+    // parse d-line
+    for (i = 0, ptr = strtok((char *)buf, " {"); (i < 5) && (ptr); ptr = strtok(NULL, " {"), i++) {
+      trim(ptr);
+      switch(i) {
+        case 1:    // hostname
+          cs_strncpy(rdr->device, ptr, sizeof(rdr->device));
+          break;
+        case 2:   // local port
+          cfg.gbox_port = atoi(ptr);  // ***WARNING CHANGE OF GLOBAL LISTEN PORT FROM WITHIN READER!!!***
+          break;
+        case 3:   // remote port
+          rdr->r_port = atoi(ptr);
+          break;
+        case 4:   // password
+          cs_strncpy(rdr->r_pwd, ptr, sizeof(rdr->r_pwd));
+          break;
+      }
+    }
+
+    free(buf);
+    return;
+  }
 
 	//legacy parameter containing account=user,pass
 	if (!strcmp(token, "account")) {
