@@ -560,7 +560,6 @@ static void cleanup_thread(struct s_client *cl)
 		cl->reader = NULL;
     }
 	cleanup_ecmtasks(cl);
-	cl->thread = 0;
 	add_garbage(cl->emmcache);
 	add_garbage(cl->req);
 	add_garbage(cl->cc);
@@ -1845,7 +1844,6 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 	else
 		snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s", stxt[er->rc]);
 #endif
-
 	er->caid = er->ocaid;
 	switch(er->rc) {
 		case E_FOUND:
@@ -2476,7 +2474,6 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		send_dcw(client, er);
 		return;
 	}
-
 	er->rcEx = 0;
 	request_cw(er, 0, cfg.preferlocalcards ? 1 : 0);
 }

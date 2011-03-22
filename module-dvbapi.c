@@ -1543,6 +1543,10 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 	cs_debug_mask(D_DVBAPI, "dvbapi_process_input: demux %d filter %d len %d buffer %x curtable %x curindex %d\n", demux_id, filter_num, len, buffer[0], curpid->table, demux[demux_id].curindex);
 #endif
 
+
+	if(len>256)
+		return;
+
 	if (pausecam)
 		return;
 
@@ -1552,7 +1556,6 @@ void dvbapi_process_input(int demux_id, int filter_num, uchar *buffer, int len) 
 
 		if (buffer[0] != 0x80 && buffer[0] != 0x81)
 			return;
-
 		unsigned short caid = curpid->CAID;
 		unsigned long provid = curpid->PROVID;
 
