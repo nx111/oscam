@@ -642,6 +642,10 @@ char *send_oscam_config_dvbapi(struct templatevars *vars, struct uriparams *para
 	tpl_printf(vars, TPLADD, "TMP", "PMTMODESELECTED%d", cfg.dvbapi_pmtmode);
 	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
 
+	//Request Mode
+	tpl_printf(vars, TPLADD, "TMP", "REQMODESELECTED%d", cfg.dvbapi_requestmode);
+	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
+
 	return tpl_getTpl(vars, "CONFIGDVBAPI");
 }
 #endif
@@ -3256,6 +3260,7 @@ int process_request(FILE *f, struct in_addr in) {
 			strftime(tbuffer, 30, "%Y-%m-%dT%H:%M:%S%z", &st);
 			tpl_printf(vars, TPLADD, "APISTARTTIME", "%s", tbuffer);
 			tpl_printf(vars, TPLADD, "APIUPTIME", "%u", now - first_client->login);
+			tpl_printf(vars, TPLADD, "APIREADONLY", "%d", cfg.http_readonly);
 		}
 
 		// language code in helplink
