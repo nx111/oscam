@@ -1401,10 +1401,8 @@ int init_config()
 	}
 	fclose(fp);
 #ifdef CS_LOGFILE
-	if (cfg.logfile == NULL && cfg.logtostdout == 0 && cfg.logtosyslog == 0) {
-		if(cs_malloc(&(cfg.logfile), strlen(CS_LOGFILE) + 1, SIGINT))
-			memcpy(cfg.logfile, value, strlen(CS_LOGFILE) + 1);
-		else cfg.logtostdout = 1;
+	if (cfg.logfile == NULL && cfg.logtosyslog == 0) {
+		cfg.logtostdout = 1;
 	}
 #endif
 	cs_init_log();
@@ -3919,11 +3917,14 @@ int init_cccamcfg(int mode)
 	}
 
 	struct s_reader *rdr, *first_reader=NULL;
+	if(!configured_readers)
+			configured_readers = ll_create();
 	LL_ITER *itr = ll_iter_create(configured_readers);
 	while((rdr = ll_iter_next(itr))) {
 		if(!first_reader)
 			first_reader = rdr;
 	}
+	ll_iter_release(itr);
 
 	while (fgets(token,sizeof(token),fp)) {
 		char *p=strchr(token,'#');
@@ -3952,13 +3953,15 @@ int init_cccamcfg(int mode)
 		if(rfound)continue;
 
 		if(rdr){
-			struct s_reader *newreader = (struct s_reader*) malloc (sizeof(struct s_reader));
-			ll_append(configured_readers, newreader);
-			rdr = newreader; //and advance to end of list
+			struct s_reader *newreader;
+			if(cs_malloc(&newreader,sizeof(struct s_reader),-1)){
+				ll_append(configured_readers, newreader);
+				rdr = newreader; //and advance to end of list
+			}
 		}
 		else{
-			rdr=(struct s_reader*) malloc (sizeof(struct s_reader));
-			ll_append(configured_readers, rdr);
+			if(cs_malloc(&rdr,sizeof(struct s_reader),-1))
+				ll_append(configured_readers, rdr);
 		}
 
 		if(!first_reader)
@@ -4006,10 +4009,21 @@ int init_cccamcfg(int mode)
 //		cs_log("Add reader device=%s,%d",rdr->device,rdr->r_port);
 	}
 	fclose(fp);
+	if(!mode)return(0);
 
 	struct s_reader *cur=NULL;
-	ll_iter_reset(itr);
-	while(mode && (rdr = ll_iter_next(itr))) //build active readers list
+	itr = ll_iter_create(configured_readers);
+	while((rdr = ll_iter_next(itr))) { //build active readers list
+		int i;
+		if (rdr->device[0] && (rdr->typ & R_IS_CASCADING)) {
+			for (i=0; i<CS_MAX_MOD; i++) {
+				if (ph[i].num && rdr->typ==ph[i].num) {
+					rdr->ph=ph[i];
+					rdr->ph.active=1;
+				}
+			}
+		}
+
 		if (rdr->enable) {
 			if (!first_active_reader) {
 				first_active_reader = rdr; //init list
@@ -4020,7 +4034,8 @@ int init_cccamcfg(int mode)
 				cur = cur->next; //advance list
 			}
 		}
-
+//		cs_log("[debug reader] device=%s port=%d enable=%d group=%d",rdr->device,rdr->r_port,rdr->enable,rdr->grp);
+	}
 	ll_iter_release(itr);
 
 	return(0);
@@ -4036,7 +4051,7 @@ int init_readerdb()
 	if (!(fp=fopen(token, "r"))) {
 		cs_log("can't open file \"%s\" (errno=%d)", token, errno);
 		if(cfg.cc_cfgfile)
-			return(init_cccamcfg(1));
+			return init_cccamcfg(1);
 		else
 			return(1);
 	}
@@ -4075,7 +4090,7 @@ int init_readerdb()
 			strcpy(rdr->pincode, "none");
 			rdr->ndsversion = 0;
 			for (i=1; i<CS_MAXCAIDTAB; rdr->ctab.mask[i++]=0xffff);
-//			cs_log("Add reader(%d) device=%s,%d",rcount,rdr->device,rdr->r_port);
+//			cs_log("Add reader(%d) device=%s,%d",configured_readers->count,rdr->device,rdr->r_port);
 			continue;
 		}
 
@@ -4112,6 +4127,7 @@ int init_readerdb()
 				cur = cur->next; //advance list
 			}
 		}
+//		cs_log("[debug reader] device=%s port=%d enable=%d group=%d",rdr->device,rdr->r_port,rdr->enable,rdr->grp);
 	}
 	ll_iter_release(itr);
 
