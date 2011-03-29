@@ -189,7 +189,8 @@ int send_card_to_clients(struct cc_card *card, struct s_client *one_client) {
         for (cl = one_client?one_client:first_client; cl; cl=one_client?NULL:cl->next) {
                 struct cc_data *cc = cl->cc;
                 if (cl->typ=='c' && cc && ((one_client && cc->mode != CCCAM_MODE_SHUTDOWN) || (ph[cl->ctyp].num == R_CCCAM && cc->mode == CCCAM_MODE_NORMAL))) { //CCCam-Client!
-                		int ext = cc->cccam220?MSG_NEW_CARD_SIDINFO:MSG_NEW_CARD;
+                		int is_ext = cc->cccam220;
+                		int msg = is_ext?MSG_NEW_CARD_SIDINFO:MSG_NEW_CARD;
                         if (card_valid_for_client(cl, card)) {
 								int usr_reshare = cl->account->cccreshare;
                                 int usr_ignorereshare = cl->account->cccignorereshare;
@@ -212,11 +213,11 @@ int send_card_to_clients(struct cc_card *card, struct s_client *one_client) {
 								if (!card->id)
 										card->id = cc_share_id++;
 
-								int len = write_card(cc, buf, card, 1,  ext, ll_count(cl->aureader_list), cl);
+								int len = write_card(cc, buf, card, 1, is_ext, ll_count(cl->aureader_list), cl);
 								//buf[10] = card->hop-1;
 								buf[11] = new_reshare;
 
-								if (cc_cmd_send(cl, buf, len, ext) < 0)
+								if (cc_cmd_send(cl, buf, len, msg) < 0)
 										cc->mode = CCCAM_MODE_SHUTDOWN;
 								count++;
                         }
@@ -399,7 +400,7 @@ int card_valid_for_client(struct s_client *cl, struct cc_card *card) {
 }
 
 ulong get_reader_prid(struct s_reader *rdr, int j) {
-    return b2i(4, rdr->prid[j]);
+    return b2i(3, &rdr->prid[j][1]);
 }
 //ulong get_reader_prid(struct s_reader *rdr, int j) {
 //  ulong prid;
@@ -867,6 +868,42 @@ void update_card_list() {
                 }
             }
 
+            if ((rdr->typ != R_CCCAM) && rdr->ctab.caid[0] && !flt) {
+                //cs_log("tcp_connected: %d card_status: %d ", rdr->tcp_connected, rdr->card_status);
+                int c;
+                for (c=0;c<CS_MAXCAIDTAB;c++) 
+                {
+						ushort caid = rdr->ctab.caid[c];
+						if (!caid) continue;
+						
+						struct cc_card *card = create_card2(rdr, 1, caid, 0, rdr->cc_reshare);
+        		        card->card_type = CT_CARD_BY_CAID;
+                
+        		        if (!rdr->audisabled)
+        		        		cc_UA_oscam2cccam(rdr->hexserial, card->hexserial, caid);
+		                for (j = 0; j < rdr->nprov; j++) {
+        		            ulong prid = get_reader_prid(rdr, j);
+                		    struct cc_provider *prov = cs_malloc(&prov, sizeof(struct cc_provider), QUITERROR);
+		                    memset(prov, 0, sizeof(struct cc_provider));
+		                    prov->prov = prid;
+		                    //cs_log("Ident CCcam card report provider: %02X%02X%02X", buf[21 + (k*7)]<<16, buf[22 + (k*7)], buf[23 + (k*7)]);
+		                    if (!rdr->audisabled) {
+		                        //Setting SA (Shared Addresses):
+		                        cc_SA_oscam2cccam(rdr->sa[j], prov->sa);
+		                    }
+		                    ll_append(card->providers, prov);
+		                    //cs_log("Main CCcam card report provider: %02X%02X%02X%02X", buf[21+(j*7)], buf[22+(j*7)], buf[23+(j*7)], buf[24+(j*7)]);
+		                }
+        		        if (rdr->tcp_connected || rdr->card_status == CARD_INSERTED) {
+		                    add_card_to_serverlist(server_cards, card);
+		                }
+		                else
+		                    cc_free_card(card);
+		                flt = 1;
+				}
+            }
+
+
             if ((rdr->typ != R_CCCAM) && rdr->caid && !flt) {
                 //cs_log("tcp_connected: %d card_status: %d ", rdr->tcp_connected, rdr->card_status);
                 ushort caid = rdr->caid;
@@ -1022,6 +1059,7 @@ void share_updater()
 						cur_check = crc32(cur_check, (uint8*)&rdr->sa, rdr->nprov * sizeof(rdr->sa[0])); //check provider-SA
 						cur_check = crc32(cur_check, (uint8*)&rdr->ftab, sizeof(FTAB)); //check reader 
 						cur_check = crc32(cur_check, (uint8*)&rdr->ctab, sizeof(CAIDTAB)); //check caidtab
+						cur_check = crc32(cur_check, (uint8*)&rdr->fchid, sizeof(FTAB)); //check chids
 						cur_check = crc32(cur_check, (uint8*)&rdr->sidtabok, sizeof(rdr->sidtabok)); //check assigned ok services
 						cur_check = crc32(cur_check, (uint8*)&rdr->sidtabno, sizeof(rdr->sidtabno)); //check assigned no services
 				}
@@ -1035,14 +1073,14 @@ void share_updater()
 				//update cardlist if reader config has changed, also set interval to 1s / 30times
 				if (cur_check != last_check) {
 						i = DEFAULT_SHORT_INTERVAL;
-						cs_debug_mask(D_TRACE, "share-update [1] %u %u", cur_check, last_check); 
+						cs_debug_mask(D_TRACE, "share-update [1] %lu %lu", cur_check, last_check); 
 						refresh_shares();
 						last_check = cur_check;
 						last_card_check = cur_card_check;
 				}
 				//update cardlist if cccam cards has changed:
 				else if (cur_card_check != last_card_check) {
-						cs_debug_mask(D_TRACE, "share-update [2] %u %u", cur_card_check, last_card_check); 
+						cs_debug_mask(D_TRACE, "share-update [2] %lu %lu", cur_card_check, last_card_check); 
 						refresh_shares();
 						last_card_check = cur_card_check;
 				}

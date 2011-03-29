@@ -1,14 +1,14 @@
 10
 
 dir
-4859
+4863
 http://streamboard.gmc.to/svn/oscam/trunk/Distribution/doc/txt
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-03-19T19:03:16.255771Z
-4841
+2011-03-28T10:32:49.673410Z
+4862
 landlord
 
 
@@ -203,9 +203,9 @@ file
 
 
 
-07e2abda9043d6df2e43653eedff1408
-2011-03-06T19:31:33.136577Z
-4797
+1339aa72c9a3aa46fc3b1cab0c313479
+2011-03-28T10:32:49.673410Z
+4862
 landlord
 
 oscam.dvbapi.txt
@@ -282,10 +282,10 @@ file
 
 
 
-2011-03-21T10:37:15.188244Z
-2f44c47fe699d3859478d4cb4f7344f9
-2011-03-19T19:03:16.255771Z
-4841
+2011-03-29T10:27:31.187464Z
+770fb136b6366afd491761adedef2aff
+2011-03-28T10:32:49.673410Z
+4862
 landlord
 
 
@@ -308,7 +308,7 @@ landlord
 
 
 
-13239
+13140
 
 oscam.tiers.txt
 file
