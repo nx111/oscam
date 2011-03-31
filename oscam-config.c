@@ -1377,6 +1377,7 @@ int init_config()
 	cfg.cc_update_interval = DEFAULT_UPDATEINTERVAL;
 	cfg.cc_keep_connected = 1;
 	cfg.cc_cfgfile = NULL;
+	cfg.cc_reshare = 10;
 #endif
 	sprintf(token, "%s%s", cs_confdir, cs_conf);
 	if (!(fp = fopen(token, "r"))) {
