@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/4869/trunk
+/svn/oscam/!svn/ver/4874/trunk
 END
 module-cccam.h
 K 25
@@ -111,23 +111,17 @@ svn:wc:ra_dav:version-url
 V 46
 /svn/oscam/!svn/ver/4829/trunk/module-dvbapi.c
 END
-CMakeLists.txt
-K 25
-svn:wc:ra_dav:version-url
-V 45
-/svn/oscam/!svn/ver/4843/trunk/CMakeLists.txt
-END
 Makefile
 K 25
 svn:wc:ra_dav:version-url
 V 39
 /svn/oscam/!svn/ver/4738/trunk/Makefile
 END
-module-dvbapi.h
+CMakeLists.txt
 K 25
 svn:wc:ra_dav:version-url
-V 46
-/svn/oscam/!svn/ver/4771/trunk/module-dvbapi.h
+V 45
+/svn/oscam/!svn/ver/4843/trunk/CMakeLists.txt
 END
 config.sh
 K 25
@@ -135,23 +129,29 @@ svn:wc:ra_dav:version-url
 V 40
 /svn/oscam/!svn/ver/4778/trunk/config.sh
 END
+module-dvbapi.h
+K 25
+svn:wc:ra_dav:version-url
+V 46
+/svn/oscam/!svn/ver/4771/trunk/module-dvbapi.h
+END
+module-stat.c
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/oscam/!svn/ver/4874/trunk/module-stat.c
+END
 module-cccshare.c
 K 25
 svn:wc:ra_dav:version-url
 V 48
 /svn/oscam/!svn/ver/4864/trunk/module-cccshare.c
 END
-module-stat.c
+oscam.c
 K 25
 svn:wc:ra_dav:version-url
-V 44
-/svn/oscam/!svn/ver/4857/trunk/module-stat.c
-END
-module-serial.c
-K 25
-svn:wc:ra_dav:version-url
-V 46
-/svn/oscam/!svn/ver/4852/trunk/module-serial.c
+V 38
+/svn/oscam/!svn/ver/4870/trunk/oscam.c
 END
 oscam-reader.c
 K 25
@@ -159,23 +159,17 @@ svn:wc:ra_dav:version-url
 V 45
 /svn/oscam/!svn/ver/4855/trunk/oscam-reader.c
 END
-oscam.c
+module-serial.c
 K 25
 svn:wc:ra_dav:version-url
-V 38
-/svn/oscam/!svn/ver/4868/trunk/oscam.c
+V 46
+/svn/oscam/!svn/ver/4852/trunk/module-serial.c
 END
-datastruct-llist.c
+reader-tongfang.c
 K 25
 svn:wc:ra_dav:version-url
-V 49
-/svn/oscam/!svn/ver/3596/trunk/datastruct-llist.c
-END
-module-stat.h
-K 25
-svn:wc:ra_dav:version-url
-V 44
-/svn/oscam/!svn/ver/4491/trunk/module-stat.h
+V 48
+/svn/oscam/!svn/ver/4582/trunk/reader-tongfang.c
 END
 module-constcw.c
 K 25
@@ -183,11 +177,17 @@ svn:wc:ra_dav:version-url
 V 47
 /svn/oscam/!svn/ver/4523/trunk/module-constcw.c
 END
-reader-tongfang.c
+module-stat.h
 K 25
 svn:wc:ra_dav:version-url
-V 48
-/svn/oscam/!svn/ver/4582/trunk/reader-tongfang.c
+V 44
+/svn/oscam/!svn/ver/4491/trunk/module-stat.h
+END
+datastruct-llist.c
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/svn/oscam/!svn/ver/3596/trunk/datastruct-llist.c
 END
 module-cccshare.h
 K 25
@@ -205,7 +205,7 @@ oscam-config.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/4868/trunk/oscam-config.c
+/svn/oscam/!svn/ver/4871/trunk/oscam-config.c
 END
 reader-conax.c
 K 25
@@ -271,7 +271,7 @@ oscam-http.c
 K 25
 svn:wc:ra_dav:version-url
 V 43
-/svn/oscam/!svn/ver/4860/trunk/oscam-http.c
+/svn/oscam/!svn/ver/4871/trunk/oscam-http.c
 END
 .gitignore
 K 25
@@ -283,7 +283,7 @@ oscam-http.h
 K 25
 svn:wc:ra_dav:version-url
 V 43
-/svn/oscam/!svn/ver/4852/trunk/oscam-http.h
+/svn/oscam/!svn/ver/4871/trunk/oscam-http.h
 END
 reader-irdeto.c
 K 25
@@ -301,7 +301,7 @@ globals.h
 K 25
 svn:wc:ra_dav:version-url
 V 40
-/svn/oscam/!svn/ver/4860/trunk/globals.h
+/svn/oscam/!svn/ver/4871/trunk/globals.h
 END
 reader-common.c
 K 25
