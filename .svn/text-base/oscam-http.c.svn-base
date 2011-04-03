@@ -884,7 +884,7 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 		ll_append(configured_readers, newrdr);
 		newrdr->next = NULL; // terminate list
 		newrdr->enable = 0; // do not start the reader because must configured before
-		strcpy(newrdr->pincode, "none");
+		cs_strncpy(newrdr->pincode, "none", sizeof(newrdr->pincode));
 		for (i = 1; i < CS_MAXCAIDTAB; newrdr->ctab.mask[i++] = 0xffff);
 		for (i = 0; i < (*params).paramcount; ++i) {
 			if (strcmp((*params).params[i], "action"))
@@ -962,6 +962,9 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 
 	if(rdr->boxid)
 		tpl_printf(vars, TPLADD, "BOXID", "%08X", rdr->boxid);
+		
+	if(rdr->fix_9993)
+		tpl_addVar(vars, TPLADD, "FIX9993CHECKED", "checked");
 
 	tpl_addVar(vars, TPLADD, "USER", rdr->r_usr);
 	tpl_addVar(vars, TPLADD, "PASS", rdr->r_pwd);
@@ -2150,17 +2153,35 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 				else if ((cl->tosleep) && (now-cl->lastswitch>cl->tosleep)) con=1;
 				else con=0;
 
-				//if( (cau=get_ridx(cl->aureader)+1) && (now-cl->lastemm)/60 > cfg.mon_aulow) cau=-cau;
-				// workaround: no AU reader == 0 / AU ok == 1 / Last EMM > aulow == -1
-				if (!cl->aureader_list) {
-					cau = 0;
-				} else {
-					if ((now-cl->lastemm)/60 > cfg.mon_aulow)
-						cau = -1;
-					else
-						cau = 1;
-				}
+				// no AU reader == 0 / AU ok == 1 / Last EMM > aulow == -1
+				if(cl->typ == 'c' || cl->typ == 'p' || cl->typ == 'r'){
+					if ((cl->typ == 'c' && !cl->aureader_list) || ((cl->typ == 'p' || cl->typ == 'r') && cl->reader->audisabled)) cau = 0;
+					else if ((now-cl->lastemm)/60 > cfg.mon_aulow) cau = -1;
+					else cau = 1;
 
+					if (!apicall){
+						if (cau == 0) {
+							tpl_addVar(vars, TPLADD, "CLIENTCAUHTTP", "OFF");
+						} else {
+							if (cau == -1) tpl_addVar(vars, TPLADD, "CLIENTCAUHTTP", "<a href=\"#\" class=\"tooltip\">ON");
+							else tpl_addVar(vars, TPLADD, "CLIENTCAUHTTP", "<a href=\"#\" class=\"tooltip\">ACTIVE");								
+							tpl_addVar(vars, TPLAPPEND, "CLIENTCAUHTTP", "<span>");
+							if (cl->typ == 'c'){
+								struct s_reader *rdr;
+								LL_ITER *itr = ll_iter_create(cl->aureader_list);
+								while ((rdr = ll_iter_next(itr))) {
+									tpl_printf(vars, TPLAPPEND, "CLIENTCAUHTTP", "%s<br>", rdr->label);
+								}
+								ll_iter_release(itr);
+							} else tpl_addVar(vars, TPLAPPEND, "CLIENTCAUHTTP", cl->reader->label);
+							tpl_addVar(vars, TPLAPPEND, "CLIENTCAUHTTP", "</span></a>");
+						}
+					}
+				} else {
+					cau = 0;
+					tpl_addVar(vars, TPLADD, "CLIENTCAUHTTP", "");
+				}
+				
 				localtime_r(&cl->login, &lt);
 
 				tpl_printf(vars, TPLADD, "HIDEIDX", "%ld", cl->thread);
@@ -2181,7 +2202,12 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 				if (cl->typ == 'c')
 					tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->account?cl->account->description:""));
 				tpl_printf(vars, TPLADD, "CLIENTCAU", "%d", cau);
-				tpl_printf(vars, TPLADD, "CLIENTCRYPTED", "%d", cl->crypted);
+				if(!apicall){
+					if(cl->typ == 'c' || cl->typ == 'p' || cl->typ == 'r'){
+						if(cl->crypted) tpl_addVar(vars, TPLADD, "CLIENTCRYPTED", "ON");
+						else tpl_addVar(vars, TPLADD, "CLIENTCRYPTED", "OFF");
+					} else tpl_addVar(vars, TPLADD, "CLIENTCRYPTED", "");
+				} else tpl_printf(vars, TPLADD, "CLIENTCRYPTED", "%d", cl->crypted);
 				tpl_addVar(vars, TPLADD, "CLIENTIP", cs_inet_ntoa(cl->ip));
 				tpl_printf(vars, TPLADD, "CLIENTPORT", "%d", cl->port);
 				char *proto = monitor_get_proto(cl);
@@ -2334,7 +2360,7 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 		}
 		
 		if (!apicall) {
-			// select right suborder
+			// select right suborder 
 			if (cl->typ == 'c') {
 				if (shown) tpl_addVar(vars, TPLAPPEND, "CLIENTSTATUS", tpl_getTpl(vars, "CLIENTSTATUSBIT"));
 				if(cfg.http_hide_idle_clients == 1 || cfg.mon_hideclient_to < 1) tpl_printf(vars, TPLADD, "CLIENTHEADLINE", "\t\t<TR><TD CLASS=\"subheadline\" colspan=\"17\">Clients %d/%d</TD></TR>\n",
@@ -2852,11 +2878,21 @@ char *send_oscam_failban(struct templatevars *vars, struct uriparams *params) {
 	V_BAN *v_ban_entry;
 
 	if (strcmp(getParam(params, "action"), "delete") == 0) {
-		sscanf(getParam(params, "intip"), "%u", &ip2delete);
-		while ((v_ban_entry=ll_iter_next(itr))) {
-			if (v_ban_entry->v_ip == ip2delete) {
+
+		if(strcmp(getParam(params, "intip"), "all") == 0){
+			// clear whole list
+			while ((v_ban_entry=ll_iter_next(itr))) {
 				ll_iter_remove_data(itr);
-				break;
+			}
+
+		} else {
+			//we have a single IP
+			sscanf(getParam(params, "intip"), "%u", &ip2delete);
+			while ((v_ban_entry=ll_iter_next(itr))) {
+				if (v_ban_entry->v_ip == ip2delete) {
+					ll_iter_remove_data(itr);
+					break;
+				}
 			}
 		}
 	}

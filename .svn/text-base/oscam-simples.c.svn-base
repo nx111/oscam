@@ -354,8 +354,10 @@ char *cs_hexdump(int m, const uchar *buf, int n)
   dump[i=0]='\0';
   m=(m)?3:2;
   if (m*n>=(int)sizeof(cur_client()->dump)) n=(sizeof(cur_client()->dump)/m)-1;
-  while (i<n)
-    sprintf(dump+(m*i++), "%02X%s", *buf++, (m>2)?" ":"");
+  while (i<n){
+    snprintf(dump+(m*i), sizeof(cur_client()->dump)-(m*i), "%02X%s", *buf++, (m>2)?" ":"");
+    ++i;
+  }
   return(dump);
 }
 
@@ -711,35 +713,59 @@ void clear_tuntab(struct s_tuntab *ttab){
 		ttab->bt_srvid[i] = 0;
 	}
 }
-/* Overwrites destfile with tmpfile. If forceBakOverWrite = 0, the bakfile will not be overwritten if it exists, else it will be.*/
-int safe_overwrite_with_bak(char *destfile, char *tmpfile, char *bakfile, int forceBakOverWrite){
-	if (file_exists(destfile)) {
-		if(forceBakOverWrite != 0 && file_exists(bakfile)){
-			if(remove(bakfile) < 0) cs_log("Error removing backup conf file %s (errno=%d)! Will try to proceed nonetheless...", bakfile, errno);
-		}
-		if(file_exists(bakfile)){
-			if(remove(destfile) < 0) {
-				cs_log("Error removing original conf file %s (errno=%d). Will maintain original one!", destfile, errno);
-				if(remove(tmpfile) < 0) cs_log("Error removing temp conf file %s (errno=%d)!", tmpfile, errno);
-				return(1);
+
+/* Copies a file from srcfile to destfile. If an error occured before writing, -1 is returned, else -2. On success, 0 is returned.*/
+int file_copy(char *srcfile, char *destfile){
+	FILE *src, *dest;
+  int ch;
+  if((src = fopen(srcfile, "r"))==NULL) {
+  	cs_log("Error opening file %s for reading (errno=%d)!", srcfile, errno);
+    return(-1);
+  }
+  if((dest = fopen(destfile, "w"))==NULL) {
+  	cs_log("Error opening file %s for writing (errno=%d)!", destfile, errno);
+  	fclose(src);
+    return(-1);
+  }
+
+	while(1){
+		ch = fgetc(src);
+		if(ch==EOF){
+			break;
+		}	else {
+			fputc(ch, dest);
+			if(ferror(dest)) {
+				cs_log("Error while writing to file %s (errno=%d)!", destfile, errno);
+				fclose(src);
+				fclose(dest);
+				return(-2);
 			}
-		} else {
-			if(rename(destfile, bakfile) < 0){
-				cs_log("Error renaming original conf file %s to %s (errno=%d). Will maintain original one!", destfile, bakfile, errno);
-				if(remove(tmpfile) < 0) cs_log("Error removing temp conf file %s (errno=%d)!", tmpfile, errno);
-				return(1);
-			}
-		}
-		if(rename(tmpfile, destfile) < 0){
-			cs_log("Error renaming new conf file %s to %s (errno=%d). The config will be missing upon next startup as this is non-recoverable!", tmpfile, destfile, errno);
-			return(1);
-		}
-	} else {
-		if(rename(tmpfile, destfile) < 0){
-			cs_log("Error renaming new conf file %s to %s (errno=%d). The config will be missing upon next startup as this is non-recoverable!", tmpfile, destfile, errno);
-			return(1);
 		}
 	}
+	fclose(src);
+	fclose(dest);
+	return(0);
+}
+
+/* Overwrites destfile with tmpfile. If forceBakOverWrite = 0, the bakfile will not be overwritten if it exists, else it will be.*/
+int safe_overwrite_with_bak(char *destfile, char *tmpfile, char *bakfile, int forceBakOverWrite){
+	int rc;
+	if (file_exists(destfile)) {
+		if(forceBakOverWrite != 0 || !file_exists(bakfile)){
+			if(file_copy(destfile, bakfile) < 0){
+				cs_log("Error copying original config file %s to %s. The original config will be left untouched!", destfile, bakfile);
+				if(remove(tmpfile) < 0) cs_log("Error removing temp config file %s (errno=%d)!", tmpfile, errno);
+				return(1);
+			}
+		}
+	}
+	if((rc = file_copy(tmpfile, destfile)) < 0){
+		cs_log("An error occured while writing the new config file %s.", destfile);
+		if(rc == -2) cs_log("The config will be missing or only partly filled upon next startup as this is a non-recoverable error! Please restore from backup or try again.", destfile);
+		if(remove(tmpfile) < 0) cs_log("Error removing temp config file %s (errno=%d)!", tmpfile, errno);
+		return(1);
+	}
+	if(remove(tmpfile) < 0) cs_log("Error removing temp config file %s (errno=%d)!", tmpfile, errno);
 	return(0);
 }
 
@@ -752,13 +778,13 @@ void fprintf_conf(FILE *f, int varnameWidth, const char *varname, const char *fm
 	char *ptr = varnamebuf + varlen;
 	va_list argptr;
 
-	strcpy(varnamebuf, varname);
+	cs_strncpy(varnamebuf, varname, sizeof(varnamebuf));
 	while(varlen < varnameWidth){
 		ptr[0] = ' ';
 		++ptr;
 		++varlen;
 	}
-	strcpy(ptr, "= ");
+	cs_strncpy(ptr, "= ", sizeof(varnamebuf)-(ptr-varnamebuf));
 	if (fwrite(varnamebuf, sizeof(char), strlen(varnamebuf), f)){
 		if(strlen(fmtstring) > 0){
 			va_start(argptr, fmtstring);
@@ -789,7 +815,7 @@ char *get_servicename(int srvid, int caid){
 				if (this->caid[i] == caid)
 					cs_strncpy(name, this->name, 32);
 
-	if (!name[0]) sprintf(name, "%04X:%04X unknown", caid, srvid);
+	if (!name[0]) snprintf(name, sizeof(name), "%04X:%04X unknown", caid, srvid);
 	if (!srvid) name[0] = '\0';
 	return(name);
 }
@@ -949,7 +975,7 @@ char *strnew(char *str)
     return NULL;
     
   char *newstr = cs_malloc(&newstr, strlen(str)+1, 1);
-  strcpy(newstr, str);
+  cs_strncpy(newstr, str, strlen(str)+1);
   
   return newstr;
 }

@@ -226,7 +226,7 @@ static int irdeto_card_init_provider(struct s_reader * reader)
 			else
 				memcpy(&reader->prid[i][0], cta_res+acspadd, 4);
 
-			sprintf((char *) buf+strlen((char *)buf), ",%06lx", b2i(3, &reader->prid[i][1]));
+			snprintf((char *) buf+strlen((char *)buf), sizeof(buf)-strlen((char *)buf), ",%06lx", b2i(3, &reader->prid[i][1]));
 		}
 		else
 			reader->prid[i][0] = 0xf;
@@ -516,7 +516,7 @@ static int irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr) {
 			ep->type = SHARED;
 			memset(ep->hexserial, 0, 8);
 			memcpy(ep->hexserial, ep->emm + 4, l);
-			strcpy(dumprdrserial, cs_hexdump(1, rdr->hexserial, l));
+			cs_strncpy(dumprdrserial, cs_hexdump(1, rdr->hexserial, l), sizeof(dumprdrserial));
 			cs_debug_mask(D_EMM, "IRDETO EMM: SHARED l = %d ep = %s rdr = %s base = %02x", l, 
 					cs_hexdump(1, ep->hexserial, l), dumprdrserial, base);
 
@@ -542,7 +542,7 @@ static int irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr) {
 			ep->type = UNIQUE;
 			memset(ep->hexserial, 0, 8);
 			memcpy(ep->hexserial, ep->emm + 4, l);
-			strcpy(dumprdrserial, cs_hexdump(1, rdr->hexserial, l));
+			cs_strncpy(dumprdrserial, cs_hexdump(1, rdr->hexserial, l), sizeof(dumprdrserial));
 			cs_debug_mask(D_EMM, "IRDETO EMM: UNIQUE l = %d ep = %s rdr = %s", l, 
 					cs_hexdump(1, ep->hexserial, l), dumprdrserial);
 
@@ -558,71 +558,88 @@ static int irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr) {
 
 static void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
 {
-	filter[0]=0xFF;
+	int idx = 2;
 
-	int numfilter = 4;
+	filter[0]=0xFF;
+	filter[1]=0;		//filter count
 
 	int base = rdr->hexserial[3];
 	int emm_g = base * 8;
 	int emm_s = emm_g + 2;
 	int emm_u = emm_g + 3;
 
-	filter[2]=GLOBAL;
-	filter[3]=0;
-	filter[4+0]    = 0x82;
-	filter[4+0+16] = 0xFF;
-	filter[4+1]    = emm_g;
-	filter[4+1+16] = 0xFF;
+	if ((!rdr->blockemm_g && !(rdr->b_nano[0x82] & 0x01)) || (rdr->b_nano[0x82] & 0x02)) // not blocked or to be saved
+	{
+		filter[idx++]=GLOBAL;
+		filter[idx++]=0;
+		filter[idx+0]    = 0x82;
+		filter[idx+0+16] = 0xFF;
+		filter[idx+1]    = emm_g;
+		filter[idx+1+16] = 0xFF;
+		++filter[1];
+		idx += 32;
 
-	filter[36]=SHARED;
-	filter[37]=0;
-	filter[38+0]    = 0x82;
-	filter[38+0+16] = 0xFF;
-	filter[38+1]    = emm_s;
-	filter[38+1+16] = 0xFF;
-	memcpy(filter+38+2, rdr->hexserial, 2);
-	memset(filter+38+2+16, 0xFF, 2);
-
-	filter[70]=UNIQUE;
-	filter[71]=0;
-	filter[72+0]    = 0x82;
-	filter[72+0+16] = 0xFF;
-	filter[72+1]    = emm_u;
-	filter[72+1+16] = 0xFF;
-	memcpy(filter+72+2, rdr->hexserial, 3);
-	memset(filter+72+2+16, 0xFF, 3);
-
-	filter[104]=GLOBAL;
-	filter[105]=0;
-	filter[106+0]    = 0x82;
-	filter[106+16]   = 0xFF;
-	filter[106+1]    = 0x81;
-	filter[106+1+16] = 0xFF;
-	memcpy(filter+106+2, rdr->hexserial, 1);
-	memset(filter+106+2+16, 0xFF, 1);
-
-	int i, pos=138;
-	for(i = 0; i < rdr->nprov; i++) {
-		if (rdr->prid[i][1]==0xFF)
-			continue;
-
-		filter[pos]=SHARED;
-		filter[pos+1]=0;
-		filter[pos+2+0]    = 0x82;
-		filter[pos+2+0+16] = 0xFF;
-		// filter[pos+2+1]    = 0x02; // base = 0, len = 2
-		// filter[pos+2+1+16] = 0xFF;
-		memcpy(filter+pos+2+2, &rdr->prid[i][1], 2);
-		memset(filter+pos+2+2+16, 0xFF, 2);
-		pos+=34;
-		numfilter++;
-
-		if (numfilter>=10)
-			break;
+		filter[idx++]=GLOBAL;
+		filter[idx++]=0;
+		filter[idx+0]    = 0x82;
+		filter[idx+16]   = 0xFF;
+		filter[idx+1]    = 0x81;
+		filter[idx+1+16] = 0xFF;
+		memcpy(filter+idx+2, rdr->hexserial, 1);
+		memset(filter+idx+2+16, 0xFF, 1);
+		++filter[1];
+		idx += 32;
 	}
 
-	filter[1]=numfilter;
+	if ((!rdr->blockemm_u && !(rdr->b_nano[0x82] & 0x01)) || (rdr->b_nano[0x82] & 0x02)) // not blocked or to be saved
+	{
+		filter[idx++]=UNIQUE;
+		filter[idx++]=0;
+		filter[idx+0]    = 0x82;
+		filter[idx+0+16] = 0xFF;
+		filter[idx+1]    = emm_u;
+		filter[idx+1+16] = 0xFF;
+		memcpy(filter+idx+2, rdr->hexserial, 3);
+		memset(filter+idx+2+16, 0xFF, 3);
+		++filter[1];
+		idx += 32;
+	}
 
+	if ((!rdr->blockemm_s && !(rdr->b_nano[0x82] & 0x01)) || (rdr->b_nano[0x82] & 0x02)) // not blocked or to be saved
+	{
+		filter[idx++]=SHARED;
+		filter[idx++]=0;
+		filter[idx+0]    = 0x82;
+		filter[idx+0+16] = 0xFF;
+		filter[idx+1]    = emm_s;
+		filter[idx+1+16] = 0xFF;
+		memcpy(filter+idx+2, rdr->hexserial, 2);
+		memset(filter+idx+2+16, 0xFF, 2);
+		++filter[1];
+		idx += 32;
+
+		int i;
+		for(i = 0; i < rdr->nprov; i++) {
+			if (rdr->prid[i][1]==0xFF)
+				continue;
+
+			filter[idx++]=SHARED;
+			filter[idx++]=0;
+			filter[idx+0]    = 0x82;
+			filter[idx+0+16] = 0xFF;
+			// filter[idx+1]    = 0x02; // base = 0, len = 2
+			// filter[idx+1+16] = 0xFF;
+			memcpy(filter+idx+2, &rdr->prid[i][1], 2);
+			memset(filter+idx+2+16, 0xFF, 2);
+			++filter[1];
+			idx += 32;
+
+			if (filter[1]>=10) {
+				cs_log("irdeto_get_emm_filter: could not start all emm filter");
+				break;
+			}
+		}
+	}
 
 	return;
 }

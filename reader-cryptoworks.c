@@ -191,7 +191,7 @@ static int cryptoworks_card_init(struct s_reader * reader, ATR newatr)
     if (cta_res[0]!=0xdf) break;
     if (((cta_res[4]&0x1f)==0x1f) && (reader->nprov<CS_MAXPROV))
     {
-      sprintf(ptxt+strlen(ptxt), ",%02X", cta_res[5]);
+      snprintf(ptxt+strlen(ptxt), sizeof(ptxt)-strlen(ptxt), ",%02X", cta_res[5]);
       reader->prid[reader->nprov++][3]=cta_res[5];
     }
     insB8[2]=insB8[3]=0xff;	// next
@@ -247,7 +247,7 @@ static int cryptoworks_card_init(struct s_reader * reader, ATR newatr)
     trim(issuer);
   }
   else
-    strcpy(issuer, unknown);
+    cs_strncpy(issuer, unknown, sizeof(issuer));
 
   select_file(reader, 0x3f, 0x20, cta_res, &cta_lr);
   select_file(reader, 0x2f, 0x11, cta_res, &cta_lr);		// read pin
@@ -383,7 +383,7 @@ static int cryptoworks_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr)
 				ep->type = UNIQUE;
 				memset(ep->hexserial, 0, 8);
 				memcpy(ep->hexserial, ep->emm + 5, 5);
-				strcpy(dumprdrserial, cs_hexdump(1, rdr->hexserial, 5));
+				cs_strncpy(dumprdrserial, cs_hexdump(1, rdr->hexserial, 5), sizeof(dumprdrserial));
 				memcpy(ep->provid, i2b(4, cryptoworks_get_emm_provid(ep->emm+12, ep->l-12)), 4);
 				cs_debug_mask(D_EMM, "CRYPTOWORKS EMM: UNIQUE, ep = %s rdr = %s", 
 					      cs_hexdump(1, ep->hexserial, 5), dumprdrserial);
@@ -395,7 +395,7 @@ static int cryptoworks_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr)
 				ep->type = SHARED;
 				memset(ep->hexserial, 0, 8);
 				memcpy(ep->hexserial, ep->emm + 5, 4);
-				strcpy(dumprdrserial, cs_hexdump(1, rdr->hexserial, 4));
+				cs_strncpy(dumprdrserial, cs_hexdump(1, rdr->hexserial, 4), sizeof(dumprdrserial));
 				memcpy(ep->provid, i2b(4, cryptoworks_get_emm_provid(ep->emm+12, ep->l-12)), 4);
 				cs_debug_mask(D_EMM, "CRYPTOWORKS EMM: SHARED, ep = %s rdr = %s", 
 					      cs_hexdump(1, ep->hexserial, 4), dumprdrserial);
@@ -450,55 +450,70 @@ static int cryptoworks_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr)
 
 static void cryptoworks_get_emm_filter(struct s_reader * rdr, uchar *filter)
 {
+	int idx = 2;
+
 	filter[0]=0xFF;
-	filter[1]=4;
+	filter[1]=0;
 
-	filter[2]=GLOBAL;
-	filter[3]=0;
+	if ((!rdr->blockemm_g && !(rdr->b_nano[0x88] & 0x01)) || (rdr->b_nano[0x88] & 0x02)) // not blocked or to be saved
+	{
+		filter[idx++]=GLOBAL;
+		filter[idx++]=0;
+		filter[idx+0]    = 0x88;
+		filter[idx+0+16] = 0xFE;
+		filter[idx+1]    = 0xA9;
+		filter[idx+1+16] = 0xFF;
+		filter[idx+2]    = 0xFF;
+		filter[idx+2+16] = 0xFF;
+		++filter[1];
+		idx += 32;
+	}
 
-	filter[4+0]    = 0x88;
-	filter[4+0+16] = 0xFE;
-	filter[4+1]    = 0xA9;
-	filter[4+1+16] = 0xFF;
-	filter[4+2]    = 0xFF;
-	filter[4+2+16] = 0xFF;
+	if ((!rdr->blockemm_g && !(rdr->b_nano[0x86] & 0x01)) || (rdr->b_nano[0x86] & 0x02)) // not blocked or to be saved
+	{
+		filter[idx++]=GLOBAL;
+		filter[idx++]=0;
+		filter[idx+0]    = 0x86;
+		filter[idx+16]   = 0xFF;
+		filter[idx+1]    = 0xA9;
+		filter[idx+1+16] = 0xFF;
+		filter[idx+2]    = 0xFF;
+		filter[idx+2+16] = 0xFF;
+		++filter[1];
+		idx += 32;
+	}
 
+	if ((!rdr->blockemm_s && !(rdr->b_nano[0x84] & 0x01)) || (rdr->b_nano[0x84] & 0x02)) // not blocked or to be saved
+	{
+		filter[idx++]=SHARED;
+		filter[idx++]=0;
+		filter[idx+0]    = 0x84;
+		filter[idx+0+16] = 0xFF;
+		filter[idx+1]    = 0xA9;
+		filter[idx+1+16] = 0xFF;
+		filter[idx+2]    = 0xFF;
+		filter[idx+2+16] = 0xFF;
+		memcpy(filter+idx+3, rdr->hexserial, 4);
+		memset(filter+idx+3+16, 0xFF, 4);
+		++filter[1];
+		idx += 32;
+	}
 
-	filter[36]=SHARED;
-	filter[37]=0;
-
-	filter[38+0]    = 0x84;
-	filter[38+0+16] = 0xFF;
-	filter[38+1]    = 0xA9;
-	filter[38+1+16] = 0xFF;
-	filter[38+2]    = 0xFF;
-	filter[38+2+16] = 0xFF;
-	memcpy(filter+38+3, rdr->hexserial, 4);
-	memset(filter+38+3+16, 0xFF, 4);
-
-
-	filter[70]=UNIQUE;
-	filter[71]=0;
-
-	filter[72+0]    = 0x82;
-	filter[72+0+16] = 0xFF;
-	filter[72+1]    = 0xA9;
-	filter[72+1+16] = 0xFF;
-	filter[72+2]    = 0xFF;
-	filter[72+2+16] = 0xFF;
-	memcpy(filter+72+3, rdr->hexserial, 5);
-	memset(filter+72+3+16, 0xFF, 5);
-
-
-	filter[104]=GLOBAL;
-	filter[105]=0;
-
-	filter[106+0]    = 0x86;
-	filter[106+16]   = 0xFF;
-	filter[106+1]    = 0xA9;
-	filter[106+1+16] = 0xFF;
-	filter[106+2]    = 0xFF;
-	filter[106+2+16] = 0xFF;
+	if ((!rdr->blockemm_u && !(rdr->b_nano[0x82] & 0x01)) || (rdr->b_nano[0x82] & 0x02)) // not blocked or to be saved
+	{
+		filter[idx++]=UNIQUE;
+		filter[idx++]=0;
+		filter[idx+0]    = 0x82;
+		filter[idx+0+16] = 0xFF;
+		filter[idx+1]    = 0xA9;
+		filter[idx+1+16] = 0xFF;
+		filter[idx+2]    = 0xFF;
+		filter[idx+2+16] = 0xFF;
+		memcpy(filter+idx+3, rdr->hexserial, 5);
+		memset(filter+idx+3+16, 0xFF, 5);
+		++filter[1];
+		idx += 32;
+	}
 
 	return;
 }
