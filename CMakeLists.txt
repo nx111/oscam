@@ -271,7 +271,11 @@ elseif (HAVE_PTHREAD)
     message(STATUS "  no pthread found. No smartreader ")
 endif (HAVE_PTHREAD)
 
+if  (${CS_OSTYPE} MATCHES "powerpc-tuxbox")
+else (${CS_OSTYPE} MATCHES "powerpc-tuxbox")
 check_include_file ("openssl/aes.h" HAVE_LIBCRYPTO)
+endif  (${CS_OSTYPE} MATCHES "powerpc-tuxbox")
+
 if (HAVE_LIBCRYPTO)
     add_definitions ("-DWITH_LIBCRYPTO")
 endif (HAVE_LIBCRYPTO)

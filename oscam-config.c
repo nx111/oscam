@@ -501,7 +501,7 @@ void chk_t_global(const char *token, char *value)
 		cfg.reader_restart_seconds = strToIntVal(value, 5);
 		return;
 	}
-	
+
 	if (!strcmp(token, "dropdups")) {
 		cfg.dropdups = strToIntVal(value, 0);
 		return;
@@ -555,12 +555,12 @@ void chk_t_global(const char *token, char *value)
 		chk_caidvaluetab(value, &cfg.lb_retrylimittab);
 		return;
 	}
-	
+
 	if (!strcmp(token, "lb_nbest_percaid")) {
 		chk_caidvaluetab(value, &cfg.lb_nbest_readers_tab);
 		return;
 	}
-	
+
 	if (!strcmp(token, "lb_noproviderforcaid")) {
 		if(strlen(value) == 0)
         	clear_caidtab(&cfg.lb_noproviderforcaid);
@@ -597,6 +597,11 @@ void chk_t_global(const char *token, char *value)
 
 	if (!strcmp(token, "failbancount")) {
 		cfg.failbancount = strToIntVal(value, 0);
+		return;
+	}
+
+	if (!strcmp(token, "suppresscmd08")) {
+		cfg.c35_suppresscmd08 = strToIntVal(value, 0);
 		return;
 	}
 
@@ -899,7 +904,7 @@ void chk_t_camd35(char *token, char *value)
 	}
 
 	if (!strcmp(token, "suppresscmd08")) {
-		cfg.c35_suppresscmd08 = strToIntVal(value, 0);
+		cfg.c35_udp_suppresscmd08 = strToIntVal(value, 0);
 		return;
 	}
 
@@ -927,6 +932,11 @@ void chk_t_camd35_tcp(char *token, char *value)
 			cfg.c35_tcp_srvip = cs_inet_addr(value);
 			return;
 		}
+	}
+
+	if (!strcmp(token, "suppresscmd08")) {
+		cfg.c35_tcp_suppresscmd08 = strToIntVal(value, 0);
+		return;
 	}
 
 	if (token[0] != '#')
@@ -1397,7 +1407,7 @@ int init_config()
 #endif
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_conf);
 	if (!(fp = fopen(token, "r"))) {
-		fprintf(stderr, "Can't open config file '%s' (errno=%d)\n", token, errno);
+		fprintf(stderr, "Cannot open config file '%s' (errno=%d %s)\n", token, errno, strerror(errno));
 		exit(1);
 	}
 	while (fgets(token, sizeof(token), fp)) {
@@ -1548,7 +1558,12 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 	strtolower(value);
 
 	if (!strcmp(token, "au")) {
-		//set default values for usage during runtime from Webif
+
+		// exit if invalid or no value
+		if ((strlen(value) == 0) || (value[0] == '0'))
+			return;
+
+		// set default values for usage during runtime from Webif
 		account->autoau=0;
 
 		struct s_reader *rdr;
@@ -1677,7 +1692,7 @@ int write_services()
 	snprintf(bakfile, sizeof(bakfile),"%s%s.bak", cs_confdir, cs_sidt);
 
 	if (!(f=fopen(tmpfile, "w"))){
-		cs_log("Can't open file \"%s\" (errno=%d)", tmpfile, errno);
+		cs_log("Cannot open file \"%s\" (errno=%d %s)", tmpfile, errno, strerror(errno));
 		return(1);
 	}
 	fprintf(f,"# oscam.services generated automatically by Streamboard OSCAM %s build #%s\n", CS_VERSION, CS_SVN_VERSION);
@@ -1730,7 +1745,7 @@ int write_config()
 	snprintf(bakfile, sizeof(bakfile),"%s%s.bak", cs_confdir, cs_conf);
 
 	if (!(f=fopen(tmpfile, "w"))){
-		cs_log("Can't open file \"%s\" (errno=%d)", tmpfile, errno);
+		cs_log("Cannot open file \"%s\" (errno=%d %s)", tmpfile, errno, strerror(errno));
 		return(1);
 	}
 	fprintf(f,"# oscam.conf generated automatically by Streamboard OSCAM %s build #%s\n", CS_VERSION, CS_SVN_VERSION);
@@ -1783,6 +1798,8 @@ int write_config()
 		fprintf_conf(f, CONFVARWIDTH, "nice", "%d\n", cfg.nice);
 	if (cfg.srtimeout != 1500 || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "serialreadertimeout", "%d\n", cfg.srtimeout);
+	if (cfg.c35_suppresscmd08 || cfg.http_full_cfg)
+		fprintf_conf(f, CONFVARWIDTH, "suppresscmd08", "%d\n", cfg.c35_suppresscmd08);
 	if (cfg.max_log_size != 10 || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "maxlogsize", "%d\n", cfg.max_log_size);
 	if (!cfg.waitforcards || cfg.http_full_cfg)
@@ -1822,13 +1839,13 @@ int write_config()
 		fprintf_conf(f, CONFVARWIDTH, "lb_nbest_percaid", "%s\n", value);
 		free(value);
 	}
-	
+
 	if (cfg.lb_noproviderforcaid.caid[0] || cfg.http_full_cfg) {
 		value = mk_t_caidtab(&cfg.lb_noproviderforcaid);
 		fprintf_conf(f, CONFVARWIDTH, "lb_noproviderforcaid", "%s\n", value);
 		free(value);
 	}
-                
+
 	if (cfg.lb_savepath || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "lb_savepath", "%s\n", cfg.lb_savepath);
 	if (cfg.lb_stat_cleanup != DEFAULT_LB_STAT_CLEANUP || cfg.http_full_cfg)
@@ -1928,8 +1945,8 @@ int write_config()
 		fprintf_conf(f, CONFVARWIDTH, "port", "%d\n", cfg.c35_port);
 		if (cfg.c35_srvip != 0)
 			fprintf_conf(f, CONFVARWIDTH, "serverip", "%s\n", cs_inet_ntoa(cfg.c35_srvip));
-		if (cfg.c35_suppresscmd08)
-			fprintf_conf(f, CONFVARWIDTH, "suppresscmd08", "%d\n", cfg.c35_suppresscmd08);
+		if (cfg.c35_udp_suppresscmd08 || cfg.http_full_cfg)
+			fprintf_conf(f, CONFVARWIDTH, "suppresscmd08", "%d\n", cfg.c35_udp_suppresscmd08);
 		fprintf(f,"\n");
 	}
 
@@ -1943,6 +1960,8 @@ int write_config()
 
 		if (cfg.c35_tcp_srvip != 0)
 			fprintf_conf(f, CONFVARWIDTH, "serverip", "%s\n", cs_inet_ntoa(cfg.c35_tcp_srvip));
+		if (cfg.c35_tcp_suppresscmd08 || cfg.http_full_cfg)
+			fprintf_conf(f, CONFVARWIDTH, "suppresscmd08", "%d\n", cfg.c35_tcp_suppresscmd08);
 		fputc((int)'\n', f);
 	}
 
@@ -2126,7 +2145,7 @@ int write_userdb(struct s_auth *authptr)
 	snprintf(bakfile, sizeof(bakfile),"%s%s.bak", cs_confdir, cs_user);
 
   if (!(f=fopen(tmpfile, "w"))){
-    cs_log("Can't open file \"%s\" (errno=%d)", tmpfile, errno);
+    cs_log("Cannot open file \"%s\" (errno=%d %s)", tmpfile, errno, strerror(errno));
     return(1);
   }
   fprintf(f,"# oscam.user generated automatically by Streamboard OSCAM %s build #%s\n", CS_VERSION, CS_SVN_VERSION);
@@ -2279,7 +2298,7 @@ int write_server()
 	snprintf(bakfile, sizeof(bakfile),"%s%s.bak", cs_confdir, cs_srvr);
 
 	if (!(f=fopen(tmpfile, "w"))){
-		cs_log("Can't open file \"%s\" (errno=%d)", tmpfile, errno);
+		cs_log("Cannot open file \"%s\" (errno=%d %s)", tmpfile, errno, strerror(errno));
 		return(1);
 	}
 	fprintf(f,"# oscam.server generated automatically by Streamboard OSCAM %s build #%s\n", CS_VERSION, CS_SVN_VERSION);
@@ -2437,17 +2456,17 @@ int write_server()
 			if (rdr->cachemm || cfg.http_full_cfg)
 				fprintf_conf(f, CONFVARWIDTH, "emmcache", "%d,%d,%d\n", rdr->cachemm, rdr->rewritemm, rdr->logemm);
 
-			if (rdr->blockemm_unknown || cfg.http_full_cfg)
-				fprintf_conf(f, CONFVARWIDTH, "blockemm-unknown", "%d\n", rdr->blockemm_unknown);
+			if ((rdr->blockemm & EMM_UNKNOWN) || cfg.http_full_cfg)
+				fprintf_conf(f, CONFVARWIDTH, "blockemm-unknown", "%d\n", (rdr->blockemm & EMM_UNKNOWN) ? 1: 0);
 
-			if (rdr->blockemm_u || cfg.http_full_cfg)
-				fprintf_conf(f, CONFVARWIDTH, "blockemm-u", "%d\n", rdr->blockemm_u);
+			if ((rdr->blockemm & EMM_UNIQUE) || cfg.http_full_cfg)
+				fprintf_conf(f, CONFVARWIDTH, "blockemm-u", "%d\n", (rdr->blockemm & EMM_UNIQUE) ? 1: 0);
 
-			if (rdr->blockemm_s || cfg.http_full_cfg)
-				fprintf_conf(f, CONFVARWIDTH, "blockemm-s", "%d\n", rdr->blockemm_s);
+			if ((rdr->blockemm & EMM_SHARED) || cfg.http_full_cfg)
+				fprintf_conf(f, CONFVARWIDTH, "blockemm-s", "%d\n", (rdr->blockemm & EMM_SHARED) ? 1: 0);
 
-			if (rdr->blockemm_g || cfg.http_full_cfg)
-				fprintf_conf(f, CONFVARWIDTH, "blockemm-g", "%d\n", rdr->blockemm_g);
+			if ((rdr->blockemm & EMM_GLOBAL) || cfg.http_full_cfg)
+				fprintf_conf(f, CONFVARWIDTH, "blockemm-g", "%d\n", (rdr->blockemm & EMM_GLOBAL) ? 1: 0);
 
 			if (rdr->lb_weight != 100 || cfg.http_full_cfg)
 				fprintf_conf(f, CONFVARWIDTH, "lb_weight", "%d\n", rdr->lb_weight);
@@ -2470,7 +2489,7 @@ int write_server()
 
 				if (rdr->cc_maxhop != 10 || cfg.http_full_cfg)
 					fprintf_conf(f, CONFVARWIDTH, "cccmaxhops", "%d\n", rdr->cc_maxhop);
-					
+
 				if (rdr->cc_mindown > 0 || cfg.http_full_cfg)
 					fprintf_conf(f, CONFVARWIDTH, "cccmindown", "%d\n", rdr->cc_mindown);
 
@@ -2479,9 +2498,9 @@ int write_server()
 
 				if (rdr->cc_keepalive || cfg.http_full_cfg)
 					fprintf_conf(f, CONFVARWIDTH, "ccckeepalive", "%d\n", rdr->cc_keepalive);
-					
+
 				if (rdr->cc_reshare != cfg.cc_reshare || cfg.http_full_cfg)
-					fprintf_conf(f, CONFVARWIDTH, "cccreshare", "%d\n", rdr->cc_reshare);	
+					fprintf_conf(f, CONFVARWIDTH, "cccreshare", "%d\n", rdr->cc_reshare);
 			}
 
 			if ((rdr->deprecated || cfg.http_full_cfg) && isphysical)
@@ -2495,7 +2514,7 @@ int write_server()
 
 			if ((rdr->ndsversion || cfg.http_full_cfg) && isphysical)
 				fprintf_conf(f, CONFVARWIDTH, "ndsversion", "%d\n", rdr->ndsversion);
-			
+
 			if ((rdr->ratelimitecm || cfg.http_full_cfg) && isphysical) {
 				fprintf_conf(f, CONFVARWIDTH, "ratelimitecm", "%d\n", rdr->ratelimitecm);
 				fprintf_conf(f, CONFVARWIDTH, "ratelimitseconds", "%d\n", rdr->ratelimitseconds);
@@ -2518,7 +2537,7 @@ void write_versionfile() {
   FILE *fp;
 
   if (!(fp=fopen(targetfile, "w"))) {
-	  cs_log("Can't open %s (errno=%d)", targetfile, errno);
+	  cs_log("Cannot open %s (errno=%d %s)", targetfile, errno, strerror(errno));
   } else {
 	  time_t now = time((time_t)0);
 	  struct tm st;
@@ -2720,7 +2739,7 @@ struct s_auth *init_userdb()
 
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_user);
 	if (!(fp = fopen(token, "r"))) {
-		cs_log("Can't open file \"%s\" (errno=%d)", token, errno);
+		cs_log("Cannot open file \"%s\" (errno=%d %s)", token, errno, strerror(errno));
 		return authptr;
 	}
 
@@ -2859,7 +2878,7 @@ void init_free_sidtab() {
 		while (ptr) {
 				nxt = ptr->next;
 				free_sidtab(ptr);
-				ptr = nxt;		
+				ptr = nxt;
 		}
 		cfg.sidtab = NULL;
 }
@@ -2874,7 +2893,7 @@ int init_sidtab() {
   snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_sidt);
   if (!(fp=fopen(token, "r")))
   {
-    cs_log("Can't open file \"%s\" (errno=%d)", token, errno);
+    cs_log("Cannot open file \"%s\" (errno=%d %s)", token, errno, strerror(errno));
     return(1);
   }
   for (nro=0, ptr=cfg.sidtab; ptr; nro++)
@@ -2927,7 +2946,7 @@ int init_provid() {
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_provid);
 
 	if (!(fp=fopen(token, "r"))) {
-		cs_log("can't open file \"%s\" (err=%d), no provids's loaded", token, errno);
+		cs_log("can't open file \"%s\" (err=%d %s), no provids's loaded", token, errno, strerror(errno));
 		return(0);
 	}
 	nr=0;
@@ -2994,7 +3013,7 @@ int init_srvid()
 
 
 	if (!(fp=fopen(token, "r"))) {
-		cs_log("can't open file \"%s\" (err=%d), no service-id's loaded", token, errno);
+		cs_log("can't open file \"%s\" (err=%d %s), no service-id's loaded", token, errno, strerror(errno));
 		return(0);
 	}
 
@@ -3082,7 +3101,7 @@ int init_tierid()
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_trid);
 
 	if (!(fp=fopen(token, "r"))) {
-		cs_log("can't open file \"%s\" (err=%d), no tier-id's loaded", token, errno);
+		cs_log("can't open file \"%s\" (err=%d %s), no tier-id's loaded", token, errno, strerror(errno));
 		return(0);
 	}
 
@@ -3696,22 +3715,38 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 	}
 
 	if (!strcmp(token, "blockemm-unknown")) {
-		rdr->blockemm_unknown  = strToIntVal(value, 0);
+		i=atoi(value);
+		if (!i && (rdr->blockemm & EMM_UNKNOWN))
+			rdr->blockemm -= EMM_UNKNOWN;
+		if (i)
+			rdr->blockemm |= EMM_UNKNOWN;
 		return;
 	}
 
 	if (!strcmp(token, "blockemm-u")) {
-		rdr->blockemm_u  = strToIntVal(value, 0);
+		i=atoi(value);
+		if (!i && (rdr->blockemm & EMM_UNIQUE))
+			rdr->blockemm -= EMM_UNIQUE;
+		if (i)
+			rdr->blockemm |= EMM_UNIQUE;
 		return;
 	}
 
 	if (!strcmp(token, "blockemm-s")) {
-		rdr->blockemm_s  = strToIntVal(value, 0);
+		i=atoi(value);
+		if (!i && (rdr->blockemm & EMM_SHARED))
+			rdr->blockemm -= EMM_SHARED;
+		if (i)
+			rdr->blockemm |= EMM_SHARED;
 		return;
 	}
 
 	if (!strcmp(token, "blockemm-g")) {
-		rdr->blockemm_g  = strToIntVal(value, 0);
+		i=atoi(value);
+		if (!i && (rdr->blockemm & EMM_GLOBAL))
+			rdr->blockemm -= EMM_GLOBAL;
+		if (i)
+			rdr->blockemm |= EMM_GLOBAL;
 		return;
 	}
 
@@ -3766,7 +3801,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 		return;
 	}
 
-	if (!strcmp(token, "cccmindown") ) { 
+	if (!strcmp(token, "cccmindown") ) {
 		// cccam min downhops
 		rdr->cc_mindown  = strToIntVal(value, 0);
 		return;
@@ -3870,8 +3905,8 @@ int init_irdeto_guess_tab()
   snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_ird);
   if (!(fp=fopen(token, "r")))
   {
-    cs_log("can't open file \"%s\" (errno=%d) irdeto guessing not loaded",
-           token, errno);
+    cs_log("can't open file \"%s\" (errno=%d %s) irdeto guessing not loaded",
+           token, errno, strerror(errno));
     return(1);
   }
   while (fgets(token, sizeof(token), fp))
@@ -4081,7 +4116,7 @@ int init_readerdb()
 
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_srvr);
 	if (!(fp=fopen(token, "r"))) {
-		cs_log("can't open file \"%s\" (errno=%d)", token, errno);
+		cs_log("can't open file \"%s\" (errno=%d %s)\n", token, errno, strerror(errno));
 		if(cfg.cc_cfgfile)
 			return init_cccamcfg(1);
 		else
@@ -4156,7 +4191,7 @@ int init_readerdb()
 			}
 			else {
 				cur->next = rdr; //add to end of list
-				cur = cur->next; //advance list
+				cur = rdr; //advance list
 			}
 		}
 //		cs_log("[debug reader] device=%s port=%d enable=%d group=%d",rdr->device,rdr->r_port,rdr->enable,rdr->grp);
@@ -4178,8 +4213,8 @@ void init_ac()
   snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_ac);
   if (!(fp=fopen(token, "r")))
   {
-    cs_log("can't open file \"%s\" (errno=%d) anti-cascading table not loaded",
-            token, errno);
+    cs_log("can't open file \"%s\" (errno=%d %s) anti-cascading table not loaded",
+            token, errno, strerror(errno));
     return;
   }
 

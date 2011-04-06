@@ -230,6 +230,11 @@
 extern const char *boxdesc[];
 #endif
 
+#define EMM_UNIQUE 1
+#define EMM_SHARED 2
+#define EMM_GLOBAL 4
+#define EMM_UNKNOWN 8
+
 #ifdef CS_CORE
 char *PIP_ID_TXT[] = { "ECM", "EMM", "CIN", "KCL", "UDP", NULL  };
 char *RDR_CD_TXT[] = { "cd", "dsr", "cts", "ring", "none",
@@ -804,10 +809,7 @@ struct s_reader  //contains device info, reader info and card info
   ushort    acs;    // irdeto
   ushort    caid;
   uchar     b_nano[256];
-  int       blockemm_unknown; //block EMMs that have unknown type
-  int       blockemm_u;				//blcok Unique EMMs
-  int       blockemm_s;				//block Shared EMMS
-  int       blockemm_g;				//block Global EMMs
+  int       blockemm;
   char      * emmfile;
   char      pincode[5];
   int		ucpk_valid;
@@ -983,6 +985,7 @@ struct s_auth
   in_addr_t dynip;
   uchar     dyndns[64];
   time_t    expirationdate;
+  time_t    firstlogin;
   int		allowedtimeframe[2];
   int       c35_suppresscmd08;
   int       c35_sleepsend;
@@ -1107,6 +1110,8 @@ struct s_config
 	int		c35_port;
 	in_addr_t	c35_srvip;
 	int		c35_suppresscmd08;
+	int		c35_tcp_suppresscmd08;
+	int		c35_udp_suppresscmd08;
 	PTAB		c35_tcp_ptab;
 	in_addr_t	c35_tcp_srvip;
 	PTAB		ncd_ptab;
@@ -1260,6 +1265,9 @@ extern in_addr_t cs_inet_addr(char *txt);
 extern ulong b2i(int, uchar *);
 extern ullong b2ll(int, uchar *);
 extern uchar *i2b(int, ulong);
+extern uchar *i2b_cl(int n, ulong i, struct s_client *cl);
+extern uchar *i2b_buf(int n, ulong i, uchar *b);
+  
 extern ulong a2i(char *, int);
 extern int boundary(int, int);
 extern void cs_ftime(struct timeb *);

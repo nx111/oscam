@@ -225,9 +225,9 @@ static void camd35_request_emm(ECM_REQUEST *er)
 			}
 		}
 		//we think client/server protocols should deliver all information, and only readers should discard EMM
-		mbuf[128] = (aureader->blockemm_g == 1) ? 0: 1;
-		mbuf[129] = (aureader->blockemm_s == 1) ? 0: 1;
-		mbuf[130] = (aureader->blockemm_u == 1) ? 0: 1;
+		mbuf[128] = (aureader->blockemm & EMM_GLOBAL) ? 0: 1;
+		mbuf[129] = (aureader->blockemm & EMM_SHARED) ? 0: 1;
+		mbuf[130] = (aureader->blockemm & EMM_UNIQUE) ? 0: 1;
 		//mbuf[131] = aureader->card_system; //Cardsystem for Oscam client
 	}
 	else		// disable emm
@@ -326,7 +326,7 @@ static void * camd35_server(void *cli)
   client->req=(uchar *)malloc(CS_MAXPENDING*REQ_SIZE);
   if (!client->req)
   {
-    cs_log("Cannot allocate memory (errno=%d)", errno);
+    cs_log("Cannot allocate memory (errno=%d %s)", errno, strerror(errno));
     cs_exit(1);
   }
   memset(client->req, 0, CS_MAXPENDING*REQ_SIZE);
@@ -401,7 +401,7 @@ int camd35_client_init(struct s_client *client)
 
   if ((client->udp_fd=socket(PF_INET, client->is_udp ? SOCK_DGRAM : SOCK_STREAM, p_proto))<0)
   {
-    cs_log("Socket creation failed (errno=%d)", errno);
+    cs_log("Socket creation failed (errno=%d %s)", errno, strerror(errno));
     cs_exit(1);
   }
 
@@ -414,7 +414,7 @@ int camd35_client_init(struct s_client *client)
   {
     if (bind(client->udp_fd, (struct sockaddr *)&loc_sa, sizeof (loc_sa))<0)
     {
-      cs_log("bind failed (errno=%d)", errno);
+      cs_log("bind failed (errno=%d %s)", errno, strerror(errno));
       close(client->udp_fd);
       return(1);
     }
@@ -465,13 +465,13 @@ int camd35_client_init_log()
 
   if ((logfd=socket(PF_INET, SOCK_DGRAM, p_proto))<0)
   {
-    cs_log("Socket creation failed (errno=%d)", errno);
+    cs_log("Socket creation failed (errno=%d %s)", errno, strerror(errno));
     return(1);
   }
 
   if (bind(logfd, (struct sockaddr *)&loc_sa, sizeof(loc_sa))<0)
   {
-    cs_log("bind failed (errno=%d)", errno);
+    cs_log("bind failed (errno=%d %s)", errno, strerror(errno));
     close(logfd);
     return(1);
   }
@@ -602,16 +602,17 @@ static int camd35_recv_chk(struct s_client *client, uchar *dcw, int *rc, uchar *
 		rdr->hexserial[6] = 0;
 		rdr->hexserial[7] = 0;
 
-		rdr->blockemm_g = (buf[128]==1) ? 0: 1;
-		rdr->blockemm_s = (buf[129]==1) ? 0: 1;
-		rdr->blockemm_u = (buf[130]==1) ? 0: 1;
+		rdr->blockemm = 0;
+		rdr->blockemm |= (buf[128]==1) ? 0 : EMM_GLOBAL;
+		rdr->blockemm |= (buf[129]==1) ? 0 : EMM_SHARED;
+		rdr->blockemm |= (buf[130]==1) ? 0 : EMM_UNIQUE;
 		cs_log("%s CMD05 AU request for caid: %04X auprovid: %06lX",
 				rdr->label,
 				rdr->caid,
 				rdr->auprovid);
 	}
 
-	if (buf[0] == 0x08 && !cfg.c35_suppresscmd08) {
+	if (buf[0] == 0x08 && ((rdr->ph.type == MOD_CONN_TCP && !cfg.c35_tcp_suppresscmd08) || (rdr->ph.type == MOD_CONN_UDP && !cfg.c35_udp_suppresscmd08))) {
 		if(buf[21] == 0xFF) {
 			client->stopped = 2; // server says sleep
 			rdr->card_status = NO_CARD;

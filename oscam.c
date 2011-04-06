@@ -649,7 +649,7 @@ void cs_exit(int sig)
 #ifndef OS_CYGWIN32
 	snprintf(targetfile, 255, "%s%s", get_tmp_dir(), "/oscam.version");
 	if (unlink(targetfile) < 0)
-		cs_log("cannot remove oscam version file %s errno=(%d)", targetfile, errno);
+		cs_log("cannot remove oscam version file %s (errno=%d %s)", targetfile, errno, strerror(errno));
 #endif
 #ifdef COOL
 	coolapi_close_all();
@@ -818,6 +818,14 @@ void cs_reload_config()
 		#ifdef CS_ANTICASC
 		ac_init_stat();
 		#endif
+}
+
+static void init_signal_pre()
+{
+		set_signal_handler(SIGPIPE , 1, SIG_IGN);
+		set_signal_handler(SIGWINCH, 1, SIG_IGN);
+		set_signal_handler(SIGALRM , 1, SIG_IGN);
+		set_signal_handler(SIGHUP  , 1, SIG_IGN);
 }
 
 static void init_signal()
@@ -1105,19 +1113,32 @@ void start_anticascader()
 }
 #endif
 
-void restart_cardreader(struct s_reader *rdr, int restart) {
+static void remove_reader_from_active(struct s_reader *rdr) {
+  struct s_reader *rdr2, *prv = NULL;
+  for (rdr2=first_active_reader; rdr2 ; rdr2=rdr2->next) {
+    if (rdr2==rdr) {
+	  if (prv) prv->next = rdr2->next;
+	  else first_active_reader = rdr2->next;
+	  break;
+	}
+	prv = rdr2;
+  }
+}
+
+static void add_reader_to_active(struct s_reader *rdr) {
+  struct s_reader *rdr2;
+  rdr->next = NULL;
+  if (first_active_reader) {
+    for (rdr2=first_active_reader; rdr2->next ; rdr2=rdr2->next) ; //search last element
+	rdr2->next = rdr;
+  } else first_active_reader = rdr;
+}
+
+int restart_cardreader(struct s_reader *rdr, int restart) {
 
 	if (restart) {
 		//remove from list:	
-		struct s_reader *rdr2, *prv = NULL;
-		for (rdr2=first_active_reader; rdr2 ; rdr2=rdr2->next) {
-			if (rdr2==rdr) {
-				if (prv) prv->next = rdr2->next;
-				else first_active_reader = rdr2->next;
-				break;
-			}
-			prv = rdr2;
-		}
+		remove_reader_from_active(rdr);
 	}
 
 	if (restart) //kill old thread
@@ -1132,13 +1153,13 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 	if (rdr->device[0] && (rdr->typ & R_IS_CASCADING)) {
 		if (!rdr->ph.num) {
 			cs_log("Protocol Support missing. (typ=%d)", rdr->typ);
-			return;
+			return 0;
 		}
 		cs_debug_mask(D_TRACE, "reader %s protocol: %s", rdr->label, rdr->ph.desc);
 	}
 
 	if (rdr->enable == 0)
-		return;
+		return 0;
 
 	if (rdr->device[0]) {
 		if (restart) {
@@ -1146,7 +1167,7 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 		}
 
 		struct s_client * cl = create_client(first_client->ip);
-		if (cl == NULL) return;
+		if (cl == NULL) return 0;
 
 
 		rdr->fd=cl->fd_m2c;
@@ -1177,21 +1198,20 @@ void restart_cardreader(struct s_reader *rdr, int restart) {
 		
 		if (restart) {
 			//add to list
-			struct s_reader *rdr2;
-			rdr->next = NULL;
-			if (first_active_reader) {
-				for (rdr2=first_active_reader; rdr2->next ; rdr2=rdr2->next) ; //search last element
-				rdr2->next = rdr;
-			} else first_active_reader = rdr;
+			add_reader_to_active(rdr);
 		}
+		return 1;
 	}
+	return 0;
 }
 
 static void init_cardreader() {
+
 	struct s_reader *rdr;
-	for (rdr=first_active_reader; rdr ; rdr=rdr->next)
-		if (rdr->device[0])
-			restart_cardreader(rdr, 0);
+	for (rdr=first_active_reader; rdr ; rdr=rdr->next) {
+		if (!restart_cardreader(rdr, 0))
+			remove_reader_from_active(rdr);
+	}
 	load_stat_from_file();
 }
 
@@ -1295,6 +1315,7 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 				client->disabled = account->disabled;
 				client->allowedtimeframe[0] = account->allowedtimeframe[0];
 				client->allowedtimeframe[1] = account->allowedtimeframe[1];
+				if(account->firstlogin == 0) account->firstlogin = time((time_t)0);
 				client->failban = account->failban;
 				client->c35_suppresscmd08 = account->c35_suppresscmd08;
 				client->ncd_keepalive = account->ncd_keepalive;
@@ -1637,7 +1658,7 @@ void logCWtoFile(ECM_REQUEST *er)
 	if ((pfCWL = fopen(buf, "a+")) == NULL) {
 		/* maybe this fails because the subdir does not exist. Is there a common function to create it?
 			for the moment do not print to log on every ecm
-			cs_log(""error opening cw logfile for writing: %s (errno %d)", buf, errno); */
+			cs_log(""error opening cw logfile for writing: %s (errno=%d %s)", buf, errno, strerror(errno)); */
 		return;
 	}
 	if (writeheader) {
@@ -1768,7 +1789,7 @@ ECM_REQUEST *get_ecmtask()
 	n=(-1);
 	if (!cl->ecmtask)
 	{
-		cs_log("Cannot allocate memory (errno=%d)", errno);
+		cs_log("Cannot allocate memory (errno=%d %s)", errno, strerror(errno));
 		n=(-2);
 	}
 	else
@@ -2625,13 +2646,13 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 
 		int is_blocked = 0;
 		switch (ep->type) {
-			case UNKNOWN: is_blocked = aureader->blockemm_unknown;
+			case UNKNOWN: is_blocked = (aureader->blockemm & EMM_UNKNOWN) ? 1 : 0;
 				break;
-			case UNIQUE: is_blocked = aureader->blockemm_u;
+			case UNIQUE: is_blocked = (aureader->blockemm & EMM_UNIQUE) ? 1 : 0;
 				break;
-			case SHARED: is_blocked = aureader->blockemm_s;
+			case SHARED: is_blocked = (aureader->blockemm & EMM_SHARED) ? 1 : 0;
 				break;
-			case GLOBAL: is_blocked = aureader->blockemm_g;
+			case GLOBAL: is_blocked = (aureader->blockemm & EMM_GLOBAL) ? 1 : 0;
 				break;
 		}
 
@@ -3255,13 +3276,14 @@ if (pthread_key_create(&getclient, NULL)) {
 	  }
   }
 
+
 #ifdef OS_MACOSX
   if (bg && daemon_compat(1,0))
 #else
   if (bg && daemon(1,0))
 #endif
   {
-    cs_log("Error starting in background (errno=%d: %s)", errno, strerror(errno));
+    printf("Error starting in background (errno=%d: %s)", errno, strerror(errno));
     cs_exit(1);
   }
 
@@ -3273,9 +3295,26 @@ if (pthread_key_create(&getclient, NULL)) {
   memset(&cfg, 0, sizeof(struct s_config));
 
   if (cs_confdir[strlen(cs_confdir)]!='/') strcat(cs_confdir, "/");
+  init_signal_pre(); // because log could cause SIGPIPE errors, init a signal handler first
   init_first_client();
   init_config();
   init_stat();
+  
+  struct tm timeinfo;
+  memset(&timeinfo, 0x00, sizeof(timeinfo));
+  if(strptime(__DATE__, "%b %e %Y", &timeinfo)){
+	  time_t builddate = mktime(&timeinfo) - 86400;
+	  int i = 0;
+	  while(time((time_t)0) < builddate){
+	  	cs_log("The current system time is smaller than the build date (%s). Waiting 5s for time to correct... %s", __DATE__);
+	  	cs_sleepms(5000);
+	  	++i;
+	  	if(i > 12){
+	  		cs_log("Waiting was not successful. OSCam will be started but is UNSUPPORTED this way. Do not report any errors with this version.");
+				break;
+	  	}
+	  }
+	}
 
   for (i=0; mod_def[i]; i++)  // must be later BEFORE init_config()
   {
@@ -3512,7 +3551,7 @@ void cs_switch_led(int led, int action) {
 
 		if (!(f=fopen(ledfile, "w"))){
 			// FIXME: sometimes cs_log was not available when calling cs_switch_led -> signal 11
-			//cs_log("Cannot open file \"%s\" (errno=%d)", ledfile, errno);
+			//cs_log("Cannot open file \"%s\" (errno=%d %s)", ledfile, errno, strerror(errno));
 			return;
 		}
 		fprintf(f,"%d", action);

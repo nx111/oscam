@@ -180,6 +180,11 @@ seconds beetween restarts, 0 = disable reader restart, default:5
 1 = ECM will be send to two or more readers with the same SC and the CWs will be verified against each other, \fBlb_nbest_readers\fP must be set to 2 or higher, default:0
 .RE
 .PP
+\fBsuppresscmd08\fP = \fB0\fP|\fB1\fP
+.RS 3n
+0= tell camd 3.5x, 3.57x and 3.78x clients not to request again for rejected CAID, service ID and provider ID combination, 1 = disable, default:0
+.RE
+.PP
 \fBlb_mode\fP = \fBmode\fP 
 .RS 3n
 loadbalance mode:
@@ -389,7 +394,7 @@ set right language for wiki entry point, default:en
 .PP
 \fBport\fP = \fB0\fP|\fBport\fP
 .RS 3n
-TCP/IP port for camd 3.3x clients, 0 = disabled, default:0
+TCP port for camd 3.3x clients, 0 = disabled, default:0
 .RE
 .PP
 \fBserverip\fP = \fBIP address\fP
@@ -426,11 +431,51 @@ UDP port for camd 3.5x clients, 0 = disabled, default:0
 .RS 3n
 bind service to specified IP address, default:all
 .RE
+.PP
+\fBsuppresscmd08\fP = \fB0\fP|\fB1\fP
+.RS 3n
+0= tell camd 3.5x clients not to request again for rejected CAID, service ID and provider ID combination, 1 = disable, default:0
+.RE
+.SS "The [cs357x] section"
+.PP
+\fBport\fP = \fB0\fP|\fBport\fP
+.RS 3n
+UDP port for camd 3.57x clients, 0 = disabled, default:0
+.RE
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.PP
+\fBsuppresscmd08\fP = \fB0\fP|\fB1\fP
+.RS 3n
+0= tell camd 3.57x clients not to request again for rejected CAID, service ID and provider ID combination, 1 = disable, default:0
+.RE
+.SS "The [cs378x] section"
+.PP
+\fBport\fP = \fB0\fP|\fBport[@CAID][:ident][,ident]...[;port@CAID[:ident][,ident]...]...\fP
+.RS 3n
+TCP port/CAID/ident definitions for camd 3.78x clients, 0 = disabled, default:0
+
+ examples: port = 10000@0100:100000;20000@0200:200000,300000,400000
+           port = 30000
+.RE
+.PP
+\fBserverip\fP = \fBIP address\fP
+.RS 3n
+bind service to specified IP address, default:all
+.RE
+.PP
+\fBsuppresscmd08\fP = \fB0\fP|\fB1\fP
+.RS 3n
+0= tell camd 3.78x clients not to request again for rejected CAID, service ID and provider ID combination, 1 = disable, default:0
+.RE
 .SS "The [newcamd] section"
 .PP
 \fBmgclient\fP = \fB0\fP|\fB1\fP
 .RS 3n
-1 = enable mgcamd extended newcamd protocol,  allowing for a single connection to work with mutliple providers, default:0
+1 = provide share information of all available CAIDs and provider IDs to mgcamd clients, default:0
 .RE
 .PP
 \fBkey\fP = \fBDES key\fP
@@ -505,42 +550,6 @@ supported serial devices:
  SSSP    (simple serial sharing protocol)
  bomba   (BOMBA firmware)
  dsr9500 (DSR 9500)
-.RE 
-.SS "The [cs357x] section"
-.PP
-\fBport\fP = \fB0\fP|\fBport\fP
-.RS 3n
-UDP port for camd 3.57x clients, 0 = disabled, default:0
-.RE
-.PP
-\fBserverip\fP = \fBIP address\fP
-.RS 3n
-bind service to specified IP address, default:all
-.RE
-.PP
-\fBsuppresscmd08\fP = \fB0\fP|\fB1\fP
-.RS 3n
-0 = CMD08 enabled, 1 = CMD08 disabled, default:0
-.RE
-.SS "The [cs378x] section"
-.PP
-\fBport\fP = \fB0\fP|\fBport@CAID[:ident][,ident]...[;port@CAID[:ident][,ident]...]...\fP
-.RS 3n
-TCP port/CAID/ident definitions for camd 3.78x clients,0 = disabled, default:0
-
- example: port = 10000@0100:100000;20000@0200:200000,300000,400000
-
- Each CAID requires a separate port.
-.RE
-.PP
-\fBserverip\fP = \fBIP address\fP
-.RS 3n
-bind service to specified IP address, default:all
-.RE
-.PP
-\fBsuppresscmd08\fP = \fB0\fP|\fB1\fP
-.RS 3n
-0 = CMD08 enabled, 1 = CMD08 disabled, default:0
 .RE
 .SS "The [cccam] section"
 .PP
@@ -658,12 +667,12 @@ Create file /tmp/.pauseoscam to pause DVB API, e.g. if STB goes into standby and
 user name for DVB API client, default:anonymous
 .RE
 .PP
-\fBignore\fP = \fB<CAID>[,<CAID>]...\fP
+\fBignore\fP = \fB<CAID>[,<CAID>]...\fP \fI(detached by oscam.dvbapi, obsolete)\fR
 .RS 3n
 CAIDs to be ignored, default:none
 .RE
 .PP
-\fBpriority\fP = \fB<CAID>:<provider ID>[,CAID:<provider ID>]...\fP
+\fBpriority\fP = \fB<CAID>:<provider ID>[,CAID:<provider ID>]...\fP \fI(detached by oscam.dvbapi, obsolete)\fR
 .RS 3n
 CAIDs and provider IDs to be prioritized, default:CAIDs and provider IDs of local SCs will be prioritized
 .RE

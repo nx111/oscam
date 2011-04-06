@@ -98,7 +98,7 @@ int dvbapi_set_filter(int demux_id, int api, unsigned short pid, uchar *filt, uc
 	}
 
 	if (ret < 0)
-		cs_debug_mask(D_DVBAPI, "could not start demux filter (Errno: %d)", errno);
+		cs_debug_mask(D_DVBAPI, "could not start demux filter (errno=%d %s)", errno, strerror(errno));
 
 	return ret;
 }
@@ -199,7 +199,7 @@ int dvbapi_read_device(int dmx_fd, unsigned char *buf, int length)
 	len = read(dmx_fd, buf, length);
 
 	if (len==-1)
-		cs_log("read error %d on fd %d", errno, dmx_fd);
+		cs_log("read error on fd %d (errno=%d %s)", dmx_fd, errno, strerror(errno));
 
 	return len;
 }
@@ -228,7 +228,7 @@ int dvbapi_open_device(int type, int num, int adapter) {
 	}
 
 	if ((dmx_fd = open(device_path, O_RDWR)) < 0) {
-		cs_debug_mask(D_DVBAPI, "error opening device %s (Errno: %d)", device_path, errno);
+		cs_debug_mask(D_DVBAPI, "error opening device %s (errno=%d %s)", device_path, errno, strerror(errno));
 		return -1;
 	}
 
@@ -325,7 +325,7 @@ int dvbapi_find_emmpid(int demux_id, uint8 type) {
 
 void dvbapi_start_emm_filter(int demux_index) {
 	int j;
-	char *typtext[]={"UNKNOWN", "UNIQUE", "SHARED", "GLOBAL"};
+	const char *typtext[] = { "UNIQUE", "SHARED", "GLOBAL", "UNKNOWN" };
 
 	if (demux[demux_index].pidindex==-1) return;
 
@@ -368,15 +368,19 @@ void dvbapi_start_emm_filter(int demux_index) {
 		int count=dmx_filter[startpos+1];
 		int l=-1;
 
-		switch(emmtype) {
-			case GLOBAL: l=dvbapi_find_emmpid(demux_index, T_GLOBAL); break;
-			case SHARED: l=dvbapi_find_emmpid(demux_index, T_SHARED); break;
-			case UNIQUE: l=dvbapi_find_emmpid(demux_index, T_UNIQUE); break;
-		}
+		if ( (filter[0] && ((demux[demux_index].rdr->b_nano[filter[0]] & 0x01) && !(demux[demux_index].rdr->b_nano[filter[0]] & 0x02))) )
+			continue;
+
+		if ((demux[demux_index].rdr->blockemm & emmtype) && !(demux[demux_index].rdr->b_nano[filter[0]] & 0x02))
+			continue;
+
+		l = dvbapi_find_emmpid(demux_index, emmtype);
 
 		if (l>-1) {
-			cs_debug_mask(D_DVBAPI, "starting emm filter %s, pid: 0x%04X", typtext[emmtype], demux[demux_index].EMMpids[l].PID);
-			cs_ddump_mask(D_DVBAPI, filter, 32, "demux filter:");
+			unsigned int typtext_idx = 0;
+			while (((emmtype >> typtext_idx) & 0x01) == 0 && typtext_idx < sizeof(typtext) / sizeof(const char *))
+                           ++typtext_idx;
+			cs_ddump_mask(D_DVBAPI, filter, 32, "starting emm filter type %s, pid: 0x%04X", typtext[typtext_idx], demux[demux_index].EMMpids[l].PID);
 			dvbapi_set_filter(demux_index, selected_api, demux[demux_index].EMMpids[l].PID, filter, filter+16, 0, demux[demux_index].pidindex, count, TYPE_EMM);
 		} else {
 			cs_debug_mask(D_DVBAPI, "no emm pid found");
@@ -448,13 +452,13 @@ void dvbapi_parse_cat(int demux_id, uchar *buf, int len) {
 
 		switch (caid >> 8) {
 			case 0x01:
-				dvbapi_add_emmpid(demux_id, caid, emm_pid, 0, T_UNIQUE);
+				dvbapi_add_emmpid(demux_id, caid, emm_pid, 0, EMM_UNIQUE);
 				cs_debug_mask(D_DVBAPI, "[cat] CAID: %04x\tEMM_PID: %04x", caid, emm_pid);
 				for (k = i+7; k < i+buf[i+1]+2; k += 4) {
 					emm_provider = (buf[k+2] << 8| buf[k+3]);
 					emm_pid = (buf[k] & 0x0F) << 8 | buf[k+1];
 					cs_debug_mask(D_DVBAPI, "[cat] CAID: %04X\tEMM_PID: %04X\tPROVID: %06X", caid, emm_pid, emm_provider);
-					dvbapi_add_emmpid(demux_id, caid, emm_pid, emm_provider, T_SHARED);
+					dvbapi_add_emmpid(demux_id, caid, emm_pid, emm_provider, EMM_SHARED);
 				}
 				break;
 			case 0x05:
@@ -462,18 +466,18 @@ void dvbapi_parse_cat(int demux_id, uchar *buf, int len) {
 					if (buf[k]==0x14) {
 						emm_provider = buf[k+2] << 16 | (buf[k+3] << 8| (buf[k+4] & 0xF0));
 						cs_debug_mask(D_DVBAPI, "[cat] CAID: %04x\tEMM_PID: %04x\tPROVID: %06X", caid, emm_pid, emm_provider);
-						dvbapi_add_emmpid(demux_id, caid, emm_pid, emm_provider, T_UNIQUE|T_SHARED|T_GLOBAL);
+						dvbapi_add_emmpid(demux_id, caid, emm_pid, emm_provider, EMM_UNIQUE|EMM_SHARED|EMM_GLOBAL);
 					}
 				}
 				break;
 			case 0x18:
 				emm_provider = (buf[i+1] == 0x07) ? (buf[i+6] << 16 | (buf[i+7] << 8| (buf[i+8]))) : 0;
 				cs_debug_mask(D_DVBAPI, "[cat] CAID: %04x\tEMM_PID: %04x\tPROVID: %06X", caid, emm_pid, emm_provider);
-				dvbapi_add_emmpid(demux_id, caid, emm_pid, emm_provider, T_UNIQUE|T_SHARED|T_GLOBAL);
+				dvbapi_add_emmpid(demux_id, caid, emm_pid, emm_provider, EMM_UNIQUE|EMM_SHARED|EMM_GLOBAL);
 				break;
 			default:
 				cs_debug_mask(D_DVBAPI, "[cat] CAID: %04x\tEMM_PID: %04x", caid, emm_pid);
-				dvbapi_add_emmpid(demux_id, caid, emm_pid, 0, T_UNIQUE|T_SHARED|T_GLOBAL);
+				dvbapi_add_emmpid(demux_id, caid, emm_pid, 0, EMM_UNIQUE|EMM_SHARED|EMM_GLOBAL);
 				break;
 		}
 	}
@@ -519,7 +523,7 @@ void dvbapi_set_pid(int demux_id, int num, int index) {
 						ca_pid2.pid = demux[demux_id].STREAMpids[num];
 						ca_pid2.index = index;
 						if (ioctl(ca_fd[i], CA_SET_PID, &ca_pid2)==-1)
-							cs_debug_mask(D_DVBAPI, "Error CA_SET_PID pid=0x%04x index=%d errno=%d", ca_pid2.pid, ca_pid2.index, errno);
+							cs_debug_mask(D_DVBAPI, "Error CA_SET_PID pid=0x%04x index=%d (errno=%d %s)", ca_pid2.pid, ca_pid2.index, errno, strerror(errno));
 						else
 							cs_debug_mask(D_DVBAPI, "CA_SET_PID pid=0x%04x index=%d", ca_pid2.pid, ca_pid2.index);
 					}
@@ -1429,7 +1433,7 @@ void event_handler(int signal) {
 
 	dirp = opendir(TMPDIR);
 	if (!dirp) {
-		cs_log("opendir errno %d", errno);
+		cs_log("opendir failed (errno=%d %s)", errno, strerror(errno));
 		pthread_mutex_unlock(&event_handler_lock);
 		return;
 	}
@@ -1811,7 +1815,7 @@ void * dvbapi_main_local(void *cli) {
 						disable_pmt_files=1;
 
 						if (connfd <= 0) {
-							cs_log("accept() returns error %d, fd event %d", errno, pfd2[i].revents);
+							cs_log("accept() returns error on fd event %d (errno=%d %s)", pfd2[i].revents, errno, strerror(errno));
 							continue;
 						}
 					} else {
@@ -2082,7 +2086,7 @@ static int stapi_open() {
 
 	dirp = opendir(PROCDIR);
 	if (!dirp) {
-		cs_log("opendir errno %d", errno);
+		cs_log("opendir failed (errno=%d %s)", errno, strerror(errno));
 		return FALSE;
 	}
 

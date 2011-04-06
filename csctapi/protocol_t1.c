@@ -249,7 +249,7 @@ int Protocol_T1_Command (struct s_reader *reader, unsigned char * command, unsig
 
   if (buffer != NULL)
     free (buffer);
-
+  
   return ret;
 }
 

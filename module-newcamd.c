@@ -319,6 +319,7 @@ static int connect_newcamd_server()
 
   // 3.2 Set connection info
   cl->reader->tcp_connected = 1;
+  cl->crypted = 1;
 
   // 4. Send MSG_CARD_DATE_REQ
   des_login_key_get(cl->reader->ncd_key, passwdcrypt, strlen((char *)passwdcrypt), key);
@@ -828,11 +829,11 @@ static void newcamd_auth_client(in_addr_t ip, uint8 *deskey)
 
         if (aureader)
         {
-          if (aureader->blockemm_g)
+          if (aureader->blockemm & EMM_GLOBAL)
             cd.sid |= 4;
-          if (aureader->blockemm_s)
+          if (aureader->blockemm & EMM_SHARED)
             cd.sid |= 2;
-          if (aureader->blockemm_u)
+          if (aureader->blockemm & EMM_UNIQUE)
             cd.sid |= 1;
         }
 
@@ -969,7 +970,7 @@ static void * newcamd_server(void *cli)
   client->req=(uchar *)malloc(CS_MAXPENDING*REQ_SIZE);
   if (!client->req)
   {
-    cs_log("Cannot allocate memory (errno=%d)", errno);
+    cs_log("Cannot allocate memory (errno=%d %s)", errno, strerror(errno));
     cs_exit(1);
   }
 
@@ -1113,7 +1114,7 @@ int newcamd_client_init(struct s_client *client)
 
   if ((client->udp_fd=socket(PF_INET, SOCK_STREAM, p_proto))<0)
   {
-    cs_log("Socket creation failed (errno=%d)", errno);
+    cs_log("Socket creation failed (errno=%d %s)", errno, strerror(errno));
     cs_exit(1);
   }
 
@@ -1132,7 +1133,7 @@ int newcamd_client_init(struct s_client *client)
   {
     if (bind(client->udp_fd, (struct sockaddr *)&loc_sa, sizeof (loc_sa))<0)
     {
-      cs_log("bind failed (errno=%d)", errno);
+      cs_log("bind failed (errno=%d %s)", errno, strerror(errno));
       close(client->udp_fd);
       return(1);
     }
