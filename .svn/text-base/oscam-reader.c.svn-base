@@ -65,6 +65,12 @@ int casc_recv_timer(struct s_reader * reader, uchar *buf, int l, int msec)
   struct s_client *cl = reader->client;
 
   if (!cl->pfd) return(-1);
+  
+  if (!reader->ph.recv) {
+    cs_log("reader %s: unsupported protocol!", reader->label);
+    return(-1);        
+  }
+            
   tv.tv_sec = msec/1000;
   tv.tv_usec = (msec%1000)*1000;
   FD_ZERO(&fds);
@@ -799,10 +805,13 @@ static void reader_main(struct s_reader * reader)
   }
 }
 
+#pragma GCC diagnostic ignored "-Wempty-body" 
 void * start_cardreader(void * rdr)
 {
 	struct s_reader * reader = (struct s_reader *) rdr;
-
+	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+	pthread_cleanup_push(cleanup_thread, (void *)reader->client);
+	
 	reader->client->thread=pthread_self();
 	pthread_setspecific(getclient, reader->client);
 
@@ -853,7 +862,8 @@ void * start_cardreader(void * rdr)
   }
   memset(reader->client->ecmtask, 0, CS_MAXPENDING*(sizeof(ECM_REQUEST)));
   reader_main(reader);
-  cs_exit(0);
+  pthread_cleanup_pop(0);
 	return NULL; //dummy to prevent compiler error
 }
+#pragma GCC diagnostic warning "-Wempty-body"
 

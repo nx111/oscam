@@ -281,6 +281,7 @@ extern char *RDR_CD_TXT[];
 #define DEFAULT_RETRYLIMIT 800
 #define DEFAULT_LB_STAT_CLEANUP 336
 #define DEFAULT_LB_USE_LOCKING 0
+#define DEFAULT_LB_REOPEN_MODE 0
 #define DEFAULT_UPDATEINTERVAL 240
 
 enum {E1_GLOBAL=0, E1_USER, E1_READER, E1_SERVER, E1_LSERVER};
@@ -1164,6 +1165,8 @@ struct s_config
 	char	*lb_savepath; //path where the stat file is save. Empty=default=/tmp/.oscam/stat
 	int	lb_stat_cleanup; //duration in hours for cleaning old statistics
 	int lb_use_locking; //use a mutex lock while searching for readers (get_cw())
+	int lb_reopen_mode; //reopen readers mode
+	
 	int             resolve_gethostbyname;
 
 #ifdef CS_WITH_DOUBLECHECK
@@ -1200,6 +1203,12 @@ struct s_config
 #ifdef QBOXHD_LED
     int disableqboxhdled; // disable qboxhd led , default = 0
 #endif
+};
+
+struct s_clientinit
+{
+	void *(*handler)(struct s_client*);
+	struct s_client * client;
 };
 
 //Loadbalance constants:
@@ -1394,6 +1403,8 @@ extern void update_reader_config(uchar *ptr);
 extern int chk_ctab(ushort caid, CAIDTAB *ctab);
 extern int chk_srvid_by_caid_prov(struct s_client *, ushort caid, ulong provid);
 extern void nullclose(int *fd);
+extern void *clientthread_init(void * init);
+extern void cleanup_thread(void *var);
 extern void kill_thread(struct s_client *cl);
 extern int get_threadnum(struct s_client *client);
 extern void cs_add_violation(uint ip);

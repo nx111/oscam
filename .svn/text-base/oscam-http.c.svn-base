@@ -229,6 +229,7 @@ char *send_oscam_config_loadbalancer(struct templatevars *vars, struct uriparams
 	tpl_printf(vars, TPLADD, "LBREOPENSECONDS", "%d",cfg.lb_reopen_seconds);
 	tpl_printf(vars, TPLADD, "LBCLEANUP", "%d",cfg.lb_stat_cleanup);
 	if (cfg.lb_use_locking) tpl_addVar(vars, TPLADD, "USELOCKINGCHECKED", "selected");
+	if (cfg.lb_reopen_mode) tpl_addVar(vars, TPLADD, "REOPENMODE", "selected");
 
 	value = mk_t_caidtab(&cfg.lb_noproviderforcaid);
 	tpl_addVar(vars, TPLADD, "LBNOPROVIDERFORCAID", value);
@@ -2399,8 +2400,8 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 							LLIST *cards = rcc->cards;
 							if (cards) {
 								int cnt = ll_count(cards);
-								if(cnt == 1) tpl_addVar(vars, TPLAPPEND, "CLIENTCON", " (1 card)");
-								else if(cnt > 1) tpl_printf(vars, TPLAPPEND, "CLIENTCON", " (%d cards)", cnt);
+								if(cnt == 1) tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" title=\"Show cards\">(1 card)</A>", urlencode(vars, cl->reader->label));
+								else if(cnt > 1) tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" title=\"Show cards\">(%d cards)</A>", urlencode(vars, cl->reader->label), cnt);
 							}
 						}
 					}

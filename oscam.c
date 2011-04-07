@@ -487,6 +487,7 @@ void cs_accounts_chk()
         account2->cwtout = account1->cwtout;
         account2->emmok = account1->emmok;
         account2->emmnok = account1->emmnok;
+        account2->firstlogin = account1->firstlogin;
       }
     }
   }
@@ -528,43 +529,52 @@ static void cleanup_ecmtasks(struct s_client *cl)
         cl->ecmtask = NULL;
 }
 
-static void cleanup_thread(struct s_client *cl)
+void cleanup_thread(void *var)
 {
-	struct s_client *prev, *cl2;
-	for (prev=first_client, cl2=first_client->next; prev->next != NULL; prev=prev->next, cl2=cl2->next)
-		if (cl == cl2)
-			break;
-	if (cl != cl2)
-		cs_log("FATAL ERROR: could not find client to remove from list.");
-	else
-		prev->next = cl2->next; //remove client from list
-
-	if(cl->typ == 'c' && ph[cl->ctyp].cleanup)
-		ph[cl->ctyp].cleanup(cl);
-    else if (cl->reader && cl->reader->ph.cleanup)
-        cl->reader->ph.cleanup(cl);
-
-	if(cl->pfd)		nullclose(&cl->pfd); //Closing Network socket
-	if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
-	if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
-
-	if(cl->typ == 'r' && cl->reader){
-		if(cl->reader->aes_list) {
-			aes_clear_entries(cl->reader);
+	struct s_client *cl = var;
+	if(cl){
+		struct s_client *prev, *cl2;
+		for (prev=first_client, cl2=first_client->next; prev->next != NULL; prev=prev->next, cl2=cl2->next)
+			if (cl == cl2)
+				break;
+		if (cl != cl2)
+			cs_log("FATAL ERROR: could not find client to remove from list.");
+		else
+			prev->next = cl2->next; //remove client from list
+	
+		if(cl->typ == 'c' && ph[cl->ctyp].cleanup)
+			ph[cl->ctyp].cleanup(cl);
+	    else if (cl->reader && cl->reader->ph.cleanup)
+	        cl->reader->ph.cleanup(cl);
+	  if(cl->typ == 'c'){
+	    cs_statistics(cl);
+	    cl->last_caid = 0xFFFF;
+	    cl->last_srvid = 0xFFFF;
+	    cs_statistics(cl);
+	  }
+	
+		if(cl->pfd)		nullclose(&cl->pfd); //Closing Network socket
+		if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
+		if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
+	
+		if(cl->typ == 'r' && cl->reader){
+			if(cl->reader->aes_list) {
+				aes_clear_entries(cl->reader);
+			}
+			// Maybe we also need a "nullclose" mechanism here...
+			ICC_Async_Close(cl->reader);
 		}
-		// Maybe we also need a "nullclose" mechanism here...
-		ICC_Async_Close(cl->reader);
+		if (cl->reader) {
+			cl->reader->client = NULL;
+			cl->reader = NULL;
+	    }
+		cleanup_ecmtasks(cl);
+		add_garbage(cl->emmcache);
+		add_garbage(cl->req);
+		add_garbage(cl->cc);
+		add_garbage(cl->serialdata);
+		add_garbage(cl);
 	}
-	if (cl->reader) {
-		cl->reader->client = NULL;
-		cl->reader = NULL;
-    }
-	cleanup_ecmtasks(cl);
-	add_garbage(cl->emmcache);
-	add_garbage(cl->req);
-	add_garbage(cl->cc);
-	add_garbage(cl->serialdata);
-	add_garbage(cl);
 }
 
 static void cs_cleanup()
@@ -660,7 +670,6 @@ void cs_exit(int sig)
 	// this is very important - do not remove
 	if (cl->typ != 's') {
 		cs_log("thread %8X ended!", pthread_self());
-		cleanup_thread(cl);
 		//Restore signals before exiting thread
 		set_signal_handler(SIGPIPE , 0, cs_sigpipe);
 		set_signal_handler(SIGHUP  , 1, cs_reload_config);
@@ -831,7 +840,7 @@ static void init_signal_pre()
 static void init_signal()
 {
 		set_signal_handler(SIGINT, 3, cs_exit);
-		set_signal_handler(SIGKILL, 3, cs_exit);
+		//set_signal_handler(SIGKILL, 3, cs_exit);
 #ifdef OS_MACOSX
 		set_signal_handler(SIGEMT, 3, cs_exit);
 #else
@@ -1066,6 +1075,21 @@ int cs_user_resolve(struct s_auth *account)
 	return result;
 }
 
+#pragma GCC diagnostic ignored "-Wempty-body" 
+void *clientthread_init(void * init){
+	struct s_clientinit clientinit;
+	memcpy(&clientinit, init, sizeof(struct s_clientinit)); //copy to stack to free init pointer
+	free(init);
+	
+	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+	pthread_setspecific(getclient, clientinit.client);
+	pthread_cleanup_push(cleanup_thread, (void *) clientinit.client);
+	clientinit.handler(clientinit.client);
+	pthread_cleanup_pop(0);
+	return NULL;
+}
+#pragma GCC diagnostic warning "-Wempty-body" 
+
 void start_thread(void * startroutine, char * nameroutine) {
 	pthread_t temp;
 	pthread_attr_t attr;
@@ -1088,9 +1112,7 @@ void kill_thread(struct s_client *cl) { //cs_exit is used to let thread kill its
 	if (pthread_equal(cl->thread, pthread_self())) return; //cant kill yourself
 
 	pthread_cancel(cl->thread);
-	cs_sleepms(30); //some sleep before cleanup! sometimes thread kill cancel needs some time!
 	cs_log("thread %8X killed!", cl->thread);
-	cleanup_thread(cl); //FIXME what about when cancellation was not granted immediately?
 	return;
 }
 
@@ -1187,6 +1209,7 @@ int restart_cardreader(struct s_reader *rdr, int restart) {
         /* pcsc doesn't like this either; segfaults on x86, x86_64 */
 		pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
 #endif
+	
 		if (pthread_create(&cl->thread, &attr, start_cardreader, (void *)rdr)) {
 			cs_log("ERROR: can't create thread for %s", rdr->label);
 			cleanup_thread(cl);
@@ -3004,9 +3027,16 @@ int accept_connection(int i, int j) {
 #ifndef TUXBOX
 				pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
 #endif
-				if (pthread_create(&cl->thread, &attr, ph[i].s_handler, (void *) cl)) {
+				//We need memory here, because when on stack and we leave the function, stack is overwritten, 
+				//but assigned to the thread
+				//So alloc memory for the init data and free them in clientthread_init:
+				struct s_clientinit *init = cs_malloc(&init, sizeof(struct s_clientinit), 0); 
+				init->handler = ph[i].s_handler;
+				init->client = cl;
+				if (pthread_create(&cl->thread, &attr, clientthread_init, (void*) init)) {
 					cs_log("ERROR: can't create thread for UDP client from %s", inet_ntoa(*(struct in_addr *)&cad.sin_addr.s_addr));
 					cleanup_thread(cl);
+					free(init);
 				}
 				else
 					pthread_detach(cl->thread);
@@ -3047,9 +3077,17 @@ int accept_connection(int i, int j) {
 #ifndef TUXBOX
 			pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
 #endif
-			if (pthread_create(&cl->thread, &attr, ph[i].s_handler, (void*) cl)) {
+
+			//We need memory here, because when on stack and we leave the function, stack is overwritten, 
+			//but assigned to the thread
+			//So alloc memory for the init data and free them in clientthread_init:
+			struct s_clientinit *init = cs_malloc(&init, sizeof(struct s_clientinit), 0);
+			init->handler = ph[i].s_handler;
+			init->client = cl;			
+			if (pthread_create(&cl->thread, &attr, clientthread_init, (void*) init)) {
 				cs_log("ERROR: can't create thread for TCP client from %s", inet_ntoa(*(struct in_addr *)&cad.sin_addr.s_addr));
 				cleanup_thread(cl);
+				free(init);
 			}
 			else
 				pthread_detach(cl->thread);
