@@ -107,6 +107,11 @@
 #include "csctapi/smartreader_types.h"
 #endif
 
+// DM500 and Dbox2 have toolchains which don't match their plattform. Therefore pthread_cleanup_push can't be used (binaries compile but only work on DM 7020)
+#if defined(TUXBOX) && defined(PPC)
+#define NO_PTHREAD_CLEANUP_PUSH
+#endif
+
 #ifndef CS_CONFDIR
 #define CS_CONFDIR    "/usr/local/etc"
 #endif
@@ -601,6 +606,18 @@ typedef struct ecm_request_t
   char msglog[MSGLOGSIZE];
 } ECM_REQUEST;
 
+#ifdef CS_ANTICASC
+struct s_acasc_shm {
+  ushort ac_count : 15;
+  ushort ac_deny  : 1;
+};
+
+struct s_acasc {
+  ushort stat[10];
+  uchar  idx;    // current active index in stat[]
+};
+#endif
+
 struct s_client
 {
   in_addr_t	ip;
@@ -666,9 +683,8 @@ struct s_client
   int		port_idx;    // index in server ptab
   int		ncd_server;  // newcamd server
 #ifdef CS_ANTICASC
-  ushort	ac_idx;
   ushort	ac_limit;
-  uchar		ac_penalty;
+  struct	s_acasc_shm acasc;
 #endif
   FTAB		fchid;
   FTAB		ftab;        // user [caid] and ident filter
@@ -717,12 +733,17 @@ struct s_client
 
   //cs_hexdump buffer
   uchar dump[520];
+  
+  //an iterator to be used across OSCam; threadspecific
+  LL_ITER it;
+  int itused;
 
   //oscam.c
   struct timeval tv;
 
   //failban value set bitwise - compared with BAN_
   int failban;
+  int cleaned;
   struct s_client *next; //make client a linked list
 };
 
@@ -936,17 +957,6 @@ struct s_reader  //contains device info, reader info and card info
 };
 
 #ifdef CS_ANTICASC
-
-struct s_acasc_shm {
-  ushort ac_count : 15;
-  ushort ac_deny  : 1;
-};
-
-struct s_acasc {
-  ushort stat[10];
-  uchar  idx;    // current active index in stat[]
-};
-
 struct s_cpmap
 {
   ushort caid;
@@ -979,9 +989,9 @@ struct s_auth
   CLASSTAB cltab;
   TUNTAB   ttab;
 #ifdef CS_ANTICASC
-  int      ac_idx;
-  int      ac_users;   // 0 - unlimited
-  uchar    ac_penalty; // 0 - log, >0 - fake dw
+  int		ac_users;   // 0 - unlimited
+  uchar		ac_penalty; // 0 - log, >0 - fake dw
+  struct s_acasc ac_stat;
 #endif
   in_addr_t dynip;
   uchar     dyndns[64];
@@ -994,6 +1004,7 @@ struct s_auth
   int       cccmaxhops;
   int       cccreshare;
   int       cccignorereshare;
+  int		cccstealth;
   int       disabled;
   int 		failban;
   
@@ -1226,6 +1237,7 @@ typedef struct reader_stat_t
   ushort        caid;
   ulong         prid;
   ushort        srvid;
+  short			ecmlen;
 
   time_t        last_received;
 
@@ -1419,8 +1431,8 @@ extern void ac_clear();
 extern void ac_done_stat();
 extern int  ac_init_log();
 extern void ac_do_stat(void);
-extern void ac_init_client(struct s_auth *);
-extern void ac_chk(ECM_REQUEST*, int);
+extern void ac_init_client(struct s_client *, struct s_auth *);
+extern void ac_chk(struct s_client *,ECM_REQUEST*, int);
 #endif
 
 // oscam-config
@@ -1490,6 +1502,8 @@ extern char *mk_t_aureader(struct s_auth *account);
 extern char *mk_t_nano(struct s_reader *rdr, uchar flag);
 extern char *mk_t_service( uint64 sidtabok, uint64 sidtabno);
 extern char *mk_t_logfile();
+extern char *mk_t_iprange(struct s_ip *range);
+extern void free_mk_t(char *value);
 
 //Todo #ifdef CCCAM
 extern int init_provid();
@@ -1561,7 +1575,7 @@ extern int get_best_reader(ECM_REQUEST *er);
 extern void clear_reader_stat(struct s_reader *reader);
 extern void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int ecm_time, int rc);
 extern void load_stat_from_file();
-extern void save_stat_to_file();
+extern void save_stat_to_file(int);
 extern void clear_all_stat();
 extern void housekeeping_stat(int force);
 
@@ -1611,7 +1625,12 @@ extern void http_srv();
 #endif
 
 // oscam-garbage
+#ifdef WITH_DEBUG
+extern void add_garbage_debug(void *data, char *file, int line);
+#define add_garbage(x)	add_garbage_debug(x,__FILE__, __LINE__)
+#else
 extern void add_garbage(void *data);
+#endif
 extern void start_garbage_collector(int);
 extern void stop_garbage_collector();
 

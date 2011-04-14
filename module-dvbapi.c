@@ -407,13 +407,13 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 
 	for (n=0;n<demux[demux_id].ECMpidcount;n++) {
 		if (stream>-1 && demux[demux_id].ECMpids[n].CAID == caid && demux[demux_id].ECMpids[n].ECM_PID == ecmpid) {
-			if (demux[demux_id].ECMpids[n].slen == 0) {
+			if (!demux[demux_id].ECMpids[n].streams) {
 				//we already got this caid/ecmpid as global, no need to add the single stream
 				cs_debug_mask(D_DVBAPI, "[SKIP STREAM %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X", n, caid, ecmpid, provid);
 				continue;
 			}
 			added=1;
-			demux[demux_id].ECMpids[n].stream[demux[demux_id].ECMpids[n].slen++]=stream;
+			demux[demux_id].ECMpids[n].streams |= (1 << stream);
 			cs_debug_mask(D_DVBAPI,"[ADD STREAM %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X", stream, caid, ecmpid, provid);
 		}
 	}
@@ -425,7 +425,7 @@ void dvbapi_add_ecmpid(int demux_id, ushort caid, ushort ecmpid, ulong provid,in
 	demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].CAID = caid;
 	demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].PROVID = provid;
 	if (stream>-1)
-		demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].stream[demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].slen++]=stream;
+		demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].streams |= (1 << stream);
 
 	cs_log("[ADD PID %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X STREAM: %d", demux[demux_id].ECMpidcount, caid, ecmpid, provid,stream);
 	demux[demux_id].ECMpidcount++;
@@ -568,7 +568,7 @@ void dvbapi_start_descrambling(int demux_id) {
 				&& demux[demux_id].ECMpids[j].PROVID > 0)) {
 
 			if (demux[demux_id].curindex != j) {
-				if (demux[demux_id].ECMpids[j].status < 0 || demux[demux_id].ECMpids[demux[demux_id].curindex].slen == 0)
+				if (demux[demux_id].ECMpids[j].status < 0 || !demux[demux_id].ECMpids[demux[demux_id].curindex].streams)
 					continue;
 
 				dvbapi_start_filter(demux_id, j, demux[demux_id].ECMpids[j].ECM_PID, 0x80, 0xF0, 3000, TYPE_ECM, 0);
@@ -580,13 +580,12 @@ void dvbapi_start_descrambling(int demux_id) {
 			demux[demux_id].ECMpids[j].checked=1;
 			demux[demux_id].ECMpids[j].irdeto_curchid=demux[demux_id].ECMpids[demux[demux_id].curindex].irdeto_curchid;
 
-			if (demux[demux_id].ECMpids[j].slen>0) {
-				for (k=0; k<demux[demux_id].ECMpids[j].slen; k++)
-					dvbapi_set_pid(demux_id, demux[demux_id].ECMpids[j].stream[k], demux[demux_id].ECMpids[j].index-1);
-			} else {
-				for (k=0;k<demux[demux_id].STREAMpidcount;k++)
+			for (k=0;k<demux[demux_id].STREAMpidcount;k++) {
+				if (!demux[demux_id].ECMpids[j].streams || (demux[demux_id].ECMpids[j].streams & (1 << k))) {
 					dvbapi_set_pid(demux_id, k, demux[demux_id].ECMpids[j].index-1);
+				}
 			}
+
 			streamcount++;
 		}
 	}

@@ -135,7 +135,6 @@ void cs_add_lastresponsetime(struct s_client *cl, int ltime){
 	cl->cwlastresptimes[cl->cwlastresptimes_last] = ltime;
 }
 
-//Alno Test End
 /*****************************************************************************
         Statics
 *****************************************************************************/
@@ -488,6 +487,11 @@ void cs_accounts_chk()
         account2->emmok = account1->emmok;
         account2->emmnok = account1->emmnok;
         account2->firstlogin = account1->firstlogin;
+#ifdef CS_ANTICASC
+		account2->ac_users = account1->ac_users;
+		account2->ac_penalty = account1->ac_penalty;
+		account2->ac_stat = account1->ac_stat;
+#endif
       }
     }
   }
@@ -496,10 +500,6 @@ void cs_accounts_chk()
   init_free_userdb(old_accounts);
 
 #ifdef CS_ANTICASC
-//	struct s_client *cl;
-//	for (cl=first_client->next; cl ; cl=cl->next)
-//    if (cl->typ=='a')
-//      break;
   ac_clear();
 #endif
 }
@@ -532,7 +532,7 @@ static void cleanup_ecmtasks(struct s_client *cl)
 void cleanup_thread(void *var)
 {
 	struct s_client *cl = var;
-	if(cl){
+	if(cl && !cl->cleaned){
 		struct s_client *prev, *cl2;
 		for (prev=first_client, cl2=first_client->next; prev->next != NULL; prev=prev->next, cl2=cl2->next)
 			if (cl == cl2)
@@ -558,9 +558,6 @@ void cleanup_thread(void *var)
 		if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing client read fd
 	
 		if(cl->typ == 'r' && cl->reader){
-			if(cl->reader->aes_list) {
-				aes_clear_entries(cl->reader);
-			}
 			// Maybe we also need a "nullclose" mechanism here...
 			ICC_Async_Close(cl->reader);
 		}
@@ -574,13 +571,14 @@ void cleanup_thread(void *var)
 		add_garbage(cl->cc);
 		add_garbage(cl->serialdata);
 		add_garbage(cl);
+		cl->cleaned++;
 	}
 }
 
 static void cs_cleanup()
 {
 		if (cfg.lb_mode && cfg.lb_save) {
-				save_stat_to_file();
+				save_stat_to_file(0);
 				cfg.lb_save = 0; //this is for avoiding duplicate saves
 		}
 		
@@ -666,6 +664,9 @@ void cs_exit(int sig)
 	// this is very important - do not remove
 	if (cl->typ != 's') {
 		cs_log("thread %8X ended!", pthread_self());
+		#ifdef NO_PTHREAD_CLEANUP_PUSH
+		cleanup_thread(cl);
+		#endif
 		//Restore signals before exiting thread
 		set_signal_handler(SIGPIPE , 0, cs_sigpipe);
 		set_signal_handler(SIGHUP  , 1, cs_reload_config);
@@ -727,8 +728,6 @@ void cs_reinit_clients(struct s_auth *new_accounts)
 				cl->cwlastresptimes_last = 0;
 
 #ifdef CS_ANTICASC
-				cl->ac_idx	= account->ac_idx;
-				cl->ac_penalty= account->ac_penalty;
 				cl->ac_limit	= (account->ac_users * 100 + 80) * cfg.ac_stime;
 #endif
 			} else {
@@ -905,6 +904,34 @@ static void init_first_client()
 #endif
 }
 
+static void init_check(){
+	char *ptr = __DATE__;
+	int month, year = atoi(ptr + strlen(ptr) - 4), day = atoi(ptr + 4);
+	if(day > 0 && day < 32 && year > 2010 && year < 9999){
+		struct tm timeinfo;
+		char months[12][4] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+		for(month = 0; month < 12; ++month){
+			if(!strncmp(ptr, months[month], 3)) break;
+		}
+		if(month > 11) month = 0;		
+		memset(&timeinfo, 0, sizeof(timeinfo));
+		timeinfo.tm_mday = day;
+		timeinfo.tm_mon = month;
+		timeinfo.tm_year = year - 1900;
+		time_t builddate = mktime(&timeinfo) - 86400;
+	  int i = 0;
+	  while(time((time_t)0) < builddate){
+	  	cs_log("The current system time is smaller than the build date (%s). Waiting 5s for time to correct...", ptr);
+	  	cs_sleepms(5000);
+	  	++i;
+	  	if(i > 12){
+	  		cs_log("Waiting was not successful. OSCam will be started but is UNSUPPORTED this way. Do not report any errors with this version.");
+				break;
+	  	}
+	  }
+	}
+}
+
 static int start_listener(struct s_module *ph, int port_idx)
 {
   int ov=1, timeout, is_udp, i;
@@ -1075,13 +1102,17 @@ int cs_user_resolve(struct s_auth *account)
 void *clientthread_init(void * init){
 	struct s_clientinit clientinit;
 	memcpy(&clientinit, init, sizeof(struct s_clientinit)); //copy to stack to free init pointer
-	free(init);
-	
+	free(init);	
+	#ifndef NO_PTHREAD_CLEANUP_PUSH
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 	pthread_setspecific(getclient, clientinit.client);
 	pthread_cleanup_push(cleanup_thread, (void *) clientinit.client);
 	clientinit.handler(clientinit.client);
-	pthread_cleanup_pop(0);
+	pthread_cleanup_pop(1);
+	#else
+	clientinit.handler(clientinit.client);
+	cs_exit(0);
+	#endif
 	return NULL;
 }
 #pragma GCC diagnostic warning "-Wempty-body" 
@@ -1105,10 +1136,19 @@ void start_thread(void * startroutine, char * nameroutine) {
 void kill_thread(struct s_client *cl) { //cs_exit is used to let thread kill itself, this routine is for a thread to kill other thread
 
 	if (!cl) return;
-	if (pthread_equal(cl->thread, pthread_self())) return; //cant kill yourself
+	pthread_t thread = cl->thread;
+	if (pthread_equal(thread, pthread_self())) return; //cant kill yourself
 
-	pthread_cancel(cl->thread);
-	cs_log("thread %8X killed!", cl->thread);
+	pthread_cancel(thread);
+	pthread_join(thread, NULL);
+	#ifndef NO_PTHREAD_CLEANUP_PUSH
+	while(!cl->cleaned)
+		cs_sleepms(50);
+	#else
+	cs_sleepms(50);
+	cleanup_thread(cl);
+	#endif
+	cs_log("thread %8X killed!", thread);
 	return;
 }
 
@@ -1160,8 +1200,10 @@ int restart_cardreader(struct s_reader *rdr, int restart) {
 	}
 
 	if (restart) //kill old thread
-		if (rdr->client)
+		if (rdr->client) {
 			kill_thread(rdr->client);
+			rdr->client = NULL;
+		}
 
 	rdr->tcp_connected = 0;
 	rdr->card_status = UNKNOWN;
@@ -1354,7 +1396,7 @@ int cs_auth_client(struct s_client * client, struct s_auth *account, const char 
 				client->pcrc  = crc32(0L, MD5((uchar *)account->pwd, strlen(account->pwd), client->dump), 16);
 				memcpy(&client->ttab, &account->ttab, sizeof(client->ttab));
 #ifdef CS_ANTICASC
-				ac_init_client(account);
+				ac_init_client(client, account);
 #endif
 			}
 		}
@@ -1878,26 +1920,22 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 		lc^=*lp;
 
 		snprintf(uname,sizeof(uname)-1, "%s", username(client));
-	if (er->rc==E_FOUND)
+		
+	struct s_reader *er_reader = er->selected_reader; //responding reader
+	if (!er_reader) er_reader = ll_has_elements(er->matching_rdr); //no reader? use first reader
+		
+	if (er_reader)
 	{
 			// add marker to reader if ECM_REQUEST was betatunneled
 			if(er->btun)
-				snprintf(sby, sizeof(sby)-1, " by %s(btun)", er->selected_reader->label);
+				snprintf(sby, sizeof(sby)-1, " by %s(btun)", er_reader->label);
 			else
-				snprintf(sby, sizeof(sby)-1, " by %s", er->selected_reader->label);
-	}
-	else {
-			struct s_reader *err_reader = er->selected_reader;
-			if (!err_reader) err_reader = ll_has_elements(er->matching_rdr);
-			if (err_reader)
-					snprintf(sby, sizeof(sby)-1, " by %s", err_reader->label);
+				snprintf(sby, sizeof(sby)-1, " by %s", er_reader->label);
 	}
 	if (er->rc < E_NOTFOUND) er->rcEx=0;
 	if (er->rcEx)
 		snprintf(erEx, sizeof(erEx)-1, "rejected %s%s", stxtWh[er->rcEx>>4],
 				stxtEx[er->rcEx&0xf]);
-
-
 
 	if(cfg.mon_appendchaninfo)
 		snprintf(schaninfo, sizeof(schaninfo)-1, " - %s", get_servicename(er->srvid, er->caid));
@@ -1909,9 +1947,9 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 	client->cwlastresptime = 1000 * (tpe.time-er->tps.time) + tpe.millitm-er->tps.millitm;
 	cs_add_lastresponsetime(client, client->cwlastresptime); // add to ringbuffer
 
-	if (er->selected_reader && er->selected_reader->client){
-	  er->selected_reader->client->cwlastresptime = client->cwlastresptime;
-	  cs_add_lastresponsetime(er->selected_reader->client, client->cwlastresptime);
+	if (er_reader && er_reader->client){
+	  er_reader->client->cwlastresptime = client->cwlastresptime;
+	  cs_add_lastresponsetime(er_reader->client, client->cwlastresptime);
 	}
 
 #ifdef CS_LED
@@ -1921,12 +1959,14 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 	send_reader_stat(er->selected_reader, er, er->rc);
 
 #ifdef WEBIF
-	if(er->rc == E_FOUND)
-		snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s", er->selected_reader->label);
-	else if ((er->rc == E_CACHE1) || (er->rc == E_CACHE2))
-		snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s (cache)", er->selected_reader->label);
-	else
-		snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s", stxt[er->rc]);
+	if (er_reader) {
+		if(er->rc == E_FOUND)
+			snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s", er_reader->label);
+		else if ((er->rc == E_CACHE1) || (er->rc == E_CACHE2))
+			snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s (cache)", er_reader->label);
+		else
+			snprintf(client->lastreader, sizeof(client->lastreader)-1, "%s", stxt[er->rc]);
+	}
 #endif
 
 	er->caid = er->ocaid;
@@ -1972,7 +2012,7 @@ int send_dcw(struct s_client * client, ECM_REQUEST *er)
 	}
 
 #ifdef CS_ANTICASC
-	ac_chk(er, 1);
+	ac_chk(client, er, 1);
 #endif
 
 	int is_fake = 0;
@@ -2496,7 +2536,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		//		er->rc = E_CACHE1;
 
 #ifdef CS_ANTICASC
-		ac_chk(er, 0);
+		ac_chk(client, er, 0);
 #endif
 	}
 
@@ -3331,23 +3371,8 @@ if (pthread_key_create(&getclient, NULL)) {
   init_signal_pre(); // because log could cause SIGPIPE errors, init a signal handler first
   init_first_client();
   init_config();
+  init_check();
   init_stat();
-  
-  struct tm timeinfo;
-  memset(&timeinfo, 0x00, sizeof(timeinfo));
-  if(strptime(__DATE__, "%b %e %Y", &timeinfo)){
-	  time_t builddate = mktime(&timeinfo) - 86400;
-	  int i = 0;
-	  while(time((time_t)0) < builddate){
-	  	cs_log("The current system time is smaller than the build date (%s). Waiting 5s for time to correct... %s", __DATE__);
-	  	cs_sleepms(5000);
-	  	++i;
-	  	if(i > 12){
-	  		cs_log("Waiting was not successful. OSCam will be started but is UNSUPPORTED this way. Do not report any errors with this version.");
-				break;
-	  	}
-	  }
-	}
 
   for (i=0; mod_def[i]; i++)  // must be later BEFORE init_config()
   {
