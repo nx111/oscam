@@ -480,7 +480,7 @@ void chk_t_global(const char *token, char *value)
 
 	if (!strcmp(token, "maxlogsize")) {
 		cfg.max_log_size = strToIntVal(value, 10);
-		if( cfg.max_log_size <= 10 ) cfg.max_log_size = 10;
+		if(cfg.max_log_size != 0 && cfg.max_log_size <= 10) cfg.max_log_size = 10;
 		return;
 	}
 
@@ -594,6 +594,11 @@ void chk_t_global(const char *token, char *value)
 
 	if (!strcmp(token, "lb_reopen_mode")) {
 		cfg.lb_reopen_mode = strToIntVal(value, DEFAULT_LB_REOPEN_MODE);
+		return;
+	}
+	
+	if (!strcmp(token, "lb_max_readers")) {
+		cfg.lb_max_readers = strToIntVal(value, 0);
 		return;
 	}
 
@@ -843,17 +848,6 @@ void chk_t_webif(char *token, char *value)
 		cfg.http_full_cfg = strToIntVal(value, 0);
 		return;
 	}
-
-	if (!strcmp(token, "httpenhancedstatuscccam")) {
-		cfg.http_enhancedstatus_cccam = strToIntVal(value, 0);
-		if (cfg.http_enhancedstatus_cccam){
-			fprintf(stderr, "Warning: httpenhancedstatuscccam = 1 impacts main performance\n");
-			cs_log("Warning: httpenhancedstatuscccam = 1 impacts main performance");
-		}
-		return;
-	}
-
-
 
 	if (token[0] != '#')
 		fprintf(stderr, "Warning: keyword '%s' in webif section not recognized\n",token);
@@ -1617,7 +1611,7 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 		for (pch = strtok(value, ","); pch != NULL; pch = strtok(NULL, ",")) {
 			ll_iter_reset(itr);
 			while ((rdr = ll_iter_next(itr))) {
-				if (((rdr->label[0]) && (!strncmp(rdr->label, pch, strlen(rdr->label)))) || account->autoau) {
+				if (((rdr->label[0]) && (!strcmp(rdr->label, pch))) || account->autoau) {
 					ll_append(account->aureader_list, rdr);
 				}
 			}
@@ -1892,6 +1886,8 @@ int32_t write_config()
 		fprintf_conf(f, CONFVARWIDTH, "lb_use_locking", "%d\n", cfg.lb_use_locking);
 	if (cfg.lb_reopen_mode != DEFAULT_LB_REOPEN_MODE || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "lb_reopen_mode", "%d\n", cfg.lb_reopen_mode);
+	if (cfg.lb_max_readers || cfg.http_full_cfg)
+		fprintf_conf(f, CONFVARWIDTH, "lb_max_readers", "%d\n", cfg.lb_max_readers);
 
 	if (cfg.resolve_gethostbyname || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "resolvegethostbyname", "%d\n", cfg.resolve_gethostbyname);
@@ -2114,8 +2110,6 @@ int32_t write_config()
 			fprintf_conf(f, CONFVARWIDTH, "httphideidleclients", "%d\n", cfg.http_hide_idle_clients);
 		if(cfg.http_readonly || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "httpreadonly", "%d\n", cfg.http_readonly);
-		if(cfg.http_enhancedstatus_cccam || cfg.http_full_cfg)
-			fprintf_conf(f, CONFVARWIDTH, "httpenhancedstatuscccam", "%d\n", cfg.http_enhancedstatus_cccam);
 		if(cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "httpsavefullcfg", "%d\n", cfg.http_full_cfg);
 
@@ -2343,11 +2337,11 @@ int32_t write_server()
 			fprintf_conf(f, CONFVARWIDTH, "protocol", "%s\n", ctyp);
 			fprintf_conf(f, CONFVARWIDTH, "device", "%s", rdr->device);
 
-			if (rdr->r_port || cfg.http_full_cfg)
+			if ((rdr->r_port || cfg.http_full_cfg) && !isphysical)
 				fprintf(f, ",%d", rdr->r_port);
-			if (rdr->l_port || cfg.http_full_cfg)
+			if ((rdr->l_port || cfg.http_full_cfg) && !isphysical && strncmp(ctyp, "cccam", 5))
 				fprintf(f, ",%d", rdr->l_port);
-			if ((rdr->slot || cfg.http_full_cfg) && isphysical)
+			if ((rdr->slot || cfg.http_full_cfg) && !strncmp(ctyp, "sc8in1", 6))
 				fprintf(f, ":%d", rdr->slot);
 			fprintf(f, "\n");
 
@@ -2819,12 +2813,6 @@ struct s_auth *init_userdb()
 			account->ac_users = cfg.ac_users;
 			account->ac_penalty = cfg.ac_penalty;
 #endif
-			if(account->expirationdate && account->expirationdate < time(NULL))
-				expired++;
-
-			if(account->disabled)
-				disabled++;
-
 			continue;
 		}
 
@@ -2839,6 +2827,14 @@ struct s_auth *init_userdb()
 	}
 
 	fclose(fp);
+	
+	for(account = authptr; account; account = account->next){
+		if(account->expirationdate && account->expirationdate < time(NULL))
+			++expired;
+	
+		if(account->disabled)
+			++disabled;
+	}
 
 	cs_log("userdb reloaded: %d accounts loaded, %d expired, %d disabled", nr, expired, disabled);
 	return authptr;
@@ -3046,9 +3042,11 @@ int32_t init_srvid()
 	int32_t nr;
 	FILE *fp;
 	char *payload;
-	struct s_srvid *srvid=NULL, *new_cfg_srvid=NULL;
+	struct s_srvid *srvid=NULL, *new_cfg_srvid[16], *last_srvid[16];
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_srid);
 
+	memset(last_srvid, 0, sizeof(last_srvid));
+	memset(new_cfg_srvid, 0, sizeof(new_cfg_srvid));
 
 	if (!(fp=fopen(token, "r"))) {
 		cs_log("can't open file \"%s\" (err=%d %s), no service-id's loaded", token, errno, strerror(errno));
@@ -3057,9 +3055,7 @@ int32_t init_srvid()
 
 	nr=0;
 	while (fgets(token, sizeof(token), fp)) {
-
-		int32_t l;
-		void *ptr;
+		int32_t l, i, j, len=0;
 		char *tmp;
 		tmp = trim(token);
 
@@ -3068,27 +3064,22 @@ int32_t init_srvid()
 		if (!(payload=strchr(token, '|'))) continue;
 		*payload++ = '\0';
 
-		if (!cs_malloc(&ptr, sizeof(struct s_srvid), -1)) return(1);
-		if (srvid)
-			srvid->next = ptr;
-		else
-			new_cfg_srvid = ptr;
+		if (!cs_malloc(&srvid, sizeof(struct s_srvid), -1)) return(1);
 
-		srvid = ptr;
-
-		int32_t i, len=0;
 		char tmptxt[128];
 		struct s_srvid *srvptr;
 
 		int32_t offset[4] = { -1, -1, -1, -1 };
 		char *ptr1, *searchptr[4] = { NULL, NULL, NULL, NULL };
 		char **ptrs[4] = { &srvid->prov, &srvid->name, &srvid->type, &srvid->desc };
-		
+
 		for (i = 0, ptr1 = strtok(payload, "|"); ptr1 && (i < 4) ; ptr1 = strtok(NULL, "|"), i++){
-			for (srvptr = new_cfg_srvid; srvptr && !searchptr[i]; srvptr=srvptr->next) {
-				char *srv_ptrs[4] = { srvptr->prov, srvptr->name, srvptr->type, srvptr->desc };
-				if (srv_ptrs[i] && !strcmp(srv_ptrs[i], ptr1))
-					searchptr[i]=srv_ptrs[i];
+			for (j=0; j<16 && !searchptr[i]; j++) {
+				for (srvptr = new_cfg_srvid[j]; srvptr && !searchptr[i]; srvptr=srvptr->next) {
+					char *srv_ptrs[4] = { srvptr->prov, srvptr->name, srvptr->type, srvptr->desc };
+					if (srv_ptrs[i] && !strcmp(srv_ptrs[i], ptr1))
+						searchptr[i]=srv_ptrs[i];
+				}
 			}
 			if (searchptr[i]) continue;
 
@@ -3102,7 +3093,6 @@ int32_t init_srvid()
 			continue;
 
 		srvid->data=tmpptr;
-
 		memcpy(tmpptr, tmptxt, len);
 
 		for (i=0;i<4;i++) {
@@ -3116,8 +3106,14 @@ int32_t init_srvid()
 
 		char *srvidasc = strchr(token, ':');
 		*srvidasc++ = '\0';
-		srvid->srvid = dyn_word_atob(srvidasc);
+		srvid->srvid = dyn_word_atob(srvidasc) & 0xFFFF;
 		//printf("srvid %s - %d\n",srvidasc,srvid->srvid );
+
+		if (srvid->srvid<0) {
+			free(tmpptr);
+			free(srvid);
+			continue;
+		}
 
 		srvid->ncaid = 0;
 		for (i = 0, ptr1 = strtok(token, ","); (ptr1) && (i < 10) ; ptr1 = strtok(NULL, ","), i++){
@@ -3126,24 +3122,43 @@ int32_t init_srvid()
 			//cs_debug_mask(D_CLIENT, "ld caid: %04X srvid: %04X Prov: %s Chan: %s",srvid->caid[i],srvid->srvid,srvid->prov,srvid->name);
 		}
 		nr++;
+
+		if (new_cfg_srvid[srvid->srvid>>12])
+			last_srvid[srvid->srvid>>12]->next = srvid;
+		else
+			new_cfg_srvid[srvid->srvid>>12] = srvid;
+
+		last_srvid[srvid->srvid>>12] = srvid;
 	}
 
 	fclose(fp);
-	if (nr>0)
+	if (nr > 0) {
 		cs_log("%d service-id's loaded", nr);
-	else{
+		if (nr > 2000) {
+			cs_log("WARNING: You risk high CPU load and high ECM times with more than 2000 service-id´s!");
+			cs_log("HINT: --> use optimized lists from http://streamboard.gmc.to/wiki/index.php/Srvid");
+		}
+	} else {
 		cs_log("oscam.srvid loading failed, old format");
 	}
 
 	//this allows reloading of srvids, so cleanup of old data is needed:
-	srvid = cfg.srvid; //old data
-	cfg.srvid = new_cfg_srvid; //assign after loading, so everything is in memory
+	memcpy(last_srvid, cfg.srvid, sizeof(last_srvid));	//old data
+	memcpy(cfg.srvid, new_cfg_srvid, sizeof(last_srvid));	//assign after loading, so everything is in memory
+
+	struct s_client *cl;
+	for (cl=first_client->next; cl ; cl=cl->next)
+		cl->last_srvidptr=NULL;
+
 	struct s_srvid *ptr;
-	while (srvid) { //cleanup old data:
-		ptr = srvid->next;
-		free(srvid->data);
-		free(srvid);
-		srvid = ptr;
+	int8_t i;
+	for (i=0; i<16; i++) {
+		while (last_srvid[i]) { //cleanup old data:
+			ptr = last_srvid[i]->next;
+			free(last_srvid[i]->data);
+			free(last_srvid[i]);
+			last_srvid[i] = ptr;
+		}
 	}
 
 	return(0);

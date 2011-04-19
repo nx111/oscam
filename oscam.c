@@ -34,6 +34,7 @@ int32_t cs_restart_mode=1; //Restartmode: 0=off, no restart fork, 1=(default)res
 char  cs_tmpdir[200]={0x00};
 pthread_mutex_t gethostbyname_lock;
 pthread_mutex_t get_cw_lock;
+pthread_mutex_t system_lock;
 pthread_key_t getclient;
 
 //Cache for  ecms, cws and rcs:
@@ -571,8 +572,8 @@ void cleanup_thread(void *var)
 		add_garbage(cl->req);
 		add_garbage(cl->cc);
 		add_garbage(cl->serialdata);
-		add_garbage(cl);
 		cl->cleaned++;//cleaned=2
+		add_garbage(cl);
 	}
 }
 
@@ -782,9 +783,7 @@ void cs_card_info()
 struct s_client * create_client(in_addr_t ip) {
 	struct s_client *cl;
 
-	cl = malloc(sizeof(struct s_client));
-	if (cl) {
-		memset(cl, 0, sizeof(struct s_client));
+	if(cs_malloc(&cl, sizeof(struct s_client), -1)){
 		int32_t fdp[2];
 		if (pipe(fdp)) {
 			cs_log("Cannot create pipe (errno=%d: %s)", errno, strerror(errno));
@@ -799,6 +798,7 @@ struct s_client * create_client(in_addr_t ip) {
 		cl->fd_m2c = fdp[1]; //store client read fd
 		cl->ip=ip;
 		cl->account = first_client->account;
+		cl->itused = 0;
 
 		//master part
 		cl->stat=1;
@@ -881,28 +881,32 @@ static void init_first_client()
   //Generate 5 ECM cache entries:
   ecmcache = ll_create();
 
-  first_client = malloc(sizeof(struct s_client));
-	if (!first_client) {
+  if(!cs_malloc(&first_client, sizeof(struct s_client), -1)){
     fprintf(stderr, "Could not allocate memory for master client, exiting...");
-  exit(1);
+    exit(1);
   }
   memset(first_client, 0, sizeof(struct s_auth));
   first_client->next = NULL; //terminate clients list with NULL
   first_client->login=time((time_t *)0);
   first_client->ip=cs_inet_addr("127.0.0.1");
   first_client->typ='s';
+  first_client->itused = 0;
   first_client->thread=pthread_self();
-  struct s_auth *null_account = malloc(sizeof(struct s_auth));
-  memset(null_account, 0, sizeof(struct s_auth));
+  struct s_auth *null_account;
+  if(!cs_malloc(&null_account, sizeof(struct s_auth), -1)){
+  	fprintf(stderr, "Could not allocate memory for master account, exiting...");
+    exit(1);
+  }
   first_client->account = null_account;
   if (pthread_setspecific(getclient, first_client)) {
     fprintf(stderr, "Could not setspecific getclient in master process, exiting...");
-  exit(1);
+    exit(1);
   }
 
 
   pthread_mutex_init(&gethostbyname_lock, NULL);
   pthread_mutex_init(&get_cw_lock, NULL);
+  pthread_mutex_init(&system_lock, NULL);
 
 #ifdef CS_LOGHISTORY
   loghistidx=0;
@@ -1134,6 +1138,7 @@ void start_thread(void * startroutine, char * nameroutine) {
 #ifndef TUXBOX
 	pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
 #endif
+	pthread_mutex_lock(&system_lock);
 	if (pthread_create(&temp, &attr, startroutine, NULL))
 		cs_log("ERROR: can't create %s thread", nameroutine);
 	else {
@@ -1141,9 +1146,10 @@ void start_thread(void * startroutine, char * nameroutine) {
 		pthread_detach(temp);
 	}
 	pthread_attr_destroy(&attr);
+	pthread_mutex_unlock(&system_lock);
 }
 
-void kill_thread(struct s_client *cl) { //cs_exit is used to let thread kill itself, this routine is for a thread to kill other thread
+static void kill_thread_int(struct s_client *cl) { //cs_exit is used to let thread kill itself, this routine is for a thread to kill other thread
 
 	if (!cl) return;
 	pthread_t thread = cl->thread;
@@ -1153,11 +1159,11 @@ void kill_thread(struct s_client *cl) { //cs_exit is used to let thread kill its
 	pthread_join(thread, NULL);
 #ifndef NO_PTHREAD_CLEANUP_PUSH
 	int32_t cnt = 0;
-	while(cnt < 10 && cl && !cl->cleaned){
+	while(cnt < 10 && cl && cl->cleaned < 2){
 		cs_sleepms(50);
 		++cnt;
 	}
-	if(cl && !cl->cleaned){
+	if(!exit_oscam && cl && !cl->cleaned){
 		cs_log("A thread didn't cleanup itself. Forcing cleanup for type %c (%s,%s)", cl->typ, cl->reader?cl->reader->label : cl->account?cl->account->usr?cl->account->usr: "" : "", cl->ip ? cs_inet_ntoa(cl->ip) : "");
 		cleanup_thread(cl);
 	}
@@ -1169,6 +1175,11 @@ void kill_thread(struct s_client *cl) { //cs_exit is used to let thread kill its
 	return;
 }
 
+void kill_thread(struct s_client *cl) { //cs_exit is used to let thread kill itself, this routine is for a thread to kill other thread
+	pthread_mutex_lock(&system_lock);
+	kill_thread_int(cl);	
+	pthread_mutex_unlock(&system_lock);
+}
 #ifdef CS_ANTICASC
 void start_anticascader()
 {
@@ -1211,7 +1222,7 @@ static void add_reader_to_active(struct s_reader *rdr) {
   } else first_active_reader = rdr;
 }
 
-int32_t restart_cardreader(struct s_reader *rdr, int32_t restart) {
+static int32_t restart_cardreader_int(struct s_reader *rdr, int32_t restart) {
 
 	if (restart) {
 		//remove from list:	
@@ -1220,7 +1231,7 @@ int32_t restart_cardreader(struct s_reader *rdr, int32_t restart) {
 
 	if (restart) //kill old thread
 		if (rdr->client) {
-			kill_thread(rdr->client);
+			kill_thread_int(rdr->client);
 			rdr->client = NULL;
 		}
 
@@ -1285,14 +1296,23 @@ int32_t restart_cardreader(struct s_reader *rdr, int32_t restart) {
 	return 0;
 }
 
+int32_t restart_cardreader(struct s_reader *rdr, int32_t restart) {
+	pthread_mutex_lock(&system_lock);
+	int32_t result = restart_cardreader_int(rdr, restart);
+	pthread_mutex_unlock(&system_lock);
+	return result;
+}
+
 static void init_cardreader() {
 
+	pthread_mutex_lock(&system_lock);
 	struct s_reader *rdr;
 	for (rdr=first_active_reader; rdr ; rdr=rdr->next) {
-		if (!restart_cardreader(rdr, 0))
+		if (!restart_cardreader_int(rdr, 0))
 			remove_reader_from_active(rdr);
 	}
 	load_stat_from_file();
+	pthread_mutex_unlock(&system_lock);
 }
 
 static void cs_fake_client(struct s_client *client, char *usr, int32_t uniq, in_addr_t ip)
@@ -1363,12 +1383,13 @@ int32_t cs_auth_client(struct s_client * client, struct s_auth *account, const c
 	//client->grp=0xffffffffffffff;
 	if ((intptr_t)account != 0 && (intptr_t)account != -1 && account->disabled){
 		cs_add_violation((uint32_t)client->ip);
-		cs_log("%s %s-client %s%s (%s)",
+		cs_log("%s %s-client %s%s (%s%sdisabled account)",
 				client->crypted ? t_crypt : t_plain,
 				ph[client->ctyp].desc,
 				client->ip ? cs_inet_ntoa(client->ip) : "",
 				client->ip ? t_reject : t_reject+1,
-				e_txt ? e_txt : "disabled user");
+				e_txt ? e_txt : "",
+				e_txt ? " " : "");
 		return(1);
 	}
 	client->account=first_client->account;
@@ -1715,23 +1736,19 @@ void logCWtoFile(ECM_REQUEST *er)
 	unsigned char  i, parity, writeheader = 0;
 	time_t t;
 	struct tm timeinfo;
-	struct s_srvid *this;
 
 	/*
 	* search service name for that id and change characters
 	* causing problems in file name
 	*/
-	srvname[0] = 0;
-	for (this=cfg.srvid; this; this = this->next) {
-		if (this->srvid == er->srvid && this->name) {
-			cs_strncpy(srvname, this->name, sizeof(srvname));
-			srvname[sizeof(srvname)-1] = 0;
-			for (i = 0; srvname[i]; i++)
-				if (srvname[i] == ' ') srvname[i] = '_';
-			break;
-		}
-	}
+	
+	char *name=get_servicename(cur_client(), er->srvid, er->caid);
+	cs_strncpy(srvname, name, sizeof(srvname));
 
+	srvname[sizeof(srvname)-1] = 0;
+	for (i = 0; srvname[i]; i++)
+		if (srvname[i] == ' ') srvname[i] = '_';
+	
 	/* calc log file name */
 	time(&t);
 	localtime_r(&t, &timeinfo);
@@ -1934,6 +1951,18 @@ static void send_reader_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t rc)
 	add_stat(rdr, er, time, rc);
 }
 
+/**
+ * Check for NULL CWs
+ * Return them as "NOT FOUND"
+ **/
+static void checkCW(ECM_REQUEST *er)
+{
+	int i;
+	for (i=0;i<16;i++)
+		if (er->cw[i]) return;
+	er->rc = E_NOTFOUND;
+}
+
 int32_t send_dcw(struct s_client * client, ECM_REQUEST *er)
 {
 	static const char *stxt[]={"found", "cache1", "cache2", "emu",
@@ -1950,6 +1979,9 @@ int32_t send_dcw(struct s_client * client, ECM_REQUEST *er)
 		lc^=*lp;
 
 		snprintf(uname,sizeof(uname)-1, "%s", username(client));
+		
+	if (er->rc == E_FOUND||er->rc == E_CACHE1||er->rc == E_CACHE2)
+		checkCW(er);
 		
 	struct s_reader *er_reader = er->selected_reader; //responding reader
 	if (!er_reader) er_reader = ll_has_elements(er->matching_rdr); //no reader? use first reader
@@ -1968,7 +2000,7 @@ int32_t send_dcw(struct s_client * client, ECM_REQUEST *er)
 				stxtEx[er->rcEx&0xf]);
 
 	if(cfg.mon_appendchaninfo)
-		snprintf(schaninfo, sizeof(schaninfo)-1, " - %s", get_servicename(er->srvid, er->caid));
+		snprintf(schaninfo, sizeof(schaninfo)-1, " - %s", get_servicename(client, er->srvid, er->caid));
 
 	if(er->msglog[0])
 		snprintf(sreason, sizeof(sreason)-1, " (%s)", er->msglog);
@@ -1978,8 +2010,9 @@ int32_t send_dcw(struct s_client * client, ECM_REQUEST *er)
 	cs_add_lastresponsetime(client, client->cwlastresptime); // add to ringbuffer
 
 	if (er_reader && er_reader->client){
-	  er_reader->client->cwlastresptime = client->cwlastresptime;
-	  cs_add_lastresponsetime(er_reader->client, client->cwlastresptime);
+		er_reader->client->cwlastresptime = client->cwlastresptime;
+		cs_add_lastresponsetime(er_reader->client, client->cwlastresptime);
+		er_reader->client->last_srvidptr=client->last_srvidptr;
 	}
 
 #ifdef CS_LED

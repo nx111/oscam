@@ -196,6 +196,7 @@ char *send_oscam_config_loadbalancer(struct templatevars *vars, struct uriparams
 		memset(cfg.ser_device, 0, sizeof(cfg.ser_device));
 		memset(&cfg.lb_retrylimittab, 0, sizeof(CAIDVALUETAB));
 		memset(&cfg.lb_nbest_readers_tab, 0, sizeof(CAIDVALUETAB));
+		memset(&cfg.lb_noproviderforcaid, 0, sizeof(CAIDTAB));
 		for(i = 0; i < (*params).paramcount; ++i) {
 			if ((strcmp((*params).params[i], "part")) && (strcmp((*params).params[i], "action"))) {
 				//tpl_printf(vars, TPLAPPEND, "MESSAGE", "Parameter: %s set to Value: %s<BR>\n", (*params).params[i], (*params).values[i]);
@@ -220,6 +221,7 @@ char *send_oscam_config_loadbalancer(struct templatevars *vars, struct uriparams
 	tpl_printf(vars, TPLADD, "LBNBESTPERCAID", value);
 	free_mk_t(value);
 	tpl_printf(vars, TPLADD, "LBNFBREADERS", "%d",cfg.lb_nfb_readers);
+	tpl_printf(vars, TPLADD, "LBMAXREADERS", "%d",cfg.lb_max_readers);
 	tpl_printf(vars, TPLADD, "LBMINECMCOUNT", "%d",cfg.lb_min_ecmcount);
 	tpl_printf(vars, TPLADD, "LBMAXECEMCOUNT", "%d",cfg.lb_max_ecmcount);
 	tpl_printf(vars, TPLADD, "LBRETRYLIMIT", "%d",cfg.lb_retrylimit);
@@ -558,9 +560,6 @@ char *send_oscam_config_monitor(struct templatevars *vars, struct uriparams *par
 	//Monlevel selector
 	tpl_printf(vars, TPLADD, "TMP", "MONSELECTED%d", cfg.mon_level);
 	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
-
-	if (cfg.http_enhancedstatus_cccam)
-		tpl_addVar(vars, TPLADD, "HTTPENHANCEDSTATUSCCCAM", "selected");
 
 	if (cfg.http_full_cfg)
 		tpl_addVar(vars, TPLADD, "HTTPSAVEFULLSELECT", "selected");
@@ -1301,7 +1300,7 @@ char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams *param
 				ecmcount += stat->ecm_count;
 				if (!apicall) {
 					tpl_printf(vars, TPLADD, "CHANNEL", "%04X:%06lX:%04X", stat->caid, stat->prid, stat->srvid);
-					tpl_printf(vars, TPLADD, "CHANNELNAME","%s", xml_encode(vars, get_servicename(stat->srvid, stat->caid)));
+					tpl_printf(vars, TPLADD, "CHANNELNAME","%s", xml_encode(vars, get_servicename(cur_client(), stat->srvid, stat->caid)));
 					tpl_printf(vars, TPLADD, "ECMLEN","%04hX", stat->ecmlen);
 					tpl_printf(vars, TPLADD, "RC", "%s", stxt[stat->rc]);
 					tpl_printf(vars, TPLADD, "TIME", "%dms", stat->time_avg);
@@ -1322,7 +1321,7 @@ char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams *param
 					tpl_printf(vars, TPLADD, "ECMPROVID", "%06lX", stat->prid);
 					tpl_printf(vars, TPLADD, "ECMSRVID", "%04X", stat->srvid);
 					tpl_printf(vars, TPLADD, "ECMLEN", "%04hX", stat->ecmlen);
-					tpl_addVar(vars, TPLADD, "ECMCHANNELNAME", xml_encode(vars, get_servicename(stat->srvid, stat->caid)));
+					tpl_addVar(vars, TPLADD, "ECMCHANNELNAME", xml_encode(vars, get_servicename(cur_client(), stat->srvid, stat->caid)));
 					tpl_printf(vars, TPLADD, "ECMTIME", "%d", stat->time_avg);
 					tpl_printf(vars, TPLADD, "ECMTIMELAST", "%d", stat->time_stat[stat->time_idx]);
 					tpl_printf(vars, TPLADD, "ECMRC", "%d", stat->rc);
@@ -1728,7 +1727,7 @@ char *send_oscam_user_config(struct templatevars *vars, struct uriparams *params
 			status = "<b>connected</b>";
 			classname = "connected";
 			proto = monitor_get_proto(latestclient);
-			lastchan = xml_encode(vars, get_servicename(latestclient->last_srvid, latestclient->last_caid));
+			lastchan = xml_encode(vars, get_servicename(latestclient, latestclient->last_srvid, latestclient->last_caid));
 			lastresponsetm = latestclient->cwlastresptime;
 			tpl_addVar(vars, TPLADDONCE, "CLIENTIP", cs_inet_ntoa(latestclient->ip));
 		}
@@ -2332,36 +2331,13 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 						}
 					}
 
-					int32_t j, found = 0;
-					struct s_srvid *srvid = cfg.srvid;
+					if(!cfg.mon_appendchaninfo)
+						get_servicename(cl, cl->last_srvid, cl->last_caid);
 
-					while (srvid != NULL) {
-						if (srvid->srvid == cl->last_srvid) {
-							for (j=0; j < srvid->ncaid; j++) {
-								if (srvid->caid[j] == cl->last_caid) {
-									found = 1;
-									break;
-								}
-							}
-						}
-						if (found == 1)
-							break;
-						else
-							srvid = srvid->next;
-					}
-
-					if (found == 1) {
-						tpl_printf(vars, TPLADD, "CLIENTSRVPROVIDER","%s: ", srvid->prov ? xml_encode(vars, srvid->prov) : "");
-						tpl_addVar(vars, TPLADD, "CLIENTSRVNAME", srvid->name ? xml_encode(vars, srvid->name) : "");
-						tpl_addVar(vars, TPLADD, "CLIENTSRVTYPE", srvid->type ? xml_encode(vars, srvid->type) : "");
-						tpl_addVar(vars, TPLADD, "CLIENTSRVDESCRIPTION", srvid->desc ? xml_encode(vars, srvid->desc) : "");
-					} else {
-						tpl_addVar(vars, TPLADD, "CLIENTSRVPROVIDER","");
-						tpl_addVar(vars, TPLADD, "CLIENTSRVNAME","");
-						tpl_addVar(vars, TPLADD, "CLIENTSRVTYPE","");
-						tpl_addVar(vars, TPLADD, "CLIENTSRVDESCRIPTION","");
-					}
-
+					tpl_printf(vars, TPLADD, "CLIENTSRVPROVIDER","%s%s", cl->last_srvidptr && cl->last_srvidptr->prov ? xml_encode(vars, cl->last_srvidptr->prov) : "", cl->last_srvidptr && cl->last_srvidptr->prov ? ": " : "");
+					tpl_addVar(vars, TPLADD, "CLIENTSRVNAME", cl->last_srvidptr && cl->last_srvidptr->name ? xml_encode(vars, cl->last_srvidptr->name) : "");
+					tpl_addVar(vars, TPLADD, "CLIENTSRVTYPE", cl->last_srvidptr && cl->last_srvidptr->type ? xml_encode(vars, cl->last_srvidptr->type) : "");
+					tpl_addVar(vars, TPLADD, "CLIENTSRVDESCRIPTION", cl->last_srvidptr && cl->last_srvidptr->desc ? xml_encode(vars, cl->last_srvidptr->desc) : "");
 				} else {
 					tpl_addVar(vars, TPLADD, "CLIENTCAID", "0000");
 					tpl_addVar(vars, TPLADD, "CLIENTSRVID", "0000");
@@ -2411,12 +2387,27 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 					tpl_addVar(vars, TPLADD, "CLIENTCON", txt);
 					if((cl->typ == 'r' || cl->typ == 'p') && strncmp(proto,"cccam", 5) == 0){
 						struct cc_data *rcc = cl->cc;
-						if(cl->cc){
+						if(rcc){
 							LLIST *cards = rcc->cards;
 							if (cards) {
 								int32_t cnt = ll_count(cards);
-								if(cnt == 1) tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" title=\"Show cards\">(1 card)</A>", urlencode(vars, cl->reader->label));
-								else if(cnt > 1) tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" title=\"Show cards\">(%d cards)</A>", urlencode(vars, cl->reader->label), cnt);
+								int32_t locals = rcc->num_hop1;
+								tpl_printf(vars, TPLADD, "TMP", "(%d of %d card%s)", locals, cnt, (cnt > 1)? "s": "");
+								tpl_printf(vars, TPLADD, "TMPSPAN","<SPAN>card count=%d<BR>hop1=%d<BR>hop2=%d<BR>hopx=%d<BR>currenthops=%d<BR><BR>reshare0=%d<BR>reshare1=%d<BR>reshare2=%d<BR>resharex=%d</SPAN>",
+										cnt,
+										rcc->num_hop1,
+										rcc->num_hop2,
+										rcc->num_hopx,
+										cl->reader->cc_currenthops,
+										rcc->num_reshare0,
+										rcc->num_reshare1,
+										rcc->num_reshare2,
+										rcc->num_resharex);
+
+								tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" class=\"tooltip\">%s%s</A>",
+										urlencode(vars, cl->reader->label),
+										tpl_getVar(vars, "TMP"),
+										tpl_getVar(vars, "TMPSPAN"));
 							}
 						}
 					}
@@ -2609,7 +2600,7 @@ char *send_oscam_services(struct templatevars *vars, struct uriparams *params, s
 			tpl_printf(vars, TPLADD, "SIDCLASS","sidlist");
 			tpl_printf(vars, TPLAPPEND, "SID", "<div style=\"float:right;background-color:red;color:white\"><A HREF=\"services.html\" style=\"color:white;text-decoration:none\">X</A></div>");
 			for (i=0; i<sidtab->num_srvid; i++) {
-				tpl_printf(vars, TPLAPPEND, "SID", "%04X : %s<BR>", sidtab->srvid[i], xml_encode(vars, get_servicename(sidtab->srvid[i], sidtab->caid[0])));
+				tpl_printf(vars, TPLAPPEND, "SID", "%04X : %s<BR>", sidtab->srvid[i], xml_encode(vars, get_servicename(cur_client(), sidtab->srvid[i], sidtab->caid[0])));
 			}
 		} else {
 			tpl_printf(vars, TPLADD, "SIDCLASS","");
@@ -3279,10 +3270,13 @@ int32_t process_request(FILE *f, struct in_addr in) {
 	filebuf[bufsize]='\0';
 	char *buf=filebuf;
 
-	method = strtok_r(buf, " ", &saveptr1);
-	path = strtok_r(NULL, " ", &saveptr1);
-	protocol = strtok_r(NULL, "\r", &saveptr1);
-	if(method == NULL || path == NULL || protocol == NULL) return -1;
+	if((method = strtok_r(buf, " ", &saveptr1)) != NULL){
+		if((path = strtok_r(NULL, " ", &saveptr1)) != NULL){
+			if((protocol = strtok_r(NULL, "\r", &saveptr1)) == NULL){
+				return -1;
+			}
+		} else return -1;
+	} else return -1;
 	tmp=protocol+strlen(protocol)+2;
 
 	pch=path;

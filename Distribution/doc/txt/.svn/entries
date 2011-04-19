@@ -1,14 +1,14 @@
 10
 
 dir
-5016
+5051
 http://streamboard.gmc.to/svn/oscam/trunk/Distribution/doc/txt
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-04-15T10:51:56.404714Z
-5016
+2011-04-18T15:05:36.323976Z
+5044
 landlord
 
 
@@ -203,9 +203,9 @@ file
 
 
 
-f4d9d653e648d5a55fad1a6e0719a91c
-2011-04-15T10:51:56.404714Z
-5016
+d5652dca809728e98c0fe0389ab4ca6b
+2011-04-18T15:05:36.323976Z
+5044
 landlord
 
 oscam.dvbapi.txt
@@ -214,10 +214,10 @@ file
 
 
 
-2011-01-14T12:58:04.885854Z
-a45d4c71683a889a08ee901b75a3c71e
-2010-10-21T06:11:19.165097Z
-3649
+2011-04-16T03:42:26.970654Z
+10d466babb2ade0f52708965895499b9
+2011-04-15T18:27:26.811627Z
+5019
 landlord
 
 
@@ -240,7 +240,7 @@ landlord
 
 
 
-1381
+1420
 
 oscam.guess.txt
 file
@@ -350,10 +350,10 @@ file
 
 
 
-2011-01-14T12:58:04.889854Z
-611feae44b33271deca97b79f3b046d7
-2010-10-20T19:40:17.357785Z
-3646
+2011-04-16T03:42:26.970654Z
+35156b92bd9470a0535aa7b821ef26e0
+2011-04-15T18:31:33.206728Z
+5020
 landlord
 
 
@@ -376,7 +376,7 @@ landlord
 
 
 
-1088
+1098
 
 oscam.cert.txt
 file
