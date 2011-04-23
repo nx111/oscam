@@ -131,6 +131,7 @@ char *send_oscam_config_global(struct templatevars *vars, struct uriparams *para
 
 	if (cfg.cwlogdir != NULL) 		tpl_addVar(vars, TPLADD, "CWLOGDIR", cfg.cwlogdir);
 	if (cfg.saveinithistory == 1)	tpl_addVar(vars, TPLADD, "SAVEINITHISTORYCHECKED", "selected");
+	tpl_printf(vars, TPLADD, "LOGHISTORYSIZE", "%d", cfg.loghistorysize);
 
 	tpl_printf(vars, TPLADD, "CLIENTTIMEOUT", "%ld", cfg.ctimeout);
 	tpl_printf(vars, TPLADD, "FALLBACKTIMEOUT", "%ld", cfg.ftimeout);
@@ -427,7 +428,10 @@ char *send_oscam_config_cccam(struct templatevars *vars, struct uriparams *param
 		else tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
 	}
 
-	tpl_printf(vars, TPLAPPEND, "PORT", "%d", cfg.cc_port);
+	char *value = mk_t_cccam_port();
+	tpl_printf(vars, TPLAPPEND, "PORT", "%s", value);
+	free_mk_t(value);
+	
 	tpl_printf(vars, TPLADD, "RESHARE", "%d", cfg.cc_reshare);
 
 	if (!strcmp((char*)cfg.cc_version,"2.0.11")) {
@@ -894,6 +898,8 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 	} else if(strcmp(getParam(params, "action"), "Save") == 0) {
 
 		rdr = get_reader_by_label(getParam(params, "label"));
+		if (rdr->typ & R_IS_NETWORK)
+			inactivate_reader(rdr); //Stop reader before reinitialization
 		char servicelabels[1024]="";
 
 		clear_caidtab(&rdr->ctab);
@@ -2442,22 +2448,38 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 		}
 	}
 
-#ifdef CS_LOGHISTORY
-	for (i=(loghistidx+3) % CS_MAXLOGHIST; i!=loghistidx; i=(i+1) % CS_MAXLOGHIST) {
-		char *p_usr, *p_txt;
-		p_usr=(char *)(loghist+(i*CS_LOGHISTSIZE));
-		p_txt=p_usr+32;
+	if (loghist) {
+		char *t_loghistptr = loghistptr, *ptr1 = NULL;
+		int32_t d = 0, l1 = strlen(t_loghistptr+1) + 2;
+		char *lastpos = loghist + (cfg.loghistorysize)-1;
 
-		if (!apicall) {
-			if (p_txt[0]) tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "\t\t<span class=\"%s\">%s\t\t</span><br>\n", p_usr, p_txt+8);
-		} else {
-			if (strcmp(getParam(params, "appendlog"), "1") == 0)
-				tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%s", p_txt+8);
+		for (ptr1 = t_loghistptr + l1, i=0; i<200; i++, ptr1 = ptr1+l1) {
+			l1 = strlen(ptr1)+1;
+			if (!d && ((ptr1 >= lastpos) || (l1 < 2))) {
+				ptr1 = loghist;
+				l1 = strlen(ptr1)+1;
+				d++;
+			}
+		
+			if (d && ((ptr1 >= t_loghistptr) || (l1 < 2)))
+				break;
+
+			char p_usr[32];
+			size_t pos1 = strcspn (ptr1, "\t")+1;
+			cs_strncpy(p_usr, ptr1 , pos1 > sizeof(p_usr) ? sizeof(p_usr) : pos1);
+
+			char *p_txt = ptr1 + pos1;
+
+			if (!apicall) {
+				if (p_txt[0]) tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "\t\t<span class=\"%s\">%s\t\t</span><br>\n", p_usr, p_txt);
+			} else {
+				if (strcmp(getParam(params, "appendlog"), "1") == 0)
+					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%s", p_txt);
+			}
 		}
+	} else {
+		tpl_addVar(vars, TPLADD, "LOGHISTORY", "loghistorysize is set to 0 in your configuration<BR>\n");
 	}
-#else
-	tpl_addVar(vars, TPLADD, "LOGHISTORY", "the flag CS_LOGHISTORY is not set in your binary<BR>\n");
-#endif
 
 #ifdef WITH_DEBUG
 	// Debuglevel Selector

@@ -132,8 +132,6 @@
 #define CS_CLIENT_MAXIDLE 120
 #define CS_BIND_TIMEOUT   120
 #define CS_DELAY          0
-#define CS_MAXLOGHIST     30
-#define CS_LOGHISTSIZE    193 // 32+128+33: username + logline + channelname
 #define CS_ECM_RINGBUFFER_MAX 20 // max size for ECM last responsetimes ringbuffer
 
 #define CS_CACHE_TIMEOUT  60
@@ -1068,7 +1066,8 @@ struct s_config
 	char		*cwlogdir;
 	char		*logfile;
 	uint8_t	logtostdout;
-	uint8_t logtosyslog;
+	uint8_t 	logtosyslog;
+	uint32_t	loghistorysize;
 	int32_t		disablelog;
 	int32_t		disableuserfile;
 	int32_t		usrfileflag;
@@ -1129,7 +1128,7 @@ struct s_config
 	PTAB		cc_ptab;
 	int32_t		rad_port;
 	in_addr_t	rad_srvip;
-	int32_t		cc_port;
+	int32_t		cc_port[CS_MAXPORTS];
 	int32_t		cc_reshare;
 	int32_t		cc_ignore_reshare;
 	int32_t		cc_update_interval;
@@ -1228,7 +1227,7 @@ struct s_clientinit
 #define LB_LOWEST_USAGELEVEL 3
 #define LB_LOG_ONLY 10
 
-#define LB_MAX_STAT_TIME 20
+#define LB_MAX_STAT_TIME 10
 
 typedef struct reader_stat_t
 {
@@ -1338,7 +1337,7 @@ extern LLIST *configured_readers;
 
 // oscam variables
 
-extern int32_t cs_dblevel, loghistidx;
+extern int32_t cs_dblevel;
 
 extern uint16_t len4caid[256];
 
@@ -1348,7 +1347,7 @@ extern uint32_t *IgnoreList;
 
 extern struct s_config cfg;
 extern char cs_confdir[];
-extern char loghist[CS_MAXLOGHIST*CS_LOGHISTSIZE];
+extern char *loghist, *loghistptr;
 extern struct s_module ph[CS_MAX_MOD];
 extern struct s_cardsystem cardsystem[CS_MAX_MOD];
 extern struct s_cardreader cardreader[CS_MAX_MOD];
@@ -1496,6 +1495,7 @@ extern char *mk_t_tuntab(TUNTAB *ttab);
 extern char *mk_t_group(uint64_t grp);
 extern char *mk_t_ftab(FTAB *ftab);
 extern char *mk_t_camd35tcp_port();
+extern char *mk_t_cccam_port();
 extern char *mk_t_aeskeys(struct s_reader *rdr);
 extern char *mk_t_newcamd_port();
 extern char *mk_t_aureader(struct s_auth *account);

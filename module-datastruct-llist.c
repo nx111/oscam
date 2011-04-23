@@ -45,26 +45,50 @@ void ll_destroy_data(LLIST *l)
     _destroy(l);
 }
 
-void ll_clear(LLIST *l)
+void *ll_iter_next_nolock(LL_ITER *it)
+{
+    if (it && it->l) {
+        if (it->cur) {
+            it->prv = it->cur;
+            it->cur = it->cur->nxt;
+        } else if (it->l->initial && !it->prv)
+            it->cur = it->l->initial;
+        
+        if (it->cur)
+            return it->cur->obj;
+    }
+
+    return NULL;
+}
+
+static void ll_clear_int(LLIST *l, int clear_data)
 {
     if (!l) return;
 
+    pthread_mutex_lock(&l->lock);
     LL_ITER *it = ll_iter_create(l);
-    while (ll_iter_next(it))
-        ll_iter_remove(it);
+    while (ll_iter_next_nolock(it)) {
+    	if (it->cur && !it->cur->flag++) {
+    		if (clear_data)
+    			add_garbage(it->cur->obj);
+    		add_garbage(it->cur);
+		}
+    }
     ll_iter_release(it);
     l->count = 0;
+    l->initial = 0;
+    pthread_mutex_unlock(&l->lock);
 }
+
+void ll_clear(LLIST *l)
+{
+	ll_clear_int(l, 0);
+}
+
 
 void ll_clear_data(LLIST *l)
 {
-    if (!l) return;
-
-    LL_ITER *it = ll_iter_create(l);
-    while (ll_iter_next(it))
-        ll_iter_remove_data(it);
-    ll_iter_release(it);
-    l->count = 0;
+	ll_clear_int(l, 1);
 }
 
 LL_NODE* ll_append_nolock(LLIST *l, void *obj)
@@ -148,22 +172,6 @@ void ll_iter_release(LL_ITER *it)
   	cl->itused = 0;
   // We don't need add_garbage here as iterators aren't shared across threads
   } else free(it);
-}
-
-void *ll_iter_next_nolock(LL_ITER *it)
-{
-    if (it && it->l) {
-        if (it->cur) {
-            it->prv = it->cur;
-            it->cur = it->cur->nxt;
-        } else if (it->l->initial && !it->prv)
-            it->cur = it->l->initial;
-        
-        if (it->cur)
-            return it->cur->obj;
-    }
-
-    return NULL;
 }
 
 void *ll_iter_next(LL_ITER *it)
@@ -269,6 +277,31 @@ void *ll_iter_remove(LL_ITER *it)
     }
 
     return obj;
+}
+
+int ll_iter_move_first(LL_ITER *it) 
+{
+	int moved = 0;
+    if (it) {
+    	pthread_mutex_lock(&it->l->lock);
+        LL_NODE *move = it->cur;
+        if (move && !move->flag++) { //preventing duplicate free because of multiple threads
+            LL_NODE *prv = it->prv;
+            
+            if (prv)
+                prv->nxt = move->nxt;
+            else
+                it->l->initial = move->nxt;
+					        	
+			move->nxt = it->l->initial;
+			it->l->initial = move;
+			moved = 1;
+			
+			ll_iter_reset(it);
+        }
+        pthread_mutex_unlock(&it->l->lock);
+    }
+    return moved;
 }
 
 void ll_iter_remove_data(LL_ITER *it)

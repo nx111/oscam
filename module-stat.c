@@ -157,10 +157,7 @@ READER_STAT *get_stat(struct s_reader *rdr, uint16_t caid, uint32_t prid, uint16
 	
 	//Move stat to list start for faster access:
 	if (i > 10 && stat)
-	{
-		if (ll_iter_remove(it)) 
-			ll_prepend(rdr->lb_stat, stat);
-	}
+		ll_iter_move_first(it);
 	ll_iter_release(it);
 	
 	return stat;
@@ -311,10 +308,12 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 	if (stat->ecm_count < 0)
 		stat->ecm_count=0;
 		
+	time_t ctime = time(NULL);
+	
 	if (rc == 0) { //found
 		stat->rc = 0;
 		stat->ecm_count++;
-		stat->last_received = time(NULL);
+		stat->last_received = ctime;
 		stat->request_count = 0;
 		stat->fail_factor = 0;
 		
@@ -330,6 +329,7 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 				break;
 			}
 		}
+		ll_iter_release(it);
 		
 		//FASTEST READER:
 		stat->time_idx++;
@@ -345,17 +345,17 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 		int32_t ule = rdr->lb_usagelevel_ecmcount;
 		if (ule > 0 && ((ule / cfg.lb_min_ecmcount) > 0)) //update every MIN_ECM_COUNT usagelevel:
 		{
-			time_t t = (time(NULL)-rdr->lb_usagelevel_time);
+			time_t t = (ctime-rdr->lb_usagelevel_time);
 			rdr->lb_usagelevel = 1000/(t<1?1:t);
 			ule = 0;
 		}
 		if (ule == 0)
-			rdr->lb_usagelevel_time = time(NULL);
+			rdr->lb_usagelevel_time = ctime;
 		rdr->lb_usagelevel_ecmcount = ule+1;
 	}
 	else if (rc == 1 || rc == 2) { //cache
 		//no increase of statistics here, cachetime is not real time
-		stat->last_received = time(NULL);
+		stat->last_received = ctime;
 		stat->request_count = 0;
 	}
 	else if (rc == 4) { //not found
@@ -365,7 +365,7 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 				stat->rc = rc;
 				stat->fail_factor++;
 		}
-		stat->last_received = time(NULL);
+		stat->last_received = ctime;
 		
 		//reduce ecm_count step by step
 		if (!cfg.lb_reopen_mode)
@@ -374,10 +374,8 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 	else if (rc == 5) { //timeout
 		stat->request_count++;
 
-		time_t cur_time = time(NULL);
-		
 		//catch suddenly occuring timeouts and block reader:
-		if ((int)(cur_time-stat->last_received) < (int)(5*cfg.ctimeout) && 
+		if ((int)(ctime-stat->last_received) < (int)(5*cfg.ctimeout) && 
 						stat->rc == 0 && 
 						stat->ecm_count > 0) {
 				stat->rc = 5;
@@ -388,7 +386,7 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 				stat->fail_factor++;
 		}
 				
-		stat->last_received = cur_time;
+		stat->last_received = ctime;
 
 		if (!cfg.lb_reopen_mode)
 			stat->ecm_count /= 10;
@@ -481,10 +479,12 @@ static struct stat_value *crt_cur(struct s_reader *rdr, int32_t value, int32_t t
 	return v;
 }
 
+#ifdef WITH_DEBUG 
 static char *strend(char *c) {
 	while (c && *c) c++;
 	return c;
 }
+#endif
 
 static int32_t get_retrylimit(ECM_REQUEST *er) {
 		int32_t i;
@@ -648,7 +648,7 @@ int32_t get_best_reader(ECM_REQUEST *er)
 				if (cfg.preferlocalcards && !(rdr->typ & R_IS_NETWORK))
 					nlocal_readers++; //Prefer local readers!
 
-				if (stat->rc != 0)
+				if (stat->rc >= 5)
 					nbest_readers++; //just add another reader if best reader is nonresponding but has services
 					
 				switch (cfg.lb_mode) {
@@ -772,6 +772,7 @@ int32_t get_best_reader(ECM_REQUEST *er)
 	//algo for finding unanswered requests (newcamd reader or disconnected camd35 UDP for example:)
 	it = ll_iter_create(result);
 	while ((rdr=ll_iter_next(it))) {
+		if (it->cur == fallback) break;
        	//primary readers 
        	stat = get_stat(rdr, er->caid, prid, er->srvid, er->l); 
        		

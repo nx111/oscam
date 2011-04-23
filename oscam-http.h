@@ -1150,9 +1150,9 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 			<TD>\
 				<select name=\"penalty\">\n\
 					<option value=\"0\" ##PENALTY0##>0 - Only write to log</option>\n\
-					<option value=\"1\" ##PENALTY1##>1 - Fake DW</option>\n\
+					<option value=\"1\" ##PENALTY1##>1 - Fake DW delayed</option>\n\
 					<option value=\"2\" ##PENALTY2##>2 - Ban</option>\n\
-					<option value=\"3\" ##PENALTY3##>3 - Fake DW delayed</option>\n\
+					<option value=\"3\" ##PENALTY3##>3 - Real DW delayed</option>\n\
 				</select>\n\
 			</TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#aclogfile##TPLHELPSUFFIX##AClogfile:</A></TD><TD><input name=\"aclogfile\" type=\"text\" size=\"50\" maxlength=\"50\" value=\"##ACLOGFILE##\"></TD></TR>\n\
@@ -1175,7 +1175,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 		<input name=\"action\" type=\"hidden\" value=\"execute\">\n\
 		<TABLE class=\"config\">\n\
 			<TR><TH COLSPAN=\"2\">Edit Cccam Config</TH></TR>\n\
-			<TR><TD>##TPLHELPPREFIX##conf#port_7##TPLHELPSUFFIX##Port:</A></TD><TD><input name=\"port\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"##PORT##\"></TD></TR>\n\
+			<TR><TD>##TPLHELPPREFIX##conf#port_7##TPLHELPSUFFIX##Port:</A></TD><TD><input name=\"port\" type=\"text\" size=\"16\" maxlength=\"128\" value=\"##PORT##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#reshare##TPLHELPSUFFIX##Reshare:</A></TD><TD><input name=\"reshare\" type=\"text\" size=\"2\" maxlength=\"1\" value=\"##RESHARE##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#ignorereshare##TPLHELPSUFFIX##Ignore reshare:</A></TD><TD><SELECT NAME=\"ignorereshare\"><OPTION VALUE=\"0\">OFF</OPTION><OPTION VALUE=\"1\" ##IGNORERESHARE##>ON</OPTION></SELECT></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#forward_origin_card##TPLHELPSUFFIX##Forward origin card:</A></TD><TD><SELECT NAME=\"forward_origin_card\"><OPTION VALUE=\"0\">OFF</OPTION><OPTION VALUE=\"1\" ##FORWARDORIGINCARD##>ON</OPTION></SELECT></TD></TR>\n\
@@ -1379,6 +1379,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 			</TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#cwlogdir##TPLHELPSUFFIX##CW log dir:</A></TD><TD><input name=\"cwlogdir\" type=\"text\" size=\"30\" maxlength=\"30\" value=\"##CWLOGDIR##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#saveinithistory##TPLHELPSUFFIX##Reader entitlements:</A></TD><TD><SELECT NAME=\"saveinithistory\"><OPTION VALUE=\"0\">0 - dismiss entitlements</OPTION><OPTION VALUE=\"1\" ##SAVEINITHISTORYCHECKED##>1 - save entitlements</OPTION></SELECT></TD></TR>\n\
+			<TR><TD>##TPLHELPPREFIX##conf#loghistorysize##TPLHELPSUFFIX##Loghistory Size:</A></TD><TD><input name=\"loghistorysize\" type=\"text\" size=\"5\" maxlength=\"4\" value=\"##LOGHISTORYSIZE##\"></TD></TR>\n\
 			<TR><TH COLSPAN=\"2\">Failban</TH></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#failbantime##TPLHELPSUFFIX##Failban time:</A></TD><TD><input name=\"failbantime\" type=\"text\" size=\"5\" maxlength=\"6\" value=\"##FAILBANTIME##\"> min blocking IP based</TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#failbancount##TPLHELPSUFFIX##Failban count:</A></TD><TD><input name=\"failbancount\" type=\"text\" size=\"5\" maxlength=\"2\" value=\"##FAILBANCOUNT##\"> chances with wrong credenticals</TD></TR>\n\
