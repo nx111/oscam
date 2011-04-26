@@ -660,6 +660,7 @@ struct s_client
   int32_t		cwlastresptimes_last; // ringbuffer pointer
   int32_t		emmok;       // count EMM ok
   int32_t		emmnok;	     // count EMM nok
+  int32_t		pending;     // number of ECMs pending
 #ifdef WEBIF
   int32_t		wihidden;	// hidden in webinterface status
   char      lastreader[64]; // last cw got from this reader
@@ -1244,7 +1245,6 @@ typedef struct reader_stat_t
   int32_t           time_stat[LB_MAX_STAT_TIME];
   int32_t           time_idx;
 
-  int32_t           request_count;
   int32_t			fail_factor;
 } READER_STAT;
 
@@ -1303,7 +1303,6 @@ extern char to_hex(char code);
 extern void char_to_hex(const unsigned char* p_array, uint32_t p_array_len, unsigned char *result);
 extern void create_rand_str(char *dst, int32_t size);
 #endif
-extern void uint64ToBitchar(uint64_t value, int32_t size, char *result);
 extern int32_t file_exists(const char * filename);
 extern void clear_sip(struct s_ip **sip);
 extern void clear_ptab(struct s_ptab *ptab);
@@ -1394,6 +1393,7 @@ extern void get_cw(struct s_client *, ECM_REQUEST *);
 extern void do_emm(struct s_client *, EMM_PACKET *);
 extern ECM_REQUEST *get_ecmtask(void);
 extern void request_cw(ECM_REQUEST *, int, int);
+extern void send_reader_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t rc);
 extern int32_t send_dcw(struct s_client *, ECM_REQUEST *);
 extern int32_t process_input(uchar *, int, int);
 extern int32_t has_srvid(struct s_client *cl, ECM_REQUEST *er);
@@ -1530,6 +1530,7 @@ extern int32_t is_connect_blocked(struct s_reader *rdr);
             
 // oscam-log
 extern int32_t  cs_init_log();
+extern void cs_reinit_loghist(uint32_t size);
 extern int32_t cs_open_logfiles();
 extern void cs_write_log(char *);
 extern void cs_log(const char *,...);

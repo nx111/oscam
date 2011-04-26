@@ -1022,19 +1022,15 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 		tpl_printf(vars, TPLADD, "LBWEIGHT", "%d", rdr->lb_weight);
 
 	//services
-	char sidok[MAX_SIDBITS+1];
-	uint64ToBitchar((uint64_t)rdr->sidtabok, MAX_SIDBITS, sidok);
-	char sidno[MAX_SIDBITS+1];
-	uint64ToBitchar((uint64_t)rdr->sidtabno,MAX_SIDBITS, sidno);
 	struct s_sidtab *sidtab = cfg.sidtab;
 	//build matrix
 	i = 0;
 	while(sidtab != NULL) {
 		tpl_addVar(vars, TPLADD, "SIDLABEL", sidtab->label);
-		if(sidok[i]=='1') tpl_addVar(vars, TPLADD, "CHECKED", "checked");
+		if(rdr->sidtabok&((SIDTABBITS)1<<i)) tpl_addVar(vars, TPLADD, "CHECKED", "checked");
 		else tpl_addVar(vars, TPLADD, "CHECKED", "");
 		tpl_addVar(vars, TPLAPPEND, "SIDS", tpl_getTpl(vars, "READERCONFIGSIDOKBIT"));
-		if(sidno[i]=='1') tpl_addVar(vars, TPLADD, "CHECKED", "checked");
+		if(rdr->sidtabno&((SIDTABBITS)1<<i)) tpl_addVar(vars, TPLADD, "CHECKED", "checked");
 		else tpl_addVar(vars, TPLADD, "CHECKED", "");
 		tpl_addVar(vars, TPLAPPEND, "SIDS", tpl_getTpl(vars, "READERCONFIGSIDNOBIT"));
 		sidtab=sidtab->next;
@@ -1522,20 +1518,15 @@ char *send_oscam_user_config_edit(struct templatevars *vars, struct uriparams *p
 	}
 
 	/* SERVICES */
-	//services - first we have to move the long sidtabok/sidtabno to a binary array
-	char sidok[MAX_SIDBITS+1];
-	uint64ToBitchar((uint64_t)account->sidtabok, MAX_SIDBITS, sidok);
-	char sidno[MAX_SIDBITS+1];
-	uint64ToBitchar((uint64_t)account->sidtabno, MAX_SIDBITS, sidno);
 	struct s_sidtab *sidtab = cfg.sidtab;
 	//build matrix
 	i=0;
 	while(sidtab != NULL) {
 		tpl_addVar(vars, TPLADD, "SIDLABEL", sidtab->label);
-		if(sidok[i]=='1') tpl_addVar(vars, TPLADD, "CHECKED", "checked");
+		if(account->sidtabok&((SIDTABBITS)1<<i)) tpl_addVar(vars, TPLADD, "CHECKED", "checked");
 		else tpl_addVar(vars, TPLADD, "CHECKED", "");
 		tpl_addVar(vars, TPLAPPEND, "SIDS", tpl_getTpl(vars, "USEREDITSIDOKBIT"));
-		if(sidno[i]=='1') tpl_addVar(vars, TPLADD, "CHECKED", "checked");
+		if(account->sidtabno&((SIDTABBITS)1<<i)) tpl_addVar(vars, TPLADD, "CHECKED", "checked");
 		else tpl_addVar(vars, TPLADD, "CHECKED", "");
 		tpl_addVar(vars, TPLAPPEND, "SIDS", tpl_getTpl(vars, "USEREDITSIDNOBIT"));
 		sidtab=sidtab->next;
@@ -2391,29 +2382,32 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 								}
 					}
 					tpl_addVar(vars, TPLADD, "CLIENTCON", txt);
-					if((cl->typ == 'r' || cl->typ == 'p') && strncmp(proto,"cccam", 5) == 0){
-						struct cc_data *rcc = cl->cc;
-						if(rcc){
-							LLIST *cards = rcc->cards;
-							if (cards) {
-								int32_t cnt = ll_count(cards);
-								int32_t locals = rcc->num_hop1;
-								tpl_printf(vars, TPLADD, "TMP", "(%d of %d card%s)", locals, cnt, (cnt > 1)? "s": "");
-								tpl_printf(vars, TPLADD, "TMPSPAN","<SPAN>card count=%d<BR>hop1=%d<BR>hop2=%d<BR>hopx=%d<BR>currenthops=%d<BR><BR>reshare0=%d<BR>reshare1=%d<BR>reshare2=%d<BR>resharex=%d</SPAN>",
-										cnt,
-										rcc->num_hop1,
-										rcc->num_hop2,
-										rcc->num_hopx,
-										cl->reader->cc_currenthops,
-										rcc->num_reshare0,
-										rcc->num_reshare1,
-										rcc->num_reshare2,
-										rcc->num_resharex);
 
-								tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" class=\"tooltip\">%s%s</A>",
-										urlencode(vars, cl->reader->label),
-										tpl_getVar(vars, "TMP"),
-										tpl_getVar(vars, "TMPSPAN"));
+					if (!apicall) {
+						if((cl->typ == 'r' || cl->typ == 'p') && strncmp(proto,"cccam", 5) == 0){
+							struct cc_data *rcc = cl->cc;
+							if(rcc){
+								LLIST *cards = rcc->cards;
+								if (cards) {
+									int32_t cnt = ll_count(cards);
+									int32_t locals = rcc->num_hop1;
+									tpl_printf(vars, TPLADD, "TMP", "(%d of %d card%s)", locals, cnt, (cnt > 1)? "s": "");
+									tpl_printf(vars, TPLADD, "TMPSPAN","<SPAN>card count=%d<BR>hop1=%d<BR>hop2=%d<BR>hopx=%d<BR>currenthops=%d<BR><BR>reshare0=%d<BR>reshare1=%d<BR>reshare2=%d<BR>resharex=%d</SPAN>",
+											cnt,
+											rcc->num_hop1,
+											rcc->num_hop2,
+											rcc->num_hopx,
+											cl->reader->cc_currenthops,
+											rcc->num_reshare0,
+											rcc->num_reshare1,
+											rcc->num_reshare2,
+											rcc->num_resharex);
+
+									tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" class=\"tooltip\">%s%s</A>",
+											urlencode(vars, cl->reader->label),
+											tpl_getVar(vars, "TMP"),
+											tpl_getVar(vars, "TMPSPAN"));
+								}
 							}
 						}
 					}

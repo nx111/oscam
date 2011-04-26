@@ -150,7 +150,7 @@ void chk_caidtab(char *caidasc, CAIDTAB *ctab)
 	}
 }
 
-void chk_caidvaluetab(char *lbrlt, CAIDVALUETAB *tab)
+void chk_caidvaluetab(char *lbrlt, CAIDVALUETAB *tab, int minvalue)
 {
 		int32_t i;
 		char *ptr1, *ptr2;
@@ -167,6 +167,7 @@ void chk_caidvaluetab(char *lbrlt, CAIDVALUETAB *tab)
 
 				if (((caid = a2i(ptr1, 2)) < 0xFFFF) | ((value = atoi(ptr2)) < 10000)) {
 						tab->caid[i] = caid;
+						if (value < minvalue) value = minvalue;
 						tab->value[i] = value;
 						tab->n = ++i;
 				}
@@ -371,7 +372,12 @@ void chk_t_global(const char *token, char *value)
 	}
 
 	if (!strcmp(token, "loghistorysize")) {
-		cfg.loghistorysize = strToIntVal(value, 4096);
+		uint32_t newsize = strToIntVal(value, 4096);
+		if (newsize < 1024) {
+			fprintf(stderr, "WARNING: loghistorysize is too small, adjusted to 1024\n");
+			newsize = 1024;
+		}
+		cs_reinit_loghist(newsize);
 		return;
 	}
 
@@ -548,6 +554,8 @@ void chk_t_global(const char *token, char *value)
 
 	if (!strcmp(token, "lb_nbest_readers")) {
 		cfg.lb_nbest_readers = strToIntVal(value, DEFAULT_NBEST);
+		if (cfg.lb_nbest_readers < 2)
+			cfg.lb_nbest_readers = DEFAULT_NBEST;
 		return;
 	}
 
@@ -577,12 +585,12 @@ void chk_t_global(const char *token, char *value)
 	}
 
 	if (!strcmp(token, "lb_retrylimits")) {
-		chk_caidvaluetab(value, &cfg.lb_retrylimittab);
+		chk_caidvaluetab(value, &cfg.lb_retrylimittab, 50);
 		return;
 	}
 
 	if (!strcmp(token, "lb_nbest_percaid")) {
-		chk_caidvaluetab(value, &cfg.lb_nbest_readers_tab);
+		chk_caidvaluetab(value, &cfg.lb_nbest_readers_tab, 1);
 		return;
 	}
 
@@ -1409,7 +1417,8 @@ int32_t init_config()
 	cfg.usrfile = NULL;
 	cfg.disableuserfile = 1;
 #ifdef CS_LOGHISTORY
-	cfg.loghistorysize = 4096;
+	cfg.loghistorysize = 0;
+	cs_reinit_loghist(4096);
 #endif
 	cfg.cwlogdir = NULL;
 	cfg.reader_restart_seconds = 5;
@@ -1472,14 +1481,6 @@ int32_t init_config()
 		cfg.logtostdout = 1;
 	}
 	if(cfg.usrfile == NULL) cfg.disableuserfile = 1;
-
-	if (cfg.loghistorysize) {
-		if (cfg.loghistorysize < 1000) {
-			fprintf(stderr, "WARNING: loghistorysize is too small, adjusted to 1024\n");
-			cfg.loghistorysize = 1024;
-		}
-		cs_malloc(&loghist, cfg.loghistorysize, 0);
-	}
 
 	cs_init_log();
 	cs_init_statistics();
@@ -4474,11 +4475,9 @@ char *mk_t_tuntab(TUNTAB *ttab){
  */
 char *mk_t_group(uint64_t grp){
 	int32_t i = 0, needed = 1, pos = 0, dot = 0;
-	char grpbit[65];
-	uint64ToBitchar(grp, 64, grpbit);
 
 	for(i = 0; i < 64; i++){
-		if (grpbit[i] == '1'){
+		if (grp&((uint64_t)1<<i)){
 			needed += 2;
 			if(i > 9) needed += 1;
 		}
@@ -4487,7 +4486,7 @@ char *mk_t_group(uint64_t grp){
 	if(needed == 1 || !cs_malloc(&value, needed * sizeof(char), -1)) return "";
 	char * saveptr = value;
 	for(i = 0; i < 64; i++){
-		if (grpbit[i] == '1'){
+		if (grp&((uint64_t)1<<i)){
 			if (dot == 0){
 				snprintf(value + pos, needed-(value-saveptr), "%d", i+1);
 				if (i > 8)pos += 2;

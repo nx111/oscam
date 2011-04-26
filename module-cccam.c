@@ -678,7 +678,7 @@ int32_t loop_check(uint8_t *myid, struct s_client *cl) {
 int32_t cc_get_nxt_ecm(struct s_client *cl) {
 	struct cc_data *cc = cl->cc;	
 	ECM_REQUEST *er, *ern = NULL;
-	int32_t n, i;
+	int32_t n, i, pending=0;
 	time_t t;
 
 	t = time(NULL);
@@ -689,9 +689,11 @@ int32_t cc_get_nxt_ecm(struct s_client *cl) {
 				/ 1000) + 1) && (er->rc >= 10)) // drop timeouts
 		{
 			er->rc = 0;
+			send_reader_stat(cl->reader, er, E_TIMEOUT);
 		}
 
 		else if (er->rc >= 10 && er->rc != 101) { // stil active and waiting
+			pending++;
 			if (loop_check(cc->peer_node_id, er->client)) {
 				er->rc = E_RDR_NOTFOUND;
 				er->rcEx = E2_CCCAM_LOOP;
@@ -728,6 +730,7 @@ int32_t cc_get_nxt_ecm(struct s_client *cl) {
 			}
 		}
 	}
+	cl->pending=pending;
 	return n;
 }
 
@@ -2014,6 +2017,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l) {
 										ECM_REQUEST *er = &cl->ecmtask[i];
 										er->rc = E_RDR_NOTFOUND;
 										er->rcEx = (buf[1] == MSG_CW_NOK1)?E2_CCCAM_NOK1:E2_CCCAM_NOK2;
+										cl->pending--;
 										write_ecm_answer(rdr, er);
 										break;
 								}
@@ -3236,10 +3240,22 @@ void module_cccam(struct s_module *ph) {
 	//Partner Detection:
 	init_rnd();
 	uint16_t sum = 0x1234; //This is our checksum 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 4; i++) {
 		cc_node_id[i] = fast_rnd();
 		sum += cc_node_id[i];
 	}
+	
+	// Partner ID:
+	cc_node_id[4] = 0x10; // (Oscam 0x10, vPlugServer 0x11, Hadu 0x12,...)
+	sum += cc_node_id[4];
+					
+	// generate checksum for Partner ID:
+	cc_node_id[5] = 0xAA;
+	for (i = 0; i < 5; i++) {
+      cc_node_id[5] ^= cc_node_id[i];
+    }
+    sum += cc_node_id[5];		
+    
 	cc_node_id[6] = sum >> 8;
 	cc_node_id[7] = sum & 0xff;
 
