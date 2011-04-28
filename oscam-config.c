@@ -208,6 +208,7 @@ void chk_tuntab(char *tunasc, TUNTAB *ttab)
 			ttab->bt_caidfrom[i] = bt_caidfrom;
 			ttab->bt_caidto[i] = bt_caidto;
 			ttab->bt_srvid[i++] = bt_srvid;
+			ttab->n = i;
 		}
 	}
 }
@@ -539,7 +540,7 @@ void chk_t_global(const char *token, char *value)
 	}
 
 	if (!strcmp(token, "readerautoloadbalance") || !strcmp(token, "lb_mode")) {
-		cfg.lb_mode = strToIntVal(value, 0);
+		cfg.lb_mode = strToIntVal(value, DEFAULT_LB_MODE);
 		return;
 	}
 
@@ -625,6 +626,11 @@ void chk_t_global(const char *token, char *value)
 	
 	if (!strcmp(token, "lb_max_readers")) {
 		cfg.lb_max_readers = strToIntVal(value, 0);
+		return;
+	}
+
+	if (!strcmp(token, "lb_auto_betatunnel")) {
+		cfg.lb_auto_betatunnel = strToIntVal(value, DEFAULT_LB_AUTO_BETATUNNEL);
 		return;
 	}
 
@@ -1454,6 +1460,19 @@ int32_t init_config()
 	cfg.cc_cfgfile = NULL;
 	cfg.cc_reshare = 10;
 #endif
+
+	//loadbalancer defaults:
+	cfg.lb_mode = DEFAULT_LB_MODE;
+    cfg.lb_nbest_readers = DEFAULT_NBEST;
+    cfg.lb_nfb_readers = DEFAULT_NFB;
+    cfg.lb_min_ecmcount = DEFAULT_MIN_ECM_COUNT;
+    cfg.lb_max_ecmcount = DEFAULT_MAX_ECM_COUNT;
+    cfg.lb_reopen_seconds = DEFAULT_REOPEN_SECONDS;
+    cfg.lb_retrylimit = DEFAULT_RETRYLIMIT;
+    cfg.lb_stat_cleanup = DEFAULT_LB_STAT_CLEANUP;
+    cfg.lb_auto_betatunnel = DEFAULT_LB_AUTO_BETATUNNEL;
+    //end loadbalancer defaults
+                                                                                    	
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_conf);
 	if (!(fp = fopen(token, "r"))) {
 		fprintf(stderr, "Cannot open config file '%s' (errno=%d %s)\n", token, errno, strerror(errno));
@@ -1877,7 +1896,7 @@ int32_t write_config()
 	if (cfg.dropdups || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "dropdups", "%d\n", cfg.dropdups);
 
-	if (cfg.lb_mode || cfg.http_full_cfg)
+	if (cfg.lb_mode != DEFAULT_LB_MODE || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "lb_mode", "%d\n", cfg.lb_mode);
 	if (cfg.lb_save || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "lb_save", "%d\n", cfg.lb_save);
@@ -1920,6 +1939,8 @@ int32_t write_config()
 		fprintf_conf(f, CONFVARWIDTH, "lb_reopen_mode", "%d\n", cfg.lb_reopen_mode);
 	if (cfg.lb_max_readers || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "lb_max_readers", "%d\n", cfg.lb_max_readers);
+	if (cfg.lb_auto_betatunnel != DEFAULT_LB_AUTO_BETATUNNEL || cfg.http_full_cfg)
+		fprintf_conf(f, CONFVARWIDTH, "lb_auto_betatunnel", "%d\n", cfg.lb_auto_betatunnel);
 
 	if (cfg.resolve_gethostbyname || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "resolvegethostbyname", "%d\n", cfg.resolve_gethostbyname);
@@ -4437,18 +4458,16 @@ char *mk_t_caidtab(CAIDTAB *ctab){
  * Creates a string ready to write as a token into config or WebIf for TunTabs. You must free the returned value through free_mk_t().
  */
 char *mk_t_tuntab(TUNTAB *ttab){
-	int32_t i = 0, needed = 1, pos = 0;
-	while(ttab->bt_caidfrom[i]){
+	int32_t i, needed = 1, pos = 0;
+	for (i=0; i<ttab->n; i++) {
 		if(ttab->bt_srvid[i]) needed += 10;
 		else needed += 5;
 		if(ttab->bt_caidto[i]) needed += 5;
-		++i;
 	}
 	char *value;
 	if(needed == 1 || !cs_malloc(&value, needed * sizeof(char), -1)) return "";
 	char *saveptr = value;
-	i = 0;
-	while(ttab->bt_caidfrom[i]) {
+	for (i=0; i<ttab->n; i++) {
 		if(i == 0) {
 			snprintf(value + pos, needed-(value-saveptr), "%04X", ttab->bt_caidfrom[i]);
 			pos += 4;
@@ -4464,7 +4483,6 @@ char *mk_t_tuntab(TUNTAB *ttab){
 			snprintf(value + pos, needed-(value-saveptr), ":%04X", ttab->bt_caidto[i]);
 			pos += 5;
 		}
-		++i;
 	}
 	value[pos] = '\0';
 	return value;
