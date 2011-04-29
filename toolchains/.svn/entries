@@ -1,7 +1,7 @@
 10
 
 dir
-5100
+5110
 http://streamboard.gmc.to/svn/oscam/trunk/toolchains
 http://streamboard.gmc.to/svn/oscam
 
@@ -25,40 +25,6 @@ Deas
 
 
 4b0bc96b-bc66-0410-9d44-ebda105a78c1
-
-toolchain-mips-dir825.cmake
-file
-
-
-
-
-2011-01-16T11:21:39.244020Z
-74254636b2bab49a16b78212f3312540
-2010-09-11T07:17:01.048506Z
-3036
-lattjo
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-136
 
 toolchain-arm-dockstar-openwrt.cmake
 file
@@ -94,6 +60,40 @@ rorothetroll
 
 156
 
+toolchain-mips-dir825.cmake
+file
+
+
+
+
+2011-01-16T11:21:39.244020Z
+74254636b2bab49a16b78212f3312540
+2010-09-11T07:17:01.048506Z
+3036
+lattjo
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+136
+
 toolchain-arm-coolstream.cmake
 file
 
@@ -128,40 +128,6 @@ landlord
 
 151
 
-toolchain-mips-azbox.cmake
-file
-
-
-
-
-2011-01-16T11:21:39.248020Z
-613c69c45c5b5b801988601163555218
-2010-07-15T13:33:38.508914Z
-2748
-cogsi
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-141
-
 toolchain-arm-friendlyarm.cmake
 file
 
@@ -195,6 +161,40 @@ Deas
 
 
 148
+
+toolchain-mips-azbox.cmake
+file
+
+
+
+
+2011-01-16T11:21:39.248020Z
+613c69c45c5b5b801988601163555218
+2010-07-15T13:33:38.508914Z
+2748
+cogsi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+141
 
 toolchain-tripledragon.cmake
 file
@@ -264,40 +264,6 @@ landlord
 
 141
 
-toolchain-sh4-amino.cmake
-file
-
-
-
-
-2011-01-16T11:21:39.248020Z
-7ffce848bd9abe0629e850bd30770035
-2009-06-15T10:17:21.796336Z
-109
-smurzch2
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-134
-
 toolchain-mips-tuxbox.cmake
 file
 
@@ -331,6 +297,40 @@ smurzch2
 
 
 135
+
+toolchain-sh4-amino.cmake
+file
+
+
+
+
+2011-01-16T11:21:39.248020Z
+7ffce848bd9abe0629e850bd30770035
+2009-06-15T10:17:21.796336Z
+109
+smurzch2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+134
 
 toolchain-sparc-padre.cmake
 file
@@ -366,40 +366,6 @@ Admin
 
 138
 
-toolchain-mips-wrt54g.cmake
-file
-
-
-
-
-2011-01-16T11:21:39.248020Z
-0426504c9cfea1e520af31178aef1fdb
-2009-12-11T14:25:46.271021Z
-791
-landlord
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-142
-
 toolchain-mips-fonera2.cmake
 file
 
@@ -433,6 +399,40 @@ smurzch2
 
 
 134
+
+toolchain-mips-wrt54g.cmake
+file
+
+
+
+
+2011-01-16T11:21:39.248020Z
+0426504c9cfea1e520af31178aef1fdb
+2009-12-11T14:25:46.271021Z
+791
+landlord
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+142
 
 toolchain-arm-wrt350nv2-openwrt.cmake
 file
