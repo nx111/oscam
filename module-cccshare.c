@@ -95,7 +95,7 @@ int32_t write_card(struct cc_data *cc, uint8_t *buf, struct cc_card *card, int32
 
     //write sids only if cccam 2.2.x:
     if (ext) {
-    	if (card->card_type == CT_CARD_BY_SERVICE_USER) {
+    	if (card->sidtab) {
 		        //good sids:
 		        struct s_sidtab *ptr = card->sidtab;
 		        int32_t l;
@@ -385,11 +385,14 @@ int32_t card_valid_for_client(struct s_client *cl, struct cc_card *card) {
 		ll_iter_release(it);
 		
         //Check Card created by Service:
-        if (card->card_type == CT_CARD_BY_SERVICE_READER || card->card_type == CT_CARD_BY_SERVICE_USER) {
+        if (card->sidtab) {
         		struct s_sidtab *ptr;
         		int32_t j;
         		int32_t ok = !cl->sidtabok && !cl->sidtabno; //default valid if no positive services and no negative services
         		if (!ok) {
+        				if (!cl->sidtabok) // no positive services, so ok by default if no negative found
+        						ok=1;
+        						
 		        		for (j=0,ptr=cfg.sidtab; ptr; ptr=ptr->next,j++) {
         						if (ptr == card->sidtab) {
 										if (cl->account->sidtabno&((SIDTABBITS)1<<j))
