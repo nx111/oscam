@@ -1,6 +1,11 @@
 //FIXME Not checked on threadsafety yet; after checking please remove this line
 #include "globals.h"
 #ifdef WEBIF
+#ifdef WITH_SSL
+#include <openssl/crypto.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif
 #include "oscam-http.h"
 
 /* Adds a name->value-mapping or appends to it. You will get a reference back which you may freely
@@ -380,13 +385,8 @@ int32_t check_auth(char *authstring, char *method, char *path, char *expectednon
 	return authok;
 }
 
-#ifdef WITH_SSL
-#include <openssl/crypto.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#endif
-
 int32_t webif_write_raw(char *buf, FILE* f, int32_t len) {
+	errno=0;
 #ifdef WITH_SSL
 	if (cfg.http_use_ssl) {
 		return SSL_write((SSL*)f, buf, len);
@@ -400,6 +400,7 @@ int32_t webif_write(char *buf, FILE* f) {
 }
 
 int32_t webif_read(char *buf, int32_t num, FILE *f) {
+	errno=0;
 #ifdef WITH_SSL
 	if (cfg.http_use_ssl) {
 		return SSL_read((SSL*)f, buf, num);
@@ -408,11 +409,11 @@ int32_t webif_read(char *buf, int32_t num, FILE *f) {
 		return read(fileno(f), buf, num);
 }
 
-void send_headers(FILE *f, int32_t status, char *title, char *extra, char *mime, int32_t cache){
+void send_headers(FILE *f, int32_t status, char *title, char *extra, char *mime, int32_t cache, int32_t length, int8_t forcePlain){
   time_t now;
   char timebuf[32];
-  char buf[sizeof(PROTOCOL) + sizeof(SERVER) + strlen(title) + (extra == NULL?0:strlen(extra)+2) + (mime == NULL?0:strlen(mime)+2) + 256];
-	char *pos = buf;
+  char buf[sizeof(PROTOCOL) + sizeof(SERVER) + strlen(title) + (extra == NULL?0:strlen(extra)+2) + (mime == NULL?0:strlen(mime)+2) + 300];
+  char *pos = buf;
 	
   pos += snprintf(pos, sizeof(buf)-(pos-buf), "%s %d %s\r\n", PROTOCOL, status, title);
   pos += snprintf(pos, sizeof(buf)-(pos-buf), "Server: %s\r\n", SERVER);
@@ -433,10 +434,12 @@ void send_headers(FILE *f, int32_t status, char *title, char *extra, char *mime,
 	} else {
 		pos += snprintf(pos, sizeof(buf)-(pos-buf),"Cache-Control: public, max-age=7200\r\n");
 	}
+	pos += snprintf(pos, sizeof(buf)-(pos-buf),"Content-Length: %d\r\n", length);
 	pos += snprintf(pos, sizeof(buf)-(pos-buf),"Last-Modified: %s\r\n", timebuf);
 	pos += snprintf(pos, sizeof(buf)-(pos-buf), "Connection: close\r\n");
 	pos += snprintf(pos, sizeof(buf)-(pos-buf),"\r\n");
-	webif_write(buf, f);
+	if(forcePlain == 1) fwrite(buf, 1, strlen(buf), f);
+	else webif_write(buf, f);
 }
 
 /*
@@ -444,12 +447,15 @@ void send_headers(FILE *f, int32_t status, char *title, char *extra, char *mime,
  */
 void send_file(FILE *f, char *filename){
 	int32_t fileno = 0;
+	char* mimetype = "";
 
 	if (!strcmp(filename, "CSS")){
 		filename = cfg.http_css;
+		mimetype = "text/css";
 		fileno = 1;
 	} else if (!strcmp(filename, "JS")){
 		filename = cfg.http_jscript;
+		mimetype = "text/javascript";
 		fileno = 2;
 	}
 
@@ -461,39 +467,36 @@ void send_file(FILE *f, char *filename){
 		if((fp = fopen(filename, "r"))==NULL) return;
 		while((read = fread(buffer,sizeof(char), 1023, fp)) > 0) {
 			buffer[read] = '\0';
+			send_headers(f, 200, "OK", NULL, mimetype, 1, strlen(buffer), 0);
 			webif_write(buffer, f);
 		}
 
 		fclose (fp);
 	} else {
-		if (fileno == 1)
+		if (fileno == 1){
+			send_headers(f, 200, "OK", NULL, mimetype, 1, strlen(CSS), 0);
 			webif_write(CSS, f);
-		else if (fileno == 2)
+		} else if (fileno == 2){
+			send_headers(f, 200, "OK", NULL, mimetype, 1, strlen(JSCRIPT), 0);
 			webif_write(JSCRIPT, f);
+		}
 	}
 }
 
-void send_error(FILE *f, int32_t status, char *title, char *extra, char *text){
+void send_error(FILE *f, int32_t status, char *title, char *extra, char *text, int8_t forcePlain){
 	char buf[(2* strlen(title)) + strlen(text) + 128];
 	char *pos = buf;
-	send_headers(f, status, title, extra, "text/html", 0);
+	send_headers(f, status, title, extra, "text/html", 0, strlen(buf), forcePlain);
 	pos += snprintf(pos, sizeof(buf)-(pos-buf), "<HTML><HEAD><TITLE>%d %s</TITLE></HEAD>\r\n", status, title);
 	pos += snprintf(pos, sizeof(buf)-(pos-buf), "<BODY><H4>%d %s</H4>\r\n", status, title);
 	pos += snprintf(pos, sizeof(buf)-(pos-buf), "%s\r\n", text);
 	pos += snprintf(pos, sizeof(buf)-(pos-buf), "</BODY></HTML>\r\n");
-	webif_write(buf, f);
+	if(forcePlain == 1) fwrite(buf, 1, strlen(buf), f);
+	else webif_write(buf, f);
 }
 
 void send_error500(FILE *f){
-	send_error(f, 500, "Internal Server Error", NULL, "The server encountered an internal error that prevented it from fulfilling this request.");
-}
-
-char *getParam(struct uriparams *params, char *name){
-	int32_t i;
-	for(i=(*params).paramcount-1; i>=0; --i){
-		if(strcmp((*params).params[i], name) == 0) return (*params).values[i];
-	}
-	return "";
+	send_error(f, 500, "Internal Server Error", NULL, "The server encountered an internal error that prevented it from fulfilling this request.", 0);
 }
 
 /* Helper function for urldecode.*/
@@ -661,4 +664,192 @@ char *sec2timeformat(struct templatevars *vars, int32_t seconds) {
 	return tpl_addTmp(vars, value);
 }
 
+/* Parse url parameters and save them to params array. The pch pointer is increased to the position where parsing stopped. */
+void parseParams(struct uriparams *params, char *pch) {
+	char *pch2;
+	// parsemode = 1 means parsing next param, parsemode = -1 parsing next
+  //value; pch2 points to the beginning of the currently parsed string, pch is the current position
+	int32_t parsemode = 1;
+
+	pch2=pch;
+	while(pch[0] != '\0') {
+		if((parsemode == 1 && pch[0] == '=') || (parsemode == -1 && pch[0] == '&')) {
+			pch[0] = '\0';
+			urldecode(pch2);
+			if(parsemode == 1) {
+				if(params->paramcount >= MAXGETPARAMS) break;
+				++params->paramcount;
+				params->params[params->paramcount-1] = pch2;
+			} else {
+				params->values[params->paramcount-1] = pch2;
+			}
+			parsemode = -parsemode;
+			pch2 = pch + 1;
+		}
+		++pch;
+	}
+	/* last value wasn't processed in the loop yet... */
+	if(parsemode == -1 && params->paramcount <= MAXGETPARAMS) {
+		urldecode(pch2);
+		params->values[params->paramcount-1] = pch2;
+	}
+}
+
+/* Returns the value of the parameter called name or an empty string if it doesn't exist. */
+char *getParam(struct uriparams *params, char *name){
+	int32_t i;
+	for(i=(*params).paramcount-1; i>=0; --i){
+		if(strcmp((*params).params[i], name) == 0) return (*params).values[i];
+	}
+	return "";
+}
+
+struct s_reader *get_reader_by_label(char *lbl){
+	struct s_reader *rdr;
+	LL_ITER *itr = ll_iter_create(configured_readers);
+	while((rdr = ll_iter_next(itr)))
+	  if (strcmp(lbl, rdr->label) == 0) break;
+	ll_iter_release(itr);
+	return rdr;
+}
+
+struct s_client *get_client_by_name(char *name) {
+	struct s_client *cl;
+	for (cl = first_client; cl ; cl = cl->next) {
+		if (strcmp(name, cl->account->usr) == 0)
+			return cl;
+	}
+	return NULL;
+}
+
+struct s_auth *get_account_by_name(char *name) {
+	struct s_auth *account;
+	for (account=cfg.account; (account); account=account->next) {
+		if(strcmp(name, account->usr) == 0)
+			return account;
+	}
+	return NULL;
+}
+
+#ifdef WITH_SSL
+/* Locking functions for SSL multithreading */
+static pthread_mutex_t *lock_cs;
+struct CRYPTO_dynlock_value{
+    pthread_mutex_t mutex;
+};
+
+/* function really needs unsigned long to prevent compiler warnings... */
+unsigned long SSL_id_function(void){
+	return ((unsigned long) pthread_self());
+}
+
+void SSL_locking_function(int32_t mode, int32_t type, const char *file, int32_t line){
+	if (mode & CRYPTO_LOCK) {
+		pthread_mutex_lock(&lock_cs[type]);
+	} else {
+		pthread_mutex_unlock(&lock_cs[type]);
+	}
+	// just to remove compiler warnings...
+	if(file || line) return;
+}
+
+struct CRYPTO_dynlock_value *SSL_dyn_create_function(const char *file, int32_t line){
+    struct CRYPTO_dynlock_value *l;
+    if(!cs_malloc(&l, sizeof(struct CRYPTO_dynlock_value), -1)) return (NULL);
+		if(pthread_mutex_init(&l->mutex, NULL)) {
+			// Initialization of mutex failed.
+			free(l);
+			return (NULL);
+		}
+    pthread_mutex_init(&l->mutex, NULL);
+    // just to remove compiler warnings...
+		if(file || line) return l;
+    return l;
+}
+
+void SSL_dyn_lock_function(int32_t mode, struct CRYPTO_dynlock_value *l, const char *file, int32_t line){
+	if (mode & CRYPTO_LOCK) {
+		pthread_mutex_lock(&l->mutex);
+	} else {
+		pthread_mutex_unlock(&l->mutex);
+	}
+	// just to remove compiler warnings...
+	if(file || line) return;
+}
+
+void SSL_dyn_destroy_function(struct CRYPTO_dynlock_value *l, const char *file, int32_t line){
+	pthread_mutex_destroy(&l->mutex);
+	free(l);
+	// just to remove compiler warnings...
+	if(file || line) return;
+}
+
+/* Init necessary structures for SSL in WebIf*/
+SSL_CTX *SSL_Webif_Init() {
+	SSL_library_init();
+	SSL_load_error_strings();
+	ERR_load_BIO_strings();
+	ERR_load_SSL_strings();
+
+	SSL_METHOD *meth;
+	SSL_CTX *ctx;
+
+	static const char *cs_cert="oscam.pem";
+	
+	// set locking callbacks for SSL
+	int32_t i, num = CRYPTO_num_locks();
+	lock_cs = (pthread_mutex_t*) OPENSSL_malloc(num * sizeof(pthread_mutex_t));
+	
+	for (i = 0; i < num; ++i) {
+		if(pthread_mutex_init(&lock_cs[i], NULL)){
+			while(--i > 0){
+				pthread_mutex_destroy(&lock_cs[i]);
+				--i;
+			}
+			free(lock_cs);
+			return NULL;
+		};
+	}
+	/* static lock callbacks */ 
+	CRYPTO_set_id_callback(SSL_id_function);
+	CRYPTO_set_locking_callback(SSL_locking_function);
+	/* dynamic lock callbacks */
+	CRYPTO_set_dynlock_create_callback(SSL_dyn_create_function);
+	CRYPTO_set_dynlock_lock_callback(SSL_dyn_lock_function);
+	CRYPTO_set_dynlock_destroy_callback(SSL_dyn_destroy_function); 
+
+	meth = SSLv23_server_method();
+
+	ctx = SSL_CTX_new(meth);
+
+	char path[128];
+
+	if (cfg.http_cert[0]==0)
+		snprintf(path, sizeof(path), "%s%s", cs_confdir, cs_cert);
+	else
+		cs_strncpy(path, cfg.http_cert, sizeof(path));
+
+	if (!ctx) {
+		ERR_print_errors_fp(stderr);
+		return NULL;
+       }
+
+	if (SSL_CTX_use_certificate_file(ctx, path, SSL_FILETYPE_PEM) <= 0) {
+		ERR_print_errors_fp(stderr);
+		return NULL;
+	}
+
+	if (SSL_CTX_use_PrivateKey_file(ctx, path, SSL_FILETYPE_PEM) <= 0) {
+		ERR_print_errors_fp(stderr);
+		return NULL;
+	}
+
+	if (!SSL_CTX_check_private_key(ctx)) {
+		cs_log("SSL: Private key does not match the certificate public key");
+		return NULL;
+	}
+	cs_log("load ssl certificate file %s", path);
+	return ctx;
+}
+#endif
 #endif

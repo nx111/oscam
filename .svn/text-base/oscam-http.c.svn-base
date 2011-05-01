@@ -1,4 +1,3 @@
-//FIXME Not checked on threadsafety yet; after checking please remove this line
 #include "globals.h"
 #ifdef WEBIF
 //
@@ -19,6 +18,7 @@
 extern void restart_cardreader(struct s_reader *rdr, int32_t restart);
 
 static int32_t running = 1;
+pthread_mutex_t http_lock;
 
 #ifdef CS_ANTICASC
 static void kill_ac_client(void)
@@ -31,33 +31,6 @@ static void kill_ac_client(void)
 		}
 }
 #endif
-
-struct s_reader *get_reader_by_label(char *lbl){
-	struct s_reader *rdr;
-	LL_ITER *itr = ll_iter_create(configured_readers);
-	while((rdr = ll_iter_next(itr)))
-	  if (strcmp(lbl, rdr->label) == 0) break;
-	ll_iter_release(itr);
-	return rdr;
-}
-
-struct s_client *get_client_by_name(char *name) {
-	struct s_client *cl;
-	for (cl = first_client; cl ; cl = cl->next) {
-		if (strcmp(name, cl->account->usr) == 0)
-			return cl;
-	}
-	return NULL;
-}
-
-struct s_auth *get_account_by_name(char *name) {
-	struct s_auth *account;
-	for (account=cfg.account; (account); account=account->next) {
-		if(strcmp(name, account->usr) == 0)
-			return account;
-	}
-	return NULL;
-}
 
 void refresh_oscam(enum refreshtypes refreshtype, struct in_addr in) {
 
@@ -408,7 +381,6 @@ char *send_oscam_config_radegast(struct templatevars *vars, struct uriparams *pa
 }
 
 char *send_oscam_config_cccam(struct templatevars *vars, struct uriparams *params, struct in_addr in) {
-
 
 	if (strcmp(getParam(params, "button"), "Refresh global list") == 0) {
 		cs_debug_mask(D_TRACE, "Entitlements: Refresh Shares start");
@@ -910,6 +882,21 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 		if(rdr->aes_list) {
 			aes_clear_entries(rdr);
 		}
+		if(rdr->ecmWhitelist){
+			struct s_ecmWhitelist *tmp;
+			struct s_ecmWhitelistIdent *tmpIdent;
+			struct s_ecmWhitelistLen *tmpLen;
+			for(tmp = rdr->ecmWhitelist; tmp; tmp=tmp->next){
+				for(tmpIdent = tmp->idents; tmpIdent; tmpIdent=tmpIdent->next){
+					for(tmpLen = tmpIdent->lengths; tmpLen; tmpLen=tmpLen->next){
+						add_garbage(tmpLen);
+					}
+					add_garbage(tmpIdent);
+				}				
+				add_garbage(tmp);
+			}
+			rdr->ecmWhitelist = NULL;
+		}
 
 		rdr->grp = 0;
 		rdr->auprovid = 0;
@@ -993,6 +980,10 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 	if ( rdr->atr[0])
 		for (i = 0; i < rdr->atrlen/2; i++)
 			tpl_printf(vars, TPLAPPEND, "ATR", "%02X", rdr->atr[i]);
+			
+	value = mk_t_ecmwhitelist(rdr->ecmWhitelist);
+	tpl_printf(vars, TPLADD, "ECMWHITELIST", "%s", value);
+	free_mk_t(value);
 
 	if(rdr->smargopatch)
 		tpl_addVar(vars, TPLADD, "SMARGOPATCHCHECKED", "checked");
@@ -2020,7 +2011,7 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
 				
 				// set previous Link if needed
 				if (offset >= ENTITLEMENT_PAGE_SIZE) {
-					tpl_printf(vars, TPLAPPEND, "CONTROLS", "<A HREF=\"entitlements.html?offset=%d&globallist=%s&label=%s\"> << PREVIOUS < </A>",
+					tpl_printf(vars, TPLAPPEND, "CONTROLS", "<A HREF=\"entitlements.html?offset=%d&globallist=%s&amp;label=%s\"> << PREVIOUS < </A>",
 							offset - ENTITLEMENT_PAGE_SIZE,
 							getParam(params, "globallist"),
 							getParam(params, "label"));
@@ -2028,7 +2019,7 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
 
 				// set next link if needed
 				if (card) {
-					tpl_printf(vars, TPLAPPEND, "CONTROLS", "<A HREF=\"entitlements.html?offset=%d&globallist=%s&label=%s\"> > NEXT >> </A>",
+					tpl_printf(vars, TPLAPPEND, "CONTROLS", "<A HREF=\"entitlements.html?offset=%d&globallist=%s&amp;label=%s\"> > NEXT >> </A>",
 							offset + ENTITLEMENT_PAGE_SIZE,
 							getParam(params, "globallist"),
 							getParam(params, "label"));
@@ -2242,7 +2233,7 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 					tpl_printf(vars, TPLADD, "CSIDX", "<A HREF=\"status.html?action=kill&threadid=%ld\" TITLE=\"Kill this client\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICKIL\" ALT=\"Kill\"></A>", cl->thread);
 				}
 				else if((cl->typ == 'p') && !cfg.http_readonly) {
-					tpl_printf(vars, TPLADD, "CSIDX", "<A HREF=\"status.html?action=restart&label=%s\" TITLE=\"Restart this reader/ proxy\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICKIL\" ALT=\"Restart\"></A>", urlencode(vars, cl->reader->label));
+					tpl_printf(vars, TPLADD, "CSIDX", "<A HREF=\"status.html?action=restart&amp;label=%s\" TITLE=\"Restart this reader/ proxy\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICKIL\" ALT=\"Restart\"></A>", urlencode(vars, cl->reader->label));
 				}
 				else {
 					tpl_printf(vars, TPLADD, "CSIDX", "%8X&nbsp;", cl->thread);
@@ -2364,9 +2355,9 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, str
 					{
 						struct s_reader *rdr = cl->reader;
 								if (rdr->lbvalue)
-									tpl_printf(vars, TPLADD, "CLIENTLBVALUE", "<A HREF=\"readerstats.html?label=%s&hide=4\" TITLE=\"Show statistics for this reader/ proxy\">%d</A>", urlencode(vars, rdr->label), rdr->lbvalue);
+									tpl_printf(vars, TPLADD, "CLIENTLBVALUE", "<A HREF=\"readerstats.html?label=%s&amp;hide=4\" TITLE=\"Show statistics for this reader/ proxy\">%d</A>", urlencode(vars, rdr->label), rdr->lbvalue);
 								else
-									tpl_printf(vars, TPLADD, "CLIENTLBVALUE", "<A HREF=\"readerstats.html?label=%s&hide=4\" TITLE=\"Show statistics for this reader/ proxy\">%s</A>", urlencode(vars, rdr->label), "no data");
+									tpl_printf(vars, TPLADD, "CLIENTLBVALUE", "<A HREF=\"readerstats.html?label=%s&amp;hide=4\" TITLE=\"Show statistics for this reader/ proxy\">%s</A>", urlencode(vars, rdr->label), "no data");
 
 								switch(rdr->card_status)
 								{
@@ -2623,7 +2614,7 @@ char *send_oscam_services(struct templatevars *vars, struct uriparams *params, s
 			}
 		} else {
 			tpl_printf(vars, TPLADD, "SIDCLASS","");
-			tpl_printf(vars, TPLADD, "SID","<A HREF=\"services.html?service=%s&action=list\">Show Services</A>", urlencode(vars, sidtab->label));
+			tpl_printf(vars, TPLADD, "SID","<A HREF=\"services.html?service=%s&amp;action=list\">Show Services</A>", urlencode(vars, sidtab->label));
 		}
 		tpl_addVar(vars, TPLADD, "LABELENC", urlencode(vars, sidtab->label));
 		tpl_addVar(vars, TPLADD, "LABEL", xml_encode(vars, sidtab->label));
@@ -2651,8 +2642,9 @@ char *send_oscam_shutdown(struct templatevars *vars, FILE *f, struct uriparams *
 			tpl_addVar(vars, TPLADD, "REFRESHURL", "status.html");
 			tpl_addVar(vars, TPLADD, "REFRESH", tpl_getTpl(vars, "REFRESH"));
 			tpl_printf(vars, TPLADD, "SECONDS", "%d", SHUTDOWNREFRESH);
-			send_headers(f, 200, "OK", NULL, "text/html", 0);
-			webif_write(tpl_getTpl(vars, "SHUTDOWN"), f);
+			char *result = tpl_getTpl(vars, "SHUTDOWN");
+			send_headers(f, 200, "OK", NULL, "text/html", 0, strlen(result), 0);
+			webif_write(result, f);
 			cs_log("Shutdown requested by WebIF from %s", inet_ntoa(in));
 		} else {
 			tpl_addVar(vars, TPLADD, "APICONFIRMMESSAGE", "shutdown");
@@ -2674,8 +2666,9 @@ char *send_oscam_shutdown(struct templatevars *vars, FILE *f, struct uriparams *
 			tpl_addVar(vars, TPLADD, "REFRESHURL", "status.html");
 			tpl_addVar(vars, TPLADD, "REFRESH", tpl_getTpl(vars, "REFRESH"));
 			tpl_printf(vars, TPLADD, "SECONDS", "%d", 2);
-			send_headers(f, 200, "OK", NULL, "text/html", 0);
-			webif_write(tpl_getTpl(vars, "SHUTDOWN"), f);
+			char *result = tpl_getTpl(vars, "SHUTDOWN");
+			send_headers(f, 200, "OK", NULL, "text/html", 0,strlen(result), 0);
+			webif_write(result, f);
 			cs_log("Restart requested by WebIF from %s", inet_ntoa(in));
 		} else {
 			tpl_addVar(vars, TPLADD, "APICONFIRMMESSAGE", "restart");
@@ -2846,11 +2839,11 @@ char *send_oscam_files(struct templatevars *vars, struct uriparams *params) {
 #endif
 
 		if(!cfg.disablelog)
-			tpl_printf(vars, TPLADD, "SLOG", "<BR><A CLASS=\"debugl\" HREF=\"files.html?part=logfile&stoplog=%d\">%s</A><SPAN CLASS=\"debugt\">&nbsp;&nbsp;|&nbsp;&nbsp;</SPAN>\n", 1, "Stop Log");
+			tpl_printf(vars, TPLADD, "SLOG", "<BR><A CLASS=\"debugl\" HREF=\"files.html?part=logfile&amp;stoplog=%d\">%s</A><SPAN CLASS=\"debugt\">&nbsp;&nbsp;|&nbsp;&nbsp;</SPAN>\n", 1, "Stop Log");
 		else
-			tpl_printf(vars, TPLADD, "SLOG", "<BR><A CLASS=\"debugl\" HREF=\"files.html?part=logfile&stoplog=%d\">%s</A><SPAN CLASS=\"debugt\">&nbsp;&nbsp;|&nbsp;&nbsp;</SPAN>\n", 0, "Start Log");
+			tpl_printf(vars, TPLADD, "SLOG", "<BR><A CLASS=\"debugl\" HREF=\"files.html?part=logfile&amp;stoplog=%d\">%s</A><SPAN CLASS=\"debugt\">&nbsp;&nbsp;|&nbsp;&nbsp;</SPAN>\n", 0, "Start Log");
 
-		tpl_printf(vars, TPLADD, "SCLEAR", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&clear=logfile\">%s</A><BR><BR>\n", "Clear Log");
+		tpl_printf(vars, TPLADD, "SCLEAR", "<A CLASS=\"debugl\" HREF=\"files.html?part=logfile&amp;clear=logfile\">%s</A><BR><BR>\n", "Clear Log");
 	}
 	else if (strcmp(getParam(params, "part"), "userfile") == 0) {
 		snprintf(targetfile, 255,"%s", cfg.usrfile);
@@ -2862,11 +2855,11 @@ char *send_oscam_files(struct templatevars *vars, struct uriparams *params) {
 		}
 
 		if(!cfg.disableuserfile)
-			tpl_printf(vars, TPLADD, "SLOG", "<A HREF=\"files.html?part=userfile&stopusrlog=%d\">%s</A>&nbsp;&nbsp;|&nbsp;&nbsp;\n", 1, "Stop Log");
+			tpl_printf(vars, TPLADD, "SLOG", "<A HREF=\"files.html?part=userfile&amp;stopusrlog=%d\">%s</A>&nbsp;&nbsp;|&nbsp;&nbsp;\n", 1, "Stop Log");
 		else
-			tpl_printf(vars, TPLADD, "SLOG", "<A HREF=\"files.html?part=userfile&stopusrlog=%d\">%s</A>&nbsp;&nbsp;|&nbsp;&nbsp;\n", 0, "Start Log");
+			tpl_printf(vars, TPLADD, "SLOG", "<A HREF=\"files.html?part=userfile&amp;stopusrlog=%d\">%s</A>&nbsp;&nbsp;|&nbsp;&nbsp;\n", 0, "Start Log");
 
-		tpl_printf(vars, TPLADD, "SCLEAR", "<A HREF=\"files.html?part=userfile&clear=usrfile\">%s</A><BR><BR>\n", "Clear Log");
+		tpl_printf(vars, TPLADD, "SCLEAR", "<A HREF=\"files.html?part=userfile&amp;clear=usrfile\">%s</A><BR><BR>\n", "Clear Log");
 		tpl_addVar(vars, TPLADD, "FILTER", "<FORM ACTION=\"files.html\" method=\"get\">\n");
 		tpl_addVar(vars, TPLAPPEND, "FILTER", "<INPUT name=\"part\" type=\"hidden\" value=\"userfile\">\n");
 		tpl_addVar(vars, TPLAPPEND, "FILTER", "<SELECT name=\"filter\">\n");
@@ -3078,7 +3071,7 @@ char *send_oscam_image(struct templatevars *vars, FILE *f, struct uriparams *par
 			if(ptr != NULL){
 				int32_t len = b64decode((uchar *)ptr + 7);
 				if(len > 0){
-					send_headers(f, 200, "OK", NULL, header + 5, 1);
+					send_headers(f, 200, "OK", NULL, header + 5, 1, len, 0);
 					webif_write_raw(ptr + 7, f, len);
 					return "1";
 				}
@@ -3086,37 +3079,6 @@ char *send_oscam_image(struct templatevars *vars, FILE *f, struct uriparams *par
 		}
 	}
 	return "0";
-}
-
-void webif_parse_request(struct uriparams *params, char *pch) {
-	/* Parse url parameters; parsemode = 1 means parsing next param, parsemode = -1 parsing next
-	 value; pch2 points to the beginning of the currently parsed string, pch is the current position */
-
-	char *pch2;
-	int32_t parsemode = 1;
-
-	pch2=pch;
-	while(pch[0] != '\0') {
-		if((parsemode == 1 && pch[0] == '=') || (parsemode == -1 && pch[0] == '&')) {
-			pch[0] = '\0';
-			urldecode(pch2);
-			if(parsemode == 1) {
-				if(params->paramcount >= MAXGETPARAMS) break;
-				++params->paramcount;
-				params->params[params->paramcount-1] = pch2;
-			} else {
-				params->values[params->paramcount-1] = pch2;
-			}
-			parsemode = -parsemode;
-			pch2 = pch + 1;
-		}
-		++pch;
-	}
-	/* last value wasn't processed in the loop yet... */
-	if(parsemode == -1 && params->paramcount <= MAXGETPARAMS) {
-		urldecode(pch2);
-		params->values[params->paramcount-1] = pch2;
-	}
 }
 
 int32_t process_request(FILE *f, struct in_addr in) {
@@ -3186,7 +3148,7 @@ int32_t process_request(FILE *f, struct in_addr in) {
 	}
 
 	if (!ok) {
-		send_error(f, 403, "Forbidden", NULL, "Access denied.");
+		send_error(f, 403, "Forbidden", NULL, "Access denied.", 0);
 		cs_log("unauthorized access from %s flag %d", inet_ntoa(in), v);
 		return 0;
 	}
@@ -3236,7 +3198,7 @@ int32_t process_request(FILE *f, struct in_addr in) {
 
 	while (1) {
 		if ((n=webif_read(buf2, sizeof(buf2), f)) <= 0) {
-			cs_debug_mask(D_CLIENT, "webif read error %d", n);
+			cs_debug_mask(D_CLIENT, "webif read error %d (errno=%d %s)", n, errno, strerror(errno));
 #ifdef WITH_SSL
 			if (cfg.http_use_ssl)
 				ERR_print_errors_fp(stderr);
@@ -3311,7 +3273,7 @@ int32_t process_request(FILE *f, struct in_addr in) {
 		if (!strcmp(path, pages[i])) pgidx = i;
 	}
 
-	webif_parse_request(&params, pch);
+	parseParams(&params, pch);
 
 	if(strlen(cfg.http_user) == 0 || strlen(cfg.http_pwd) == 0) authok = 1;
 	else calculate_nonce(expectednonce);
@@ -3321,7 +3283,7 @@ int32_t process_request(FILE *f, struct in_addr in) {
 	for (str1=strtok_r(tmp, "\n", &saveptr); str1; str1=strtok_r(NULL, "\n", &saveptr)) {
 		if (strlen(str1)==1) {
 			if (strcmp(method, "POST")==0) {
-				webif_parse_request(&params, str1+2);
+				parseParams(&params, str1+2);
 			}
 			break;
 		}
@@ -3334,17 +3296,15 @@ int32_t process_request(FILE *f, struct in_addr in) {
 		char temp[sizeof(AUTHREALM) + sizeof(expectednonce) + 100];
 		snprintf(temp, sizeof(temp), "WWW-Authenticate: Digest algorithm=\"MD5\", realm=\"%s\", qop=\"auth\", opaque=\"\", nonce=\"%s\"", AUTHREALM, expectednonce);
 		if(authok == 2) strncat(temp, ", stale=true", sizeof(temp));
-		send_headers(f, 401, "Unauthorized", temp, "text/html", 0);
+		send_headers(f, 401, "Unauthorized", temp, "text/html", 0, 0, 0);
 		free(filebuf);
 		return 0;
 	}
 
 	/*build page*/
 	if(pgidx == 8) {
-		send_headers(f, 200, "OK", NULL, "text/css", 1);
 		send_file(f, "CSS");
 	} else if (pgidx == 17) {
-		send_headers(f, 200, "OK", NULL, "text/javascript", 1);
 		send_file(f, "JS");
 	} else {
 		time_t t;
@@ -3396,7 +3356,9 @@ int32_t process_request(FILE *f, struct in_addr in) {
 			tpl_addVar(vars, TPLAPPEND, "BTNDISABLED", "DISABLED");
 
 		char *result = NULL;
-
+		
+		// WebIf allows modifying many things. Thus, all pages except images/css are excpected to be non-threadsafe! 
+		if(pgidx != 19 && pgidx != 20) pthread_mutex_lock(&http_lock);
 		switch(pgidx) {
 			case 0: result = send_oscam_config(vars, &params, in); break;
 			case 1: result = send_oscam_reader(vars, &params, in); break;
@@ -3421,12 +3383,14 @@ int32_t process_request(FILE *f, struct in_addr in) {
 			case 20: result = send_oscam_image(vars, f, &params, "ICMAI"); break;
 			default: result = send_oscam_status(vars, &params, in, 0); break;
 		}
+		if(pgidx != 19 && pgidx != 20) pthread_mutex_unlock(&http_lock);
+
 		if(result == NULL || !strcmp(result, "0") || strlen(result) == 0) send_error500(f);
 		else if (strcmp(result, "1")) {
 			if (pgidx == 18)
-				send_headers(f, 200, "OK", NULL, "text/xml", 0);
+				send_headers(f, 200, "OK", NULL, "text/xml", 0, strlen(result), 0);
 			else
-				send_headers(f, 200, "OK", NULL, "text/html", 0);
+				send_headers(f, 200, "OK", NULL, "text/html", 0, strlen(result), 0);
 			webif_write(result, f);
 		}
 		tpl_clear(vars);
@@ -3435,58 +3399,82 @@ int32_t process_request(FILE *f, struct in_addr in) {
 	return 0;
 }
 
+#pragma GCC diagnostic ignored "-Wempty-body"
+void *serve_process(void *conn){
+	struct s_connection myconn;
+	memcpy(&myconn, conn, sizeof(struct s_connection)); //copy to stack to free init pointer
+	free(conn);
+	struct sockaddr_in remote = myconn.remote;
+	int32_t s = myconn.socket;
 #ifdef WITH_SSL
-SSL_CTX *webif_init_ssl() {
-	SSL_library_init();
-	SSL_load_error_strings();
-
-	SSL_METHOD *meth;
-	SSL_CTX *ctx;
-
-	static const char *cs_cert="oscam.pem";
-
-	meth = SSLv23_server_method();
-
-	ctx = SSL_CTX_new(meth);
-
-	char path[128];
-
-	if (cfg.http_cert[0]==0)
-		snprintf(path, sizeof(path), "%s%s", cs_confdir, cs_cert);
-	else
-		cs_strncpy(path, cfg.http_cert, sizeof(path));
-
-	if (!ctx) {
-		ERR_print_errors_fp(stderr);
-		return NULL;
-       }
-
-	if (SSL_CTX_use_certificate_file(ctx, path, SSL_FILETYPE_PEM) <= 0) {
-		ERR_print_errors_fp(stderr);
-		return NULL;
-	}
-
-	if (SSL_CTX_use_PrivateKey_file(ctx, path, SSL_FILETYPE_PEM) <= 0) {
-		ERR_print_errors_fp(stderr);
-		return NULL;
-	}
-
-       if (!SSL_CTX_check_private_key(ctx)) {
-		cs_log("SSL: Private key does not match the certificate public key");
-		return NULL;
-	}
-	cs_log("load ssl certificate file %s", path);
-	return ctx;
-}
+	SSL *ssl = myconn.ssl;
 #endif
 
+	struct s_client *cl = create_client(remote.sin_addr.s_addr);
+	if (cl == NULL) {
+		close(s);
+		return NULL;
+	}
+	cl->typ = 'i';
+	cl->wihidden = 1;
+	cl->thread = pthread_self();
+	pthread_setspecific(getclient, cl);
+#ifndef NO_PTHREAD_CLEANUP_PUSH
+	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);	
+	pthread_cleanup_push(cleanup_thread, (void *) cl);
+#endif
+#ifdef WITH_SSL
+	if (cfg.http_use_ssl) {
+		if(SSL_set_fd(ssl, s)){
+			if (SSL_accept(ssl) != -1)
+				process_request((FILE *)ssl, remote.sin_addr);
+			else {
+				FILE *f;
+				f = fdopen(s, "r+");
+				if(f != NULL) {
+					send_error(f, 200, "Bad Request", NULL, "This web server is running in SSL mode.", 1);
+					fflush(f);
+					fclose(f);
+				} else cs_log("WebIf: Error opening file descriptor using fdopen() (errno=%d %s)", errno, strerror(errno));
+			}
+		} else cs_log("WebIf: Error calling SSL_set_fd().");
+		SSL_shutdown(ssl);
+		close(s);
+		SSL_free(ssl);
+	} else
+#endif
+	{
+		FILE *f;
+		f = fdopen(s, "r+");
+		if(f != NULL) {
+			process_request(f, remote.sin_addr);
+			fflush(f);
+			fclose(f);
+		} else cs_log("WebIf: Error opening file descriptor using fdopen() (errno=%d %s)", errno, strerror(errno));
+		shutdown(s, SHUT_WR);
+		close(s);
+	}
+#ifndef NO_PTHREAD_CLEANUP_PUSH
+	pthread_cleanup_pop(1);
+#else
+	cs_exit(0);
+#endif
+	return NULL;
+}
+
 void http_srv() {
+	pthread_t workthread;
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+#ifndef TUXBOX
+	pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
+#endif
 	struct s_client * cl = create_client(first_client->ip);
 	if (cl == NULL) return;
 	cl->thread = pthread_self();
 	pthread_setspecific(getclient, cl);
 	cl->typ = 'h';
-	int32_t sock, reuse = 1;
+	int32_t sock, s, reuse = 1;
 	struct sockaddr_in sin;
 	struct sockaddr_in remote;
 	struct timeval stimeout;
@@ -3504,7 +3492,7 @@ void http_srv() {
 		cs_log("HTTP Server: Setting SO_REUSEADDR via setsockopt failed! (errno=%d %s)", errno, strerror(errno));
 	}
 
-    stimeout.tv_sec = 30;
+    stimeout.tv_sec = 20;
     stimeout.tv_usec = 0;
 
     if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &stimeout, sizeof(stimeout)) < 0) {
@@ -3538,15 +3526,14 @@ void http_srv() {
 #ifdef WITH_SSL
 	SSL_CTX *ctx = NULL;
 	if (cfg.http_use_ssl)
-		ctx = webif_init_ssl();
+		ctx = SSL_Webif_Init();
 
 	if (ctx==NULL)
 		cfg.http_use_ssl = 0;
 #endif
 
 	while (running) {
-		int32_t s;
-
+		struct s_connection *conn;
 		rc = poll(pfd2, 1, 1000);
 
 		if (rc > 0) {
@@ -3554,54 +3541,48 @@ void http_srv() {
 				cs_log("HTTP Server: Error calling accept() (errno=%d %s)", errno, strerror(errno));
 				break;
 			}
+			if(!cs_malloc(&conn, sizeof(struct s_connection), -1)){
+				close(s);
+				continue;
+			}; 
+			conn->remote = remote;
+			conn->socket = s;
 #ifdef WITH_SSL
-			if (cfg.http_use_ssl) {
-				SSL *ssl;
+			SSL *ssl = NULL;
+			if (cfg.http_use_ssl){
 				ssl = SSL_new(ctx);
-				if(ssl != NULL){
-					if(SSL_set_fd(ssl, s)){
-						if (SSL_accept(ssl) != -1)
-							process_request((FILE *)ssl, remote.sin_addr);
-						else {
-							FILE *f;
-							f = fdopen(s, "r+");
-							if(f != NULL) {
-								// Note: This is quite dirty and only works because webif is not multithreaded!
-								cfg.http_use_ssl=0;
-								send_error(f, 200, "Bad Request", NULL, "This web server is running in SSL mode.");
-								cfg.http_use_ssl=1;
-								fflush(f);
-								fclose(f);
-							} else cs_log("WebIf: Error opening file descriptor using fdopen() (errno=%d %s)", errno, strerror(errno));
-						}
-					} else cs_log("WebIf: Error calling SSL_set_fd().");
-					SSL_shutdown(ssl);
-					close(s);
-					SSL_free(ssl);
-				} else {
+				if(ssl == NULL){
 					close(s);
 					cs_log("WebIf: Error calling SSL_new().");
+					continue;
 				}
-			} else
-#endif
-			{
-				FILE *f;
-				f = fdopen(s, "r+");
-				if(f != NULL) {
-					process_request(f, remote.sin_addr);
-					fflush(f);
-					fclose(f);
-				} else cs_log("WebIf: Error opening file descriptor using fdopen() (errno=%d %s)", errno, strerror(errno));
-				shutdown(s, SHUT_WR);
-				close(s);
 			}
+			conn->ssl = ssl;
+#endif
+			if (pthread_create(&workthread, &attr, serve_process, (void *)conn)) {
+				cs_log("ERROR: can't create thread for webif");
+			}
+			else
+				pthread_detach(workthread);
 		}
 	}
 #ifdef WITH_SSL
-	if (cfg.http_use_ssl)
+	if (cfg.http_use_ssl){
+		int32_t i, num = CRYPTO_num_locks();;
 		SSL_CTX_free(ctx);
+		CRYPTO_set_dynlock_create_callback(NULL);
+		CRYPTO_set_dynlock_lock_callback(NULL);
+		CRYPTO_set_dynlock_destroy_callback(NULL);
+		CRYPTO_set_locking_callback(NULL);
+		CRYPTO_set_id_callback(NULL); 
+		for (i = 0; i < num; ++i) {
+			pthread_mutex_destroy(&lock_cs[i]);
+		}
+		OPENSSL_free(lock_cs);
+		lock_cs = NULL;
+	}
 #endif
-	cs_log("HTTP Server: Shutdown requested from %s", inet_ntoa(remote.sin_addr));
+	cs_log("HTTP Server: Shutdown requested.");
 	close(sock);
 	//exit(SIGQUIT);
 }

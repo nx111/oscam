@@ -5,6 +5,10 @@
 #ifdef OS_MACOSX
 #include <net/if_dl.h>
 #include <ifaddrs.h>
+#elif defined OS_SOLARIS
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <sys/sockio.h>
 #else
 #include <net/if.h>
 #endif
@@ -2496,6 +2500,11 @@ int32_t write_server()
 				}
 				fprintf(f, "\n");
 			}
+			
+			value = mk_t_ecmwhitelist(rdr->ecmWhitelist);
+			if (strlen(value) > 0 || cfg.http_full_cfg)
+				fprintf_conf(f, CONFVARWIDTH, "ecmwhitelist", "%s\n", value);
+			free_mk_t(value);
 
 			if (isphysical) {
 				if (rdr->detect&0x80)
@@ -3324,7 +3333,7 @@ int32_t init_tierid()
 void chk_reader(char *token, char *value, struct s_reader *rdr)
 {
 	int32_t i;
-	char *ptr;
+	char *ptr, *ptr2, *ptr3;
 	/*
 	 *  case sensitive first
 	 */
@@ -3423,6 +3432,30 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
          }
          freeifaddrs(ifs);
       }
+#elif defined OS_SOLARIS
+			// no mac address specified so use first filled mac
+			int32_t j, sock, niccount;
+			struct ifreq nicnumber[16];
+			struct ifconf ifconf;
+			struct arpreq arpreq;
+			
+			if ((sock=socket(AF_INET,SOCK_DGRAM,0)) > -1){
+				ifconf.ifc_buf = (caddr_t)nicnumber;
+				ifconf.ifc_len = sizeof(nicnumber);
+				if (!ioctl(sock,SIOCGIFCONF,(char*)&ifconf)){
+					niccount = ifconf.ifc_len/(sizeof(struct ifreq));
+					for(i = 0; i < niccount, ++i){
+						memset(&arpreq, 0, sizeof(arpreq));
+						((struct sockaddr_in*)&arpreq.arp_pa)->sin_addr.s_addr = ((struct sockaddr_in*)&nicnumber[i].ifr_addr)->sin_addr.s_addr;
+						if (!(ioctl(sock,SIOCGARP,(char*)&arpreq))){
+							for (j = 0; j < 6; ++j)
+								mac[j] = (unsigned char)arpreq.arp_ha.sa_data[j];
+							if(check_filled(mac, 6) > 0) break;
+						}
+					}
+				}
+				close(sock);
+			}
 #else
       // no mac address specified so use mac of eth0 on local box
       int32_t fd = socket(PF_INET, SOCK_STREAM, 0);
@@ -3436,6 +3469,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 
       close(fd);
 #endif
+			cs_debug_mask(D_TRACE, "Determined local mac address for mg-encrypted as %s", cs_hexdump(1, mac, 6));
     }
 
     // decrypt encrypted mgcamd gbox line
@@ -3638,6 +3672,96 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 			key_atob_l(value, rdr->atr, rdr->atrlen);
 			return;
 		}
+	}
+	
+	if (!strcmp(token, "ecmwhitelist")) {
+		struct s_ecmWhitelist *tmp, *last;
+		struct s_ecmWhitelistIdent *tmpIdent, *lastIdent;
+		struct s_ecmWhitelistLen *tmpLen, *lastLen;
+		for(tmp = rdr->ecmWhitelist; tmp; tmp=tmp->next){
+			for(tmpIdent = tmp->idents; tmpIdent; tmpIdent=tmpIdent->next){
+				for(tmpLen = tmpIdent->lengths; tmpLen; tmpLen=tmpLen->next){
+					add_garbage(tmpLen);
+				}
+				add_garbage(tmpIdent);
+			}
+			add_garbage(tmp);
+		}
+		rdr->ecmWhitelist = NULL;
+		if(strlen(value) > 0){
+			char *saveptr1=NULL, *saveptr2 = NULL;
+			for (ptr = strtok_r(value, ";", &saveptr1); ptr; ptr = strtok_r(NULL, ";", &saveptr1)) {
+				int16_t caid = 0, len;
+				uint32_t ident = 0;
+				ptr2=strchr(ptr,':');
+				if(ptr2 != NULL){
+					ptr2[0] = '\0';
+					++ptr2;
+					ptr3=strchr(ptr,'@');
+					if(ptr3 != NULL){
+						ptr3[0] = '\0';
+						++ptr3;
+						ident = (uint32_t)a2i(ptr3, 6);
+					}
+					caid = (int16_t)dyn_word_atob(ptr);				
+				} else ptr2 = ptr;
+				for (ptr2 = strtok_r(ptr2, ",", &saveptr2); ptr2; ptr2 = strtok_r(NULL, ",", &saveptr2)) {
+					len = (int16_t)dyn_word_atob(ptr2);
+					last = NULL, tmpIdent = NULL, lastIdent = NULL, tmpLen = NULL, lastLen = NULL;
+					for(tmp = rdr->ecmWhitelist; tmp; tmp=tmp->next){
+						last = tmp;
+						if(tmp->caid == caid){
+							for(tmpIdent = tmp->idents; tmpIdent; tmpIdent=tmpIdent->next){
+								lastIdent = tmpIdent;
+								if(tmpIdent->ident == ident){
+									for(tmpLen = tmpIdent->lengths; tmpLen; tmpLen=tmpLen->next){
+										lastLen = tmpLen;
+										if(tmpLen->len == len) break;
+									}
+									break;
+								}
+							}
+						}
+					}
+					if(tmp == NULL){
+						if (cs_malloc(&tmp, sizeof(struct s_ecmWhitelist), -1)) {
+							tmp->caid = caid;
+							tmp->idents = NULL;
+							tmp->next = NULL;
+							if(last == NULL){
+								rdr->ecmWhitelist = tmp;
+							} else {
+								last->next = tmp;
+							}
+						}
+					}
+					if(tmp != NULL && tmpIdent == NULL){						
+						if (cs_malloc(&tmpIdent, sizeof(struct s_ecmWhitelistIdent), -1)) {
+							tmpIdent->ident = ident;
+							tmpIdent->lengths = NULL;
+							tmpIdent->next = NULL;
+							if(lastIdent == NULL){
+								tmp->idents = tmpIdent;
+							} else {
+								lastIdent->next = tmpIdent;
+							}
+						}
+					}
+					if(tmp != NULL && tmpIdent != NULL && tmpLen == NULL){						
+						if (cs_malloc(&tmpLen, sizeof(struct s_ecmWhitelistLen), -1)) {
+							tmpLen->len = len;
+							tmpLen->next = NULL;
+							if(lastLen == NULL){
+								tmpIdent->lengths = tmpLen;
+							} else {
+								lastLen->next = tmpLen;
+							}
+						}
+					}
+				}
+			}
+		}
+		return;
 	}
 
 	if (!strcmp(token, "detect")) {
@@ -4302,6 +4426,7 @@ int32_t init_readerdb()
 			rdr->lb_weight = 100;
 			cs_strncpy(rdr->pincode, "none", sizeof(rdr->pincode));
 			rdr->ndsversion = 0;
+			rdr->ecmWhitelist = NULL;
 			for (i=1; i<CS_MAXCAIDTAB; rdr->ctab.mask[i++]=0xffff);
 //			cs_log("Add reader(%d) device=%s,%d",configured_readers->count,rdr->device,rdr->r_port);
 			continue;
@@ -4846,6 +4971,48 @@ char *mk_t_logfile(){
 	if(cfg.logfile != NULL){
 		pos += snprintf(value + pos, needed - pos, "%s%s", dot, cfg.logfile);
 	}
+	return value;
+}
+
+/*
+ * Creates a string ready to write as a token into config or WebIf for an iprange. You must free the returned value through free_mk_t().
+ */
+char *mk_t_ecmwhitelist(struct s_ecmWhitelist *whitelist){
+	int32_t needed = 1, pos = 0;
+	struct s_ecmWhitelist *cip;
+	struct s_ecmWhitelistIdent *cip2;
+	struct s_ecmWhitelistLen *cip3;
+	char *value, *dot = "", *dot2 = "";
+	for (cip = whitelist; cip; cip = cip->next){
+		needed += 7;
+		for (cip2 = cip->idents; cip2; cip2 = cip2->next){
+			needed +=7;
+			for (cip3 = cip2->lengths; cip3; cip3 = cip3->next) needed +=3;
+		}
+	}
+	
+	char tmp[needed];
+
+	for (cip = whitelist; cip; cip = cip->next){
+		for (cip2 = cip->idents; cip2; cip2 = cip2->next){
+			if(cip2->lengths != NULL){
+				if(cip->caid != 0){
+					if(cip2->ident == 0)
+						pos += snprintf(tmp + pos, needed - pos, "%s%04X:", dot, cip->caid);
+					else
+						pos += snprintf(tmp + pos, needed - pos, "%s%04X@%06X:", dot, cip->caid, cip2->ident);
+				} else pos += snprintf(tmp + pos, needed - pos, "%s", dot);
+			}
+			dot2="";
+			for (cip3 = cip2->lengths; cip3; cip3 = cip3->next){
+				pos += snprintf(tmp + pos, needed - pos, "%s%02X", dot2, cip3->len);
+				dot2=",";
+			}
+			dot=";";
+		}			
+	}
+	if(pos == 0 || !cs_malloc(&value, (pos + 1) * sizeof(char), -1)) return "";
+	memcpy(value, tmp, pos + 1);
 	return value;
 }
 

@@ -447,6 +447,33 @@ int32_t matching_reader(ECM_REQUEST *er, struct s_reader *rdr) {
     //cs_debug_mask(D_TRACE, "chid filter reader %s", rdr->label);    
     return(0);
   }
+  
+  //Checking ecmlength:
+  if (rdr->ecmWhitelist){
+  	struct s_ecmWhitelist *tmp;
+  	struct s_ecmWhitelistIdent *tmpIdent;
+  	struct s_ecmWhitelistLen *tmpLen;
+  	int8_t ok = 0, foundident = 0;
+  	for(tmp = rdr->ecmWhitelist; tmp; tmp = tmp->next){
+  		if(tmp->caid == 0 || tmp->caid == er->caid){
+  			for(tmpIdent = tmp->idents; tmpIdent; tmpIdent = tmpIdent->next){
+  				if(tmpIdent->ident == 0 || tmpIdent->ident == er->prid){
+  					foundident = 1;
+			  		for(tmpLen = tmpIdent->lengths; tmpLen; tmpLen = tmpLen->next){
+			  			if(tmpLen->len == er->l){
+				  			ok = 1;
+				  			break;
+				  		}
+			  		}
+			  	}
+			  }
+	  	}  		
+  	}
+  	if(foundident == 1 && ok == 0){
+  		cs_debug_mask(D_READER, "ECM is not in ecmwhitelist of reader %s.",rdr->label);
+  		return(0);
+  	}
+  }
  
   //All checks done, reader is matching!
   return(1);
@@ -455,7 +482,7 @@ int32_t matching_reader(ECM_REQUEST *er, struct s_reader *rdr) {
 int32_t emm_reader_match(struct s_reader *reader, uint16_t caid, uint32_t provid) {
 	int32_t i;
 
-	if (reader->caid != caid) {
+	if (reader->caid != caid || reader->audisabled) {
 		return 0;
 	}
 

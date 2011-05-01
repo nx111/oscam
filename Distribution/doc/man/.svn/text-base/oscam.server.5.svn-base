@@ -134,6 +134,14 @@ set provider ID to use the right reader for auto AU
 example: auprovid = 123456
 .RE
 .PP
+\fBecmwhitelist\fP = [\fBCAID\fP:]\fBlenght\fP[,\fBlengtht\fP]...[;[\fBCAID\fP:]\fBlenght\fP[,\fBlengtht\fP]...]...
+.RS 3n
+define valid ECM length per CAID in hex, default:none
+
+example: ecmwhitelist = 10,20,0a,0b
+         ecmwhitelist = 0100:10,20;0200:0a,4b
+.RE
+.PP
 \fBdetect\fP = \fBCD\fP|\fBDSR\fP|\fBCTS\fP|\fBRING\fP|\fBNONE\fP|\fBgpio[1-7]\fP
 .RS 3n
 status detect of card (NONE = no detection), default:CD
