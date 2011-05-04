@@ -270,10 +270,10 @@ extern char *RDR_CD_TXT[];
 
 // moved from reader-common.h
 #define UNKNOWN        0
-#define NO_CARD        4
 #define CARD_NEED_INIT 1
 #define CARD_INSERTED  2
 #define CARD_FAILURE   3
+#define NO_CARD        4
 
 // moved from stats
 #define DEFAULT_REOPEN_SECONDS 900
@@ -595,6 +595,8 @@ typedef struct ecm_request_t
   struct s_reader *origin_reader;
   void * origin_card; //CCcam preferred card!
   
+  void *src_data;
+
   struct s_ecm *ecmcacheptr; //Pointer to ecm-cw-rc-cache!
 
   char msglog[MSGLOGSIZE];
@@ -1355,6 +1357,7 @@ extern struct s_client * cur_client(void);
 extern struct s_client *first_client;
 extern struct s_reader *first_active_reader; //points to list of _active_ readers (enable = 1, deleted = 0)
 extern LLIST *configured_readers;
+extern LLIST *configured_usrs;
 
 // oscam variables
 
@@ -1457,6 +1460,7 @@ extern void ac_chk(struct s_client *,ECM_REQUEST*, int);
 #endif
 
 // oscam-config
+extern int32_t  init_cccamcfg();
 extern int32_t  init_config(void);
 extern int32_t  init_free_userdb(struct s_auth *auth);
 extern struct s_auth *init_userdb();

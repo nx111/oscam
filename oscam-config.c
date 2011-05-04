@@ -1425,6 +1425,7 @@ int32_t init_config()
 	cfg.ulparent = 0;
 	cfg.logfile = NULL;
 	cfg.usrfile = NULL;
+	cfg.max_log_size = 10;
 	cfg.disableuserfile = 1;
 #ifdef CS_LOGHISTORY
 	cfg.loghistorysize = 0;
@@ -2828,35 +2829,45 @@ struct s_auth *init_userdb()
 {
 	struct s_auth *authptr = NULL;
 	int32_t tag = 0, nr = 0, expired = 0, disabled = 0;
+	int32_t checked=0;
 	//int32_t first=1;
 	FILE *fp;
 	char *value;
 	struct s_auth *account=NULL;
 
+	if(!configured_usrs)
+		configured_usrs=ll_create();
+
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_user);
 	if (!(fp = fopen(token, "r"))) {
 		cs_log("Cannot open file \"%s\" (errno=%d %s)", token, errno, strerror(errno));
-		return authptr;
 	}
-
-	while (fgets(token, sizeof(token), fp)) {
+	else{
+	   while (fgets(token, sizeof(token), fp)) {
 		int32_t i, l;
-		void *ptr;
-
 		if ((l=strlen(trim(token))) < 3)
 			continue;
 
 		if ((token[0] == '[') && (token[l-1] == ']')) {
 			token[l - 1] = 0;
 			tag = (!strcmp("account", strtolower(token + 1)));
+			checked=0;
+			if(account){
+				struct s_auth *newusr;
+				if(cs_malloc(&newusr, sizeof(struct s_auth), -1)){
+					ll_append(configured_usrs,newusr);
+					account=newusr;
+				}
+				else 
+					break;
+			}
+			else{
+				if(cs_malloc(&account, sizeof(struct s_auth), -1))
+					ll_append(configured_usrs,account);
+				else 
+					break;
+			}
 
-			if(!cs_malloc(&ptr, sizeof(struct s_auth), -1)) return authptr;
-			if (account)
-				account->next = ptr;
-			else
-				authptr = ptr;
-
-			account = ptr;
 			account->allowedtimeframe[0] = 0;
 			account->allowedtimeframe[1] = 0;
 			account->aureader_list = NULL;
@@ -2871,7 +2882,6 @@ struct s_auth *init_userdb()
 			account->firstlogin = 0;
 			for (i = 1; i < CS_MAXCAIDTAB; account->ctab.mask[i++] = 0xffff);
 			for (i = 1; i < CS_MAXTUNTAB; account->ttab.bt_srvid[i++] = 0x0000);
-			nr++;
 
 #ifdef CS_ANTICASC
 			account->ac_users = cfg.ac_users;
@@ -2888,18 +2898,54 @@ struct s_auth *init_userdb()
 
 		*value++ = '\0';
 		chk_account(trim(strtolower(token)), trim(value), account);
+
+		if(!checked && account->usr[0] && account->pwd[0]){
+			struct s_auth *pusr=NULL;
+			checked=1;
+			LL_ITER * itr=ll_iter_create(configured_usrs);
+			while((pusr=ll_iter_next(itr)) && pusr != account){
+				if(!strcmp(pusr->usr,account->usr)){
+					ll_iter_remove(itr);
+					break;
+				}
+			}
+			ll_iter_release(itr);
+			cs_debug_mask(D_TRACE,"Add usr:%s",account->usr);
+		}
+
+	    }
+	    fclose(fp);
 	}
 
-	fclose(fp);
-	
-	for(account = authptr; account; account = account->next){
-		if(account->expirationdate && account->expirationdate < time(NULL))
+	LL_ITER * itr=ll_iter_create(configured_usrs);
+	struct s_auth *cur=NULL;
+	while((account=ll_iter_next(itr))){
+		int32_t skipit=0;
+
+		nr++;
+
+		if(account->expirationdate && account->expirationdate < time(NULL)){
 			++expired;
+			skipit=1;
+		}
 	
-		if(account->disabled)
+		if(account->disabled){
 			++disabled;
+			skipit=1;
+		}
+		
+		if(!skipit) {
+			if (!authptr) {
+				authptr = account; //init list
+				cur = account;
+			}
+			else {
+				cur->next = account; //add to end of list
+				cur = account; //advance list
+			}
+		}
 	}
-
+	ll_iter_release(itr);
 	cs_log("userdb reloaded: %d accounts loaded, %d expired, %d disabled", nr, expired, disabled);
 	return authptr;
 }
@@ -4237,143 +4283,148 @@ int32_t init_irdeto_guess_tab()
 }
 #endif
 
-int32_t init_cccamcfg(int32_t mode)
+int32_t init_cccamcfg()
 {
 	FILE *fp;
 	char line[2048];
 	char host[256],uname[20],upass[20];
 	char typ;
 	int32_t port,ret,i;
+	int32_t uhops,uemu,uemm;
 	
 	if(!cfg.cc_cfgfile)
 			return(0);
-	cs_log("try to read reader from CCcam config file: %s",cfg.cc_cfgfile);
+	cs_log("load CCcam config file: %s",cfg.cc_cfgfile);
 	if(!(fp=fopen(cfg.cc_cfgfile,"r"))){
 		cs_log("can't open file \"%s\" (errno=%d)\n", cfg.cc_cfgfile, errno);
 		return(1);
 	}
 
-	struct s_reader *rdr, *first_reader=NULL;
+	struct s_auth *account=NULL;
+	struct s_reader *rdr;
+
 	if(!configured_readers)
 			configured_readers = ll_create();
-	LL_ITER *itr = ll_iter_create(configured_readers);
-	while((rdr = ll_iter_next(itr))) {
-		if(!first_reader)
-			first_reader = rdr;
-	}
-	ll_iter_release(itr);
 
+	if(!configured_usrs)
+		configured_usrs = ll_create();
+	
 	while (fgets(token,sizeof(token),fp)) {
 		char *p=strchr(token,'#');
 		if(p)
 			*p='\0';
 		strncpy(line,trim(token),2047);
-		if(!strcmp(line,""))continue;
-		if(line[0] != 'C' && line[0] != 'L' && line[0] != 'X' && line[1] != ':')continue;
-		ret=sscanf(line,"%c:%s%d%s%s",&typ,host,&port,uname,upass);
-		if(ret < 5){
-//			cs_log("line:%s has not a valid cccam client account!",line);
-			continue;
-		}
-		//this reader alwasys exists?
-		struct s_reader *prdr = first_reader;
-		int32_t rfound=0;
-		while(prdr){
-			if( strcasecmp(prdr->device,host) == 0 && prdr->r_port == port &&
-			    strcmp(prdr->r_usr,uname) == 0  && strcmp(prdr->r_pwd,upass) == 0){
-				rfound=1;
-				break;
+		if(!line[0])continue;
+		if((line[0] == 'C' || line[0] == 'L' || line[0] == 'X') && line[1] == ':'){
+			ret=sscanf(line,"%c:%s%d%s%s",&typ,host,&port,uname,upass);
+			if(ret < 5){
+				cs_debug_mask(D_READER,"line:%s has not a valid cccam client account!",line);
+				continue;
 			}
-			else 
-				prdr = prdr->next;
-		}
-		if(rfound)continue;
 
-		if(rdr){
-			struct s_reader *newreader;
-			if(cs_malloc(&newreader,sizeof(struct s_reader),-1)){
-				ll_append(configured_readers, newreader);
-				rdr = newreader; //and advance to end of list
-			}
-		}
-		else{
-			if(cs_malloc(&rdr,sizeof(struct s_reader),-1))
-				ll_append(configured_readers, rdr);
-		}
-
-		if(!first_reader)
-			first_reader=rdr;
-		memset(rdr, 0, sizeof(struct s_reader));
-		rdr->enable = 0;
-		rdr->tcp_rto = 30;
-		rdr->show_cls = 10;
-		rdr->nagra_read = 0;
-		rdr->mhz = 357;
-		rdr->cardmhz = 357;
-		rdr->deprecated = 0;
-		rdr->force_irdeto = 0;
-		rdr->cc_reshare = cfg.cc_reshare; //set global value as init value
-		rdr->cc_keepalive = 120;
-		rdr->cc_maxhop = 10;
-		rdr->lb_weight = 100;
-		cs_strncpy(rdr->pincode, "none",sizeof(rdr->pincode));
-		rdr->ndsversion = 0;
-		for (i=1; i<CS_MAXCAIDTAB; rdr->ctab.mask[i++]=0xffff);
-		cs_strncpy(rdr->device,host,sizeof(rdr->device));
-		rdr->r_port = port;
-		cs_strncpy(rdr->r_usr,uname,sizeof(rdr->r_usr));
-		cs_strncpy(rdr->r_pwd,upass,sizeof(rdr->r_pwd));
-		rdr->typ = 0;
-		switch(typ){
-			case 'C':
-				rdr->typ = R_CCCAM;
-				break;
-			case 'L':
-				rdr->typ = R_CAMD35;
-				break;
-#ifdef CS_WITH_GBOX
-			case 'X':
-				rdr->typ = R_GBOX;
-				break;
-#endif
-		}
-		if (!rdr->typ)
-			continue;
-		snprintf(token,sizeof(token),"%s_%d",host,port);
-		cs_strncpy(rdr->label,token,sizeof(rdr->label));
-		rdr->enable = 1;
-		rdr->grp = 1;	
-//		cs_log("Add reader device=%s,%d",rdr->device,rdr->r_port);
-	}
-	fclose(fp);
-	if(!mode)return(0);
-
-	struct s_reader *cur=NULL;
-	itr = ll_iter_create(configured_readers);
-	while((rdr = ll_iter_next(itr))) { //build active readers list
-		int32_t i;
-		if (rdr->device[0] && (rdr->typ & R_IS_CASCADING)) {
-			for (i=0; i<CS_MAX_MOD; i++) {
-				if (ph[i].num && rdr->typ==ph[i].num) {
-					rdr->ph=ph[i];
-					rdr->ph.active=1;
+			if(rdr){
+				struct s_reader *newreader;
+				if(cs_malloc(&newreader,sizeof(struct s_reader),-1)){
+					ll_append(configured_readers, newreader);
+					rdr = newreader; //and advance to end of list
 				}
 			}
-		}
+			else{
+				if(cs_malloc(&rdr,sizeof(struct s_reader),-1))
+					ll_append(configured_readers, rdr);
+			}
 
-		if (rdr->enable) {
-			if (!first_active_reader) {
-				first_active_reader = rdr; //init list
-				cur = rdr;
+			memset(rdr, 0, sizeof(struct s_reader));
+			rdr->enable = 0;
+			rdr->tcp_rto = 30;
+			rdr->show_cls = 10;
+			rdr->nagra_read = 0;
+			rdr->mhz = 357;
+			rdr->cardmhz = 357;
+			rdr->deprecated = 0;
+			rdr->force_irdeto = 0;
+			rdr->cc_reshare = cfg.cc_reshare; //set global value as init value
+			rdr->cc_keepalive = 120;
+			rdr->cc_maxhop = 10;
+			rdr->lb_weight = 100;
+			cs_strncpy(rdr->pincode, "none",sizeof(rdr->pincode));
+			rdr->ndsversion = 0;
+			for (i=1; i<CS_MAXCAIDTAB; rdr->ctab.mask[i++]=0xffff);
+			cs_strncpy(rdr->device,host,sizeof(rdr->device));
+			rdr->r_port = port;
+			cs_strncpy(rdr->r_usr,uname,sizeof(rdr->r_usr));
+			cs_strncpy(rdr->r_pwd,upass,sizeof(rdr->r_pwd));
+			rdr->typ = 0;
+			switch(typ){
+				case 'C':
+					rdr->typ = R_CCCAM;
+					break;
+				case 'L':
+					rdr->typ = R_CAMD35;
+					break;
+#ifdef CS_WITH_GBOX
+				case 'X':
+					rdr->typ = R_GBOX;
+					break;
+#endif
 			}
-			else {
-				cur->next = rdr; //add to end of list
-				cur = cur->next; //advance list
-			}
+			if (!rdr->typ)
+				continue;
+			snprintf(token,sizeof(token),"%s_%d",host,port);
+			cs_strncpy(rdr->label,token,sizeof(rdr->label));
+			rdr->enable = 1;
+			rdr->grp = 1;	
+			cs_debug_mask(D_READER,"Add reader device=%s,%d from CCcam.cfg",rdr->device,rdr->r_port);
 		}
-//		cs_log("[debug reader] device=%s port=%d enable=%d group=%d",rdr->device,rdr->r_port,rdr->enable,rdr->grp);
+		else if (line[0]=='F' && line[1]==':'){
+			ret=sscanf(line,"F:%s%s%d%d%d",uname,upass,&uhops,&uemu,&uemm);
+			if(ret<2)continue;
+			if(ret<5)uemm=1;
+			if(ret<4)uemu=1;
+			if(ret<3)uhops=5;
+			
+			if(account){
+				struct s_auth *newusr;
+				if(cs_malloc(&newusr, sizeof(struct s_auth), -1)){
+					ll_append(configured_usrs,newusr);
+					account=newusr;
+				}
+				else break;
+			}
+			else{
+				if(cs_malloc(&account, sizeof(struct s_auth), -1))
+					ll_append(configured_usrs,account);
+				else 
+					break;
+			}
+			cs_strncpy(account->usr,uname,sizeof(account->usr));
+			cs_strncpy(account->pwd,upass,sizeof(account->pwd));
+			account->cccmaxhops=uhops;
+			account->autoau=uemu;
+
+			account->allowedtimeframe[0] = 0;
+			account->allowedtimeframe[1] = 0;
+			account->aureader_list = NULL;
+			account->monlvl = cfg.mon_level;
+			account->tosleep = cfg.tosleep;
+			account->c35_suppresscmd08 = cfg.c35_suppresscmd08;
+			account->cccmaxhops = 10;
+			account->cccreshare = -1; //-1 = use cfg.
+			account->cccignorereshare = -1;
+			account->cccstealth = -1;
+			account->ncd_keepalive = cfg.ncd_keepalive;
+			account->firstlogin = 0;
+			for (i = 1; i < CS_MAXCAIDTAB; account->ctab.mask[i++] = 0xffff);
+			for (i = 1; i < CS_MAXTUNTAB; account->ttab.bt_srvid[i++] = 0x0000);
+
+#ifdef CS_ANTICASC
+			account->ac_users = cfg.ac_users;
+			account->ac_penalty = cfg.ac_penalty;
+#endif
+			cs_debug_mask(D_TRACE,"Add usr: %s from CCcam.cfg",account->usr);
+		}
 	}
-	ll_iter_release(itr);
+	fclose(fp);
 
 	return(0);
 }
@@ -4381,26 +4432,27 @@ int32_t init_cccamcfg(int32_t mode)
 int32_t init_readerdb()
 {
 	int32_t tag = 0;
+	int32_t checked=0;
 	FILE *fp;
 	char *value;
+
+	struct s_reader *rdr;
+	if(!configured_readers)
+		configured_readers = ll_create();
 
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_srvr);
 	if (!(fp=fopen(token, "r"))) {
 		cs_log("can't open file \"%s\" (errno=%d %s)\n", token, errno, strerror(errno));
-		if(cfg.cc_cfgfile)
-			return init_cccamcfg(1);
-		else
-			return(1);
 	}
-	struct s_reader *rdr;
-	cs_malloc(&rdr, sizeof(struct s_reader), SIGINT);
-	configured_readers = ll_create();
-	ll_append(configured_readers, rdr);
-	while (fgets(token, sizeof(token), fp)) {
+	else{
+	  cs_malloc(&rdr, sizeof(struct s_reader), SIGINT);
+	  ll_append(configured_readers, rdr);
+          while (fgets(token, sizeof(token), fp)) {
 		int32_t i, l;
 		if ((l = strlen(trim(token))) < 3)
 			continue;
 		if ((token[0] == '[') && (token[l-1] == ']')) {
+			checked=0;
 			token[l-1] = 0;
 			tag = (!strcmp("reader", strtolower(token+1)));
 			if (rdr->label[0] && rdr->typ) {
@@ -4410,7 +4462,6 @@ int32_t init_readerdb()
 					rdr = newreader;
 				}
 			}
-			memset(rdr, 0, sizeof(struct s_reader));
 			rdr->enable = 1;
 			rdr->tcp_rto = 30;
 			rdr->show_cls = 10;
@@ -4428,7 +4479,6 @@ int32_t init_readerdb()
 			rdr->ndsversion = 0;
 			rdr->ecmWhitelist = NULL;
 			for (i=1; i<CS_MAXCAIDTAB; rdr->ctab.mask[i++]=0xffff);
-//			cs_log("Add reader(%d) device=%s,%d",configured_readers->count,rdr->device,rdr->r_port);
 			continue;
 		}
 
@@ -4438,9 +4488,24 @@ int32_t init_readerdb()
 			continue;
 		*value++ ='\0';
 		chk_reader(trim(strtolower(token)), trim(value), rdr);
+
+		if(!checked && rdr->device[0] && rdr->r_port && rdr->r_usr[0] && rdr->r_pwd[0]){
+			checked=1;
+			LL_ITER *itr0 = ll_iter_create(configured_readers);
+			struct s_reader *prdr=NULL;
+			while((prdr = ll_iter_next(itr0)) && prdr != rdr ){
+				if( strcasecmp(prdr->device,rdr->device) == 0 && prdr->r_port == rdr->r_port &&
+				    strcmp(prdr->r_usr,rdr->r_usr) == 0  && strcmp(prdr->r_pwd,rdr->r_pwd) == 0){
+					ll_iter_remove(itr0);
+					break;
+				}
+			}
+			ll_iter_release(itr0);
+			cs_debug_mask(D_READER,"Add reader(%d) device=%s,%d",configured_readers->count,rdr->device,rdr->r_port);
+		}
+	  }
+	  fclose(fp);
 	}
-	if(cfg.cc_cfgfile)
-		init_cccamcfg(0);
 
 	LL_ITER *itr = ll_iter_create(configured_readers);
 	struct s_reader *cur=NULL;
@@ -4465,11 +4530,9 @@ int32_t init_readerdb()
 				cur = rdr; //advance list
 			}
 		}
-//		cs_log("[debug reader] device=%s port=%d enable=%d group=%d",rdr->device,rdr->r_port,rdr->enable,rdr->grp);
+		cs_debug_mask(D_READER,"[debug reader] device=%s port=%d enable=%d group=%d",rdr->device,rdr->r_port,rdr->enable,rdr->grp);
 	}
 	ll_iter_release(itr);
-
-	fclose(fp);
 
 	return(0);
 }

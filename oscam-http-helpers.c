@@ -388,7 +388,7 @@ int32_t check_auth(char *authstring, char *method, char *path, char *expectednon
 int32_t webif_write_raw(char *buf, FILE* f, int32_t len) {
 	errno=0;
 #ifdef WITH_SSL
-	if (cfg.http_use_ssl) {
+	if (ssl_active) {
 		return SSL_write((SSL*)f, buf, len);
 	} else
 #endif
@@ -402,7 +402,7 @@ int32_t webif_write(char *buf, FILE* f) {
 int32_t webif_read(char *buf, int32_t num, FILE *f) {
 	errno=0;
 #ifdef WITH_SSL
-	if (cfg.http_use_ssl) {
+	if (ssl_active) {
 		return SSL_read((SSL*)f, buf, num);
 	} else
 #endif
@@ -463,11 +463,13 @@ void send_file(FILE *f, char *filename){
 		FILE *fp;
 		char buffer[1024];
 		int32_t read;
-
+		struct stat st;
+		
+		stat(filename, &st);		
 		if((fp = fopen(filename, "r"))==NULL) return;
+		send_headers(f, 200, "OK", NULL, mimetype, 1, st.st_size, 0);
 		while((read = fread(buffer,sizeof(char), 1023, fp)) > 0) {
-			buffer[read] = '\0';
-			send_headers(f, 200, "OK", NULL, mimetype, 1, strlen(buffer), 0);
+			buffer[read] = '\0';			
 			webif_write(buffer, f);
 		}
 
@@ -732,6 +734,11 @@ struct s_auth *get_account_by_name(char *name) {
 }
 
 #ifdef WITH_SSL
+pthread_key_t getssl;
+SSL * cur_ssl(void){
+	return (SSL *) pthread_getspecific(getssl);
+}
+
 /* Locking functions for SSL multithreading */
 static pthread_mutex_t *lock_cs;
 struct CRYPTO_dynlock_value{

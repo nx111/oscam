@@ -25,6 +25,8 @@ struct s_client * first_client = NULL; //Pointer to clients list, first client i
 struct s_reader * first_active_reader = NULL; //list of active readers (enable=1 deleted = 0)
 LLIST * configured_readers = NULL; //list of all (configured) readers
 
+LLIST * configured_usrs = NULL;
+
 uint16_t  len4caid[256];    // table for guessing caid (by len)
 char  cs_confdir[128]=CS_CONFDIR;
 int32_t cs_dblevel=0;   // Debug Level (TODO !!)
@@ -3498,6 +3500,7 @@ if (pthread_key_create(&getclient, NULL)) {
 
   init_rnd();
   init_sidtab();
+  if(cfg.cc_cfgfile)init_cccamcfg();
   init_readerdb();
   cfg.account = init_userdb();
   init_signal();
