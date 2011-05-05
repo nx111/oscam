@@ -3274,7 +3274,7 @@ int32_t init_srvid()
 	if (nr > 0) {
 		cs_log("%d service-id's loaded in %dms", nr, time);
 		if (nr > 2000) {
-			cs_log("WARNING: You risk high CPU load and high ECM times with more than 2000 service-id´s!");
+			cs_log("WARNING: You risk high CPU load and high ECM times with more than 2000 service-idÅ½s!");
 			cs_log("HINT: --> use optimized lists from http://streamboard.gmc.to/wiki/index.php/Srvid");
 		}
 	} else {
@@ -4283,6 +4283,106 @@ int32_t init_irdeto_guess_tab()
 }
 #endif
 
+int32_t chk_cccam_cfg_F_more(char *line,struct s_auth * account)
+{
+	int32_t p1=0,off=0,no=0,cno=0,dno=0;
+	char *p=NULL,*sline=NULL,*p2=NULL,*p3=NULL;
+	char *optr=NULL,*iptr=NULL;
+	for(p=line;*p;p++){
+		if(*p=='{'){
+			p1=1;
+			sline=p+1;
+			off=0;
+			continue;
+		}
+		
+		if(*p=='}' && p1==1){
+			sline[off]='\0';
+//			cs_debug_mask(D_TRACE,"parase CCcam.cfg F line:part{%s}",sline);
+			p1=0;
+			no++;
+			cno=0;
+			while((p2=strtok_r(sline,",",&optr))){
+				dno=0;
+				uint16_t caid=0,srvid=0;
+				uint32_t provid=0;
+//				cs_debug_mask(D_TRACE,"CHILD:%s",p2);
+				while((p3=strtok_r(p2,":",&iptr))){
+					if(!dno){
+						caid=(uint16_t)a2i(p3,4);
+						account->ftab.filts[dno].caid=caid;
+					}
+					if(dno==1){
+						provid=(uint32_t)a2i(p3,6);
+						account->ftab.filts[dno].prids[account->ftab.filts[dno].nprids]=provid;
+						account->ftab.filts[dno].nprids++;
+					}
+					if(dno==2){
+						if(!cno && !(account->cccreshare))
+							sscanf(p3,"%d",&(account->cccreshare));
+						if(cno==1){
+							srvid=(uint16_t)a2i(p3,4);
+
+							struct s_sidtab *sp,*sidtab=cfg.sidtab;
+							uint32_t sppos=0;
+							for(sp=cfg.sidtab;sp;sp=sp->next,sppos++){
+								uint32_t j,found;
+
+								sidtab=sp;
+								for(j=0,found=0;!found && j<sp->num_caid;j++)
+									if(sp->caid[j]==caid)
+										found=1;
+								if(!found)continue;
+								
+								for(j=0,found=0;!found && j<sp->num_provid;j++)
+									if(sp->provid[j]==provid)
+										found=1;
+								if(!found)continue;
+
+								for(j=0,found=0;!found && j<sp->num_srvid;j++)
+									if(sp->srvid[j]==srvid)
+										found=1;
+								if(!found)continue;
+
+							}
+							if(sp){
+								account->sidtabok |= (1<<sppos);
+								continue;
+							}
+
+							if (!cs_malloc(&sp, sizeof(struct s_sidtab), -1) || !sp)continue;
+							if (sidtab)
+								sidtab->next=sp;
+						      	else	
+								cfg.sidtab=sp;
+						      	sppos++;
+						      	memset(sp, 0, sizeof(struct s_sidtab));
+						      	snprintf(sp->label, sizeof(sp->label),"%04x_%06X_%04X",caid,provid,srvid);
+							char scaid[5],sprovid[7],ssrvid[5];
+							snprintf(scaid,sizeof(scaid),"%04X",caid);
+							snprintf(sprovid,sizeof(sprovid),"%04X",provid);
+							snprintf(scaid,sizeof(scaid),"%04X",provid);
+
+						    	chk_sidtab("caid",scaid, sp);
+						    	chk_sidtab("provid",sprovid,sp);
+						    	chk_sidtab("caid",ssrvid, sp);
+							account->sidtabok |= (1<<sppos);
+						}
+					}
+					dno++;
+					p2=NULL;
+				}
+				cno++;
+				sline=NULL;
+			}
+			
+			continue;
+		}
+		off++;
+	}
+	return 0;
+}
+
 int32_t init_cccamcfg()
 {
 	FILE *fp;
@@ -4290,7 +4390,7 @@ int32_t init_cccamcfg()
 	char host[256],uname[20],upass[20];
 	char typ;
 	int32_t port,ret,i;
-	int32_t uhops,uemu,uemm;
+	int32_t uhops,uemu,uemm,caid,prid;
 	
 	if(!cfg.cc_cfgfile)
 			return(0);
@@ -4315,26 +4415,50 @@ int32_t init_cccamcfg()
 			*p='\0';
 		strncpy(line,trim(token),2047);
 		if(!line[0])continue;
-		if((line[0] == 'C' || line[0] == 'L' || line[0] == 'X') && line[1] == ':'){
-			ret=sscanf(line,"%c:%s%d%s%s",&typ,host,&port,uname,upass);
-			if(ret < 5){
-				cs_debug_mask(D_READER,"line:%s has not a valid cccam client account!",line);
-				continue;
-			}
-
+		if((line[0] == 'C' || line[0] == 'L' || line[0] == 'N' || line[0] == 'R' ) && line[1] == ':'){
 			if(rdr){
 				struct s_reader *newreader;
 				if(cs_malloc(&newreader,sizeof(struct s_reader),-1)){
-					ll_append(configured_readers, newreader);
 					rdr = newreader; //and advance to end of list
 				}
+				else 
+					continue;
 			}
-			else{
-				if(cs_malloc(&rdr,sizeof(struct s_reader),-1))
-					ll_append(configured_readers, rdr);
-			}
+			else 
+				if(!cs_malloc(&rdr,sizeof(struct s_reader),-1))
+					continue;
 
 			memset(rdr, 0, sizeof(struct s_reader));
+
+			int32_t paracount=0;
+			int32_t rtyp='\0';
+			ret=0;
+			switch(line[0]){
+				case 'C':
+					rtyp = R_CCCAM;
+					ret=sscanf(line,"%c:%s%d%s%s",&typ,host,&port,uname,upass);
+					paracount=5;
+					break;
+				case 'L':
+					rtyp = R_CAMD35;
+					ret=sscanf(line,"%c:%s%d%s%s%x%x",&typ,host,&port,uname,upass,&caid,&prid);
+					paracount=5;
+					break;
+				case 'N':
+					rtyp = R_NEWCAMD;
+					ret=sscanf(line,"%c:%s%d%s%s",&typ,host,&port,uname,upass);
+					paracount=5;
+					break;
+				case 'R':
+					rtyp = R_RADEGAST;
+					ret=sscanf(line,"%c:%s%d%x%x",&typ,host,&port,&caid,&prid);
+					paracount=3;
+					break;
+			}
+
+			if(!rtyp || ret<paracount)continue;
+
+			rdr->typ=rtyp;
 			rdr->enable = 0;
 			rdr->tcp_rto = 30;
 			rdr->show_cls = 10;
@@ -4354,27 +4478,12 @@ int32_t init_cccamcfg()
 			rdr->r_port = port;
 			cs_strncpy(rdr->r_usr,uname,sizeof(rdr->r_usr));
 			cs_strncpy(rdr->r_pwd,upass,sizeof(rdr->r_pwd));
-			rdr->typ = 0;
-			switch(typ){
-				case 'C':
-					rdr->typ = R_CCCAM;
-					break;
-				case 'L':
-					rdr->typ = R_CAMD35;
-					break;
-#ifdef CS_WITH_GBOX
-				case 'X':
-					rdr->typ = R_GBOX;
-					break;
-#endif
-			}
-			if (!rdr->typ)
-				continue;
 			snprintf(token,sizeof(token),"%s_%d",host,port);
 			cs_strncpy(rdr->label,token,sizeof(rdr->label));
 			rdr->enable = 1;
 			rdr->grp = 1;	
-			cs_debug_mask(D_READER,"Add reader device=%s,%d from CCcam.cfg",rdr->device,rdr->r_port);
+			ll_append(configured_readers, rdr);
+			cs_debug_mask(D_READER,"Add reader device=%s,%d(type:%04X)from CCcam.cfg",rdr->device,rdr->r_port,rdr->typ);
 		}
 		else if (line[0]=='F' && line[1]==':'){
 			ret=sscanf(line,"F:%s%s%d%d%d",uname,upass,&uhops,&uemu,&uemm);
@@ -4397,6 +4506,8 @@ int32_t init_cccamcfg()
 				else 
 					break;
 			}
+			chk_cccam_cfg_F_more(line,account);
+
 			cs_strncpy(account->usr,uname,sizeof(account->usr));
 			cs_strncpy(account->pwd,upass,sizeof(account->pwd));
 			account->cccmaxhops=uhops;
