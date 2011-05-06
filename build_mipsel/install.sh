@@ -22,5 +22,5 @@ svnver=`svn info | sed -n "5p"| sed -e "s/ //g" | cut -f2 -d:`
 cd build_$plat/image
 tar czf ../oscam-${plat}-svn${svnver}-nx111-`date +%Y%m%d`.tar.gz *
 cd ../ 
-rm -rf CMake* *.a Makefile cscrypt csctapi *.cmake algo
+rm -rf CMake* *.a Makefile cscrypt csctapi *.cmake algo image/usr/bin/oscam
 cd $curdir

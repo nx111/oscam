@@ -179,4 +179,5 @@ void reader_streamguard(struct s_cardsystem *ph)
 	ph->card_init=streamguard_card_init;
 	ph->get_emm_type=streamguard_get_emm_type;
 	ph->caids[0]=0x4A;
+	ph->desc="streamguard";
 }

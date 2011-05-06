@@ -1,14 +1,14 @@
 10
 
 dir
-5176
+5184
 http://streamboard.gmc.to/svn/oscam/trunk/Distribution/doc/txt
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-05-01T18:17:20.285220Z
-5157
+2011-05-05T18:33:08.304884Z
+5182
 landlord
 
 
@@ -203,9 +203,9 @@ file
 
 
 
-63d30dae9b84c9ac53913e58482c1876
-2011-05-01T18:17:20.285220Z
-5157
+b5ecfcd18b88093bc544ea59a65df97c
+2011-05-05T18:33:08.304884Z
+5182
 landlord
 
 oscam.dvbapi.txt
@@ -214,10 +214,10 @@ file
 
 
 
-2011-04-29T08:23:52.674008Z
-50ba7b5e328c280211a2eaa34e1c8b5b
-2011-04-29T06:47:19.133843Z
-5108
+2011-05-06T01:20:52.488584Z
+0bbec7741c99607c701368b67b92654a
+2011-05-05T10:58:27.062767Z
+5179
 landlord
 
 
@@ -240,7 +240,7 @@ landlord
 
 
 
-1573
+1739
 
 oscam.guess.txt
 file
