@@ -21,6 +21,8 @@ static int8_t running = 1;
 static pthread_t httpthread;
 pthread_mutex_t http_lock;
 
+pthread_key_t getip;
+
 #ifdef CS_ANTICASC
 static void kill_ac_client(void)
 {
@@ -37,31 +39,31 @@ void refresh_oscam(enum refreshtypes refreshtype) {
 
 	switch (refreshtype) {
 		case REFR_ACCOUNTS:
-		cs_log("Refresh Accounts requested by WebIF from %s", cs_inet_ntoa(cur_client()->ip));
+		cs_log("Refresh Accounts requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
 
 		cs_accounts_chk();
 		break;
 
 		case REFR_READERS:
 		cs_card_info();
-		cs_log("Refresh Reader/Tiers requested by WebIF from %s", cs_inet_ntoa(cur_client()->ip));
+		cs_log("Refresh Reader/Tiers requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
 		break;
 
 		case REFR_SERVER:
-		cs_log("Refresh Server requested by WebIF from %s", cs_inet_ntoa(cur_client()->ip));
+		cs_log("Refresh Server requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
 		//kill(first_client->pid, SIGHUP);
 		//todo how I can refresh the server after global settings
 		break;
 
 		case REFR_SERVICES:
-		cs_log("Refresh Services requested by WebIF from %s", cs_inet_ntoa(cur_client()->ip));
+		cs_log("Refresh Services requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
 		//init_sidtab();
 		cs_reinit_clients(cfg.account);
 		break;
 
 #ifdef CS_ANTICASC
 		case REFR_ANTICASC:
-		cs_log("Refresh Anticascading requested by WebIF from %s", cs_inet_ntoa(cur_client()->ip));
+		cs_log("Refresh Anticascading requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
 		kill_ac_client();
 #endif
 		default:
@@ -105,12 +107,12 @@ char *send_oscam_config_global(struct templatevars *vars, struct uriparams *para
 
 	if (cfg.cwlogdir != NULL) 		tpl_addVar(vars, TPLADD, "CWLOGDIR", cfg.cwlogdir);
 	if (cfg.saveinithistory == 1)	tpl_addVar(vars, TPLADD, "SAVEINITHISTORYCHECKED", "selected");
-	tpl_printf(vars, TPLADD, "LOGHISTORYSIZE", "%d", cfg.loghistorysize);
+	tpl_printf(vars, TPLADD, "LOGHISTORYSIZE", "%u", cfg.loghistorysize);
 
-	tpl_printf(vars, TPLADD, "CLIENTTIMEOUT", "%ld", cfg.ctimeout);
-	tpl_printf(vars, TPLADD, "FALLBACKTIMEOUT", "%ld", cfg.ftimeout);
-	tpl_printf(vars, TPLADD, "CLIENTMAXIDLE", "%d", cfg.cmaxidle);
-	tpl_printf(vars, TPLADD, "CACHEDELAY", "%ld", cfg.delay);
+	tpl_printf(vars, TPLADD, "CLIENTTIMEOUT", "%u", cfg.ctimeout);
+	tpl_printf(vars, TPLADD, "FALLBACKTIMEOUT", "%u", cfg.ftimeout);
+	tpl_printf(vars, TPLADD, "CLIENTMAXIDLE", "%u", cfg.cmaxidle);
+	tpl_printf(vars, TPLADD, "CACHEDELAY", "%u", cfg.delay);
 
 	tpl_printf(vars, TPLADD, "SLEEP", "%d", cfg.tosleep);
 	if (cfg.ulparent == 1) tpl_addVar(vars, TPLADD, "UNLOCKPARENTALCHECKED", "selected");
@@ -548,6 +550,7 @@ char *send_oscam_config_monitor(struct templatevars *vars, struct uriparams *par
 
 char *send_oscam_config_serial(struct templatevars *vars, struct uriparams *params) {
 	int32_t i;
+	char *saveptr1 = NULL;
 	if (strcmp(getParam(params, "action"),"execute") == 0) {
 		//cfg.ser_device[0]='\0';
 		memset(cfg.ser_device, 0, sizeof(cfg.ser_device));
@@ -569,11 +572,9 @@ char *send_oscam_config_serial(struct templatevars *vars, struct uriparams *para
 		cs_strncpy(sdevice, cfg.ser_device, sizeof(sdevice));
 		char *ptr;
 		char delimiter[2]; delimiter[0] = 1; delimiter[1] = '\0';
-		ptr = strtok(sdevice, delimiter);
-		while(ptr != NULL) {
+		for(ptr = strtok_r(sdevice, delimiter, &saveptr1); ptr; ptr = strtok_r(NULL, delimiter, &saveptr1)){
 			tpl_printf(vars, TPLADD, "SERIALDEVICE", "%s", ptr);
 			tpl_addVar(vars, TPLAPPEND, "DEVICES", tpl_getTpl(vars, "CONFIGSERIALDEVICEBIT"));
-			ptr = strtok(NULL, delimiter);
 		}
 	}
 
@@ -1210,16 +1211,13 @@ char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *para
 }
 
 char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams *params, int32_t apicall) {
-
-	tpl_printf(vars, TPLADD, "CALLINGIP", "%s", cs_inet_ntoa(cur_client()->ip));
-
 	struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
 	if(!rdr) return "0";
 
 	if (strcmp(getParam(params, "action"), "resetstat") == 0) {
 		if(rdr) {
 			clear_reader_stat(rdr);
-			cs_log("Reader %s stats resetted by WebIF from %s", rdr->label, cs_inet_ntoa(cur_client()->ip));
+			cs_log("Reader %s stats resetted by WebIF from %s", rdr->label, cs_inet_ntoa(GET_IP()));
 		}
 	}
 
@@ -1552,7 +1550,7 @@ char *send_oscam_user_config_edit(struct templatevars *vars, struct uriparams *p
 		tpl_addVar(vars, TPLADD, "SUPPRESSCMD08", "selected");
 
 	//Sleepsend
-	tpl_printf(vars, TPLADD, "SLEEPSEND", "%d", account->c35_sleepsend);
+	tpl_printf(vars, TPLADD, "SLEEPSEND", "%u", account->c35_sleepsend);
 
 	//Keepalive
 	if (account->ncd_keepalive)
@@ -1815,7 +1813,6 @@ char *send_oscam_user_config(struct templatevars *vars, struct uriparams *params
 char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params, int32_t apicall) {
 
 	//just to stop the guys open tedious tickets for warnings related to unused variables xD
-	tpl_printf(vars, TPLADD, "CALLINGIP", "%s", cs_inet_ntoa(cur_client()->ip));
 	tpl_printf(vars, TPLADD, "ISAPICALL", "%d", apicall);
 	//**************
 
@@ -2056,10 +2053,10 @@ char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params
 			rdr = get_reader_by_label(reader_);
 
 			if (rdr->init_history) {
-				char *ptr, *ptr1 = NULL;
-				for (ptr=strtok_r(rdr->init_history, "\n", &ptr1); ptr; ptr=strtok_r(NULL, "\n", &ptr1)) {
+				char *ptr, *saveptr1 = NULL;
+				for (ptr=strtok_r(rdr->init_history, "\n", &saveptr1); ptr; ptr=strtok_r(NULL, "\n", &saveptr1)) {
 					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%s<BR />", ptr);
-					ptr1[-1]='\n';
+					saveptr1[-1]='\n';
 				}
 			}
 
@@ -2090,7 +2087,7 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, int
 		struct s_client *cl = get_client_by_tid(atol(getParam(params, "threadid")));
 		if (cl) {
 			kill_thread(cl);
-			cs_log("Client %s killed by WebIF from %s", cl->account->usr, cs_inet_ntoa(cur_client()->ip));
+			cs_log("Client %s killed by WebIF from %s", cl->account->usr, cs_inet_ntoa(GET_IP()));
 		}
 	}
 
@@ -2098,7 +2095,7 @@ char *send_oscam_status(struct templatevars *vars, struct uriparams *params, int
 		struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
 		if(rdr)	{
 			restart_cardreader(rdr, 1);
-			cs_log("Reader %s restarted by WebIF from %s", rdr->label, cs_inet_ntoa(cur_client()->ip));
+			cs_log("Reader %s restarted by WebIF from %s", rdr->label, cs_inet_ntoa(GET_IP()));
 		}
 	}
 
@@ -2646,10 +2643,10 @@ char *send_oscam_shutdown(struct templatevars *vars, FILE *f, struct uriparams *
 			char *result = tpl_getTpl(vars, "SHUTDOWN");
 			send_headers(f, 200, "OK", NULL, "text/html", 0, strlen(result), 0);
 			webif_write(result, f);
-			cs_log("Shutdown requested by WebIF from %s", cs_inet_ntoa(cur_client()->ip));
+			cs_log("Shutdown requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
 		} else {
 			tpl_addVar(vars, TPLADD, "APICONFIRMMESSAGE", "shutdown");
-			cs_log("Shutdown requested by XMLApi from %s", cs_inet_ntoa(cur_client()->ip));
+			cs_log("Shutdown requested by XMLApi from %s", cs_inet_ntoa(GET_IP()));
 		}
 		running = 0;		
 		pthread_kill(httpthread, SIGPIPE);		// send signal to master thread to wake up from accept()
@@ -2671,10 +2668,10 @@ char *send_oscam_shutdown(struct templatevars *vars, FILE *f, struct uriparams *
 			char *result = tpl_getTpl(vars, "SHUTDOWN");
 			send_headers(f, 200, "OK", NULL, "text/html", 0,strlen(result), 0);
 			webif_write(result, f);
-			cs_log("Restart requested by WebIF from %s", cs_inet_ntoa(cur_client()->ip));
+			cs_log("Restart requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
 		} else {
 			tpl_addVar(vars, TPLADD, "APICONFIRMMESSAGE", "restart");
-			cs_log("Restart requested by XMLApi from %s", cs_inet_ntoa(cur_client()->ip));
+			cs_log("Restart requested by XMLApi from %s", cs_inet_ntoa(GET_IP()));
 		}
 		running = 0;
 		pthread_kill(httpthread, SIGPIPE);		// send signal to master thread to wake up from accept()
@@ -3183,7 +3180,7 @@ int32_t readRequest(FILE *f, struct in_addr in, char **result, int8_t forcePlain
 
 int32_t process_request(FILE *f, struct in_addr in) {	
 	int32_t ok=0,v=cv();
-	in_addr_t addr = cur_client()->ip;
+	in_addr_t addr = GET_IP();
 
 	ok = check_ip(cfg.http_allowed, addr) ? v : 0;
 
@@ -3333,15 +3330,17 @@ int32_t process_request(FILE *f, struct in_addr in) {
 			break;
 		}
 		if(authok == 0 && strlen(str1) > 50 && strncmp(str1, "Authorization:", 14) == 0 && strstr(str1, "Digest") != NULL) {
-			if(cs_realloc(&authheader, strlen(str1) + 1, -1))
-				cs_strncpy(authheader, str1, strlen(str1));
+			if (cs_dblevel & D_CLIENT){
+				if(cs_realloc(&authheader, strlen(str1) + 1, -1))
+					cs_strncpy(authheader, str1, strlen(str1));
+			}
 			authok = check_auth(str1, method, path, expectednonce);
 		}
 	}
 
 	if(authok != 1) {
 		if(authok == 2)
-			cs_debug_mask(D_TRACE, "WebIf: Received stale header from %s", cs_inet_ntoa(addr));
+			cs_debug_mask(D_TRACE, "WebIf: Received stale header from %s.", cs_inet_ntoa(addr));
 		else if(authheader){
 			cs_debug_mask(D_CLIENT, "WebIf: Received wrong auth header from %s:", cs_inet_ntoa(addr));
 			cs_debug_mask(D_CLIENT, "%s", authheader);
@@ -3465,12 +3464,10 @@ void *serve_process(void *conn){
 	pthread_setspecific(getssl, ssl);
 #endif
 	free(myconn);
-	cl->thread = pthread_self();
+
+	pthread_setspecific(getip, &in.s_addr);
 	pthread_setspecific(getclient, cl);
-#ifndef NO_PTHREAD_CLEANUP_PUSH
-	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);	
-	pthread_cleanup_push(cleanup_thread, (void *) cl);
-#endif
+
 #ifdef WITH_SSL
 	if (ssl_active) {
 		if(SSL_set_fd(ssl, s)){
@@ -3482,15 +3479,15 @@ void *serve_process(void *conn){
 					if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
 						break;
 					else {
-						fd_set fds;
-						FD_ZERO(&fds);
-						FD_SET(s, &fds);
-						int rc=select(s+1, &fds, 0, 0, NULL);
+						struct pollfd pfd;
+						pfd.fd = s;
+						pfd.events = POLLIN;
+						int32_t rc = poll(&pfd, 1, -1);
 						if (rc < 0) {
 							if (errno==EINTR) continue;
 							break;
 						}
-						if (FD_ISSET(s, &fds))
+						if (rc == 1)
 							ok = (SSL_accept(ssl) != -1);
 					}
 				}
@@ -3540,11 +3537,7 @@ void *serve_process(void *conn){
 		shutdown(s, SHUT_WR);
 		close(s);
 	}
-#ifndef NO_PTHREAD_CLEANUP_PUSH
-	pthread_cleanup_pop(1);
-#else
-	cs_exit(0);
-#endif
+
 	return NULL;
 }
 
@@ -3570,6 +3563,11 @@ void http_srv() {
 		cs_log("HTTP Server: Error creating mutex! (errno=%d %s)", errno, strerror(errno));
 		return;
 	};
+
+	if (pthread_key_create(&getip, NULL)) {
+		cs_log("Could not create getip");
+		return;
+	}
 
 	/* Startup server */
 	if((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
@@ -3628,19 +3626,10 @@ void http_srv() {
 			if(!cs_malloc(&conn, sizeof(struct s_connection), -1)){
 				close(s);
 				continue;
-			};
-			struct s_client *cl = create_client(remote.sin_addr.s_addr);
-			if (cl == NULL) {
-				close(s);
-				free(conn);
-				continue;
 			}
-			cur_client()->last = cl->last = time((time_t)0); //reset last busy time
-			cl->typ = 'i';
-			cl->wihidden = 1;
-			cl->port=ntohs(remote.sin_port);
-			conn->cl = cl;
-			memcpy(&conn->remote, &remote, sizeof(struct in_addr));
+			cur_client()->last = time((time_t)0); //reset last busy time
+			conn->cl = cur_client();
+			memcpy(&conn->remote, &remote.sin_addr, sizeof(struct in_addr));
 			conn->socket = s;
 #ifdef WITH_SSL
 			conn->ssl = NULL;
@@ -3659,7 +3648,6 @@ void http_srv() {
 #endif
 			if (pthread_create(&workthread, &attr, serve_process, (void *)conn)) {
 				cs_log("ERROR: can't create thread for webif");
-				cleanup_thread(cl);
 				free(conn);
 			}
 			else

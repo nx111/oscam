@@ -1341,10 +1341,10 @@ int32_t dvbapi_init_listenfd() {
 }
 
 void dvbapi_chk_caidtab(char *caidasc, char type) {
-	char *ptr1, *ptr3;
+	char *ptr1, *ptr3, *saveptr1 = NULL;
 	int32_t i;
 
-	for (i=0, ptr1=strtok(caidasc, ","); (ptr1); ptr1=strtok(NULL, ",")) {
+	for (i=0, ptr1=strtok_r(caidasc, ",", &saveptr1); (ptr1); ptr1=strtok_r(NULL, ",", &saveptr1)) {
 		uint32_t caid, prov;
 		if( (ptr3=strchr(trim(ptr1), ':')) )
 			*ptr3++='\0';
@@ -1703,7 +1703,6 @@ void * dvbapi_main_local(void *cli) {
 	struct pollfd pfd2[maxpfdsize];
 	int32_t i,rc,pfdcount,g,connfd,clilen,j;
 	int32_t ids[maxpfdsize], fdn[maxpfdsize], type[maxpfdsize];
-	struct timeb tp;
 	struct sockaddr_un servaddr;
 	ssize_t len=0;
 	uchar mbuf[1024];
@@ -1762,9 +1761,6 @@ void * dvbapi_main_local(void *cli) {
 		pthread_detach(event_thread);
 	}
 
-	cs_ftime(&tp);
-	tp.time+=500;
-
 	pfd2[0].fd = client->fd_m2c_c;
 	pfd2[0].events = (POLLIN | POLLPRI);
 	type[0]=0;
@@ -1776,7 +1772,7 @@ void * dvbapi_main_local(void *cli) {
 	while (1) {
 		pfdcount = (listenfd > -1) ? 2 : 1;
 
-		chk_pending(tp);
+		chk_pending(500);
 
 		for (i=0;i<MAX_DEMUX;i++) {
 			for (g=0;g<MAX_FILTER;g++) {
@@ -2683,11 +2679,7 @@ void azbox_openxcas_ex_callback(int32_t stream_id, uint32_t seq, int32_t idx, ui
 	else
 		cs_debug_mask(D_DVBAPI, "openxcas: ex filter stopped");
 
-	struct timeb tp;
-	cs_ftime(&tp);
-	tp.time+=500;
-
-	chk_pending(tp);
+	chk_pending(500);
 	process_client_pipe(dvbapi_client, NULL, 0);
 
 	unsigned char mask[12];
@@ -2715,10 +2707,6 @@ void * azbox_main(void *cli) {
 	pthread_cleanup_push(cleanup_thread, (void *) client);
 	#endif
 
-	struct timeb tp;
-	cs_ftime(&tp);
-	tp.time+=500;
-
 	struct s_auth *account;
 	int32_t ok=0;
 	for (ok=0, account=cfg.account; (account) && (!ok); account=account->next)
@@ -2733,7 +2721,7 @@ void * azbox_main(void *cli) {
 	while ((ret = openxcas_get_message(&msg, 0)) >= 0) {
 		cs_sleepms(10);
 
-		chk_pending(tp);
+		chk_pending(500);
 
 		if (ret) {
 			openxcas_stream_id = msg.stream_id;

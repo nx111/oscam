@@ -68,7 +68,7 @@ void load_stat_from_file()
 	int32_t valid=0;
 	int32_t count=0;
 	int32_t type=0;
-	char *ptr;
+	char *ptr, *saveptr1 = NULL;
 	char *split[10];
 	
 	while (fgets(line, LINESIZE, file))
@@ -86,7 +86,7 @@ void load_stat_from_file()
 		}	
 		
 		if (type==1) { //New format - faster parsing:
-			for (i = 0, ptr = strtok(line, ","); ptr && i<10 ; ptr = strtok(NULL, ","), i++)
+			for (i = 0, ptr = strtok_r(line, ",", &saveptr1); ptr && i<10 ; ptr = strtok_r(NULL, ",", &saveptr1), i++)
 				split[i] = ptr;
 			valid = (i==10);
 			if (valid) {
@@ -433,8 +433,10 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 	else if (rc == 4) { //not found
 		//CCcam card can't decode, 0x28=NOK1, 0x29=NOK2
 		//CCcam loop detection = E2_CCCAM_LOOP
-		if (er->rcEx == E2_CCCAM_NOK1 || er->rcEx == E2_CCCAM_NOK2 || er->rcEx == E2_CCCAM_LOOP)
+		if (er->rcEx == E2_CCCAM_NOK1 || er->rcEx == E2_CCCAM_NOK2 || er->rcEx == E2_CCCAM_LOOP) {
+			stat->last_received = ctime; //to avoid timeouts
 			return;
+		}
 			
 		stat->rc = rc;
 		inc_fail(stat);

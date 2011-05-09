@@ -58,6 +58,14 @@ void add_good_bad_sids(struct s_sidtab *ptr, SIDTABBITS sidtabno, struct cc_card
         }
 }
 
+int32_t can_use_ext(struct cc_card *card) {
+	if (card->sidtab)
+		return (card->sidtab->num_srvid>0);
+	else
+		return ll_count(card->goodsids);
+	return 0;
+}
+
 int32_t write_card(struct cc_data *cc, uint8_t *buf, struct cc_card *card, int32_t add_own, int32_t ext, int32_t au_allowed, struct s_client *cl) {
     memset(buf, 0, CC_MAXMSGSIZE);
     buf[0] = card->id >> 24;
@@ -189,7 +197,7 @@ int32_t send_card_to_clients(struct cc_card *card, struct s_client *one_client) 
         for (cl = one_client?one_client:first_client; cl; cl=one_client?NULL:cl->next) {
                 struct cc_data *cc = cl->cc;
                 if (cl->typ=='c' && cc && ((one_client && cc->mode != CCCAM_MODE_SHUTDOWN) || (ph[cl->ctyp].num == R_CCCAM && cc->mode == CCCAM_MODE_NORMAL))) { //CCCam-Client!
-                		int32_t is_ext = cc->cccam220;
+                		int32_t is_ext = cc->cccam220 && can_use_ext(card);
                 		int32_t msg = is_ext?MSG_NEW_CARD_SIDINFO:MSG_NEW_CARD;
                         if (card_valid_for_client(cl, card)) {
 								int32_t usr_reshare = cl->account->cccreshare;
@@ -312,7 +320,7 @@ int32_t cc_clear_reported_carddata(LLIST *reported_carddatas, LLIST *except,
                         ll_iter_release(it2);
                 }
 
-                if (!card2) { //check result of ll_iter_remove, because another thread could removed it
+                if (!card2 && ll_iter_remove(it)) { //check result of ll_iter_remove, because another thread could removed it
                         if (send_removed)
                         		send_remove_card_to_clients(card);
                         cc_free_card(card);
@@ -371,16 +379,20 @@ int32_t card_valid_for_client(struct s_client *cl, struct cc_card *card) {
 		ll_iter_release(it);
 
         //Check Services:
-        it = ll_iter_create(card->providers);
-        struct cc_provider *prov;
-        while ((prov = ll_iter_next(it))) {
+        if (ll_count(card->providers)) {
+        	it = ll_iter_create(card->providers);
+        	struct cc_provider *prov;
+        	int found=0;
+        	while ((prov = ll_iter_next(it))) {
         		uint32_t prid = prov->prov;
-                if (!chk_srvid_by_caid_prov(cl, card->caid, prid)) {
-                		ll_iter_release(it);
-                		return 0;
+                if (chk_srvid_by_caid_prov(cl, card->caid, prid)) {
+                	found = 1;
+                	break;
 				}
+			}
+			ll_iter_release(it);
+			if (!found) return 0;
 		}
-		ll_iter_release(it);
 		
         //Check Card created by Service:
         if (card->sidtab) {
@@ -794,7 +806,8 @@ void update_card_list() {
             if (reshare == -1) reshare = cfg.cc_reshare;
             
             //Reader-Services:
-            if ((cfg.cc_reshare_services==1||cfg.cc_reshare_services==2||!rdr->caid) && cfg.sidtab && (rdr->sidtabno || rdr->sidtabok)) {
+            if ((cfg.cc_reshare_services==1||cfg.cc_reshare_services==2||!rdr->caid) && 
+            		cfg.sidtab && (rdr->sidtabno || rdr->sidtabok)) {
                 struct s_sidtab *ptr;
                 for (j=0,ptr=cfg.sidtab; ptr; ptr=ptr->next,j++) {
                     if (!(rdr->sidtabno&((SIDTABBITS)1<<j)) && (!rdr->sidtabok || rdr->sidtabok&((SIDTABBITS)1<<j))) {
@@ -814,9 +827,6 @@ void update_card_list() {
                             	if (!rdr->audisabled)
 									cc_UA_oscam2cccam(rdr->hexserial, card->hexserial, card->caid);
                         
-	                            //CCcam 2.2.x proto can transfer good and bad sids:
-	                            add_good_bad_sids(ptr, rdr->sidtabno, card);
-
 	                            add_card_to_serverlist(server_cards, card);
 	                    	    flt=1;
 							}
@@ -1018,12 +1028,12 @@ int32_t cc_srv_report_cards(struct s_client *cl) {
 	struct cc_data *cc = cl->cc;
 	LL_ITER *it = ll_iter_create(reported_carddatas);
 	struct cc_card *card;
-	while ((card = ll_iter_next(it)) && cc->mode != CCCAM_MODE_SHUTDOWN) {
+	while (cl->cc && cc->mode != CCCAM_MODE_SHUTDOWN && (card = ll_iter_next(it))) {
 		send_card_to_clients(card, cl);
 	}
 	ll_iter_release(it);
 
-	return cc->mode != CCCAM_MODE_SHUTDOWN;
+	return cl->cc && cc->mode != CCCAM_MODE_SHUTDOWN;
 }
 
 void refresh_shares()
