@@ -1150,7 +1150,7 @@ int32_t newcamd_client_init(struct s_client *client)
   cs_log("proxy %s:%d newcamd52%d (fd=%d%s)",
           client->reader->device, client->reader->r_port,
           (client->reader->ncd_proto==NCD_525)?5:4, client->udp_fd, ptxt);
-
+  newcamd_connect();
   return(0);
 }
 

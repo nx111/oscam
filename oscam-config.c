@@ -277,6 +277,7 @@ void chk_cltab(char *classasc, CLASSTAB *clstab)
 {
 	int32_t i;
 	char *ptr1, *saveptr1 = NULL;
+	clstab->an = clstab->bn = 0;
 	for( i = 0, ptr1 = strtok_r(classasc, ",", &saveptr1); (i < CS_MAXCAIDTAB) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1) ) {
 		ptr1 = trim(ptr1);
 		if( ptr1[0] == '!' )
@@ -2332,7 +2333,14 @@ int32_t write_userdb(struct s_auth *authptr)
 			fprintf_conf(f, CONFVARWIDTH, "chid", "%s\n", value);
 			free_mk_t(value);
 		}
-
+		
+		//class
+		if ((account->cltab.bn > 0 || account->cltab.an > 0) || cfg.http_full_cfg) {
+			value = mk_t_cltab(&account->cltab);
+			fprintf_conf(f, CONFVARWIDTH, "class", "%s\n", value);
+			free_mk_t(value);
+		}
+		
 		if ((account->c35_suppresscmd08 != cfg.c35_suppresscmd08) || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "suppresscmd08", "%d\n", account->c35_suppresscmd08);
 
@@ -2541,6 +2549,11 @@ int32_t write_server()
 			value = mk_t_ftab(&rdr->fchid);
 			if (strlen(value) > 0 || cfg.http_full_cfg)
 				fprintf_conf(f, CONFVARWIDTH, "chid", "%s\n", value);
+			free_mk_t(value);
+			
+			value = mk_t_cltab(&rdr->cltab);
+			if (strlen(value) > 0 || cfg.http_full_cfg)
+				fprintf_conf(f, CONFVARWIDTH, "class", "%s\n", value);
 			free_mk_t(value);
 
 			value = mk_t_aeskeys(rdr);
@@ -4430,24 +4443,11 @@ int32_t init_cccamcfg()
 		strncpy(line,trim(token),2047);
 		if(!line[0])continue;
 		if((line[0] == 'C' || line[0] == 'L' || line[0] == 'N' || line[0] == 'R' ) && line[1] == ':'){
-			if(rdr){
-				struct s_reader *newreader;
-				if(cs_malloc(&newreader,sizeof(struct s_reader),-1)){
-					rdr = newreader; //and advance to end of list
-				}
-				else 
-					continue;
-			}
-			else 
-				if(!cs_malloc(&rdr,sizeof(struct s_reader),-1))
-					continue;
-
-			memset(rdr, 0, sizeof(struct s_reader));
 
 			int32_t paracount=0;
 			int32_t rtyp='\0';
 			ret=0;
-			uchar ncd_key[14];
+			uchar ncd_key[13+sizeof(uint)];
 			memset(ncd_key,0,sizeof(ncd_key));
 			int32_t reshare=-1;
 			switch(line[0]){
@@ -4478,9 +4478,37 @@ int32_t init_cccamcfg()
 
 			if(!rtyp || ret<paracount)continue;
 
+			int32_t found=0;
+			LL_ITER *itr0 = ll_iter_create(configured_readers);
+			struct s_reader *prdr=NULL;
+			while((prdr = ll_iter_next(itr0))){
+				if( strcasecmp(prdr->device,host) == 0 && prdr->r_port == port &&
+				    strcmp(prdr->r_usr,uname) == 0  && strcmp(prdr->r_pwd,upass) == 0 &&
+				    host[0] && port && uname[0] && upass[0] ){
+					found=1;
+					break;
+				}
+			}
+			ll_iter_release(itr0);
+			if(found)
+				continue;
+
+			if(rdr){
+				struct s_reader *newreader;
+				if(cs_malloc(&newreader,sizeof(struct s_reader),-1)){
+					rdr = newreader; //and advance to end of list
+				}
+				else 
+					continue;
+			}
+			else 
+				if(!cs_malloc(&rdr,sizeof(struct s_reader),-1))
+					continue;
+
+			memset(rdr, 0, sizeof(struct s_reader));
+
 			rdr->typ=rtyp;
-			rdr->enable = 0;
-			cs_strncpy((char*)rdr->ncd_key,(char*)ncd_key,14);
+			memcpy(rdr->ncd_key,ncd_key,14);
 			rdr->tcp_rto = 30;
 			rdr->show_cls = 10;
 			rdr->nagra_read = 0;
@@ -4507,6 +4535,7 @@ int32_t init_cccamcfg()
 			cs_strncpy(rdr->label,token,sizeof(rdr->label));
 			rdr->enable = 1;
 			rdr->grp = 1;	
+
 			ll_append(configured_readers, rdr);
 			cs_debug_mask(D_READER,"Add reader device=%s,%d(type:%04X)from CCcam.cfg",rdr->device,rdr->r_port,rdr->typ);
 		}
@@ -4517,6 +4546,19 @@ int32_t init_cccamcfg()
 			if(ret<4)uemu=1;
 			if(ret<3)uhops=5;
 			
+			int32_t found=0;
+			struct s_auth *pusr=NULL;
+			LL_ITER * itr=ll_iter_create(configured_usrs);
+			while((pusr=ll_iter_next(itr))){
+				if(!strcmp(pusr->usr,uname)){
+					found=1;
+					break;
+				}
+			}
+			ll_iter_release(itr);
+			if(found)
+				continue;
+
 			if(account){
 				struct s_auth *newusr;
 				if(cs_malloc(&newusr, sizeof(struct s_auth), -1)){
@@ -4537,7 +4579,9 @@ int32_t init_cccamcfg()
 			cs_strncpy(account->pwd,upass,sizeof(account->pwd));
 			account->cccmaxhops=uhops;
 			account->autoau=uemu;
-
+			account->disabled=0;
+			account->uniq=1;
+			account->grp=1;
 			account->allowedtimeframe[0] = 0;
 			account->allowedtimeframe[1] = 0;
 			account->aureader_list = NULL;
@@ -5174,7 +5218,7 @@ char *mk_t_logfile(){
 }
 
 /*
- * Creates a string ready to write as a token into config or WebIf for an iprange. You must free the returned value through free_mk_t().
+ * Creates a string ready to write as a token into config or WebIf for the ecm whitelist. You must free the returned value through free_mk_t().
  */
 char *mk_t_ecmwhitelist(struct s_ecmWhitelist *whitelist){
 	int32_t needed = 1, pos = 0;
@@ -5231,6 +5275,31 @@ char *mk_t_iprange(struct s_ip *range){
 		if (cip->ip[0] != cip->ip[1])	pos += snprintf(tmp + pos, needed - pos, "-%s", cs_inet_ntoa(cip->ip[1]));
 		dot=",";
 	}
+	if(pos == 0 || !cs_malloc(&value, (pos + 1) * sizeof(char), -1)) return "";
+	memcpy(value, tmp, pos + 1);
+	return value;
+}
+
+/*
+ * Creates a string ready to write as a token into config or WebIf for the class attribute. You must free the returned value through free_mk_t().
+ */
+char *mk_t_cltab(CLASSTAB *clstab){
+	char *value, *dot = "";
+	int32_t i, needed = 1, pos = 0;
+	for(i = 0; i < clstab->an; ++i) needed += 3;
+	for(i = 0; i < clstab->bn; ++i) needed += 4;
+	
+	char tmp[needed];
+
+	for(i = 0; i < clstab->an; ++i) {
+		pos += snprintf(tmp + pos, needed - pos, "%s%02x", dot, (int32_t)clstab->aclass[i]);
+		dot=",";
+	}
+	for(i = 0; i < clstab->bn; ++i) {
+		pos += snprintf(tmp + pos, needed - pos, "%s!%02x", dot, (int32_t)clstab->bclass[i]);
+		dot=",";
+	}
+	
 	if(pos == 0 || !cs_malloc(&value, (pos + 1) * sizeof(char), -1)) return "";
 	memcpy(value, tmp, pos + 1);
 	return value;
