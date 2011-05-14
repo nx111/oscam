@@ -1,14 +1,14 @@
 10
 
 dir
-5215
+5225
 http://streamboard.gmc.to/svn/oscam/trunk/Distribution/doc/txt
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-05-09T20:06:25.621425Z
-5210
+2011-05-11T13:33:52.223141Z
+5224
 landlord
 
 
@@ -32,11 +32,11 @@ file
 
 
 
-2011-05-06T07:16:12.404068Z
-2b849be612f930f85e6cb9d1ba08d7b3
-2011-05-06T06:44:40.678668Z
-5185
-landlord
+2011-05-14T08:34:04.080541Z
+94e5c78765fb016dd29801c4ab7e5d46
+2011-05-10T13:53:58.184531Z
+5216
+hapeba
 
 
 
@@ -58,7 +58,7 @@ landlord
 
 
 
-2626
+2636
 
 list_smargo.txt
 file
@@ -203,9 +203,9 @@ file
 
 
 
-6a9831000c549ef3ec9bbc5ebce1f081
-2011-05-09T20:06:25.621425Z
-5210
+fb8861b6585cccae4ccc6a3c0fd1d660
+2011-05-11T13:33:52.223141Z
+5224
 landlord
 
 oscam.dvbapi.txt

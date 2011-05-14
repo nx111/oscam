@@ -497,7 +497,8 @@ void send_headers(FILE *f, int32_t status, char *title, char *extra, char *mime,
 		pos += snprintf(pos, sizeof(buf)-(pos-buf),"Content-Length: %d\r\n", length);
 		pos += snprintf(pos, sizeof(buf)-(pos-buf),"Last-Modified: %s\r\n", timebuf);
 		if(content){
-			pos += snprintf(pos, sizeof(buf)-(pos-buf),"ETag: \"%u\"\r\n", (uint32_t)crc32(0L, (uchar *)content, strlen(content)));
+			uint32_t checksum = (uint32_t)crc32(0L, (uchar *)content, strlen(content));
+			pos += snprintf(pos, sizeof(buf)-(pos-buf),"ETag: \"%u\"\r\n", checksum==0?1:checksum);
 		}
 	}
 	pos += snprintf(pos, sizeof(buf)-(pos-buf), "Connection: close\r\n");
@@ -531,7 +532,8 @@ void send_header304(FILE *f){
  * function for sending files.
  */
 void send_file(FILE *f, char *filename, time_t modifiedheader, uint32_t etagheader){
-	int32_t fileno = 0;
+	int8_t fileno = 0, allocated = 0;
+	int32_t size = 0;
 	char* mimetype = "", *result = "";
 	time_t moddate;
 
@@ -546,32 +548,26 @@ void send_file(FILE *f, char *filename, time_t modifiedheader, uint32_t etaghead
 	}
 
 	if(strlen(filename) > 0 && file_exists(filename) == 1){
-		FILE *fp;
-		char buffer[1024], *pos;
-		int32_t read;
-		struct stat st;
-		
+		struct stat st;		
 		stat(filename, &st);
-		moddate = st.st_mtime;
-		if(moddate < modifiedheader){
-			send_header304(f);
-			return;
-		}
-		if((fp = fopen(filename, "r"))==NULL) return;
-		if(!cs_malloc(&result, st.st_size + 1, -1)){
-			send_error500(f);
+		moddate = st.st_mtime;		
+		if(st.st_size > 0){
+			FILE *fp;
+			int32_t read;
+			size = st.st_size;
+			if((fp = fopen(filename, "r"))==NULL) return;
+			if(!cs_malloc(&result, st.st_size + 1, -1)){
+				send_error500(f);
+				fclose(fp);
+				return;
+			}
+			allocated = 1;
+			if((read = fread(result, 1, st.st_size, fp)) != size){
+				result[0] = '\0';
+				size = 0;
+			} else result[read] = '\0';
 			fclose(fp);
-			return;
 		}
-		result[0] = '\0';
-		pos = result;
-		while((read = fread(buffer,sizeof(char), 1023, fp)) > 0) {
-			buffer[read] = '\0';
-			if(pos + read > result + st.st_size) break;		//nasty, file has grown while reading	
-			memcpy(&pos, buffer, read);
-			pos += read;	
-		}		
-		fclose(fp);
 	} else {
 		moddate = first_client->login;
 		if (fileno == 1){
@@ -579,13 +575,15 @@ void send_file(FILE *f, char *filename, time_t modifiedheader, uint32_t etaghead
 		} else if (fileno == 2){
 			result = JSCRIPT;
 		}
+		size = strlen(result);
 	}
-	if(moddate < modifiedheader || (uint32_t)crc32(0L, (uchar *)result, strlen(result)) == etagheader){
+	if((etagheader == 0 && moddate < modifiedheader) || (uint32_t)crc32(0L, (uchar *)result, size) == etagheader){
 		send_header304(f);
 	} else {
-		send_headers(f, 200, "OK", NULL, mimetype, 1, strlen(result), result, 0);
+		send_headers(f, 200, "OK", NULL, mimetype, 1, size, result, 0);
 		webif_write(result, f);
 	}
+	if(allocated) free(result);
 }
 
 /* Helper function for urldecode.*/
