@@ -1672,19 +1672,17 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 		if(value && value[0] == '1') {
 			account->autoau = 1;
 		}
-		LL_ITER *itr = ll_iter_create(configured_readers);
+		LL_ITER itr = ll_iter_create(configured_readers);
 		ll_clear(account->aureader_list);
 
 		for (pch = strtok_r(value, ",", &saveptr1); pch != NULL; pch = strtok_r(NULL, ",", &saveptr1)) {
-			ll_iter_reset(itr);
-			while ((rdr = ll_iter_next(itr))) {
+			ll_iter_reset(&itr);
+			while ((rdr = ll_iter_next(&itr))) {
 				if (((rdr->label[0]) && (!strcmp(rdr->label, pch))) || account->autoau) {
 					ll_append(account->aureader_list, rdr);
 				}
 			}
 		}
-
-		ll_iter_release(itr);
 		return;
 	}
 
@@ -2400,8 +2398,8 @@ int32_t write_server()
 	fprintf(f,"# Read more: http://streamboard.gmc.to/oscam/browser/trunk/Distribution/doc/txt/oscam.server.txt\n\n");
 
 	struct s_reader *rdr;
-	LL_ITER *itr = ll_iter_create(configured_readers);
-	while((rdr = ll_iter_next(itr))) {
+	LL_ITER itr = ll_iter_create(configured_readers);
+	while((rdr = ll_iter_next(&itr))) {
 		if ( rdr->label[0]) {
 			int32_t isphysical = (rdr->typ & R_IS_NETWORK)?0:1;
 			char *ctyp = reader_get_type_desc(rdr, 0);
@@ -2640,7 +2638,6 @@ int32_t write_server()
 			fprintf(f, "\n\n");
 		}
 	}
-	ll_iter_release(itr);
 	fclose(f);
 
 	return(safe_overwrite_with_bak(destfile, tmpfile, bakfile, 0));
@@ -2929,24 +2926,28 @@ struct s_auth *init_userdb()
 		if(!checked && account->usr[0] && account->pwd[0]){
 			struct s_auth *pusr=NULL;
 			checked=1;
-			LL_ITER * itr=ll_iter_create(configured_usrs);
-			while((pusr=ll_iter_next(itr)) && pusr != account){
+			uint32_t found=0;
+			LL_ITER itr=ll_iter_create(configured_usrs);
+			while((pusr=ll_iter_next(&itr)) && pusr != account){
 				if(!strcmp(pusr->usr,account->usr)){
-					ll_iter_remove(itr);
+					ll_iter_remove(&itr);
+					found=1;
 					break;
 				}
 			}
-			ll_iter_release(itr);
-			cs_debug_mask(D_TRACE,"Add usr:%s",account->usr);
+			if(!found)
+				cs_debug_mask(D_TRACE,"Add usr:%s",account->usr);
+			else
+				cs_debug_mask(D_TRACE,"Clean up duplicate usr:%s",account->usr);
 		}
 
 	    }
 	    fclose(fp);
 	}
 
-	LL_ITER * itr=ll_iter_create(configured_usrs);
+	LL_ITER itr=ll_iter_create(configured_usrs);
 	struct s_auth *cur=NULL;
-	while((account=ll_iter_next(itr))){
+	while((account=ll_iter_next(&itr))){
 		int32_t skipit=0;
 
 		nr++;
@@ -2972,7 +2973,6 @@ struct s_auth *init_userdb()
 			}
 		}
 	}
-	ll_iter_release(itr);
 	cs_log("userdb reloaded: %d accounts loaded, %d expired, %d disabled", nr, expired, disabled);
 	return authptr;
 }
@@ -4479,9 +4479,9 @@ int32_t init_cccamcfg()
 			if(!rtyp || ret<paracount)continue;
 
 			int32_t found=0;
-			LL_ITER *itr0 = ll_iter_create(configured_readers);
+			LL_ITER itr = ll_iter_create(configured_readers);
 			struct s_reader *prdr=NULL;
-			while((prdr = ll_iter_next(itr0))){
+			while((prdr = ll_iter_next(&itr))){
 				if( strcasecmp(prdr->device,host) == 0 && prdr->r_port == port &&
 				    strcmp(prdr->r_usr,uname) == 0  && strcmp(prdr->r_pwd,upass) == 0 &&
 				    host[0] && port && uname[0] && upass[0] ){
@@ -4489,7 +4489,6 @@ int32_t init_cccamcfg()
 					break;
 				}
 			}
-			ll_iter_release(itr0);
 			if(found)
 				continue;
 
@@ -4548,14 +4547,13 @@ int32_t init_cccamcfg()
 			
 			int32_t found=0;
 			struct s_auth *pusr=NULL;
-			LL_ITER * itr=ll_iter_create(configured_usrs);
-			while((pusr=ll_iter_next(itr))){
+			LL_ITER itr=ll_iter_create(configured_usrs);
+			while((pusr=ll_iter_next(&itr))){
 				if(!strcmp(pusr->usr,uname)){
 					found=1;
 					break;
 				}
 			}
-			ll_iter_release(itr);
 			if(found)
 				continue;
 
@@ -4671,25 +4669,28 @@ int32_t init_readerdb()
 
 		if(!checked && rdr->device[0] && rdr->r_port && rdr->r_usr[0] && rdr->r_pwd[0]){
 			checked=1;
-			LL_ITER *itr0 = ll_iter_create(configured_readers);
+			uint32_t found=0;
+			LL_ITER itr = ll_iter_create(configured_readers);
 			struct s_reader *prdr=NULL;
-			while((prdr = ll_iter_next(itr0)) && prdr != rdr ){
+			while((prdr = ll_iter_next(&itr)) && prdr != rdr ){
 				if( strcasecmp(prdr->device,rdr->device) == 0 && prdr->r_port == rdr->r_port &&
 				    strcmp(prdr->r_usr,rdr->r_usr) == 0  && strcmp(prdr->r_pwd,rdr->r_pwd) == 0){
-					ll_iter_remove(itr0);
+					ll_iter_remove(&itr);
+					found=1;
 					break;
 				}
 			}
-			ll_iter_release(itr0);
-			cs_debug_mask(D_READER,"Add reader(%d) device=%s,%d",configured_readers->count,rdr->device,rdr->r_port);
+			if(!found)
+				cs_debug_mask(D_READER,"Add reader(%d) device=%s,%d",configured_readers->count,rdr->device,rdr->r_port);
+			else
+				cs_debug_mask(D_READER,"Clean up duplicate reader:(%s,%d)",rdr->device,rdr->r_port);
 		}
 	  }
 	  fclose(fp);
 	}
-
-	LL_ITER *itr = ll_iter_create(configured_readers);
+	LL_ITER itr = ll_iter_create(configured_readers);
 	struct s_reader *cur=NULL;
-	while((rdr = ll_iter_next(itr))) { //build active readers list
+	while((rdr = ll_iter_next(&itr))) { //build active readers list
 		int32_t i;
 		if (rdr->device[0] && (rdr->typ & R_IS_CASCADING)) {
 			for (i=0; i<CS_MAX_MOD; i++) {
@@ -4712,8 +4713,6 @@ int32_t init_readerdb()
 		}
 		cs_debug_mask(D_READER,"[debug reader] device=%s port=%d enable=%d group=%d",rdr->device,rdr->r_port,rdr->enable,rdr->grp);
 	}
-	ll_iter_release(itr);
-
 	return(0);
 }
 
@@ -5125,12 +5124,11 @@ char *mk_t_aureader(struct s_auth *account){
 	value[0] = '\0';
 
 	struct s_reader *rdr;
-	LL_ITER *itr = ll_iter_create(account->aureader_list);
-	while ((rdr = ll_iter_next(itr))) {
+	LL_ITER itr = ll_iter_create(account->aureader_list);
+	while ((rdr = ll_iter_next(&itr))) {
 		pos += snprintf(value + pos, 256-pos, "%s%s", dot, rdr->label);
 		dot = ",";
 	}
-	ll_iter_release(itr);
 
 	return value;
 }

@@ -1,5 +1,6 @@
 #!/bin/sh
-plat=i386Linux
+plat=i686-pc-linux
+plat_dir=build_i686Linux
 rm -f oscam oscam-$plat-svn*.tar.gz
 
 make clean
@@ -15,7 +16,7 @@ builddir=`dirname $0`
 [ "$builddir" = "." ] || svnroot=`dirname $builddir`
 cd $svnroot/
 svnver=`svn info | sed -n "5p"| sed -e "s/ //g" | cut -f2 -d:`
-cd build_$plat/image
+cd ${plat_dir}/image
 tar czf ../oscam-${plat}-svn${svnver}-nx111-`date +%Y%m%d`.tar.gz *
 cd ../ 
 rm -rf CMake* *.a Makefile cscrypt csctapi *.cmake algo image/usr/bin/oscam

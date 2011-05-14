@@ -730,10 +730,6 @@ struct s_client
   //cs_hexdump buffer
   uchar dump[520];
   
-  //an iterator to be used across OSCam; threadspecific
-  LL_ITER it;
-  int8_t itused;
-
   //oscam.c
   struct timeval tv;
 
@@ -1300,6 +1296,7 @@ extern int32_t dyn_word_atob(char *asc);
 extern int32_t key_atob_l(char *, uchar *, int);
 extern char *key_btoa(char *, uchar *);
 extern char *cs_hexdump(int, const uchar *, int);
+extern char *cs_hexdump_buf(int, const uchar *, int, char *target, int32_t len);
 extern in_addr_t cs_inet_order(in_addr_t);
 extern char *cs_inet_ntoa(in_addr_t);
 extern in_addr_t cs_inet_addr(char *txt);
@@ -1344,6 +1341,7 @@ extern int32_t hexserialset(struct s_reader *rdr);
 extern char *monitor_get_proto(struct s_client *);
 extern char *reader_get_type_desc(struct s_reader * rdr, int32_t extended);
 extern char *get_ncd_client_name(char *client_id);
+extern int32_t cs_strnicmp(const char * str1, const char * str2, size_t num);
 extern char *strnew(char *str);
 extern void hexserial_to_newcamd(uchar *source, uchar *dest, uint16_t caid);
 extern void newcamd_to_hexserial(uchar *source, uchar *dest, uint16_t caid);

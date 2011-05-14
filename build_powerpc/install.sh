@@ -1,6 +1,7 @@
 #!/bin/sh
 
 plat=powerpc
+plat_dir=build_powerpc
 rm -f oscam oscam-nx111  oscam-$plat-svn*.tar.gz
 export OLDPATH=$PATH
 export PATH=../../toolchains/powerpc-tuxbox-linux-gnu/bin:$OLDPATH     # 指定编译源码时要用的PowerPC环境下的GCC和C++编译器路径
@@ -18,7 +19,7 @@ builddir=`dirname $0`
 [ "$builddir" = "." ] || svnroot=`dirname $builddir`
 cd $svnroot/
 svnver=`svn info | sed -n "5p"| sed -e "s/ //g" | cut -f2 -d:`
-cd build_$plat/image
+cd ${plat_dir}/image
 tar czf ../oscam-${plat}-svn${svnver}-nx111-`date +%Y%m%d`.tar.gz *
 cd ../ 
 rm -rf CMake* *.a Makefile cscrypt csctapi *.cmake algo image/var/bin/oscam
