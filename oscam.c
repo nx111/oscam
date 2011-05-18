@@ -1,6 +1,7 @@
   //FIXME Not checked on threadsafety yet; after checking please remove this line
 #define CS_CORE
 #include "globals.h"
+#include "csctapi/icc_async.h"
 #if defined(AZBOX) && defined(HAVE_DVBAPI)
 #  include "openxcas/openxcas_api.h"
 #endif
@@ -12,6 +13,7 @@ void coolapi_open_all();
 
 extern void cs_statistics(struct s_client * client);
 extern int32_t ICC_Async_Close (struct s_reader *reader);
+static void cs_fake_client(struct s_client *client, char *usr, int32_t uniq, in_addr_t ip);
 
 /*****************************************************************************
         Globals
@@ -39,6 +41,7 @@ pthread_mutex_t gethostbyname_lock;
 pthread_mutex_t get_cw_lock;
 pthread_mutex_t system_lock;
 pthread_mutex_t clientlist_lock;
+pthread_mutex_t fakeuser_lock;
 pthread_key_t getclient;
 
 //Cache for  ecms, cws and rcs:
@@ -153,17 +156,17 @@ static void usage()
   fprintf(stderr, "\tThis program is distributed under GPL.\n");
   fprintf(stderr, "\tinbuilt add-ons: ");
 #ifdef WEBIF
-  fprintf(stderr, "webinterface ");
+  fprintf(stderr, "webif ");
 #endif
 #ifdef MODULE_MONITOR
   fprintf(stderr, "monitor ");
 #endif
 #ifdef WITH_SSL
-  fprintf(stderr, "openssl ");
+  fprintf(stderr, "ssl ");
 #endif
 #ifdef HAVE_DVBAPI
 #ifdef WITH_STAPI
-  fprintf(stderr, "dvbapi-with-stapi ");
+  fprintf(stderr, "dvbapi_stapi ");
 #else
   fprintf(stderr, "dvbapi ");
 #endif
@@ -178,13 +181,13 @@ static void usage()
   fprintf(stderr, "debug ");
 #endif
 #ifdef CS_LED
-  fprintf(stderr, "led-trigger ");
+  fprintf(stderr, "led ");
 #endif
 #ifdef CS_WITH_DOUBLECHECK
   fprintf(stderr, "doublecheck ");
 #endif
 #ifdef QBOXHD_LED
-  fprintf(stderr, "qboxhd-led-trigger ");
+  fprintf(stderr, "qboxhd-led ");
 #endif
 #ifdef CS_LOGHISTORY
   fprintf(stderr, "loghistory ");
@@ -195,15 +198,18 @@ static void usage()
 #ifdef HAVE_PCSC
   fprintf(stderr, "pcsc ");
 #endif
+#ifdef WITH_LB
+  fprintf(stderr, "loadbalancing ");
+#endif
   fprintf(stderr, "\n\tinbuilt protocols: ");
 #ifdef MODULE_CAMD33
   fprintf(stderr, "camd33 ");
 #endif
 #ifdef MODULE_CAMD35
-  fprintf(stderr, "camd35-udp ");
+  fprintf(stderr, "camd35_udp ");
 #endif
 #ifdef MODULE_CAMD35_TCP
-  fprintf(stderr, "camd35-tcp ");
+  fprintf(stderr, "camd35_tcp ");
 #endif
 #ifdef MODULE_NEWCAMD
   fprintf(stderr, "newcamd ");
@@ -580,7 +586,9 @@ void cleanup_thread(void *var)
 		cleanup_ecmtasks(cl);
 		add_garbage(cl->emmcache);
 		add_garbage(cl->req);
+#ifdef MODULE_CCCAM
 		add_garbage(cl->cc);
+#endif
 		add_garbage(cl->serialdata);
 		cl->cleaned++;//cleaned=2
 		add_garbage(cl);
@@ -589,12 +597,16 @@ void cleanup_thread(void *var)
 
 static void cs_cleanup()
 {
+#ifdef WITH_LB
 	if (cfg.lb_mode && cfg.lb_save) {
 		save_stat_to_file(0);
 		cfg.lb_save = 0; //this is for avoiding duplicate saves
 	}
+#endif
 
+#ifdef MODULE_CCCAM
 	done_share();
+#endif
 
 	//cleanup clients:
 	struct s_client *cl;
@@ -684,7 +696,7 @@ void cs_exit(int32_t sig)
 
 	// this is very important - do not remove
 	if (cl->typ != 's') {
-		if(cl->typ != 'i') cs_log("thread %8X ended!", pthread_self());
+		cs_log("thread %8X ended!", pthread_self());
 #ifdef NO_PTHREAD_CLEANUP_PUSH
 		cleanup_thread(cl);
 #endif
@@ -751,7 +763,8 @@ void cs_reinit_clients(struct s_auth *new_accounts)
 					for(i = 0; i < CS_ECM_RINGBUFFER_MAX; i++)
 						cl->cwlastresptimes[i] = 0;
 					cl->cwlastresptimes_last = 0;
-
+					if (account->uniq)
+						cs_fake_client(cl, account->usr, (account->uniq == 1 || account->uniq == 2)?account->uniq+2:account->uniq, cl->ip);
 #ifdef CS_ANTICASC
 					cl->ac_limit	= (account->ac_users * 100 + 80) * cfg.ac_stime;
 #endif
@@ -938,10 +951,17 @@ static void init_first_client()
     exit(1);
   }
 
-  pthread_mutex_init(&gethostbyname_lock, NULL);
-  pthread_mutex_init(&get_cw_lock, NULL);
-  pthread_mutex_init(&system_lock, NULL);
-  pthread_mutex_init(&clientlist_lock, NULL);
+	int8_t ok = 1;
+  if(pthread_mutex_init(&gethostbyname_lock, NULL)) ok = 0;
+  if(pthread_mutex_init(&get_cw_lock, NULL)) ok = 0;
+  if(pthread_mutex_init(&system_lock, NULL)) ok = 0;
+  if(pthread_mutex_init(&clientlist_lock, NULL)) ok = 0;
+  if(pthread_mutex_init(&fakeuser_lock, NULL)) ok = 0;
+  if(pthread_mutex_init(&sc8in1_lock, NULL)) ok = 0;
+  if(!ok){
+  	fprintf(stderr, "Could not init locks, exiting...");
+    exit(1);
+  }
 
 #ifdef COOL
   coolapi_open_all();
@@ -1179,6 +1199,7 @@ static void kill_thread_int(struct s_client *cl) { //cs_exit is used to let thre
 	if (pthread_equal(thread, pthread_self())) return; //cant kill yourself
 
 	struct s_client *prev, *cl2;
+	pthread_mutex_lock(&clientlist_lock);
 	for (prev=first_client, cl2=first_client->next; prev->next != NULL; prev=prev->next, cl2=cl2->next)
 		if (cl == cl2)
 			break;
@@ -1186,6 +1207,7 @@ static void kill_thread_int(struct s_client *cl) { //cs_exit is used to let thre
 		cs_log("FATAL ERROR: could not find client to remove from list.");
 	else
 		prev->next = cl2->next; //remove client from list
+	pthread_mutex_unlock(&clientlist_lock);
 
 	pthread_cancel(thread);
 	pthread_join(thread, NULL);
@@ -1201,7 +1223,7 @@ static void kill_thread_int(struct s_client *cl) { //cs_exit is used to let thre
 		//So only log it, but do NOT call cleanup_thread() !!
 		//cleanup_thread(cl);
 	}
-		
+
 #else
 	cs_sleepms(50);
 	cleanup_thread(cl);
@@ -1228,7 +1250,7 @@ void start_anticascader()
   ac_init_stat();
   while(1)
   {
-  	int i;
+  	int32_t i;
   	for( i=0; i<cfg.ac_stime*60; i++ )
   		cs_sleepms(1000); //FIXME this is a cpu-killer!
     ac_do_stat();
@@ -1346,7 +1368,9 @@ static void init_cardreader() {
 		if (!restart_cardreader_int(rdr, 0))
 			remove_reader_from_active(rdr);
 	}
+#ifdef WITH_LB
 	load_stat_from_file();
+#endif
 	pthread_mutex_unlock(&system_lock);
 }
 
@@ -1366,9 +1390,12 @@ static void cs_fake_client(struct s_client *client, char *usr, int32_t uniq, in_
      */
 
 	struct s_client *cl;
+	struct s_auth *account;
+	pthread_mutex_lock(&fakeuser_lock);
 	for (cl=first_client->next; cl ; cl=cl->next)
 	{
-		if (cl != client && (cl->typ == 'c') && !cl->dup && !strcmp(cl->account->usr, usr)
+		account = cl->account;
+		if (cl != client && (cl->typ == 'c') && !cl->dup && account && !strcmp(account->usr, usr)
 		   && (uniq < 5) && ((uniq % 2) || (cl->ip != ip)))
 		{
 		        char buf[20];
@@ -1395,14 +1422,15 @@ static void cs_fake_client(struct s_client *client, char *usr, int32_t uniq, in_
 				if (client->failban & BAN_DUPLICATE) {
 					cs_add_violation(ip);
 				}
-				if (cfg.dropdups)
+				if (cfg.dropdups){
+					pthread_mutex_unlock(&fakeuser_lock);		// we need to unlock here as cs_disconnect_client kills the current thread!
 					cs_disconnect_client(client);
+				}
 				break;
 			}
-
 		}
 	}
-
+	pthread_mutex_unlock(&fakeuser_lock);
 }
 
 int32_t cs_auth_client(struct s_client * client, struct s_auth *account, const char *e_txt)
@@ -1450,6 +1478,8 @@ int32_t cs_auth_client(struct s_client * client, struct s_auth *account, const c
 			}
 		}
 
+		client->monlvl=account->monlvl;
+		client->account = account;
 		if (!rc)
 		{
 			client->dup=0;
@@ -1486,8 +1516,6 @@ int32_t cs_auth_client(struct s_client * client, struct s_auth *account, const c
 #endif
 			}
 		}
-		client->monlvl=account->monlvl;
-		client->account = account;
 	case -1:            // anonymous grant access
 		if (rc)
 			t_grant=t_reject;
@@ -1945,6 +1973,7 @@ ECM_REQUEST *get_ecmtask()
 	return(er);
 }
 
+#ifdef WITH_LB
 void send_reader_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t rc)
 {
 	if (rc>=E_99)
@@ -1957,6 +1986,7 @@ void send_reader_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t rc)
 
 	add_stat(rdr, er, time, rc);
 }
+#endif
 
 /**
  * Check for NULL CWs
@@ -1964,7 +1994,7 @@ void send_reader_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t rc)
  **/
 static void checkCW(ECM_REQUEST *er)
 {
-	int i;
+	int8_t i;
 	for (i=0;i<16;i++)
 		if (er->cw[i]) return;
 	er->rc = E_NOTFOUND;
@@ -2026,7 +2056,9 @@ int32_t send_dcw(struct s_client * client, ECM_REQUEST *er)
 	if(!er->rc) cs_switch_led(LED2, LED_BLINK_OFF);
 #endif
 
+#ifdef WITH_LB
 	send_reader_stat(er->selected_reader, er, er->rc);
+#endif
 
 #ifdef WEBIF
 	if (er_reader) {
@@ -2151,7 +2183,9 @@ void chk_dcw(struct s_client *cl, ECM_REQUEST *er)
   ert=&cl->ecmtask[er->cpti];
   if (ert->rc<E_99) {
 	//cs_debug_mask(D_TRACE, "chk_dcw: already done rc=%d %s", er->rc, er->selected_reader->label);
+#ifdef WITH_LB
 	send_reader_stat(er->selected_reader, er, (er->rc <= E_RDR_NOTFOUND)?E_NOTFOUND:E_FOUND);
+#endif
 	return; // already done
   }
   if( (er->caid!=ert->caid && er->ocaid!=ert->ocaid) || memcmp(er->ecmd5, ert->ecmd5, sizeof(er->ecmd5)) ) {
@@ -2185,7 +2219,9 @@ void chk_dcw(struct s_client *cl, ECM_REQUEST *er)
 				ert->rc=E_NOTFOUND; //so we set the return code
 				store_cw_in_cache(ert, er->selected_reader->grp, E_NOTFOUND);
 		}
+#ifdef WITH_LB
 		else send_reader_stat(er->selected_reader, er, E_NOTFOUND);
+#endif
 	}
 	if (ert) {
 		send_dcw(cl, ert);
@@ -2228,19 +2264,21 @@ uint32_t chk_provid(uchar *ecm, uint16_t caid) {
 			}
 			break;
 
+#ifdef WITH_LB
 		default:
 			for (i=0;i<CS_MAXCAIDTAB;i++) {
-            	uint16_t tcaid = cfg.lb_noproviderforcaid.caid[i];
-            	if (!tcaid) break;
-                if (tcaid == caid) {
-                	provid = 0;
-                    break;
-				}
-                if (tcaid < 0x0100 && (caid >> 8) == tcaid) {
-                	provid = 0;
-                    break;
-				}
+                            uint16_t tcaid = cfg.lb_noproviderforcaid.caid[i];
+                            if (!tcaid) break;
+                            if (tcaid == caid) {
+                        	provid = 0;
+                        	break;
+                            }
+                            if (tcaid < 0x0100 && (caid >> 8) == tcaid) {
+                                provid = 0;
+                                break;
+                            }
 			}
+#endif
 	}
 	return(provid);
 }
@@ -2597,6 +2635,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		}
 	}
 
+#ifdef WITH_LB
     //Use locking - now default=FALSE, activate on problems!
 	int32_t locked;
 	if (cfg.lb_mode && cfg.lb_use_locking) {
@@ -2605,7 +2644,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 	}
 	else
 			locked=0;
-
+#endif
 
 	//Schlocke: above checks could change er->rc so
 	if (er->rc >= E_UNHANDLED) {
@@ -2651,17 +2690,22 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 				else {
 					ll_prepend(er->matching_rdr, rdr);
 				}
+#ifdef WITH_LB
 				if (cfg.lb_mode || !rdr->fallback)
+#else
+                                if (!rdr->fallback)
+#endif
 					er->reader_avail++;
 			}
 		}
 
+#ifdef WITH_LB
 		if (cfg.lb_mode && er->reader_avail) {
 			cs_debug_mask(D_TRACE, "requesting client %s best reader for %04X/%06X/%04X",
 				username(client), er->caid, er->prid, er->srvid);
 			get_best_reader(er);
 		}
-
+#endif
 		LL_NODE *ptr;
 		for (ptr = er->matching_rdr->initial; ptr && ptr != er->fallback; ptr = ptr->nxt)
 			er->reader_count++;
@@ -2683,8 +2727,10 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 				er->rc = check_and_store_ecmcache(er, client->grp);
 	}
 
+#ifdef WITH_LB
 	if (locked)
 		pthread_mutex_unlock(&get_cw_lock);
+#endif
 
 	if (er->rc == E_99)
 			return; //ECM already requested / found in ECM cache
@@ -2939,11 +2985,13 @@ int32_t chk_pending(int32_t timeout)
 				if (er->stage) {
 					er->rc = E_TIMEOUT;
 					er->rcEx = 0;
+#ifdef WITH_LB
 					if (cfg.lb_mode) {
 						LL_NODE *ptr;
 						for (ptr = er->matching_rdr->initial; ptr ; ptr = ptr->nxt)
 							send_reader_stat((struct s_reader *)ptr->obj, er, E_TIMEOUT);
 					}
+#endif
 					store_cw_in_cache(er, cl->grp, E_TIMEOUT);
 					send_dcw(cl, er);
 					continue;
@@ -3477,7 +3525,9 @@ if (pthread_key_create(&getclient, NULL)) {
   init_first_client();
   init_config();
   init_check();
+#ifdef WITH_LB
   init_stat();
+#endif
 
   for (i=0; mod_def[i]; i++)  // must be later BEFORE init_config()
   {
@@ -3498,7 +3548,6 @@ if (pthread_key_create(&getclient, NULL)) {
 
   init_rnd();
   init_sidtab();
-  if(cfg.cc_cfgfile)init_cccamcfg();
   init_readerdb();
   cfg.account = init_userdb();
   init_signal();

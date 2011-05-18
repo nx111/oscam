@@ -1,3 +1,6 @@
+#include "globals.h"
+
+#ifdef WITH_LB
 #include "module-stat.h"
 #include "module-cccam.h"
 
@@ -388,7 +391,7 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 		//If answering reader is a fallback reader, decrement answer time by fallback timeout:
 		struct s_reader *r;
 		LL_ITER it = ll_iter_create(er->matching_rdr);
-		int is_fallback = 0;
+		int8_t is_fallback = 0;
 		while ((r=ll_iter_next(&it))) {
 			if (it.cur == er->fallback) is_fallback = 1;
 			if (r == rdr) {
@@ -610,6 +613,7 @@ int32_t get_best_reader(ECM_REQUEST *er)
 	LL_ITER it;
 	struct s_reader *rdr;
 
+#ifdef MODULE_CCCAM
 	//preferred card forwarding (CCcam client):
 	if (cfg.cc_forward_origin_card && er->origin_card) {
 	
@@ -627,6 +631,7 @@ int32_t get_best_reader(ECM_REQUEST *er)
 					return 1;
 			}
 	}
+#endif
 
 	uint32_t prid = get_prid(er->caid, er->prid);
 
@@ -634,7 +639,7 @@ int32_t get_best_reader(ECM_REQUEST *er)
 	if (cfg.lb_auto_betatunnel && er->caid >> 8 == 0x18) { //nagra 
 		ushort caid_to = get_betatunnel_caid_to(er->caid);
 		if (caid_to) {
-			int needs_stats_nagra = 0, needs_stats_beta = 0;
+			int8_t needs_stats_nagra = 0, needs_stats_beta = 0;
 			
 			int32_t time_nagra = 0;
 			int32_t time_beta = 0;
@@ -1051,3 +1056,33 @@ void housekeeping_stat(int32_t force)
 	last_housekeeping = now;
 	start_thread((void*)&housekeeping_stat_thread, "housekeeping lb stats");
 }
+
+static int compare_stat(READER_STAT **ps1, READER_STAT **ps2) {
+	READER_STAT *s1 = (*ps1), *s2 = (*ps2);
+	int res = s1->rc - s2->rc;
+	if (res) return res;
+	res = s1->caid - s2->caid;
+	if (res) return res;
+	res = s1->prid - s2->prid;
+	if (res) return res;
+	res = s1->srvid - s2->srvid;
+	if (res) return res;
+	res = s1->ecmlen - s2->ecmlen;
+	if (res) return res;
+	res = s1->last_received - s2->last_received;
+	return res;	
+}
+
+static int compare_stat_r(READER_STAT **ps1, READER_STAT **ps2) {
+	return -compare_stat(ps1, ps2);
+}
+
+void sort_stat(struct s_reader *rdr, int32_t reverse)
+{
+	if (reverse)
+		ll_sort(rdr->lb_stat, compare_stat_r);
+	else
+		ll_sort(rdr->lb_stat, compare_stat);
+}
+
+#endif

@@ -497,7 +497,7 @@ void send_headers(FILE *f, int32_t status, char *title, char *extra, char *mime,
 		pos += snprintf(pos, sizeof(buf)-(pos-buf),"Content-Length: %d\r\n", length);
 		pos += snprintf(pos, sizeof(buf)-(pos-buf),"Last-Modified: %s\r\n", timebuf);
 		if(content){
-			uint32_t checksum = (uint32_t)crc32(0L, (uchar *)content, strlen(content));
+			uint32_t checksum = (uint32_t)crc32(0L, (uchar *)content, length);
 			pos += snprintf(pos, sizeof(buf)-(pos-buf),"ETag: \"%u\"\r\n", checksum==0?1:checksum);
 		}
 	}
@@ -580,17 +580,20 @@ void send_file(FILE *f, char *filename, time_t modifiedheader, uint32_t etaghead
 		}
 		size = strlen(result);
 	}
-	if((etagheader == 0 && moddate < modifiedheader) || (uint32_t)crc32(0L, (uchar *)result, size) == etagheader){
+	// We need at least size 1 or keepalive gets problems on some browsers...
+	if(size < 1){
+		if(allocated){
+			free(result);
+			allocated = 0;
+		}
+		result = " ";
+		size = 1;
+	}
+	if((etagheader == 0 && moddate < modifiedheader) || (etagheader > 0 && (uint32_t)crc32(0L, (uchar *)result, size) == etagheader)){
 		send_header304(f);
 	} else {
-		// We need at least size 1 or keepalive gets problems on some browsers...
-		if(size < 1){
-			send_headers(f, 200, "OK", NULL, mimetype, 1, 1, result, 0);
-			webif_write(" ", f);
-		} else {
-			send_headers(f, 200, "OK", NULL, mimetype, 1, size, result, 0);
-			webif_write(result, f);
-		}
+		send_headers(f, 200, "OK", NULL, mimetype, 1, size, result, 0);
+		webif_write(result, f);
 	}
 	if(allocated) free(result);
 }

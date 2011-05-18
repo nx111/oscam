@@ -18,6 +18,9 @@
 #endif
 
 #define CONFVARWIDTH 30
+#define CCCAMCFGREADER    1
+#define CCCAMCFGUSER      2
+int32_t read_cccamcfg(int mode);
 
 static const char *cs_conf="oscam.conf";
 static const char *cs_user="oscam.user";
@@ -52,7 +55,9 @@ typedef enum cs_proto_type
 	TAG_CS357X,		// camd 3.5x UDP
 	TAG_CS378X,		// camd 3.5x TCP
 	TAG_GBOX,		// gbox
+#ifdef MODULE_CCCAM
 	TAG_CCCAM,		// cccam
+#endif
 	TAG_CONSTCW,		// constcw
 	TAG_DVBAPI,		// dvbapi
 	TAG_WEBIF,		// webif
@@ -60,7 +65,11 @@ typedef enum cs_proto_type
 } cs_proto_type_t;
 
 static const char *cctag[]={"global", "monitor", "camd33", "camd35", "newcamd", "radegast", "serial",
-		      "cs357x", "cs378x", "gbox", "cccam", "constcw", "dvbapi", "webif", "anticasc", NULL};
+		      "cs357x", "cs378x", "gbox",
+#ifdef MODULE_CCCAM
+		      "cccam",
+#endif
+		      "constcw", "dvbapi", "webif", "anticasc", NULL};
 
 
 /* Returns the default value if string length is zero, otherwise atoi is called*/
@@ -162,7 +171,7 @@ void chk_caidtab(char *caidasc, CAIDTAB *ctab)
 	}
 }
 
-void chk_caidvaluetab(char *lbrlt, CAIDVALUETAB *tab, int minvalue)
+void chk_caidvaluetab(char *lbrlt, CAIDVALUETAB *tab, int32_t minvalue)
 {
 		int32_t i;
 		char *ptr1, *ptr2, *saveptr1 = NULL;
@@ -342,6 +351,7 @@ void chk_port_tab(char *portasc, PTAB *ptab)
 	}
 }
 
+#ifdef MODULE_CCCAM
 void chk_cccam_ports(char *value)
 {
 	int32_t i;
@@ -354,6 +364,7 @@ void chk_cccam_ports(char *value)
 		if (cfg.cc_port[i]) i++;
 	}
 }
+#endif
 
 #ifdef NOTUSED
 static void chk_srvip(char *value, in_addr_t *ip)
@@ -553,6 +564,7 @@ void chk_t_global(const char *token, char *value)
 		return;
 	}
 
+#ifdef WITH_LB
 	if (!strcmp(token, "readerautoloadbalance") || !strcmp(token, "lb_mode")) {
 		cfg.lb_mode = strToIntVal(value, DEFAULT_LB_MODE);
 		return;
@@ -637,7 +649,7 @@ void chk_t_global(const char *token, char *value)
 		cfg.lb_reopen_mode = strToIntVal(value, DEFAULT_LB_REOPEN_MODE);
 		return;
 	}
-	
+
 	if (!strcmp(token, "lb_max_readers")) {
 		cfg.lb_max_readers = strToIntVal(value, 0);
 		return;
@@ -647,6 +659,7 @@ void chk_t_global(const char *token, char *value)
 		cfg.lb_auto_betatunnel = strToIntVal(value, DEFAULT_LB_AUTO_BETATUNNEL);
 		return;
 	}
+#endif
 
 	if (!strcmp(token, "resolvegethostbyname")) {
 		cfg.resolve_gethostbyname = strToIntVal(value, 0);
@@ -1062,6 +1075,7 @@ void chk_t_newcamd(char *token, char *value)
 		fprintf(stderr, "Warning: keyword '%s' in newcamd section not recognized\n", token);
 }
 
+#ifdef MODULE_CCCAM
 void chk_t_cccam(char *token, char *value)
 {
 	if (!strcmp(token, "port")) {
@@ -1140,6 +1154,7 @@ void chk_t_cccam(char *token, char *value)
 	if (token[0] != '#')
 		fprintf(stderr, "Warning: keyword '%s' in cccam section not recognized\n",token);
 }
+#endif
 
 void chk_t_radegast(char *token, char *value)
 {
@@ -1309,7 +1324,9 @@ static void chk_token(char *token, char *value, int32_t tag)
 		case TAG_RADEGAST: chk_t_radegast(token, value); break;
 		case TAG_SERIAL  : chk_t_serial(token, value); break;
 		case TAG_CS378X  : chk_t_camd35_tcp(token, value); break;
+#ifdef MODULE_CCCAM
 		case TAG_CCCAM   : chk_t_cccam(token, value); break;
+#endif
 		case TAG_GBOX    : chk_t_gbox(token, value); break;
 
 #ifdef HAVE_DVBAPI
@@ -1476,6 +1493,7 @@ int32_t init_config()
 	cfg.cc_reshare = 10;
 #endif
 
+#ifdef WITH_LB
 	//loadbalancer defaults:
 	cfg.lb_mode = DEFAULT_LB_MODE;
     cfg.lb_nbest_readers = DEFAULT_NBEST;
@@ -1487,7 +1505,8 @@ int32_t init_config()
     cfg.lb_stat_cleanup = DEFAULT_LB_STAT_CLEANUP;
     cfg.lb_auto_betatunnel = DEFAULT_LB_AUTO_BETATUNNEL;
     //end loadbalancer defaults
-                                                                                    	
+#endif
+
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_conf);
 	if (!(fp = fopen(token, "r"))) {
 		fprintf(stderr, "Cannot open config file '%s' (errno=%d %s)\n", token, errno, strerror(errno));
@@ -1620,6 +1639,7 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 		return;
 	}
 
+#ifdef MODULE_CCCAM
 	if (!strcmp(token, "cccmaxhops")) {
 		account->cccmaxhops = strToIntVal(value, 10);
 		return;
@@ -1645,6 +1665,7 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 			account->cccstealth = -1;
 		return;
 	}
+#endif
 
 	if (!strcmp(token, "keepalive")) {
 		account->ncd_keepalive = strToIntVal(value, 1);
@@ -1912,6 +1933,7 @@ int32_t write_config()
 	if (cfg.dropdups || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "dropdups", "%d\n", cfg.dropdups);
 
+#ifdef WITH_LB
 	if (cfg.lb_mode != DEFAULT_LB_MODE || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "lb_mode", "%d\n", cfg.lb_mode);
 	if (cfg.lb_save || cfg.http_full_cfg)
@@ -1957,6 +1979,7 @@ int32_t write_config()
 		fprintf_conf(f, CONFVARWIDTH, "lb_max_readers", "%d\n", cfg.lb_max_readers);
 	if (cfg.lb_auto_betatunnel != DEFAULT_LB_AUTO_BETATUNNEL || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "lb_auto_betatunnel", "%d\n", cfg.lb_auto_betatunnel);
+#endif
 
 	if (cfg.resolve_gethostbyname || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "resolvegethostbyname", "%d\n", cfg.resolve_gethostbyname);
@@ -1974,7 +1997,7 @@ int32_t write_config()
 		if (cfg.mon_port != 0 || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "port", "%d\n", cfg.mon_port);
 		if (cfg.mon_srvip != 0 || cfg.http_full_cfg)
-			fprintf_conf(f, CONFVARWIDTH, "serverip", "%s\n", cs_inet_ntoa(cfg.mon_srvip));		
+			fprintf_conf(f, CONFVARWIDTH, "serverip", "%s\n", cs_inet_ntoa(cfg.mon_srvip));
 		value = mk_t_iprange(cfg.mon_allowed);
 		if(strlen(value) > 0 || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "nocrypt", "%s\n", value);
@@ -2003,7 +2026,7 @@ int32_t write_config()
 			fprintf_conf(f, CONFVARWIDTH, "serverip", "%s\n", cs_inet_ntoa(cfg.ncd_srvip));
 		fprintf_conf(f, CONFVARWIDTH, "key", "");
 		for (i = 0; i < 14; i++) fprintf(f,"%02X", cfg.ncd_key[i]);
-		fprintf(f,"\n");		
+		fprintf(f,"\n");
 		value = mk_t_iprange(cfg.ncd_allowed);
 		if(strlen(value) > 0 || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "allowed", "%s\n", value);
@@ -2094,13 +2117,14 @@ int32_t write_config()
 		fprintf(f,"\n");
 	}
 
+#ifdef MODULE_CCCAM
 	/*cccam*/
 	if ( cfg.cc_port[0] > 0) {
 		fprintf(f,"[cccam]\n");
 		value = mk_t_cccam_port();
 		fprintf_conf(f, CONFVARWIDTH, "port", "%s\n", value);
 		free_mk_t(value);
-		
+
 		if(cfg.cc_reshare != 10 || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "reshare", "%d\n", cfg.cc_reshare);
 		if(cfg.cc_ignore_reshare != 0 || cfg.http_full_cfg)
@@ -2121,6 +2145,7 @@ int32_t write_config()
 			fprintf_conf(f, CONFVARWIDTH, "reshare_mode", "%d\n", cfg.cc_reshare_services);
 		fprintf(f,"\n");
 	}
+#endif
 
 #ifdef HAVE_DVBAPI
 	/*dvb-api*/
@@ -2331,17 +2356,18 @@ int32_t write_userdb(struct s_auth *authptr)
 			fprintf_conf(f, CONFVARWIDTH, "chid", "%s\n", value);
 			free_mk_t(value);
 		}
-		
+
 		//class
 		if ((account->cltab.bn > 0 || account->cltab.an > 0) || cfg.http_full_cfg) {
 			value = mk_t_cltab(&account->cltab);
 			fprintf_conf(f, CONFVARWIDTH, "class", "%s\n", value);
 			free_mk_t(value);
 		}
-		
+
 		if ((account->c35_suppresscmd08 != cfg.c35_suppresscmd08) || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "suppresscmd08", "%d\n", account->c35_suppresscmd08);
 
+#ifdef MODULE_CCCAM
 		if (account->cccmaxhops != 10 || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "cccmaxhops", "%d\n", account->cccmaxhops);
 
@@ -2353,6 +2379,7 @@ int32_t write_userdb(struct s_auth *authptr)
 
 		if ((account->cccstealth != cfg.cc_stealth && account->cccstealth != -1 ) || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "cccstealth", "%d\n", account->cccstealth);
+#endif
 
 		if (account->c35_sleepsend || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "sleepsend", "%u\n", account->c35_sleepsend);
@@ -2501,7 +2528,7 @@ int32_t write_server()
 			if ((rdr->force_irdeto || cfg.http_full_cfg) && isphysical) {
 				fprintf_conf(f, CONFVARWIDTH, "force_irdeto", "%d\n", rdr->force_irdeto);
 			}
-			
+
 			len = check_filled(rdr->nagra_boxkey, 8);
 			if ((len > 0 || cfg.http_full_cfg) && isphysical)
 				fprintf_conf(f, CONFVARWIDTH, "boxkey", "%s\n", len>0?cs_hexdump(0, rdr->nagra_boxkey, 8):"");
@@ -2515,7 +2542,7 @@ int32_t write_server()
 				}
 				fprintf(f, "\n");
 			}
-			
+
 			value = mk_t_ecmwhitelist(rdr->ecmWhitelist);
 			if (strlen(value) > 0 || cfg.http_full_cfg)
 				fprintf_conf(f, CONFVARWIDTH, "ecmwhitelist", "%s\n", value);
@@ -2548,7 +2575,7 @@ int32_t write_server()
 			if (strlen(value) > 0 || cfg.http_full_cfg)
 				fprintf_conf(f, CONFVARWIDTH, "chid", "%s\n", value);
 			free_mk_t(value);
-			
+
 			value = mk_t_cltab(&rdr->cltab);
 			if (strlen(value) > 0 || cfg.http_full_cfg)
 				fprintf_conf(f, CONFVARWIDTH, "class", "%s\n", value);
@@ -2582,8 +2609,10 @@ int32_t write_server()
 			if ((rdr->blockemm & EMM_GLOBAL) || cfg.http_full_cfg)
 				fprintf_conf(f, CONFVARWIDTH, "blockemm-g", "%d\n", (rdr->blockemm & EMM_GLOBAL) ? 1: 0);
 
+#ifdef WITH_LB
 			if (rdr->lb_weight != 100 || cfg.http_full_cfg)
 				fprintf_conf(f, CONFVARWIDTH, "lb_weight", "%d\n", rdr->lb_weight);
+#endif
 
 			//savenano
 			value = mk_t_nano(rdr, 0x02);
@@ -2597,6 +2626,7 @@ int32_t write_server()
 				fprintf_conf(f, CONFVARWIDTH, "blocknano", "%s\n", value);
 			free_mk_t(value);
 
+#ifdef MODULE_CCCAM
 			if (rdr->typ == R_CCCAM) {
 				if (rdr->cc_version[0] || cfg.http_full_cfg)
 					fprintf_conf(f, CONFVARWIDTH, "cccversion", "%s\n", rdr->cc_version);
@@ -2616,6 +2646,7 @@ int32_t write_server()
 				if ((rdr->cc_reshare != cfg.cc_reshare && rdr->cc_reshare != -1) || cfg.http_full_cfg)
 					fprintf_conf(f, CONFVARWIDTH, "cccreshare", "%d\n", rdr->cc_reshare);
 			}
+#endif
 
 			if ((rdr->deprecated || cfg.http_full_cfg) && isphysical)
 				fprintf_conf(f, CONFVARWIDTH, "deprecated", "%d\n", rdr->deprecated);
@@ -2670,9 +2701,9 @@ void write_versionfile() {
 	  fprintf(fp, "Web interface support:      no\n");
 #endif
 #ifdef WITH_SSL
-	  fprintf(fp, "OpenSSL support:            yes\n");
+	  fprintf(fp, "SSL support:                yes\n");
 #else
-	  fprintf(fp, "OpenSSL support:            no\n");
+	  fprintf(fp, "SSL support:                no\n");
 #endif
 #ifdef HAVE_DVBAPI
 	  fprintf(fp, "DVB API support             yes\n");
@@ -2723,6 +2754,11 @@ void write_versionfile() {
 	  fprintf(fp, "Monitor:                    yes\n");
 #else
 	  fprintf(fp, "Monitor:                    no\n");
+#endif
+#ifdef WITH_LB
+	  fprintf(fp, "Loadbalancing support:      yes\n");
+#else
+	  fprintf(fp, "Loadbalancing support:      no\n");
 #endif
 #ifdef MODULE_CAMD33
 	  fprintf(fp, "camd 3.3x:                  yes\n");
@@ -2859,8 +2895,13 @@ struct s_auth *init_userdb()
 	char *value;
 	struct s_auth *account=NULL;
 
-	if(!configured_usrs)
-		configured_usrs=ll_create();
+	if(configured_usrs)
+		ll_destroy(configured_usrs);
+
+	configured_usrs=ll_create();
+
+	if(cfg.cc_cfgfile)
+		read_cccamcfg(CCCAMCFGUSER);
 
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_user);
 	if (!(fp = fopen(token, "r"))) {
@@ -3257,7 +3298,7 @@ int32_t init_srvid()
 				if(used[pos] >= allocated[pos]){
 					if(allocated[pos] == 0) cs_malloc(&stringcache[pos], 16 * sizeof(char*), SIGINT);
 					else cs_realloc(&stringcache[pos], (allocated[pos] + 16) * sizeof(char*), SIGINT);
-					allocated[pos] += 16;										
+					allocated[pos] += 16;
 				}
 				stringcache[pos][used[pos]] = tmp;
 				used[pos] += 1;
@@ -3293,7 +3334,7 @@ int32_t init_srvid()
 	for(i = 0; i < 1024; ++i){
 		if(allocated[i] > 0) free(stringcache[i]);
 	}
-	
+
 	cs_ftime(&te);
 	int32_t time = 1000*(te.time-ts.time)+te.millitm-ts.millitm;
 
@@ -3511,7 +3552,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 			struct ifreq nicnumber[16];
 			struct ifconf ifconf;
 			struct arpreq arpreq;
-			
+
 			if ((sock=socket(AF_INET,SOCK_DGRAM,0)) > -1){
 				ifconf.ifc_buf = (caddr_t)nicnumber;
 				ifconf.ifc_len = sizeof(nicnumber);
@@ -3746,7 +3787,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 			return;
 		}
 	}
-	
+
 	if (!strcmp(token, "ecmwhitelist")) {
 		struct s_ecmWhitelist *tmp, *last;
 		struct s_ecmWhitelistIdent *tmpIdent, *lastIdent;
@@ -3776,7 +3817,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 						++ptr3;
 						ident = (uint32_t)a2i(ptr3, 6);
 					}
-					caid = (int16_t)dyn_word_atob(ptr);				
+					caid = (int16_t)dyn_word_atob(ptr);
 				} else ptr2 = ptr;
 				for (ptr2 = strtok_r(ptr2, ",", &saveptr2); ptr2; ptr2 = strtok_r(NULL, ",", &saveptr2)) {
 					len = (int16_t)dyn_word_atob(ptr2);
@@ -3808,7 +3849,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 							}
 						}
 					}
-					if(tmp != NULL && tmpIdent == NULL){						
+					if(tmp != NULL && tmpIdent == NULL){
 						if (cs_malloc(&tmpIdent, sizeof(struct s_ecmWhitelistIdent), -1)) {
 							tmpIdent->ident = ident;
 							tmpIdent->lengths = NULL;
@@ -3820,7 +3861,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 							}
 						}
 					}
-					if(tmp != NULL && tmpIdent != NULL && tmpLen == NULL){						
+					if(tmp != NULL && tmpIdent != NULL && tmpLen == NULL){
 						if (cs_malloc(&tmpLen, sizeof(struct s_ecmWhitelistLen), -1)) {
 							tmpLen->len = len;
 							tmpLen->next = NULL;
@@ -4113,6 +4154,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 		return;
 	}
 
+#ifdef WITH_LB
 	if (!strcmp(token, "lb_weight")) {
 		if(strlen(value) == 0) {
 			rdr->lb_weight = 100;
@@ -4124,7 +4166,9 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 			return;
 		}
 	}
+#endif
 
+#ifdef MODULE_CCCAM
 	if (!strcmp(token, "cccversion")) {
 		// cccam version
 		if (strlen(value) > sizeof(rdr->cc_version) - 1) {
@@ -4158,15 +4202,16 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 		return;
 	}
 
-	if (!strcmp(token, "deprecated")) {
-		rdr->deprecated  = strToIntVal(value, 0);
-		return;
-	}
-
 	if (!strcmp(token, "ccchopsaway") || !strcmp(token, "cccreshar")  || !strcmp(token, "cccreshare")) {
 		rdr->cc_reshare = atoi(value);
 		if (rdr->cc_reshare == cfg.cc_reshare)
 			rdr->cc_reshare = -1;
+		return;
+	}
+#endif
+
+	if (!strcmp(token, "deprecated")) {
+		rdr->deprecated  = strToIntVal(value, 0);
 		return;
 	}
 
@@ -4410,18 +4455,24 @@ int32_t chk_cccam_cfg_F_more(char *line,struct s_auth * account)
 	return 0;
 }
 
-int32_t init_cccamcfg()
+int32_t read_cccamcfg(int mode)
 {
 	FILE *fp;
 	char line[2048];
 	char host[256],uname[20],upass[20];
 	char typ;
+	static int32_t readed_cccamcfg=0;
 	int32_t port,ret,i;
 	int32_t uhops,uemu,uemm,caid,prid;
 	
-	if(!cfg.cc_cfgfile)
+	if(!readed_cccamcfg)
+		cs_log("load CCcam config file: %s",cfg.cc_cfgfile);
+
+	if(!cfg.cc_cfgfile || (mode != CCCAMCFGREADER && mode != CCCAMCFGUSER))
 			return(0);
-	cs_log("load CCcam config file: %s",cfg.cc_cfgfile);
+
+	readed_cccamcfg=1;
+
 	if(!(fp=fopen(cfg.cc_cfgfile,"r"))){
 		cs_log("can't open file \"%s\" (errno=%d)\n", cfg.cc_cfgfile, errno);
 		return(1);
@@ -4430,10 +4481,10 @@ int32_t init_cccamcfg()
 	struct s_auth *account=NULL;
 	struct s_reader *rdr;
 
-	if(!configured_readers)
+	if(!configured_readers && mode == CCCAMCFGREADER)
 			configured_readers = ll_create();
 
-	if(!configured_usrs)
+	if(!configured_usrs && mode == CCCAMCFGUSER)
 		configured_usrs = ll_create();
 	
 	while (fgets(token,sizeof(token),fp)) {
@@ -4442,7 +4493,7 @@ int32_t init_cccamcfg()
 			*p='\0';
 		strncpy(line,trim(token),2047);
 		if(!line[0])continue;
-		if((line[0] == 'C' || line[0] == 'L' || line[0] == 'N' || line[0] == 'R' ) && line[1] == ':'){
+		if((line[0] == 'C' || line[0] == 'L' || line[0] == 'N' || line[0] == 'R' ) && line[1] == ':' && mode == CCCAMCFGREADER){
 
 			int32_t paracount=0;
 			int32_t rtyp='\0';
@@ -4463,7 +4514,7 @@ int32_t init_cccamcfg()
 					break;
 				case 'N':
 					rtyp = R_NEWCAMD;
-					ret=sscanf(line,"%c:%s%d%s%s %x %x %x %x %x %x %x %x %x %x %x %x %x %x %d",&typ,host,&port,uname,upass,
+					ret=sscanf(line,"%c:%s%d%s%s%x%x%x%x%x%x%x%x%x%x%x%x%x%x%d",&typ,host,&port,uname,upass,
 						(uint*) &ncd_key[0], (uint*) &ncd_key[1], (uint*) &ncd_key[2], (uint*) &ncd_key[3],(uint*) &ncd_key[4],
 						(uint*) &ncd_key[5], (uint*) &ncd_key[6], (uint*) &ncd_key[7], (uint*) &ncd_key[8],(uint*) &ncd_key[9],
 						(uint*) &ncd_key[10],(uint*) &ncd_key[11],(uint*) &ncd_key[12],(uint*) &ncd_key[13],&reshare);
@@ -4506,7 +4557,9 @@ int32_t init_cccamcfg()
 
 			memset(rdr, 0, sizeof(struct s_reader));
 
-			rdr->typ=rtyp;
+			rdr->typ = rtyp;
+			if(rtyp == R_NEWCAMD)
+				rdr->ncd_proto = NCD_525;
 			memcpy(rdr->ncd_key,ncd_key,14);
 			rdr->tcp_rto = 30;
 			rdr->show_cls = 10;
@@ -4515,14 +4568,18 @@ int32_t init_cccamcfg()
 			rdr->cardmhz = 357;
 			rdr->deprecated = 0;
 			rdr->force_irdeto = 0;
-		
+#ifdef MODULE_CCCAM	
 			if(reshare>=0)
 				rdr->cc_reshare=reshare;
 			else
 				rdr->cc_reshare = cfg.cc_reshare; //set global value as init value
 			rdr->cc_keepalive = 120;
 			rdr->cc_maxhop = 10;
+			rdr->cc_mindown = 0;
+#endif
+#ifdef WITH_LB
 			rdr->lb_weight = 100;
+#endif
 			cs_strncpy(rdr->pincode, "none",sizeof(rdr->pincode));
 			rdr->ndsversion = 0;
 			for (i=1; i<CS_MAXCAIDTAB; rdr->ctab.mask[i++]=0xffff);
@@ -4538,7 +4595,7 @@ int32_t init_cccamcfg()
 			ll_append(configured_readers, rdr);
 			cs_debug_mask(D_READER,"Add reader device=%s,%d(type:%04X)from CCcam.cfg",rdr->device,rdr->r_port,rdr->typ);
 		}
-		else if (line[0]=='F' && line[1]==':'){
+		else if (line[0]=='F' && line[1]==':' && mode == CCCAMCFGUSER){
 			ret=sscanf(line,"F:%s%s%d%d%d",uname,upass,&uhops,&uemu,&uemm);
 			if(ret<2)continue;
 			if(ret<5)uemm=1;
@@ -4617,6 +4674,9 @@ int32_t init_readerdb()
 	struct s_reader *rdr;
 	if(!configured_readers)
 		configured_readers = ll_create();
+	
+	if(cfg.cc_cfgfile)
+		read_cccamcfg(CCCAMCFGREADER);
 
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_srvr);
 	if (!(fp=fopen(token, "r"))) {
@@ -4648,11 +4708,15 @@ int32_t init_readerdb()
 			rdr->cardmhz = 357;
 			rdr->deprecated = 0;
 			rdr->force_irdeto = 0;
+#ifdef MODULE_CCCAM
 			rdr->cc_reshare = -1;
 			rdr->cc_keepalive = 120;
 			rdr->cc_maxhop = 10;
 			rdr->cc_mindown = 0;
+#endif
+#ifdef WITH_LB
 			rdr->lb_weight = 100;
+#endif
 			cs_strncpy(rdr->pincode, "none", sizeof(rdr->pincode));
 			rdr->ndsversion = 0;
 			rdr->ecmWhitelist = NULL;
@@ -4983,6 +5047,7 @@ char *mk_t_camd35tcp_port(){
 	return value;
 }
 
+#ifdef MODULE_CCCAM
 /*
  * Creates a string ready to write as a token into config or WebIf for the cccam tcp ports. You must free the returned value through free_mk_t().
  */
@@ -4994,12 +5059,13 @@ char *mk_t_cccam_port(){
 	char *dot = "";
 	for(i = 0; i < CS_MAXPORTS; i++) {
 		if (!cfg.cc_port[i]) break;
-		
+
 		pos += snprintf(value + pos, needed-pos, "%s%d", dot, cfg.cc_port[i]);
 		dot=",";
 	}
 	return value;
 }
+#endif
 
 
 /*
@@ -5158,7 +5224,7 @@ char *mk_t_nano(struct s_reader *rdr, uchar flag){
 		if(needed == 0 || !cs_malloc(&value, (needed * 3 * sizeof(char)) + 1, -1)) return "";
 		value[0] = '\0';
 		for (i=0; i<16; i++) {
-			if ((1 << i) & nano) 
+			if ((1 << i) & nano)
 				pos += snprintf(value + pos, (needed*3)+1-pos, "%s%02x", pos ? "," : "", (i+0x80));
 		}
 	}
@@ -5231,7 +5297,7 @@ char *mk_t_ecmwhitelist(struct s_ecmWhitelist *whitelist){
 			for (cip3 = cip2->lengths; cip3; cip3 = cip3->next) needed +=3;
 		}
 	}
-	
+
 	char tmp[needed];
 
 	for (cip = whitelist; cip; cip = cip->next){
@@ -5250,7 +5316,7 @@ char *mk_t_ecmwhitelist(struct s_ecmWhitelist *whitelist){
 				dot2=",";
 			}
 			dot=";";
-		}			
+		}
 	}
 	if(pos == 0 || !cs_malloc(&value, (pos + 1) * sizeof(char), -1)) return "";
 	memcpy(value, tmp, pos + 1);
@@ -5265,7 +5331,7 @@ char *mk_t_iprange(struct s_ip *range){
 	char *value, *dot = "";
 	int32_t needed = 1, pos = 0;
 	for (cip = range; cip; cip = cip->next) needed += 32;
-	
+
 	char tmp[needed];
 
 	for (cip = range; cip; cip = cip->next){
@@ -5286,7 +5352,7 @@ char *mk_t_cltab(CLASSTAB *clstab){
 	int32_t i, needed = 1, pos = 0;
 	for(i = 0; i < clstab->an; ++i) needed += 3;
 	for(i = 0; i < clstab->bn; ++i) needed += 4;
-	
+
 	char tmp[needed];
 
 	for(i = 0; i < clstab->an; ++i) {
@@ -5297,7 +5363,7 @@ char *mk_t_cltab(CLASSTAB *clstab){
 		pos += snprintf(tmp + pos, needed - pos, "%s!%02x", dot, (int32_t)clstab->bclass[i]);
 		dot=",";
 	}
-	
+
 	if(pos == 0 || !cs_malloc(&value, (pos + 1) * sizeof(char), -1)) return "";
 	memcpy(value, tmp, pos + 1);
 	return value;

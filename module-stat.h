@@ -1,4 +1,6 @@
 #include "globals.h"
+
+#ifdef WITH_LB
 #include "module-datastruct-llist.h"
 
 void init_stat();
@@ -22,3 +24,7 @@ void clear_reader_stat(struct s_reader *rdr);
 void clear_all_stat();
 
 void housekeeping_stat(int32_t force);
+
+void sort_stat(struct s_reader *rdr, int32_t reverse);
+
+#endif

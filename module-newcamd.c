@@ -126,12 +126,12 @@ static int32_t network_message_receive(int32_t handle, uint16_t *netMsgId, uint8
   cs_debug_mask(D_CLIENT, "nmr(): len=%d, errno=%d", len, (len==-1)?errno:0);
   if (!len) {
     cs_debug_mask(D_CLIENT, "nmr: 1 return 0");
-    network_tcp_connection_close(cl, handle);
+    //network_tcp_connection_close(cl, handle);
     return 0;
   }
   if (len != 2) {
     cs_debug_mask(D_CLIENT, "nmr: len!=2");
-    network_tcp_connection_close(cl, handle);
+    //network_tcp_connection_close(cl, handle);
     return -1;
   }
   if (((netbuf[0] << 8) | netbuf[1]) > CWS_NETMSGSIZE - 2) {
@@ -282,7 +282,7 @@ static int32_t connect_newcamd_server()
   cl->reader->ncd_msgid = 0;
   if( read(handle, keymod, sizeof(keymod)) != sizeof(keymod)) {
     cs_log("server does not return 14 bytes");
-    network_tcp_connection_close(cl, handle);
+    //network_tcp_connection_close(cl, handle);
     return -2;
   }
   cs_ddump_mask(D_CLIENT, keymod, 14, "server init sequence:");
@@ -306,14 +306,14 @@ static int32_t connect_newcamd_server()
   if( login_answer == MSG_CLIENT_2_SERVER_LOGIN_NAK )
   {
     cs_log("login failed for user '%s'", cl->reader->r_usr);
-    network_tcp_connection_close(cl, handle);
+    //network_tcp_connection_close(cl, handle);
     return -3;
   }
   if( login_answer != MSG_CLIENT_2_SERVER_LOGIN_ACK ) 
   {
     cs_log("expected MSG_CLIENT_2_SERVER_LOGIN_ACK (%02X), received %02X", 
              MSG_CLIENT_2_SERVER_LOGIN_ACK, login_answer);
-    network_tcp_connection_close(cl, handle);
+   // network_tcp_connection_close(cl, handle);
     return -3;
   }
 
@@ -331,7 +331,7 @@ static int32_t connect_newcamd_server()
   if( bytes_received < 16 || buf[2] != MSG_CARD_DATA ) {
     cs_log("expected MSG_CARD_DATA (%02X), received %02X", 
              MSG_CARD_DATA, buf[2]);
-    network_tcp_connection_close(cl, handle);
+    //network_tcp_connection_close(cl, handle);
     return -4;
   }
 
@@ -1091,7 +1091,7 @@ int32_t newcamd_client_init(struct s_client *client)
 {
   struct sockaddr_in loc_sa;
   char ptxt[16];
-
+ 
   client->pfd=0;
   if (client->reader->r_port<=0)
   {
@@ -1149,7 +1149,6 @@ int32_t newcamd_client_init(struct s_client *client)
   cs_log("proxy %s:%d newcamd52%d (fd=%d%s)",
           client->reader->device, client->reader->r_port,
           (client->reader->ncd_proto==NCD_525)?5:4, client->udp_fd, ptxt);
-  newcamd_connect();
   return(0);
 }
 

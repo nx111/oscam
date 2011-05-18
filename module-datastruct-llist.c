@@ -10,7 +10,7 @@
   Locking rules:
   
   mutex lock is needed when...
-  1. l->initial is modified/accessed
+  1. l->initial + l->last is modified/accessed
   2. LL_NODE nxt modified/accessed
 
 
@@ -33,9 +33,9 @@ LLIST *ll_create()
     return l;
 }
 
-int ll_lock(LLIST *l)
+int32_t ll_lock(LLIST *l)
 {
-	int res = 1;
+	int32_t res = 1;
 	while (l && !l->flag && (res=pthread_mutex_trylock(&l->lock))) {
 		cs_debug_mask(D_TRACE, "trylock ll_lock wait");
 		cs_sleepms(50);
@@ -81,7 +81,7 @@ void *ll_iter_next_nolock(LL_ITER *it)
     return NULL;
 }
 
-static void ll_clear_int(LLIST *l, int clear_data)
+static void ll_clear_int(LLIST *l, int32_t clear_data)
 {
     if (!l) return;
 
@@ -99,6 +99,7 @@ static void ll_clear_int(LLIST *l, int clear_data)
     }
     l->count = 0;
     l->initial = 0;
+    l->last = 0;
     ll_unlock(l);
 }
 
@@ -117,16 +118,14 @@ LL_NODE* ll_append_nolock(LLIST *l, void *obj)
 {
     if (l && obj) {
         LL_NODE *new = calloc(1, sizeof(LL_NODE));
-        LL_NODE *n = l->initial;
-
         new->obj = obj;
         
-        if (n) {
-            while (n->nxt) n = n->nxt;
-            n->nxt = new;
-        } else
+        if (l->last)
+            l->last->nxt = new;
+        else
             l->initial = new;
-    
+		l->last = new;    
+		
         l->count++;
         return new;
     }
@@ -157,6 +156,8 @@ LL_NODE *ll_prepend(LLIST *l, void *obj)
         new->nxt = l->initial;
 
         l->initial = new;
+        if (!l->last)
+        	l->last = l->initial;
         l->count++;
         ll_unlock(l);
 
@@ -267,8 +268,12 @@ void *ll_iter_remove(LL_ITER *it)
                 prv->nxt = del->nxt;
             else
                 it->l->initial = del->nxt;
+            if (!it->l->initial)
+            	it->l->last = NULL;
+			else if (del == it->l->last)
+				it->l->last = prv;
+				
             it->l->count--;
-
             ll_iter_reset(it);
             while (prv && ll_iter_next_nolock(it))
                 if (it->cur == prv)
@@ -282,9 +287,9 @@ void *ll_iter_remove(LL_ITER *it)
     return obj;
 }
 
-int ll_iter_move_first(LL_ITER *it) 
+int32_t ll_iter_move_first(LL_ITER *it) 
 {
-	int moved = 0;
+	int32_t moved = 0;
     if (it) {
     	if (!ll_lock(it->l)) return moved;
     	
@@ -297,6 +302,8 @@ int ll_iter_move_first(LL_ITER *it)
             else
                 it->l->initial = move->nxt;
 					        	
+			if (prv && it->l->last == move)
+				it->l->last = prv;
 			move->nxt = it->l->initial;
 			it->l->initial = move;
 			moved = 1;
@@ -341,9 +348,22 @@ int32_t ll_contains(LLIST *l, void *obj)
     return (data==obj);
 }
 
+void *ll_contains_data(LLIST *l, void *obj, uint32_t size)
+{
+    if (!l || !obj)
+      return NULL;
+    LL_ITER it = ll_iter_create(l);
+    void *data;
+    while ((data=ll_iter_next(&it))) {
+      if (!memcmp(data,obj,size))
+        break;
+    }
+    return data;
+}
+
 int32_t ll_remove(LLIST *l, void *obj)
 {
-	int n = 0;
+	int32_t n = 0;
     LL_ITER it = ll_iter_create(l);
     void *data;
     while ((data=ll_iter_next(&it))) {
@@ -377,6 +397,7 @@ int32_t ll_remove_all(LLIST *l, LLIST *elements_to_remove)
 				ll_iter_reset(&it2);
 				while ((data2=ll_iter_next(&it2))) {
 						if (data1 == data2) {
+								ll_iter_remove(&it1);
 								count++;
 								break;
 						}
@@ -384,4 +405,36 @@ int32_t ll_remove_all(LLIST *l, LLIST *elements_to_remove)
 		}
 
 		return count;
+}
+
+void ll_sort(LLIST *l, void *compare)
+{
+	if (!l || !l->initial || !compare) return;
+	
+	if (!ll_lock(l)) return;
+
+	//Because this list has no prv pointer, we can not do qsort, so 
+	//copy to a flat array, sort them, and then copy back
+	void **p = cs_malloc(&p, l->count*sizeof(p[0]), 0);
+	LL_NODE *n = l->initial;
+	int32_t i=0;
+	while (n) {
+		p[i++] = n->obj;
+		n=n->nxt;
+	}
+	
+	cs_log("sort: count %d size %d", l->count, sizeof(p[0]));
+	
+	qsort(p, l->count, sizeof(p[0]), compare);
+	
+	n = l->initial;
+	i = 0;
+	while (n) {
+		n->obj = p[i++];
+		n=n->nxt;
+	}
+	
+	free(p);
+	
+	ll_unlock(l);
 }
