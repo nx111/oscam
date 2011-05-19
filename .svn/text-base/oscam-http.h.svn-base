@@ -380,17 +380,17 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 	<TABLE border=0 class=\"configmenu\">\n\
 		<TR>\n\
 			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=global\">Global</A></TD>\n\
-			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=loadbalancer\">Loadbalancer</A></TD>\n\
-			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=camd33\">Camd3.3</A></TD>\n\
-			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=camd35\">Camd3.5</A></TD>\n\
-			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=camd35tcp\">Camd3.5 TCP</A></TD>\n\
-			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=newcamd\">Newcamd</A></TD>\n\
-			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=radegast\">Radegast</A></TD>\n\
-			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=cccam\">Cccam</A></TD>\n\
+##TPLCONFIGMENULB##\
+##TPLCONFIGMENUCAMD33##\
+##TPLCONFIGMENUCAMD35##\
+##TPLCONFIGMENUCAMD35TCP##\
+##TPLCONFIGMENUNEWCAMD##\
+##TPLCONFIGMENURADEGAST##\
+##TPLCONFIGMENUCCCAM##\
 ##TPLCONFIGMENUGBOX##\
 ##TPLCONFIGMENUANTICASC##\
 			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=monitor\">Monitor</A></TD>\n\
-			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=serial\">Serial</A></TD>\n\
+##TPLCONFIGMENUSERIAL##\
 ##TPLCONFIGMENUDVBAPI##\
 		</TR>\n\
 	</TABLE>\n"
@@ -477,6 +477,38 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 #ifdef HAVE_DVBAPI
 #define TPLCONFIGMENUDVBAPI "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=dvbapi\">DVB-Api</A></TD>\n"
 #define TPLFILEMENUDVBAPI "			<TD CLASS=\"configmenu\"><A HREF=\"files.html?part=dvbapi\">oscam.dvbapi</A></TD>\n"
+#endif
+
+#ifdef WITH_LB
+#define TPLCONFIGMENULB "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=loadbalancer\">Loadbalancer</A></TD>\n"
+#endif
+
+#ifdef MODULE_CAMD33
+#define TPLCONFIGMENUCAMD33 "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=camd33\">Camd3.3</A></TD>\n"
+#endif
+
+#ifdef MODULE_CAMD35
+#define TPLCONFIGMENUCAMD35 "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=camd35\">Camd3.5</A></TD>\n"
+#endif
+
+#ifdef MODULE_CAMD35_TCP
+#define TPLCONFIGMENUCAMD35TCP "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=camd35tcp\">Camd3.5 TCP</A></TD>\n"
+#endif
+
+#ifdef MODULE_CCCAM
+#define TPLCONFIGMENUCCCAM "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=cccam\">CCcam</A></TD>\n"
+#endif
+
+#ifdef MODULE_NEWCAMD
+#define TPLCONFIGMENUNEWCAMD "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=newcamd\">Newcamd</A></TD>\n"
+#endif
+
+#ifdef MODULE_RADEGAST
+#define TPLCONFIGMENURADEGAST "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=radegast\">Radegast</A></TD>\n"
+#endif
+
+#ifdef MODULE_SERIAL
+#define TPLCONFIGMENUSERIAL "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=serial\">Serial</A></TD>\n"
 #endif
 
 #define TPLSTATUS "\
@@ -1083,6 +1115,8 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 				</SELECT>\n"
 #endif
 
+#define TPLREADERCONFIGHOPBIT "\
+			<TR><TD>##TPLHELPPREFIX##server#ccchop##TPLHELPSUFFIX##CCC Hop:</A></TD><TD><input name=\"ccchop\" type=\"text\" size=\"2\" maxlength=\"1\" value=\"##CCCHOP##\"></TD></TR>\n"
 #define TPLREADERCONFIGCAMD35BIT "\
 			<TR><TD>##TPLHELPPREFIX##server#user##TPLHELPSUFFIX##User:</A></TD><TD><input name=\"user\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##ACCOUNT##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##server#password##TPLHELPSUFFIX##Password:</A></TD><TD><input name=\"password\" type=\"text\" size=\"30\" maxlength=\"50\" value=\"##PASSWORD##\"></TD></TR>\n\
@@ -1191,6 +1225,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 ##TPLFOOTER##"
 #endif
 
+#ifdef MODULE_CCCAM
 #define TPLCONFIGCCCAM "\
 ##TPLHEADER##\
 ##TPLMENU##\
@@ -1207,6 +1242,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 			<TR><TD>##TPLHELPPREFIX##conf#ignorereshare##TPLHELPSUFFIX##Ignore reshare:</A></TD><TD><SELECT NAME=\"ignorereshare\"><OPTION VALUE=\"0\">OFF</OPTION><OPTION VALUE=\"1\" ##IGNORERESHARE##>ON</OPTION></SELECT></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#forward_origin_card##TPLHELPSUFFIX##Forward origin card:</A></TD><TD><SELECT NAME=\"forward_origin_card\"><OPTION VALUE=\"0\">OFF</OPTION><OPTION VALUE=\"1\" ##FORWARDORIGINCARD##>ON</OPTION></SELECT></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#stealth##TPLHELPSUFFIX##Stealth mode:</A></TD><TD><SELECT NAME=\"stealth\"><OPTION VALUE=\"0\">OFF</OPTION><OPTION VALUE=\"1\" ##STEALTH##>ON</OPTION></SELECT></TD></TR>\n\
+			<TR><TD>##TPLHELPPREFIX##conf#nodeid##TPLHELPSUFFIX##Node Id:</A></TD><TD><input name=\"nodeid\" type=\"text\" size=\"16\" maxlength=\"16\" value=\"##NODEID##\"></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#keepconnected##TPLHELPSUFFIX##Keep clients connected:</A></TD><TD><SELECT NAME=\"keepconnected\"><OPTION VALUE=\"0\">OFF</OPTION><OPTION VALUE=\"1\" ##KEEPCONNECTED##>ON</OPTION></SELECT></TD></TR>\n\
 			<TR><TD>##TPLHELPPREFIX##conf#version##TPLHELPSUFFIX##Version:</A></TD>\n\
 				<TD>\n\
@@ -1262,6 +1298,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 		</TR>\n\
 	</TABLE>\n\
 ##TPLFOOTER##"
+#endif
 
 #define TPLCONFIGMONITOR "\
 ##TPLHEADER##\
@@ -1318,6 +1355,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 	</form>\n\
 ##TPLFOOTER##"
 
+#ifdef MODULE_RADEGAST
 #define TPLCONFIGRADEGAST "\
 ##TPLHEADER##\
 ##TPLMENU##\
@@ -1337,7 +1375,9 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 		</TABLE>\n\
 	</form>\n\
 ##TPLFOOTER##"
+#endif
 
+#ifdef MODULE_NEWCAMD
 #define TPLCONFIGNEWCAMD "\
 ##TPLHEADER##\
 ##TPLMENU##\
@@ -1361,6 +1401,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 		</TABLE>\n\
 	</form>\n\
 ##TPLFOOTER##"
+#endif
 
 #define TPLCONFIGGLOBAL "\
 ##TPLHEADER##\
@@ -1432,6 +1473,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 			<TR><TD>##TPLHELPPREFIX##conf#double_check##TPLHELPSUFFIX##ECM Doublecheck:</A></TD><TD><SELECT NAME=\"double_check\"><OPTION VALUE=\"0\">NO</OPTION><OPTION VALUE=\"1\" ##DCHECKCSELECTED##>YES</OPTION></SELECT></TD></TR>\n"
 #endif
 
+#ifdef WITH_LB
 #define TPLCONFIGLOADBALANCER "\
 ##TPLHEADER##\
 ##TPLMENU##\
@@ -1486,7 +1528,9 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 	</TABLE>\n\
 	</form>\n\
 ##TPLFOOTER##"
+#endif
 
+#ifdef MODULE_CAMD33
 #define TPLCONFIGCAMD33 "\
 ##TPLHEADER##\
 ##TPLMENU##\
@@ -1507,7 +1551,9 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 		</TABLE>\n\
 	</form>\n\
 ##TPLFOOTER##"
+#endif
 
+#ifdef MODULE_CAMD35
 #define TPLCONFIGCAMD35 "\
 ##TPLHEADER##\
 ##TPLMENU##\
@@ -1527,7 +1573,9 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 		</TABLE>\n\
 	</form>\n\
 ##TPLFOOTER##"
+#endif
 
+#ifdef MODULE_CAMD35_TCP
 #define TPLCONFIGCAMD35TCP "\
 ##TPLHEADER##\
 ##TPLMENU##\
@@ -1547,7 +1595,9 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 		</TABLE>\n\
 	</form>\n\
 ##TPLFOOTER##"
+#endif
 
+#ifdef MODULE_SERIAL
 #define TPLCONFIGSERIAL "\
 ##TPLHEADER##\
 ##TPLMENU##\
@@ -1565,6 +1615,7 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 	</form>\n\
 	<BR><BR>\n\
 ##TPLFOOTER##"
+#endif
 
 #define TPLCONFIGSERIALDEVICEBIT "\
 			<TR><TD>##TPLHELPPREFIX##conf#device##TPLHELPSUFFIX##Device:</A></TD><TD><input name=\"device\" type=\"text\" size=\"50\" maxlength=\"100\" value=\"##SERIALDEVICE##\"></TD></TR>\n"
@@ -1740,6 +1791,7 @@ char *tpl[]={
 	"READERCONFIGSIDOKBIT",
 	"READERCONFIGSIDNOBIT",
 	"READERCONFIGSTDHWREADERBIT",
+	"READERCONFIGHOPBIT",
 	"READERCONFIGCAMD35BIT",
 	"READERCONFIGCS378XBIT",
 	"READERCONFIGRADEGASTBIT",
@@ -1757,16 +1809,8 @@ char *tpl[]={
 	"FAILBAN",
 	"FAILBANBIT",
 	"CONFIGGBOX",
-	"CONFIGCCCAM",
 	"CONFIGMONITOR",
-	"CONFIGRADEGAST",
-	"CONFIGNEWCAMD",
 	"CONFIGGLOBAL",
-	"CONFIGLOADBALANCER",
-	"CONFIGCAMD33",
-	"CONFIGCAMD35",
-	"CONFIGCAMD35TCP",
-	"CONFIGSERIAL",
 	"CONFIGSERIALDEVICEBIT",
 	"SERVICECONFIGLIST",
 	"SERVICECONFIGLISTBIT",
@@ -1794,6 +1838,38 @@ char *tpl[]={
 #endif
 #ifdef WITH_DEBUG
 	,"DEBUGSELECT"
+#endif
+#ifdef WITH_LB
+	,"CONFIGMENULB"
+	,"CONFIGLOADBALANCER"
+#endif
+#ifdef MODULE_CAMD33
+	,"CONFIGCAMD33"
+	,"CONFIGMENUCAMD33"
+#endif
+#ifdef MODULE_CAMD35
+	,"CONFIGCAMD35"
+	,"CONFIGMENUCAMD35"
+#endif
+#ifdef MODULE_CCCAM
+	,"CONFIGCCCAM"
+	,"CONFIGMENUCCCAM"
+#endif
+#ifdef MODULE_NEWCAMD
+	,"CONFIGNEWCAMD"
+	,"CONFIGMENUNEWCAMD"
+#endif
+#ifdef MODULE_RADEGAST
+	,"CONFIGRADEGAST"
+	,"CONFIGMENURADEGAST"
+#endif
+#ifdef MODULE_CAMD35_TCP
+	,"CONFIGCAMD35TCP"
+	,"CONFIGMENUCAMD35TCP"
+#endif
+#ifdef MODULE_SERIAL
+	,"CONFIGSERIAL"
+	,"CONFIGMENUSERIAL"
 #endif
 	,"ICMAI"
 	,"ICSTA"
@@ -1853,6 +1929,7 @@ char *tplmap[]={
 	TPLREADERCONFIGSIDOKBIT,
 	TPLREADERCONFIGSIDNOBIT,
 	TPLREADERCONFIGSTDHWREADERBIT,
+	TPLREADERCONFIGHOPBIT,
 	TPLREADERCONFIGCAMD35BIT,
 	TPLREADERCONFIGCS378XBIT,
 	TPLREADERCONFIGRADEGASTBIT,
@@ -1870,16 +1947,8 @@ char *tplmap[]={
 	TPLFAILBAN,
 	TPLFAILBANBIT,
 	TPLCONFIGGBOX,
-	TPLCONFIGCCCAM,
 	TPLCONFIGMONITOR,
-	TPLCONFIGRADEGAST,
-	TPLCONFIGNEWCAMD,
 	TPLCONFIGGLOBAL,
-	TPLCONFIGLOADBALANCER,
-	TPLCONFIGCAMD33,
-	TPLCONFIGCAMD35,
-	TPLCONFIGCAMD35TCP,
-	TPLCONFIGSERIAL,
 	TPLCONFIGSERIALDEVICEBIT,
 	TPLSERVICECONFIGLIST,
 	TPLSERVICECONFIGLISTBIT,
@@ -1907,6 +1976,38 @@ char *tplmap[]={
 #endif
 #ifdef WITH_DEBUG
 	,TPLDEBUGSELECT
+#endif
+#ifdef WITH_LB
+	,TPLCONFIGMENULB
+	,TPLCONFIGLOADBALANCER
+#endif
+#ifdef MODULE_CAMD33
+	,TPLCONFIGCAMD33
+	,TPLCONFIGMENUCAMD33
+#endif
+#ifdef MODULE_CAMD35
+	,TPLCONFIGCAMD35
+	,TPLCONFIGMENUCAMD35
+#endif
+#ifdef MODULE_CCCAM
+	,TPLCONFIGCCCAM
+	,TPLCONFIGMENUCCCAM
+#endif
+#ifdef MODULE_NEWCAMD
+	,TPLCONFIGNEWCAMD
+	,TPLCONFIGMENUNEWCAMD
+#endif
+#ifdef MODULE_RADEGAST
+	,TPLCONFIGRADEGAST
+	,TPLCONFIGMENURADEGAST
+#endif
+#ifdef MODULE_CAMD35_TCP
+	,TPLCONFIGCAMD35TCP
+	,TPLCONFIGMENUCAMD35TCP
+#endif
+#ifdef MODULE_SERIAL
+	,TPLCONFIGSERIAL
+	,TPLCONFIGMENUSERIAL
 #endif
 	,ICMAI
 	,ICSTA

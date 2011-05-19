@@ -140,6 +140,8 @@ define valid ECM length per CAID and ident in hex, default:none,ident=000000
 
 example: ecmwhitelist = 10,20,0a,0b
          ecmwhitelist = 0100:10,20;0200@123456:0a,4b
+
+\fIIn normal operation mode this parameter is not required.\fR
 .RE
 .PP
 \fBdetect\fP = \fBCD\fP|\fBDSR\fP|\fBCTS\fP|\fBRING\fP|\fBNONE\fP|\fBgpio[1-7]\fP
@@ -315,6 +317,11 @@ define CCcam maximum SC distance hops, default:10
 After reading this SC hop will be incremented by one.
 .RE
 .PP
+\fBccchop\fP = \fBhop\fP
+.RS 3n
+set hop for non CCCam readers, default:0
+.RE
+.PP
 \fBcccreshare\fP = \fBhop\fP
 .RS 3n
 define reader's CCcam reshare hop, default:0
@@ -340,12 +347,12 @@ filters all readers with hops smaller than number, default:0
 .PP
 \fBpincode\fP = \fBpincode\fP
 .RS 3n
-pincode for Conax and Cryptoworks SCs
+pincode for Conax and Cryptoworks SCs, default:none
 .RE
 .PP
 \fBchid\fP = \fBCAID:ChID\fP
 .RS 3n
-define SC specific ChIDs for reader
+define SC specific ChIDs for reader, default:none
 
 example: chid = 0100:12
 .RE

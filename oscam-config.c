@@ -1094,6 +1094,18 @@ void chk_t_cccam(char *token, char *value)
 		return;
 	}
 
+	if (!strcmp(token, "nodeid")) {
+		int i, valid=0;
+		memset(cfg.cc_fixed_nodeid, 0, 8);
+		for (i=0;i<8 && value[i] != 0;i++) {
+			cfg.cc_fixed_nodeid[i] = gethexval(value[i*2]) << 4 | gethexval(value[i*2+1]);
+			if (cfg.cc_fixed_nodeid[i])
+				valid=1;
+		}
+		cfg.cc_use_fixed_nodeid = valid && i == 8;
+		return;
+	}
+
 	if (!strcmp(token, "reshare_mode")) {
 		cfg.cc_reshare_services = strToIntVal(value, 0);
 		return;
@@ -1678,12 +1690,12 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 
 	if (!strcmp(token, "au")) {
 
+		// set default values for usage during runtime from Webif
+		account->autoau = 0;
+
 		// exit if invalid or no value
 		if ((strlen(value) == 0) || (value[0] == '0'))
 			return;
-
-		// set default values for usage during runtime from Webif
-		account->autoau=0;
 
 		struct s_reader *rdr;
 		char *pch;
@@ -2141,6 +2153,10 @@ int32_t write_config()
 			fprintf_conf(f, CONFVARWIDTH, "keepconnected", "%d\n", cfg.cc_keep_connected);
 		if(cfg.cc_stealth != 0 || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "stealth", "%d\n", cfg.cc_stealth);
+		if(cfg.cc_use_fixed_nodeid || cfg.http_full_cfg)
+			fprintf_conf(f, CONFVARWIDTH, "nodeid", "%02X%02X%02X%02X%02X%02X%02X%02X", 
+				cfg.cc_fixed_nodeid[0], cfg.cc_fixed_nodeid[1], cfg.cc_fixed_nodeid[2], cfg.cc_fixed_nodeid[3], 
+				cfg.cc_fixed_nodeid[4], cfg.cc_fixed_nodeid[5], cfg.cc_fixed_nodeid[6], cfg.cc_fixed_nodeid[7]);
 		if(cfg.cc_reshare_services != 0 || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "reshare_mode", "%d\n", cfg.cc_reshare_services);
 		fprintf(f,"\n");
@@ -2646,6 +2662,8 @@ int32_t write_server()
 				if ((rdr->cc_reshare != cfg.cc_reshare && rdr->cc_reshare != -1) || cfg.http_full_cfg)
 					fprintf_conf(f, CONFVARWIDTH, "cccreshare", "%d\n", rdr->cc_reshare);
 			}
+			else if (rdr->cc_hop > 0 || cfg.http_full_cfg)
+				fprintf_conf(f, CONFVARWIDTH, "ccchop", "%d\n", rdr->cc_hop);
 #endif
 
 			if ((rdr->deprecated || cfg.http_full_cfg) && isphysical)
@@ -2923,14 +2941,18 @@ struct s_auth *init_userdb()
 					ll_append(configured_usrs,newusr);
 					account=newusr;
 				}
-				else 
+				else {
+					cs_log("Cannot malloc new account!");
 					break;
+				}
 			}
 			else{
 				if(cs_malloc(&account, sizeof(struct s_auth), -1))
 					ll_append(configured_usrs,account);
-				else 
+				else {
+					cs_log("Cannot malloc new account!");
 					break;
+				}
 			}
 
 			account->allowedtimeframe[0] = 0;
@@ -4208,6 +4230,11 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 			rdr->cc_reshare = -1;
 		return;
 	}
+	
+	if (!strcmp(token, "ccchop")) {
+		rdr->cc_hop = strToIntVal(value, 0);
+		return;
+	}
 #endif
 
 	if (!strcmp(token, "deprecated")) {
@@ -4481,10 +4508,10 @@ int32_t read_cccamcfg(int mode)
 	struct s_auth *account=NULL;
 	struct s_reader *rdr;
 
-	if(!configured_readers && mode == CCCAMCFGREADER)
+	if(!configured_readers && mode==CCCAMCFGREADER)
 			configured_readers = ll_create();
 
-	if(!configured_usrs && mode == CCCAMCFGUSER)
+	if(!configured_usrs && mode==CCCAMCFGUSER)
 		configured_usrs = ll_create();
 	
 	while (fgets(token,sizeof(token),fp)) {
@@ -4493,7 +4520,7 @@ int32_t read_cccamcfg(int mode)
 			*p='\0';
 		strncpy(line,trim(token),2047);
 		if(!line[0])continue;
-		if((line[0] == 'C' || line[0] == 'L' || line[0] == 'N' || line[0] == 'R' ) && line[1] == ':' && mode == CCCAMCFGREADER){
+		if((line[0] == 'C' || line[0] == 'L' || line[0] == 'N' || line[0] == 'R' ) && line[1] == ':' && (mode == CCCAMCFGREADER)){
 
 			int32_t paracount=0;
 			int32_t rtyp='\0';
@@ -4595,7 +4622,7 @@ int32_t read_cccamcfg(int mode)
 			ll_append(configured_readers, rdr);
 			cs_debug_mask(D_READER,"Add reader device=%s,%d(type:%04X)from CCcam.cfg",rdr->device,rdr->r_port,rdr->typ);
 		}
-		else if (line[0]=='F' && line[1]==':' && mode == CCCAMCFGUSER){
+		else if (line[0]=='F' && line[1]==':' && mode==CCCAMCFGUSER){
 			ret=sscanf(line,"F:%s%s%d%d%d",uname,upass,&uhops,&uemu,&uemm);
 			if(ret<2)continue;
 			if(ret<5)uemm=1;
