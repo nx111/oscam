@@ -2243,9 +2243,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l) {
 			cs_debug_mask(D_READER, "cccam: keepalive ack");
 		} else {
 			//Checking if last answer is one minute ago:
-			ulong timeout=(rdr->cc_keepalive < 60 )? 60:rdr->cc_keepalive;
-			timeout=(timeout < cfg.cmaxidle - 10)? timeout: cfg.cmaxidle - 10;
-			if (cc->just_logged_in || cc->answer_on_keepalive + timeout <= (ulong)time(NULL)) {
+			if (cc->just_logged_in || cc->answer_on_keepalive + 55 <= time(NULL)) {
 				cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE);
 				cs_debug_mask(D_CLIENT, "cccam: keepalive");
 				cc->answer_on_keepalive = time(NULL);

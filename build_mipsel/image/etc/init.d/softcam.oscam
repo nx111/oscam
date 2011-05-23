@@ -1,19 +1,21 @@
 #!/bin/sh
 case "$1" in
-start|restart|reload)
-	$0 stop
-	sleep 1
-	/usr/bin/oscam -b
+start)
+	exec start-stop-daemon -S -x /usr/bin/oscam -- -b
 	;;
 stop)
-	killall oscam
-	killall -9 oscam 
+	exec start-stop-daemon -K -R 2 -x /usr/bin/oscam
+	;;
+restart|reload)
+	$0 stop
+	sleep 1
+	$0 start
 	;;
 version)
 	echo "1.0"
 	;;
 info)
-	echo "oscam"
+	echo "oscam 1.0"
 	;;
 *)
 	echo "Usage: $0 start|stop|restart"

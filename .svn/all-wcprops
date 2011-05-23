@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/5267/trunk
+/svn/oscam/!svn/ver/5278/trunk
 END
 module-cccam.h
 K 25
@@ -73,7 +73,7 @@ reader-videoguard-common.c
 K 25
 svn:wc:ra_dav:version-url
 V 57
-/svn/oscam/!svn/ver/5174/trunk/reader-videoguard-common.c
+/svn/oscam/!svn/ver/5274/trunk/reader-videoguard-common.c
 END
 oscam-log.c
 K 25
@@ -103,7 +103,7 @@ reader-videoguard-common.h
 K 25
 svn:wc:ra_dav:version-url
 V 57
-/svn/oscam/!svn/ver/4994/trunk/reader-videoguard-common.h
+/svn/oscam/!svn/ver/5274/trunk/reader-videoguard-common.h
 END
 module-dvbapi.c
 K 25
@@ -151,7 +151,7 @@ oscam.c
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/5260/trunk/oscam.c
+/svn/oscam/!svn/ver/5275/trunk/oscam.c
 END
 oscam-reader.c
 K 25
@@ -205,7 +205,7 @@ oscam-config.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/5263/trunk/oscam-config.c
+/svn/oscam/!svn/ver/5268/trunk/oscam-config.c
 END
 reader-conax.c
 K 25
@@ -271,7 +271,7 @@ oscam-http.c
 K 25
 svn:wc:ra_dav:version-url
 V 43
-/svn/oscam/!svn/ver/5266/trunk/oscam-http.c
+/svn/oscam/!svn/ver/5268/trunk/oscam-http.c
 END
 .gitignore
 K 25
@@ -301,7 +301,7 @@ globals.h
 K 25
 svn:wc:ra_dav:version-url
 V 40
-/svn/oscam/!svn/ver/5264/trunk/globals.h
+/svn/oscam/!svn/ver/5268/trunk/globals.h
 END
 reader-common.c
 K 25
