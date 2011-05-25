@@ -463,6 +463,15 @@ void chk_t_global(const char *token, char *value)
 		return;
 	}
 
+	if (!strcmp(token, "emmlogdir")) {
+		NULLFREE(cfg.emmlogdir);
+		if (strlen(value) > 0) {
+			if(!cs_malloc(&(cfg.emmlogdir), strlen(value) + 1, -1)) return;
+			memcpy(cfg.emmlogdir, value, strlen(value) + 1);
+		}
+		return;
+	}
+
 	if (!strcmp(token, "usrfileflag")) {
 		cfg.usrfileflag = strToIntVal(value, 0);
 		return;
@@ -1099,7 +1108,7 @@ void chk_t_cccam(char *token, char *value)
 	}
 
 	if (!strcmp(token, "nodeid")) {
-		int i, valid=0;
+		int8_t i, valid=0;
 		memset(cfg.cc_fixed_nodeid, 0, 8);
 		for (i=0;i<8 && value[i] != 0;i++) {
 			cfg.cc_fixed_nodeid[i] = gethexval(value[i*2]) << 4 | gethexval(value[i*2+1]);
@@ -1475,6 +1484,7 @@ int32_t init_config()
 	cs_reinit_loghist(4096);
 #endif
 	cfg.cwlogdir = NULL;
+	cfg.emmlogdir = NULL;
 	cfg.reader_restart_seconds = 5;
 	cfg.waitforcards = 1;
 	cfg.waitforcards_extra_delay = 500;
@@ -1896,6 +1906,8 @@ int32_t write_config()
 	}
 	if (cfg.cwlogdir != NULL || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "cwlogdir", "%s\n", cfg.cwlogdir?cfg.cwlogdir:"");
+	if (cfg.emmlogdir != NULL || cfg.http_full_cfg)
+		fprintf_conf(f, CONFVARWIDTH, "emmlogdir", "%s\n", cfg.emmlogdir?cfg.emmlogdir:"");
 #ifdef QBOXHD_LED
 	if (cfg.disableqboxhdled || cfg.http_full_cfg)
 		fprintf_conf(f, CONFVARWIDTH, "disableqboxhdled", "%d\n", cfg.disableqboxhdled);
@@ -2158,8 +2170,8 @@ int32_t write_config()
 		if(cfg.cc_stealth != 0 || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "stealth", "%d\n", cfg.cc_stealth);
 		if(cfg.cc_use_fixed_nodeid || cfg.http_full_cfg)
-			fprintf_conf(f, CONFVARWIDTH, "nodeid", "%02X%02X%02X%02X%02X%02X%02X%02X", 
-				cfg.cc_fixed_nodeid[0], cfg.cc_fixed_nodeid[1], cfg.cc_fixed_nodeid[2], cfg.cc_fixed_nodeid[3], 
+			fprintf_conf(f, CONFVARWIDTH, "nodeid", "%02X%02X%02X%02X%02X%02X%02X%02X\n",
+				cfg.cc_fixed_nodeid[0], cfg.cc_fixed_nodeid[1], cfg.cc_fixed_nodeid[2], cfg.cc_fixed_nodeid[3],
 				cfg.cc_fixed_nodeid[4], cfg.cc_fixed_nodeid[5], cfg.cc_fixed_nodeid[6], cfg.cc_fixed_nodeid[7]);
 		if(cfg.cc_reshare_services != 0 || cfg.http_full_cfg)
 			fprintf_conf(f, CONFVARWIDTH, "reshare_mode", "%d\n", cfg.cc_reshare_services);
@@ -2781,6 +2793,11 @@ void write_versionfile() {
 	  fprintf(fp, "Loadbalancing support:      yes\n");
 #else
 	  fprintf(fp, "Loadbalancing support:      no\n");
+#endif
+#ifdef LCDSUPPORT
+	  fprintf(fp, "LCD support:                yes\n");
+#else
+	  fprintf(fp, "LCD support:                no\n");
 #endif
 #ifdef MODULE_CAMD33
 	  fprintf(fp, "camd 3.3x:                  yes\n");
@@ -4234,7 +4251,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 			rdr->cc_reshare = -1;
 		return;
 	}
-	
+
 	if (!strcmp(token, "ccchop")) {
 		rdr->cc_hop = strToIntVal(value, 0);
 		return;
@@ -4701,7 +4718,7 @@ int32_t read_cccamcfg(int mode)
 void free_reader(struct s_reader *rdr)
 {
 	NULLFREE(rdr->emmfile);
-	
+
 	struct s_ecmWhitelist *tmp;
 	struct s_ecmWhitelistIdent *tmpIdent;
 	struct s_ecmWhitelistLen *tmpLen;
@@ -4715,12 +4732,12 @@ void free_reader(struct s_reader *rdr)
 		add_garbage(tmp);
 	}
 	rdr->ecmWhitelist = NULL;
-	
+
 	clear_ftab(&rdr->ftab);
 
 #ifdef WITH_LB
 	ll_destroy_data(rdr->lb_stat);
-#endif	
+#endif
 	add_garbage(rdr);
 }
 

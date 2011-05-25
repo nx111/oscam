@@ -201,6 +201,9 @@ static void usage()
 #ifdef WITH_LB
   fprintf(stderr, "loadbalancing ");
 #endif
+#ifdef LCDSUPPORT
+  fprintf(stderr, "lcd ");
+#endif
   fprintf(stderr, "\n\tinbuilt protocols: ");
 #ifdef MODULE_CAMD33
   fprintf(stderr, "camd33 ");
@@ -681,6 +684,9 @@ void cs_exit(int32_t sig)
     qboxhd_led_blink(QBOXHD_LED_COLOR_GREEN,QBOXHD_LED_BLINK_FAST);
     qboxhd_led_blink(QBOXHD_LED_COLOR_BLUE,QBOXHD_LED_BLINK_FAST);
     qboxhd_led_blink(QBOXHD_LED_COLOR_MAGENTA,QBOXHD_LED_BLINK_FAST);
+#endif
+#ifdef LCDSUPPORT
+    end_lcd_thread();
 #endif
 
 #ifndef OS_CYGWIN32
@@ -1727,14 +1733,13 @@ int32_t write_to_pipe(int32_t fd, int32_t id, uchar *data, int32_t n)
  * read all kind of data from pipe specified by fd
  * special-flag redir: if set AND data is ECM: this will redirected to appr. client
  */
-int32_t read_from_pipe(int32_t fd, uchar **data, int32_t redir)
+int32_t read_from_pipe(int32_t fd, uchar **data)
 {
 	int32_t rc;
 	intptr_t hdr=0;
 	uchar buf[3+sizeof(void*)];
 	memset(buf, 0, sizeof(buf));
 
-	redir=redir;
 	*data=(uchar *)0;
 	rc=PIP_ID_NUL;
 
@@ -1746,9 +1751,9 @@ int32_t read_from_pipe(int32_t fd, uchar **data, int32_t redir)
 		return PIP_ID_ERR;
 	}
 
-	uchar id[4];
-	memcpy(id, buf, 3);
-	id[3]='\0';
+	//uchar id[4];
+	//memcpy(id, buf, 3);
+	//id[3]='\0';
 
 	//cs_debug_mask(D_TRACE, "read from pipe %d (%s) thread: %8X", fd, id, (uint32_t)pthread_self());
 
@@ -2504,7 +2509,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 
 	//Ariva quickfix (invalid nagra provider)
 	if (((er->caid & 0xFF00) == 0x1800) && er->prid > 0x00FFFF) er->prid=0;
-			
+
 	if (!er->prid)
 		er->prid = chk_provid(er->ecm, er->caid);
 
@@ -2825,7 +2830,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 			localtime_r (&rawtime, &timeinfo);	/* to access LOCAL date/time info */
 			char buf[80];
 			strftime (buf, 80, "%Y/%m/%d %H:%M:%S", &timeinfo);
-			snprintf (token, sizeof(token), "%s%s_emm.log", cs_confdir, aureader->label);
+			snprintf (token, sizeof(token), "%s%s_emm.log", cfg.emmlogdir?cfg.emmlogdir:cs_confdir, aureader->label);
 			int32_t emm_length = ((ep->emm[1] & 0x0f) << 8) | ep->emm[2];
 
 			if (!(fp = fopen (token, "a"))) {
@@ -3089,7 +3094,7 @@ static void process_master_pipe(int32_t mfdr)
   int32_t n;
   uchar *ptr;
 
-  switch(n=read_from_pipe(mfdr, &ptr, 1))
+  switch(n=read_from_pipe(mfdr, &ptr))
   {
     case PIP_ID_KCL: //Kill all clients
     	restart_clients();
@@ -3108,7 +3113,7 @@ static void process_master_pipe(int32_t mfdr)
 int32_t process_client_pipe(struct s_client *cl, uchar *buf, int32_t l) {
 	uchar *ptr;
 	uint16_t n;
-	int32_t pipeCmd = read_from_pipe(cl->fd_m2c_c, &ptr, 0);
+	int32_t pipeCmd = read_from_pipe(cl->fd_m2c_c, &ptr);
 
 	switch(pipeCmd) {
 		case PIP_ID_ECM:
@@ -3611,6 +3616,10 @@ if (pthread_key_create(&getclient, NULL)) {
     cs_log("http disabled");
   else
     start_thread((void *) &http_srv, "http");
+#endif
+
+#ifdef LCDSUPPORT
+  start_lcd_thread();
 #endif
 
 	init_cardreader();
