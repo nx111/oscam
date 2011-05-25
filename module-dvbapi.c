@@ -393,7 +393,7 @@ void dvbapi_start_emm_filter(int32_t demux_index) {
 
 void dvbapi_add_ecmpid(int32_t demux_id, uint16_t caid, uint16_t ecmpid, uint32_t provid,int32_t streampid) {
 	int32_t n,added=0;
-	int32_t stream=0;
+	int32_t stream=-1;
 
 	if (demux[demux_id].ECMpidcount>=ECM_PIDS)
 		return;
@@ -407,13 +407,14 @@ void dvbapi_add_ecmpid(int32_t demux_id, uint16_t caid, uint16_t ecmpid, uint32_
 
 	for (n=0;n<demux[demux_id].ECMpidcount;n++) {
 		if (demux[demux_id].ECMpids[n].CAID == caid && demux[demux_id].ECMpids[n].ECM_PID == ecmpid) {
-			if (!demux[demux_id].ECMpids[n].streams) {
+			if ( !demux[demux_id].ECMpids[n].streams) {
 				//we already got this caid/ecmpid as global, no need to add the single stream
 				cs_debug_mask(D_DVBAPI, "[SKIP STREAM %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X", n, caid, ecmpid, provid);
 				continue;
 			}
+			if(stream>-1)
+				demux[demux_id].ECMpids[n].streams |= (1 << stream);
 			added=1;
-			demux[demux_id].ECMpids[n].streams |= (1 << stream);
 			cs_debug_mask(D_DVBAPI,"[ADD STREAM %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X", stream, caid, ecmpid, provid);
 		}
 	}
@@ -424,9 +425,14 @@ void dvbapi_add_ecmpid(int32_t demux_id, uint16_t caid, uint16_t ecmpid, uint32_
 	demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].ECM_PID = ecmpid;
 	demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].CAID = caid;
 	demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].PROVID = provid;
-	demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].streams |= (1 << stream);
-
-	cs_log("[ADD PID %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X STREAM: %d", demux[demux_id].ECMpidcount, caid, ecmpid, provid,stream);
+	if(stream>=0){
+		demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].streams |= (1 << stream);
+		cs_log("[ADD PID %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X STREAM: %d", demux[demux_id].ECMpidcount, caid, ecmpid, provid,stream);
+	}
+	else{
+		demux[demux_id].ECMpids[demux[demux_id].ECMpidcount].streams = 0;
+		cs_log("[ADD PID %d] CAID: %04X\tECM_PID: %04X\tPROVID: %06X STREAM: ALL", demux[demux_id].ECMpidcount, caid, ecmpid, provid);
+	}
 	demux[demux_id].ECMpidcount++;
 }
 
