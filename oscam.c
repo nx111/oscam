@@ -1615,7 +1615,7 @@ static int32_t check_and_store_ecmcache(ECM_REQUEST *er, uint64_t grp)
  **/
 static int32_t check_cwcache1(ECM_REQUEST *er, uint64_t grp)
 {
-	//cs_ddump(ecmd5, CS_ECMSTORESIZE, "ECM search");
+	//cs_ddump_mask(D_TRACE,er->ecmd5, CS_ECMSTORESIZE, "ECM search");
 	//cs_log("cache1 CHECK: grp=%lX", grp);
 
 	//cs_debug_mask(D_TRACE, "cachesize %d", ll_count(ecmcache));
