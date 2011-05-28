@@ -16,6 +16,31 @@ const char *cmd05_mode_name[] = { "UNKNOWN", "PLAIN", "AES", "CC_CRYPT", "RC4",
 //Mode names for CMD_0C command:
 const char *cmd0c_mode_name[] = { "NONE", "RC6", "RC4", "CC_CRYPT", "AES", "IDEA" };
 
+const char *cc_msg_name[]={"MSG_CLI_DATA","MSG_CW_ECM","MSG_EMM_ACK","MSG_VALUE_03",
+			    "MSG_CARD_REMOVED","MSG_CMD_05","MSG_KEEPALIVE","MSG_NEW_CARD",
+			    "MSG_SRV_DATA","MSG_VALUE_09","MSG_NEW_CARD_SIDINFO","MSG_CW_NOK1",
+			    "MSG_CW_NOK2","MSG_NO_HEADER"};
+
+char * cc_get_msgname(uint32_t msg,char *result,uint32_t len){
+	if(msg <= 0x09)
+		return (char*)cc_msg_name[msg];
+	else if(msg == 0x0f)
+		return (char*)cc_msg_name[10];
+	else if(msg == 0xfe)
+		return (char*)cc_msg_name[11];
+	else if(msg == 0xff)
+		return (char*)cc_msg_name[12];
+	else if(msg == 0xffff)
+		return (char*)cc_msg_name[13];
+	else if(msg>=0x0a && msg<=0x0e){
+		snprintf(result,len,"MSG_CMD_%02x",msg);
+		return result;
+	}else{
+		snprintf(result,len,"MSG_VALUE_%02x",msg);
+		return result;
+	}
+}
+
 static uint8_t cc_node_id[8];
 
 #define getprefix() (!cl?"":(!cl->cc?"":(((struct cc_data *)(cl->cc))->prefix)))
@@ -1133,7 +1158,7 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 				if (ncard->caid>>8==0x18 && (!xcard || ncard->hop < xcard->hop))
 					xcard = ncard; //remember card (D+ / 1810 fix) if request has no provider, but card has
 						
-				if (!ll_count(ncard->providers)) { //card has no providers:
+				if (!cur_er->prid && !ll_count(ncard->providers)) { //card has no providers:
 					if (h < 0 || ncard->hop < h || (ncard->hop == h
 							&& cc_UA_valid(ncard->hexserial))) {
 						// ncard is closer
@@ -1560,10 +1585,8 @@ void cc_idle() {
 		
 	if (!rdr || !rdr->tcp_connected || !cl || !cc)
 		return;
-	ulong timeout=(rdr->cc_keepalive < 60 )? 60:rdr->cc_keepalive;
-	timeout=(timeout < cfg.cmaxidle - 10)? timeout: cfg.cmaxidle - 10;
 	if (rdr->cc_keepalive) {
-		if (cc->answer_on_keepalive + timeout <= (ulong)time(NULL)) {
+		if (cc->answer_on_keepalive + 55 <= time(NULL)) {
 			cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE);
 			cs_debug_mask(D_READER, "cccam: keepalive");
 			cc->answer_on_keepalive = time(NULL);
@@ -1753,7 +1776,8 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l) {
 	if (!cc || cc->mode == CCCAM_MODE_SHUTDOWN)
 		return -1;
 
-	cs_debug_mask(cl->typ=='c'?D_CLIENT:D_READER, "%s parse_msg=%d", getprefix(), buf[1]);
+	char msgname[20];
+	cs_debug_mask(cl->typ=='c'?D_CLIENT:D_READER, "%s parse_msg=%s", getprefix(), cc_get_msgname(buf[1],msgname,sizeof(msgname)));
 
 	uint8_t *data = buf + 4;
 	memcpy(&cc->receive_buffer, data, l - 4);

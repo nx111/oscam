@@ -32,7 +32,7 @@
 #endif
 
 #ifndef CS_LED
-#define CS_LED
+//#define CS_LED
 #endif
 
 #ifndef CS_WITH_DOUBLECHECK
@@ -44,7 +44,7 @@
 #endif
 
 #ifndef LCDSUPPORT
-#define LCDSUPPORT
+//#define LCDSUPPORT
 #endif
 
 //

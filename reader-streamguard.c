@@ -121,7 +121,7 @@ int streamguard_do_ecm(struct s_reader *reader, ECM_REQUEST *er)
     return ERROR;
   }
   
-  if(!(er->ecm[0] & 0x01))
+  if((er->ecm[0] & 0x01))
   {
     memcpy(er->cw +  8, pbuf + 6, 4);
     memcpy(er->cw + 12, pbuf + 6 + 4 + 1, 4);
