@@ -34,7 +34,7 @@ void add_garbage(void *data) {
         }
 		
 		int32_t bucket = (uintptr_t)data/16 % HASH_BUCKETS;
-        while (pthread_mutex_trylock(&garbage_lock[bucket])) {
+        while (cs_trylock(&garbage_lock[bucket])) {
         	cs_debug_mask(D_TRACE, "trylock add_garbage wait");	
         	cs_sleepms(50);
         }
@@ -55,20 +55,18 @@ void add_garbage(void *data) {
         }
 		
 		if (garbagecheck == NULL) {
-	        struct cs_garbage *garbage;
-	        if(cs_malloc(&garbage,sizeof(struct cs_garbage), -1)){
-		        garbage->time = time(NULL);
-		        garbage->data = data;
-		        garbage->next = garbage_first[bucket];
-		        #ifdef WITH_DEBUG
-		        garbage->file = file;
-		        garbage->line = line;
-		        #endif
-		        garbage_first[bucket] = garbage;
-		      }
+	        struct cs_garbage *garbage = malloc(sizeof(struct cs_garbage));
+	        garbage->time = time(NULL);
+	        garbage->data = data;
+	        garbage->next = garbage_first[bucket];
+	        #ifdef WITH_DEBUG
+	        garbage->file = file;
+	        garbage->line = line;
+	        #endif
+	        garbage_first[bucket] = garbage;
 	    }
 
-        pthread_mutex_unlock(&garbage_lock[bucket]);
+        cs_unlock(&garbage_lock[bucket]);
 }
 
 void garbage_collector() {
@@ -79,7 +77,7 @@ void garbage_collector() {
         while (garbage_collector_active) {
                 
                 for(i = 0; i < HASH_BUCKETS; ++i){
-	                while (pthread_mutex_trylock(&garbage_lock[i])) {
+	                while (cs_trylock(&garbage_lock[i])) {
 	                	cs_debug_mask(D_TRACE, "trylock garbage_collector wait");
 	                	cs_sleepms(50);
 	                }
@@ -102,7 +100,7 @@ void garbage_collector() {
 	                                prev = garbage;
 	                        garbage = next;
 	                }
-	                pthread_mutex_unlock(&garbage_lock[i]);
+	                cs_unlock(&garbage_lock[i]);
 	              }
                 cs_sleepms(1000);
         }
@@ -111,24 +109,24 @@ void garbage_collector() {
 
 void start_garbage_collector(int32_t debug) {
 
-		garbage_debug = debug;
-		int32_t i;
-		for(i = 0; i < HASH_BUCKETS; ++i){
-        pthread_mutex_init(&garbage_lock[i], NULL);
+	garbage_debug = debug;
+	int32_t i;
+	for(i = 0; i < HASH_BUCKETS; ++i){
+		pthread_mutex_init(&garbage_lock[i], NULL);
 
-        garbage_first[i] = NULL;
-    }
-        pthread_attr_t attr;
-        pthread_attr_init(&attr);
+		garbage_first[i] = NULL;
+	}
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
 
-        garbage_collector_active = 1;
+	garbage_collector_active = 1;
 
 #ifndef TUXBOX
-        pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
+	pthread_attr_setstacksize(&attr, PTHREAD_STACK_SIZE);
 #endif
-        pthread_create(&garbage_thread, &attr, (void*)&garbage_collector, NULL);
-        pthread_detach(garbage_thread);
-        pthread_attr_destroy(&attr);                                                  
+	pthread_create(&garbage_thread, &attr, (void*)&garbage_collector, NULL);
+	pthread_detach(garbage_thread);
+	pthread_attr_destroy(&attr);
 }
 
 void stop_garbage_collector()
@@ -138,7 +136,7 @@ void stop_garbage_collector()
                 
                 garbage_collector_active = 0;
                 for(i = 0; i < HASH_BUCKETS; ++i)
-                	pthread_mutex_lock(&garbage_lock[i]);
+                	cs_lock(&garbage_lock[i]);
                 
                 pthread_cancel(garbage_thread);
                 cs_sleepms(100);
@@ -150,7 +148,7 @@ void stop_garbage_collector()
 	                  free(garbage_first[i]);
 	                  garbage_first[i] = next;
 	                }
-                	pthread_mutex_unlock(&garbage_lock[i]);
+                	cs_unlock(&garbage_lock[i]);
                 	pthread_mutex_destroy(&garbage_lock[i]);
                 }
         }
