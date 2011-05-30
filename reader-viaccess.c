@@ -363,10 +363,15 @@ static int32_t viaccess_do_ecm(struct s_reader * reader, ECM_REQUEST *er)
             // we can't assume that if the nano len is 5 or more we have an ecm number
             // as some card don't support this
             if( reader->last_geo.number_ecm > 0 ) {
-                if (reader->last_geo.number_ecm == curnumber_ecm && ( ecm88Data[nanoLen-1] != 0x01)) {
+                if (reader->last_geo.number_ecm == curnumber_ecm && 
+                        !( ecm88Data[nanoLen-1] == 0x01 && (ecm88Data[2] == 0x03 && ecm88Data[3] == 0x0B && ecm88Data[4] == 0x00 ) )) {
                     keynr=ecm88Data[5];
                     cs_debug_mask(D_READER, "keyToUse = %02x, ECM ending with %02x",ecm88Data[5], ecm88Data[nanoLen-1]);
                 } else {
+                    if( ecm88Data[nanoLen-1] == 0x01 && (ecm88Data[2] == 0x03 && ecm88Data[3] == 0x0B && ecm88Data[4] == 0x00 ) )
+                    {
+                        cs_debug_mask(D_READER, "Skip ECM ending with = %02x for ecm number (%x) for provider %02x%02x%02x",ecm88Data[nanoLen-1], curnumber_ecm, ecm88Data[2], ecm88Data[3], ecm88Data[4]);
+                    }
                     cs_debug_mask(D_READER, "Skip ECM ending with = %02x for ecm number (%x)",ecm88Data[nanoLen-1], curnumber_ecm);
                     ecm88Data=nextEcm;
                     ecm88Len-=curEcm88len;
@@ -525,7 +530,7 @@ static int32_t viaccess_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr)
 
 	if (ep->emm[3] == 0x90 && ep->emm[4] == 0x03) {
 		provid = ep->emm[5] << 16 | ep->emm[6] << 8 | (ep->emm[7] & 0xFE);
-		memcpy(ep->provid, i2b(4, provid), 4);
+		i2b_buf(4, provid, ep->provid);
 	}
 
 	switch (ep->emm[0]) {

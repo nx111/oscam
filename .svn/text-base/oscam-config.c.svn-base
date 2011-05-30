@@ -42,23 +42,24 @@ static char token[4096];
 
 typedef enum cs_proto_type
 {
-	TAG_GLOBAL,		// must be first !
-	TAG_MONITOR,		// monitor
-	TAG_CAMD33,		// camd 3.3x
-	TAG_CAMD35,		// camd 3.5x UDP
-	TAG_NEWCAMD,		// newcamd
-	TAG_RADEGAST,		// radegast
-	TAG_SERIAL,		// serial (static)
-	TAG_CS357X,		// camd 3.5x UDP
-	TAG_CS378X,		// camd 3.5x TCP
-	TAG_GBOX,		// gbox
+	TAG_GLOBAL,	// must be first !
+	TAG_MONITOR,	// monitor
+	TAG_CAMD33,	// camd 3.3x
+	TAG_CAMD35,	// camd 3.5x UDP
+	TAG_NEWCAMD,	// newcamd
+	TAG_RADEGAST,	// radegast
+	TAG_SERIAL,	// serial (static)
+	TAG_CS357X,	// camd 3.5x UDP
+	TAG_CS378X,	// camd 3.5x TCP
+	TAG_GBOX,	// gbox
 #ifdef MODULE_CCCAM
-	TAG_CCCAM,		// cccam
+	TAG_CCCAM,	// cccam
 #endif
-	TAG_CONSTCW,		// constcw
-	TAG_DVBAPI,		// dvbapi
-	TAG_WEBIF,		// webif
-	TAG_ANTICASC		// anti-cascading
+	TAG_CONSTCW,	// constcw
+	TAG_DVBAPI,	// dvbapi
+	TAG_WEBIF,	// webif
+	TAG_ANTICASC,	// anti-cascading
+	TAG_LCD		// LCD
 } cs_proto_type_t;
 
 static const char *cctag[]={"global", "monitor", "camd33", "camd35", "newcamd", "radegast", "serial",
@@ -66,7 +67,11 @@ static const char *cctag[]={"global", "monitor", "camd33", "camd35", "newcamd", 
 #ifdef MODULE_CCCAM
 		      "cccam",
 #endif
-		      "constcw", "dvbapi", "webif", "anticasc", NULL};
+		      "constcw", "dvbapi", "webif", "anticasc",
+#ifdef LCDSUPPORT
+		      "lcd",
+#endif
+		      NULL};
 
 
 /* Returns the default value if string length is zero, otherwise atoi is called*/
@@ -147,6 +152,7 @@ void chk_caidtab(char *caidasc, CAIDTAB *ctab)
 	char *ptr1, *ptr2, *ptr3, *saveptr1 = NULL;
 	CAIDTAB newctab;
 	memset(&newctab, 0, sizeof(CAIDTAB));
+	for (i = 1; i < CS_MAXCAIDTAB; newctab.mask[i++] = 0xffff);
 
 	for (i = 0, ptr1 = strtok_r(caidasc, ",", &saveptr1); (i < CS_MAXCAIDTAB) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1)) {
 		uint32_t caid, mask, cmap;
@@ -303,9 +309,9 @@ void chk_cltab(char *classasc, CLASSTAB *clstab)
 	for( i = 0, ptr1 = strtok_r(classasc, ",", &saveptr1); (i < CS_MAXCAIDTAB) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1) ) {
 		ptr1 = trim(ptr1);
 		if( ptr1[0] == '!' )
-			newclstab.bclass[clstab->bn++] = (uchar)a2i(ptr1+1, 2);
+			newclstab.bclass[newclstab.bn++] = (uchar)a2i(ptr1+1, 2);
 		else
-			newclstab.aclass[clstab->an++] = (uchar)a2i(ptr1, 2);
+			newclstab.aclass[newclstab.an++] = (uchar)a2i(ptr1, 2);
 	}
 	memcpy(clstab, &newclstab, sizeof(CLASSTAB));
 }
@@ -313,38 +319,38 @@ void chk_cltab(char *classasc, CLASSTAB *clstab)
 void chk_port_tab(char *portasc, PTAB *ptab)
 {
 	int32_t i, j, nfilts, ifilt, iport;
-	PTAB newptab;
+	PTAB *newptab;
 	char *ptr1, *ptr2, *ptr3, *saveptr1 = NULL;
 	char *ptr[CS_MAXPORTS] = {0};
 	int32_t port[CS_MAXPORTS] = {0};
-	memset(&newptab, 0, sizeof(newptab));
+	if(!cs_malloc(&newptab, sizeof(PTAB), -1)) return;
 
-	for (nfilts = i = 0, ptr1 = strtok_r(portasc, ";", &saveptr1); (i < CS_MAXCAIDTAB) && (ptr1); ptr1 = strtok_r(NULL, ";", &saveptr1), i++) {
+	for (nfilts = i = 0, ptr1 = strtok_r(portasc, ";", &saveptr1); (i < CS_MAXPORTS) && (ptr1); ptr1 = strtok_r(NULL, ";", &saveptr1), i++) {
 		ptr[i] = ptr1;
 		if( (ptr2=strchr(trim(ptr1), '@')) ) {
 			*ptr2++ ='\0';
-			newptab.ports[i].s_port = atoi(ptr1);
+			newptab->ports[i].s_port = atoi(ptr1);
 
 			//checking for des key for port
-			newptab.ports[i].ncd_key_is_set = 0;   //default to 0
+			newptab->ports[i].ncd_key_is_set = 0;   //default to 0
 			if( (ptr3=strchr(trim(ptr1), '{')) ) {
 				*ptr3++='\0';
-				if (key_atob_l(ptr3, newptab.ports[i].ncd_key, 28))
+				if (key_atob_l(ptr3, newptab->ports[i].ncd_key, 28))
 					fprintf(stderr, "newcamd: error in DES Key for port %s -> ignored\n", ptr1);
 				else
-					newptab.ports[i].ncd_key_is_set = 1;
+					newptab->ports[i].ncd_key_is_set = 1;
 			}
 
 			ptr[i] = ptr2;
-			port[i] = newptab.ports[i].s_port;
-			newptab.nports++;
+			port[i] = newptab->ports[i].s_port;
+			newptab->nports++;
 		}
 		nfilts++;
 	}
 
-	if( nfilts == 1 && strlen(portasc) < 6 && newptab.ports[0].s_port == 0 ) {
-		newptab.ports[0].s_port = atoi(portasc);
-		newptab.nports = 1;
+	if( nfilts == 1 && strlen(portasc) < 6 && newptab->ports[0].s_port == 0 ) {
+		newptab->ports[0].s_port = atoi(portasc);
+		newptab->nports = 1;
 	}
 
 	iport = ifilt = 0;
@@ -354,17 +360,18 @@ void chk_port_tab(char *portasc, PTAB *ptab)
 		for (j = 0, ptr3 = strtok_r(ptr[i], ",", &saveptr1); (j < CS_MAXPROV) && (ptr3); ptr3 = strtok_r(NULL, ",", &saveptr1), j++) {
 			if( (ptr2=strchr(trim(ptr3), ':')) ) {
 				*ptr2++='\0';
-				newptab.ports[iport].ftab.nfilts++;
-				ifilt = newptab.ports[iport].ftab.nfilts-1;
-				newptab.ports[iport].ftab.filts[ifilt].caid = (uint16_t)a2i(ptr3, 4);
-				newptab.ports[iport].ftab.filts[ifilt].prids[j] = a2i(ptr2, 6);
+				newptab->ports[iport].ftab.nfilts++;
+				ifilt = newptab->ports[iport].ftab.nfilts-1;
+				newptab->ports[iport].ftab.filts[ifilt].caid = (uint16_t)a2i(ptr3, 4);
+				newptab->ports[iport].ftab.filts[ifilt].prids[j] = a2i(ptr2, 6);
 			} else {
-				newptab.ports[iport].ftab.filts[ifilt].prids[j] = a2i(ptr3, 6);
+				newptab->ports[iport].ftab.filts[ifilt].prids[j] = a2i(ptr3, 6);
 			}
-			newptab.ports[iport].ftab.filts[ifilt].nprids++;
+			newptab->ports[iport].ftab.filts[ifilt].nprids++;
 		}
 	}
-	memcpy(ptab, &newptab, sizeof(PTAB));
+	memcpy(ptab, newptab, sizeof(PTAB));
+	free(newptab);
 }
 
 #ifdef MODULE_CCCAM
@@ -1327,6 +1334,36 @@ void chk_t_dvbapi(char *token, char *value)
 }
 #endif
 
+#ifdef LCDSUPPORT
+void chk_t_lcd(char *token, char *value)
+{
+
+	if (!strcmp(token, "lcd_outputpath")) {
+		NULLFREE(cfg.lcd_output_path);
+		if (strlen(value) > 0) {
+			if(!cs_malloc(&(cfg.lcd_output_path), strlen(value) + 1, -1)) return;
+			memcpy(cfg.lcd_output_path, value, strlen(value) + 1);
+		}
+		return;
+	}
+
+	if (!strcmp(token, "lcd_hideidle")) {
+		cfg.lcd_hide_idle = strToIntVal(value, 0);
+		return;
+	}
+
+	if (!strcmp(token, "lcd_writeintervall")) {
+		cfg.lcd_write_intervall = strToIntVal(value, 10);
+		if (cfg.lcd_write_intervall < 5)
+			cfg.lcd_write_intervall = 5;
+		return;
+	}
+
+	if (token[0] != '#')
+		fprintf(stderr, "Warning: keyword '%s' in lcd section not recognized\n",token);
+}
+#endif
+
 static void chk_token(char *token, char *value, int32_t tag)
 {
 	switch(tag) {
@@ -1362,6 +1399,12 @@ static void chk_token(char *token, char *value, int32_t tag)
 		case TAG_ANTICASC: chk_t_ac(token, value); break;
 #else
 		case TAG_ANTICASC: fprintf(stderr, "OSCam compiled without Anticascading support. Parameter %s ignored\n", token); break;
+#endif
+
+#ifdef LCDSUPPORT
+		case TAG_LCD: chk_t_lcd(token, value); break;
+#else
+		case TAG_LCD: fprintf(stderr, "OSCam compiled without LCD support. Parameter %s ignored\n", token); break;
 #endif
 
 	}
@@ -1520,6 +1563,11 @@ int32_t init_config()
     cfg.lb_stat_cleanup = DEFAULT_LB_STAT_CLEANUP;
     cfg.lb_auto_betatunnel = DEFAULT_LB_AUTO_BETATUNNEL;
     //end loadbalancer defaults
+#endif
+
+#ifdef LCDSUPPORT
+    cfg.lcd_hide_idle = 0;
+    cfg.lcd_write_intervall = 10;
 #endif
 
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_conf);
@@ -2251,6 +2299,18 @@ int32_t write_config()
 			fprintf_conf(f, CONFVARWIDTH, "fakedelay", "%d\n", cfg.ac_fakedelay);
 		fputc((int)'\n', f);
 	}
+#endif
+
+#ifdef LCDSUPPORT
+	fprintf(f,"[lcd]\n");
+	if(cfg.lcd_output_path != NULL) {
+		if(strlen(cfg.lcd_output_path) > 0 || cfg.http_full_cfg)
+			fprintf_conf(f, CONFVARWIDTH, "lcd_outputpath", "%s\n", cfg.lcd_output_path);
+	}
+	if(cfg.lcd_hide_idle != 0 || cfg.http_full_cfg)
+		fprintf_conf(f, CONFVARWIDTH, "lcd_hideidle", "%d\n", cfg.lcd_hide_idle);
+	if(cfg.lcd_write_intervall != 10 || cfg.http_full_cfg)
+		fprintf_conf(f, CONFVARWIDTH, "lcd_writeintervall", "%d\n", cfg.lcd_write_intervall);
 #endif
 
 	fclose(f);
@@ -4381,7 +4441,6 @@ int32_t init_readerdb()
 					rdr = newreader;
 				}
 			}
-			memset(rdr, 0, sizeof(struct s_reader));
 			rdr->enable = 1;
 			rdr->tcp_rto = 30;
 			rdr->show_cls = 10;

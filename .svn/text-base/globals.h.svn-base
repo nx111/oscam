@@ -139,13 +139,12 @@
 #ifndef PTHREAD_STACK_MIN
 #define PTHREAD_STACK_MIN 64000
 #endif
+#define PTHREAD_STACK_SIZE PTHREAD_STACK_MIN+32768
 
 #ifdef  CS_EMBEDDED
 #define CS_MAXPENDING   16
-#define PTHREAD_STACK_SIZE PTHREAD_STACK_MIN+8000
 #else
 #define CS_MAXPENDING   32
-#define PTHREAD_STACK_SIZE PTHREAD_STACK_MIN+10000
 #endif
 
 #define CS_EMMCACHESIZE  64 //nr of EMMs that each client will cache; cache is per client, so memory-expensive...
@@ -904,7 +903,7 @@ struct s_reader  //contains device info, reader info and card info
   DWORD dwActiveProtocol;
 #endif
 #ifdef LIBUSB
-  uint8_t  device_endpoint; // usb endpoint32_t for Infinity USB Smart in smartreader mode.
+  uint8_t  device_endpoint; // usb endpoint for Infinity USB Smart in smartreader mode.
   struct s_sr_config *sr_config;
 #endif
 #ifdef AZBOX
@@ -1162,7 +1161,6 @@ struct s_config
 	int32_t		rad_port;
 	in_addr_t	rad_srvip;
 #ifdef MODULE_CCCAM
-	PTAB		cc_ptab;
 	uint16_t	cc_port[CS_MAXPORTS];
 	int8_t		cc_reshare;
 	int8_t		cc_ignore_reshare;
@@ -1250,6 +1248,13 @@ struct s_config
 #ifdef QBOXHD_LED
     int8_t disableqboxhdled; // disable qboxhd led , default = 0
 #endif
+
+#ifdef LCDSUPPORT
+    char		*lcd_output_path;
+    int32_t		lcd_hide_idle;
+    int32_t		lcd_write_intervall;
+#endif
+
 };
 
 struct s_clientinit
@@ -1321,8 +1326,6 @@ extern char *cs_inet_ntoa(in_addr_t);
 extern in_addr_t cs_inet_addr(char *txt);
 extern uint32_t b2i(int32_t, uchar *);
 extern uint64_t b2ll(int32_t, uchar *);
-extern uchar *i2b(int32_t, uint32_t);
-extern uchar *i2b_cl(int32_t n, uint32_t i, struct s_client *cl);
 extern uchar *i2b_buf(int32_t n, uint32_t i, uchar *b);
 
 extern uint32_t a2i(char *, int32_t);
@@ -1350,9 +1353,9 @@ extern int32_t file_copy(char *srcfile, char *destfile);
 extern int32_t safe_overwrite_with_bak(char *destfile, char *tmpfile, char *bakfile, int32_t forceBakOverWrite);
 extern void fprintf_conf(FILE *f, int32_t varnameWidth, const char *varname, const char *fmtstring, ...);
 extern void cs_strncpy(char * destination, const char * source, size_t num);
-extern char *get_servicename(struct s_client *cl, int32_t srvid, int32_t caid);
-extern char *get_tiername(int32_t tierid, int32_t caid);
-extern char *get_provider(int32_t caid, uint32_t provid);
+extern char *get_servicename(struct s_client *cl, int32_t srvid, int32_t caid, char *buf);
+extern char *get_tiername(int32_t tierid, int32_t caid, char *buf);
+extern char *get_provider(int32_t caid, uint32_t provid, char *buf);
 extern void make_non_blocking(int32_t fd);
 extern uchar fast_rnd(void);
 extern void init_rnd(void);
@@ -1526,6 +1529,10 @@ void dvbapi_read_priority();
 extern void chk_t_webif(char *token, char *value);
 #endif
 
+#ifdef LCDSUPPORT
+extern void chk_t_lcd(char *token, char *value);
+#endif
+
 extern void cs_accounts_chk(void);
 extern void chk_account(const char *token, char *value, struct s_auth *account);
 extern void chk_sidtab(char *token, char *value, struct s_sidtab *sidtab);
@@ -1677,7 +1684,7 @@ extern void http_srv();
 
 // oscam-garbage
 #ifdef WITH_DEBUG
-extern void add_garbage_debug(void *data, char *file, int32_t line);
+extern void add_garbage_debug(void *data, char *file, uint16_t line);
 #define add_garbage(x)	add_garbage_debug(x,__FILE__, __LINE__)
 #else
 extern void add_garbage(void *data);

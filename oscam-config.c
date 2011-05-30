@@ -20,7 +20,7 @@
 #define CONFVARWIDTH 30
 #define CCCAMCFGREADER    1
 #define CCCAMCFGUSER      2
-int32_t read_cccamcfg(int mode);
+void * read_cccamcfg(int mode);
 
 static const char *cs_conf="oscam.conf";
 static const char *cs_user="oscam.user";
@@ -45,23 +45,24 @@ static char token[4096];
 
 typedef enum cs_proto_type
 {
-	TAG_GLOBAL,		// must be first !
-	TAG_MONITOR,		// monitor
-	TAG_CAMD33,		// camd 3.3x
-	TAG_CAMD35,		// camd 3.5x UDP
-	TAG_NEWCAMD,		// newcamd
-	TAG_RADEGAST,		// radegast
-	TAG_SERIAL,		// serial (static)
-	TAG_CS357X,		// camd 3.5x UDP
-	TAG_CS378X,		// camd 3.5x TCP
-	TAG_GBOX,		// gbox
+	TAG_GLOBAL,	// must be first !
+	TAG_MONITOR,	// monitor
+	TAG_CAMD33,	// camd 3.3x
+	TAG_CAMD35,	// camd 3.5x UDP
+	TAG_NEWCAMD,	// newcamd
+	TAG_RADEGAST,	// radegast
+	TAG_SERIAL,	// serial (static)
+	TAG_CS357X,	// camd 3.5x UDP
+	TAG_CS378X,	// camd 3.5x TCP
+	TAG_GBOX,	// gbox
 #ifdef MODULE_CCCAM
-	TAG_CCCAM,		// cccam
+	TAG_CCCAM,	// cccam
 #endif
-	TAG_CONSTCW,		// constcw
-	TAG_DVBAPI,		// dvbapi
-	TAG_WEBIF,		// webif
-	TAG_ANTICASC		// anti-cascading
+	TAG_CONSTCW,	// constcw
+	TAG_DVBAPI,	// dvbapi
+	TAG_WEBIF,	// webif
+	TAG_ANTICASC,	// anti-cascading
+	TAG_LCD		// LCD
 } cs_proto_type_t;
 
 static const char *cctag[]={"global", "monitor", "camd33", "camd35", "newcamd", "radegast", "serial",
@@ -69,7 +70,11 @@ static const char *cctag[]={"global", "monitor", "camd33", "camd35", "newcamd", 
 #ifdef MODULE_CCCAM
 		      "cccam",
 #endif
-		      "constcw", "dvbapi", "webif", "anticasc", NULL};
+		      "constcw", "dvbapi", "webif", "anticasc",
+#ifdef LCDSUPPORT
+		      "lcd",
+#endif
+		      NULL};
 
 
 /* Returns the default value if string length is zero, otherwise atoi is called*/
@@ -150,6 +155,7 @@ void chk_caidtab(char *caidasc, CAIDTAB *ctab)
 	char *ptr1, *ptr2, *ptr3, *saveptr1 = NULL;
 	CAIDTAB newctab;
 	memset(&newctab, 0, sizeof(CAIDTAB));
+	for (i = 1; i < CS_MAXCAIDTAB; newctab.mask[i++] = 0xffff);
 
 	for (i = 0, ptr1 = strtok_r(caidasc, ",", &saveptr1); (i < CS_MAXCAIDTAB) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1)) {
 		uint32_t caid, mask, cmap;
@@ -306,9 +312,9 @@ void chk_cltab(char *classasc, CLASSTAB *clstab)
 	for( i = 0, ptr1 = strtok_r(classasc, ",", &saveptr1); (i < CS_MAXCAIDTAB) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1) ) {
 		ptr1 = trim(ptr1);
 		if( ptr1[0] == '!' )
-			newclstab.bclass[clstab->bn++] = (uchar)a2i(ptr1+1, 2);
+			newclstab.bclass[newclstab.bn++] = (uchar)a2i(ptr1+1, 2);
 		else
-			newclstab.aclass[clstab->an++] = (uchar)a2i(ptr1, 2);
+			newclstab.aclass[newclstab.an++] = (uchar)a2i(ptr1, 2);
 	}
 	memcpy(clstab, &newclstab, sizeof(CLASSTAB));
 }
@@ -316,38 +322,38 @@ void chk_cltab(char *classasc, CLASSTAB *clstab)
 void chk_port_tab(char *portasc, PTAB *ptab)
 {
 	int32_t i, j, nfilts, ifilt, iport;
-	PTAB newptab;
+	PTAB *newptab;
 	char *ptr1, *ptr2, *ptr3, *saveptr1 = NULL;
 	char *ptr[CS_MAXPORTS] = {0};
 	int32_t port[CS_MAXPORTS] = {0};
-	memset(&newptab, 0, sizeof(newptab));
+	if(!cs_malloc(&newptab, sizeof(PTAB), -1)) return;
 
-	for (nfilts = i = 0, ptr1 = strtok_r(portasc, ";", &saveptr1); (i < CS_MAXCAIDTAB) && (ptr1); ptr1 = strtok_r(NULL, ";", &saveptr1), i++) {
+	for (nfilts = i = 0, ptr1 = strtok_r(portasc, ";", &saveptr1); (i < CS_MAXPORTS) && (ptr1); ptr1 = strtok_r(NULL, ";", &saveptr1), i++) {
 		ptr[i] = ptr1;
 		if( (ptr2=strchr(trim(ptr1), '@')) ) {
 			*ptr2++ ='\0';
-			newptab.ports[i].s_port = atoi(ptr1);
+			newptab->ports[i].s_port = atoi(ptr1);
 
 			//checking for des key for port
-			newptab.ports[i].ncd_key_is_set = 0;   //default to 0
+			newptab->ports[i].ncd_key_is_set = 0;   //default to 0
 			if( (ptr3=strchr(trim(ptr1), '{')) ) {
 				*ptr3++='\0';
-				if (key_atob_l(ptr3, newptab.ports[i].ncd_key, 28))
+				if (key_atob_l(ptr3, newptab->ports[i].ncd_key, 28))
 					fprintf(stderr, "newcamd: error in DES Key for port %s -> ignored\n", ptr1);
 				else
-					newptab.ports[i].ncd_key_is_set = 1;
+					newptab->ports[i].ncd_key_is_set = 1;
 			}
 
 			ptr[i] = ptr2;
-			port[i] = newptab.ports[i].s_port;
-			newptab.nports++;
+			port[i] = newptab->ports[i].s_port;
+			newptab->nports++;
 		}
 		nfilts++;
 	}
 
-	if( nfilts == 1 && strlen(portasc) < 6 && newptab.ports[0].s_port == 0 ) {
-		newptab.ports[0].s_port = atoi(portasc);
-		newptab.nports = 1;
+	if( nfilts == 1 && strlen(portasc) < 6 && newptab->ports[0].s_port == 0 ) {
+		newptab->ports[0].s_port = atoi(portasc);
+		newptab->nports = 1;
 	}
 
 	iport = ifilt = 0;
@@ -357,17 +363,18 @@ void chk_port_tab(char *portasc, PTAB *ptab)
 		for (j = 0, ptr3 = strtok_r(ptr[i], ",", &saveptr1); (j < CS_MAXPROV) && (ptr3); ptr3 = strtok_r(NULL, ",", &saveptr1), j++) {
 			if( (ptr2=strchr(trim(ptr3), ':')) ) {
 				*ptr2++='\0';
-				newptab.ports[iport].ftab.nfilts++;
-				ifilt = newptab.ports[iport].ftab.nfilts-1;
-				newptab.ports[iport].ftab.filts[ifilt].caid = (uint16_t)a2i(ptr3, 4);
-				newptab.ports[iport].ftab.filts[ifilt].prids[j] = a2i(ptr2, 6);
+				newptab->ports[iport].ftab.nfilts++;
+				ifilt = newptab->ports[iport].ftab.nfilts-1;
+				newptab->ports[iport].ftab.filts[ifilt].caid = (uint16_t)a2i(ptr3, 4);
+				newptab->ports[iport].ftab.filts[ifilt].prids[j] = a2i(ptr2, 6);
 			} else {
-				newptab.ports[iport].ftab.filts[ifilt].prids[j] = a2i(ptr3, 6);
+				newptab->ports[iport].ftab.filts[ifilt].prids[j] = a2i(ptr3, 6);
 			}
-			newptab.ports[iport].ftab.filts[ifilt].nprids++;
+			newptab->ports[iport].ftab.filts[ifilt].nprids++;
 		}
 	}
-	memcpy(ptab, &newptab, sizeof(PTAB));
+	memcpy(ptab, newptab, sizeof(PTAB));
+	free(newptab);
 }
 
 #ifdef MODULE_CCCAM
@@ -1350,6 +1357,36 @@ void chk_t_dvbapi(char *token, char *value)
 }
 #endif
 
+#ifdef LCDSUPPORT
+void chk_t_lcd(char *token, char *value)
+{
+
+	if (!strcmp(token, "lcd_outputpath")) {
+		NULLFREE(cfg.lcd_output_path);
+		if (strlen(value) > 0) {
+			if(!cs_malloc(&(cfg.lcd_output_path), strlen(value) + 1, -1)) return;
+			memcpy(cfg.lcd_output_path, value, strlen(value) + 1);
+		}
+		return;
+	}
+
+	if (!strcmp(token, "lcd_hideidle")) {
+		cfg.lcd_hide_idle = strToIntVal(value, 0);
+		return;
+	}
+
+	if (!strcmp(token, "lcd_writeintervall")) {
+		cfg.lcd_write_intervall = strToIntVal(value, 10);
+		if (cfg.lcd_write_intervall < 5)
+			cfg.lcd_write_intervall = 5;
+		return;
+	}
+
+	if (token[0] != '#')
+		fprintf(stderr, "Warning: keyword '%s' in lcd section not recognized\n",token);
+}
+#endif
+
 static void chk_token(char *token, char *value, int32_t tag)
 {
 	switch(tag) {
@@ -1385,6 +1422,12 @@ static void chk_token(char *token, char *value, int32_t tag)
 		case TAG_ANTICASC: chk_t_ac(token, value); break;
 #else
 		case TAG_ANTICASC: fprintf(stderr, "OSCam compiled without Anticascading support. Parameter %s ignored\n", token); break;
+#endif
+
+#ifdef LCDSUPPORT
+		case TAG_LCD: chk_t_lcd(token, value); break;
+#else
+		case TAG_LCD: fprintf(stderr, "OSCam compiled without LCD support. Parameter %s ignored\n", token); break;
 #endif
 
 	}
@@ -1544,6 +1587,11 @@ int32_t init_config()
     cfg.lb_stat_cleanup = DEFAULT_LB_STAT_CLEANUP;
     cfg.lb_auto_betatunnel = DEFAULT_LB_AUTO_BETATUNNEL;
     //end loadbalancer defaults
+#endif
+
+#ifdef LCDSUPPORT
+    cfg.lcd_hide_idle = 0;
+    cfg.lcd_write_intervall = 10;
 #endif
 
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_conf);
@@ -2279,6 +2327,18 @@ int32_t write_config()
 	}
 #endif
 
+#ifdef LCDSUPPORT
+	fprintf(f,"[lcd]\n");
+	if(cfg.lcd_output_path != NULL) {
+		if(strlen(cfg.lcd_output_path) > 0 || cfg.http_full_cfg)
+			fprintf_conf(f, CONFVARWIDTH, "lcd_outputpath", "%s\n", cfg.lcd_output_path);
+	}
+	if(cfg.lcd_hide_idle != 0 || cfg.http_full_cfg)
+		fprintf_conf(f, CONFVARWIDTH, "lcd_hideidle", "%d\n", cfg.lcd_hide_idle);
+	if(cfg.lcd_write_intervall != 10 || cfg.http_full_cfg)
+		fprintf_conf(f, CONFVARWIDTH, "lcd_writeintervall", "%d\n", cfg.lcd_write_intervall);
+#endif
+
 	fclose(f);
 
 	return(safe_overwrite_with_bak(destfile, tmpfile, bakfile, 0));
@@ -2947,13 +3007,11 @@ struct s_auth *init_userdb()
 	char *value;
 	struct s_auth *account=NULL;
 
-	if(configured_usrs)
-		ll_destroy(configured_usrs);
-
-	configured_usrs=ll_create();
 
 	if(cfg.cc_cfgfile)
-		read_cccamcfg(CCCAMCFGUSER);
+		authptr=(struct s_auth*)read_cccamcfg(CCCAMCFGUSER);
+	
+	for(account=authptr;account;account=account->next);
 
 	snprintf(token, sizeof(token), "%s%s", cs_confdir, cs_user);
 	if (!(fp = fopen(token, "r"))) {
@@ -2962,6 +3020,7 @@ struct s_auth *init_userdb()
 	else{
 	   while (fgets(token, sizeof(token), fp)) {
 		int32_t i, l;
+		void *ptr;
 		if ((l=strlen(trim(token))) < 3)
 			continue;
 
@@ -2969,26 +3028,13 @@ struct s_auth *init_userdb()
 			token[l - 1] = 0;
 			tag = (!strcmp("account", strtolower(token + 1)));
 			checked=0;
-			if(account){
-				struct s_auth *newusr;
-				if(cs_malloc(&newusr, sizeof(struct s_auth), -1)){
-					ll_append(configured_usrs,newusr);
-					account=newusr;
-				}
-				else {
-					cs_log("Cannot malloc new account!");
-					break;
-				}
-			}
-			else{
-				if(cs_malloc(&account, sizeof(struct s_auth), -1))
-					ll_append(configured_usrs,account);
-				else {
-					cs_log("Cannot malloc new account!");
-					break;
-				}
-			}
+			if(!cs_malloc(&ptr, sizeof(struct s_auth), -1)) return authptr;
+			if (account)
+				account->next = ptr;
+			else
+				authptr = ptr;
 
+			account = ptr;
 			account->allowedtimeframe[0] = 0;
 			account->allowedtimeframe[1] = 0;
 			account->aureader_list = NULL;
@@ -3021,13 +3067,14 @@ struct s_auth *init_userdb()
 		chk_account(trim(strtolower(token)), trim(value), account);
 
 		if(!checked && account->usr[0] && account->pwd[0]){
-			struct s_auth *pusr=NULL;
+			struct s_auth *pusr=NULL,*last=NULL;
 			checked=1;
 			uint32_t found=0;
-			LL_ITER itr=ll_iter_create(configured_usrs);
-			while((pusr=ll_iter_next(&itr)) && pusr != account){
+			for(pusr=authptr;pusr && pusr != account;last=pusr,pusr=pusr->next){
 				if(!strcmp(pusr->usr,account->usr)){
-					ll_iter_remove(&itr);
+					if(last)
+						last->next=pusr->next;
+					free(pusr);
 					found=1;
 					break;
 				}
@@ -3042,33 +3089,12 @@ struct s_auth *init_userdb()
 	    fclose(fp);
 	}
 
-	LL_ITER itr=ll_iter_create(configured_usrs);
-	struct s_auth *cur=NULL;
-	while((account=ll_iter_next(&itr))){
-		int32_t skipit=0;
-
-		nr++;
-
-		if(account->expirationdate && account->expirationdate < time(NULL)){
+	for(account = authptr; account; account = account->next){
+		if(account->expirationdate && account->expirationdate < time(NULL))
 			++expired;
-			skipit=1;
-		}
-	
-		if(account->disabled){
+
+		if(account->disabled)
 			++disabled;
-			skipit=1;
-		}
-		
-		if(!skipit) {
-			if (!authptr) {
-				authptr = account; //init list
-				cur = account;
-			}
-			else {
-				cur->next = account; //add to end of list
-				cur = account; //advance list
-			}
-		}
 	}
 	cs_log("userdb reloaded: %d accounts loaded, %d expired, %d disabled", nr, expired, disabled);
 	return authptr;
@@ -4512,8 +4538,9 @@ int32_t chk_cccam_cfg_F_more(char *line,struct s_auth * account)
 	return 0;
 }
 
-int32_t read_cccamcfg(int mode)
+void * read_cccamcfg(int mode)
 {
+	struct s_auth *authptr = NULL;
 	FILE *fp;
 	char line[2048];
 	char host[256],uname[20],upass[20];
@@ -4526,13 +4553,13 @@ int32_t read_cccamcfg(int mode)
 		cs_log("load CCcam config file: %s",cfg.cc_cfgfile);
 
 	if(!cfg.cc_cfgfile || (mode != CCCAMCFGREADER && mode != CCCAMCFGUSER))
-			return(0);
+			return NULL;
 
 	readed_cccamcfg=1;
 
 	if(!(fp=fopen(cfg.cc_cfgfile,"r"))){
 		cs_log("can't open file \"%s\" (errno=%d)\n", cfg.cc_cfgfile, errno);
-		return(1);
+		return NULL;
 	}
 
 	struct s_auth *account=NULL;
@@ -4541,10 +4568,8 @@ int32_t read_cccamcfg(int mode)
 	if(!configured_readers && mode==CCCAMCFGREADER)
 			configured_readers = ll_create();
 
-	if(!configured_usrs && mode==CCCAMCFGUSER)
-		configured_usrs = ll_create();
-	
 	while (fgets(token,sizeof(token),fp)) {
+		void *ptr;
 		char *p=strchr(token,'#');
 		if(p)
 			*p='\0';
@@ -4657,34 +4682,27 @@ int32_t read_cccamcfg(int mode)
 			if(ret<2)continue;
 			if(ret<5)uemm=1;
 			if(ret<4)uemu=1;
-			if(ret<3)uhops=5;
+			if(ret<3)uhops=10;
 			
 			int32_t found=0;
 			struct s_auth *pusr=NULL;
-			LL_ITER itr=ll_iter_create(configured_usrs);
-			while((pusr=ll_iter_next(&itr))){
+			for(pusr=authptr;pusr;pusr=pusr->next){
 				if(!strcmp(pusr->usr,uname)){
 					found=1;
 					break;
 				}
 			}
+			cs_log("Read Line:%s",line);
 			if(found)
 				continue;
 
-			if(account){
-				struct s_auth *newusr;
-				if(cs_malloc(&newusr, sizeof(struct s_auth), -1)){
-					ll_append(configured_usrs,newusr);
-					account=newusr;
-				}
-				else break;
-			}
-			else{
-				if(cs_malloc(&account, sizeof(struct s_auth), -1))
-					ll_append(configured_usrs,account);
-				else 
-					break;
-			}
+			if(!cs_malloc(&ptr, sizeof(struct s_auth), -1)) return (void *)authptr;
+			if (account)
+				account->next = ptr;
+			else	
+				authptr = ptr;
+
+			account = ptr;
 			chk_cccam_cfg_F_more(line,account);
 
 			cs_strncpy(account->usr,uname,sizeof(account->usr));
@@ -4717,8 +4735,12 @@ int32_t read_cccamcfg(int mode)
 		}
 	}
 	fclose(fp);
+	if(mode == CCCAMCFGREADER)
+		return (void *)configured_readers;
+	else if(mode == CCCAMCFGUSER)
+		return (void *)authptr;
 
-	return(0);
+	return NULL;
 }
 
 /**
