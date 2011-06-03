@@ -352,7 +352,7 @@ char *username(struct s_client * client)
 	if (!client)
 		return "NULL";
 
-	if (client->typ == 's' || client->typ == 'h')
+	if (client->typ == 's' || client->typ == 'h' || client->typ == 'a')
 	{
 		return processUsername?processUsername:"NULL";
 	}
@@ -362,17 +362,20 @@ char *username(struct s_client * client)
 		if(acc)
 		{
 			if (acc->usr[0])
-				return(acc->usr);
+				return acc->usr;
 			else
-				return("anonymous");
+				return "anonymous";
 		}
 		else
 		{
-			return("NULL");
+			return "NULL";
 		}
-	} else {
-		return("NULL");
+	} else if (client->typ == 'r' || client->typ == 'p'){
+		struct s_reader *rdr = client->reader;
+		if(rdr)
+			return rdr->label;
 	}
+	return "NULL";
 }
 
 static struct s_client * idx_from_ip(in_addr_t ip, in_port_t port)
@@ -657,10 +660,6 @@ void cs_exit(int32_t sig)
 		return;
 	}
 
-#ifdef HAVE_DVBAPI
-	dvbapi_main_exit();
-#endif
-
   if (sig && (sig!=SIGQUIT))
     cs_log("thread %8X exit with signal %d", pthread_self(), sig);
 
@@ -727,8 +726,13 @@ void cs_exit(int32_t sig)
 	cs_log("cardserver down");
 	cs_close_log();
 
-	if (sig == SIGINT)
+	if (sig == SIGINT){
+#ifdef HAVE_DVBAPI
+		dvbapi_main_exit();
+#endif
+
 		exit(sig);
+	}
 
 	cs_cleanup();
 
@@ -1130,49 +1134,15 @@ static int32_t start_listener(struct s_module *ph, int32_t port_idx)
 
 int32_t cs_user_resolve(struct s_auth *account)
 {
-	struct hostent *rht;
-	struct sockaddr_in udp_sa;
-	int32_t result=0;
-	if (account->dyndns[0])
-	{
-		cs_lock(&gethostbyname_lock);
+	if (account->dyndns[0]){
 		in_addr_t lastip = account->dynip;
-		//Resolve with gethostbyname:
-		if (cfg.resolve_gethostbyname) {
-			rht = gethostbyname((char*)account->dyndns);
-			if (!rht)
-				cs_log("can't resolve %s", account->dyndns);
-			else {
-				memcpy(&udp_sa.sin_addr, rht->h_addr, sizeof(udp_sa.sin_addr));
-				account->dynip=udp_sa.sin_addr.s_addr;
-				result=1;
-			}
-		}
-		else { //Resolve with getaddrinfo:
-			struct addrinfo hints, *res = NULL;
-			memset(&hints, 0, sizeof(hints));
-			hints.ai_socktype = SOCK_STREAM;
-			hints.ai_family = AF_INET;
-			hints.ai_protocol = IPPROTO_TCP;
-
-			int32_t err = getaddrinfo((const char*)account->dyndns, NULL, &hints, &res);
-			if (err != 0 || !res || !res->ai_addr) {
-				cs_log("can't resolve %s, error: %s", account->dyndns, err ? gai_strerror(err) : "unknown");
-			}
-			else {
-				account->dynip=((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr;
-				result=1;
-			}
-			if (res) freeaddrinfo(res);
-		}
+		account->dynip = cs_getIPfromHost((char*)account->dyndns);
+		
 		if (lastip != account->dynip)  {
 			cs_log("%s: resolved ip=%s", (char*)account->dyndns, cs_inet_ntoa(account->dynip));
 		}
-		cs_unlock(&gethostbyname_lock);
-	}
-	if (!result)
-		account->dynip=0;
-	return result;
+	} else account->dynip=0;
+	return account->dynip?1:0;
 }
 
 #pragma GCC diagnostic ignored "-Wempty-body"
@@ -2850,7 +2820,7 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 				cs_log ("Succesfully added EMM to %s.", token);
 			}
 
-			snprintf (token, sizeof(token), "%s%s_emm.bin", cs_confdir, aureader->label);
+			snprintf (token, sizeof(token), "%s%s_emm.bin", cfg.emmlogdir?cfg.emmlogdir:cs_confdir, aureader->label);
 			if (!(fp = fopen (token, "ab"))) {
 				cs_log ("ERROR: Cannot open file '%s' (errno=%d: %s)\n", token, errno, strerror(errno));
 			} else {
