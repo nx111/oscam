@@ -781,15 +781,18 @@ char *get_servicename(struct s_client *cl, int32_t srvid, int32_t caid, char *bu
 
 	if (cl && cl->last_srvidptr && cl->last_srvidptr->srvid==srvid)
 		for (i=0; i < cl->last_srvidptr->ncaid; i++)
-			if (cl->last_srvidptr->caid[i] == caid) 
+			if (cl->last_srvidptr->caid[i] == caid && cl->last_srvidptr->name){
 				cs_strncpy(buf, cl->last_srvidptr->name, 32);
+				return(buf);
+			}
 
 	for (this = cfg.srvid[srvid>>12]; this && (!buf[0]); this = this->next)
 		if (this->srvid == srvid)
-			for (i=0; i<this->ncaid; i++)
+			for (i=0; i < this->ncaid; i++)
 				if (this->caid[i] == caid && this->name) {
 					cs_strncpy(buf, this->name, 32);
 					cl->last_srvidptr = this;
+					return(buf);
 				}
 
 	if (!buf[0]) {
@@ -1097,7 +1100,7 @@ int32_t cs_trylock(pthread_mutex_t *mutex){
 #endif
 	int32_t result, oldtype;
 	/* Make sure that we won't get interrupted while getting the lock */
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldtype);
+	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
 	if((result=pthread_mutex_trylock(mutex)) == 0){
 #ifdef WITH_MUTEXDEBUG
 		struct s_client *cl = cs_preparelock(cur_client(), mutex, file, line);
@@ -1127,7 +1130,7 @@ int32_t cs_unlock(pthread_mutex_t *mutex){
 			if(cl->mutexstore[i - 1] == mutex){
 				int32_t result, oldtype;
 				/* Make sure that we won't get interrupted while returning the lock */
-				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldtype);
+				pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
 				if(i < cl->mutexstore_used){
 					// Move mutex to last position to prepare removal
 					do {
