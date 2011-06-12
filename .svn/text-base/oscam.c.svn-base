@@ -525,9 +525,31 @@ void cleanup_thread(void *var)
 	    cs_statistics(cl);
 	  }
 
-		if(cl->pfd)		nullclose(&cl->pfd); //Closing Network socket
-		if(cl->fd_m2c_c)	nullclose(&cl->fd_m2c_c); //Closing client read fd
-		if(cl->fd_m2c)	nullclose(&cl->fd_m2c); //Closing master write fd
+		if(cl->pfd) nullclose(&cl->pfd); //Closing Network socket
+		int32_t rc, fd_m2c = cl->fd_m2c, fd_m2c_c = cl->fd_m2c_c;
+		if(fd_m2c_c){
+			cl->fd_m2c_c = 0;
+			cl->fd_m2c = 0;
+			cs_sleepms(5);		// make sure no other thread is currently writing...
+			struct pollfd pfd2[1];
+			pfd2[0].fd = fd_m2c_c;
+			pfd2[0].events = (POLLIN | POLLPRI);
+			uchar *ptr;
+			while ((rc = poll(pfd2, 1, 5)) != 0){
+				if(rc == -1){
+					if(errno == EINTR)
+						continue;
+					else
+						break;
+				}
+				int32_t pipeCmd = read_from_pipe(fd_m2c_c, &ptr);
+				if (ptr) free(ptr);
+				if (pipeCmd==PIP_ID_ERR || pipeCmd==PIP_ID_NUL)
+					break;
+			}
+		}
+		if(fd_m2c) close(fd_m2c);	//Closing master write fd
+		if(fd_m2c_c) close(fd_m2c_c);	//Closing client read fd
 
 		if(cl->typ == 'r' && cl->reader){
 			// Maybe we also need a "nullclose" mechanism here...
@@ -546,9 +568,7 @@ void cleanup_thread(void *var)
 		add_garbage(cl->serialdata);
 		cl->cleaned++;//cleaned=2
 		add_garbage(cl);
-#ifndef NO_PTHREAD_CLEANUP_PUSH
 		cs_cleanlocks();
-#endif
 	}
 }
 
@@ -789,9 +809,6 @@ void cs_exit(int32_t sig)
 	// this is very important - do not remove
 	if (cl->typ != 's') {
 		cs_log("thread %8X ended!", pthread_self());
-#ifdef NO_PTHREAD_CLEANUP_PUSH
-		cleanup_thread(cl);
-#endif
 		//Restore signals before exiting thread
 		set_signal_handler(SIGPIPE , 0, cs_sigpipe);
 		set_signal_handler(SIGHUP  , 1, cs_reload_config);
@@ -1133,16 +1150,11 @@ void *clientthread_init(void * init){
 	struct s_clientinit clientinit;
 	memcpy(&clientinit, init, sizeof(struct s_clientinit)); //copy to stack to free init pointer
 	free(init);
-#ifndef NO_PTHREAD_CLEANUP_PUSH
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 	pthread_setspecific(getclient, clientinit.client);
 	pthread_cleanup_push(cleanup_thread, (void *) clientinit.client);
 	clientinit.handler(clientinit.client);
 	pthread_cleanup_pop(1);
-#else
-	clientinit.handler(clientinit.client);
-	cs_exit(0);
-#endif
 	return NULL;
 }
 #pragma GCC diagnostic warning "-Wempty-body"
@@ -1187,7 +1199,6 @@ static void kill_thread_int(struct s_client *cl) {
 
 	pthread_cancel(thread);
 	pthread_join(thread, NULL);
-#ifndef NO_PTHREAD_CLEANUP_PUSH
 	int32_t cnt = 0;
 	while(cnt < 10 && cl && cl->cleaned < 2){
 		cs_sleepms(50);
@@ -1200,10 +1211,6 @@ static void kill_thread_int(struct s_client *cl) {
 		//cleanup_thread(cl);
 	}
 
-#else
-	cs_sleepms(50);
-	cleanup_thread(cl);
-#endif
 	cs_log("thread %8X killed!", thread);
 	return;
 }
@@ -1940,10 +1947,13 @@ int32_t send_dcw(struct s_client * client, ECM_REQUEST *er)
 	client->cwlastresptime = 1000 * (tpe.time-er->tps.time) + tpe.millitm-er->tps.millitm;
 	cs_add_lastresponsetime(client, client->cwlastresptime); // add to ringbuffer
 
-	if (er_reader && er_reader->client){
-		er_reader->client->cwlastresptime = client->cwlastresptime;
-		cs_add_lastresponsetime(er_reader->client, client->cwlastresptime);
-		er_reader->client->last_srvidptr=client->last_srvidptr;
+	if (er_reader){
+		struct s_client *er_cl = er_reader->client;
+		if(er_cl){
+			er_cl->cwlastresptime = client->cwlastresptime;
+			cs_add_lastresponsetime(er_cl, client->cwlastresptime);
+			er_cl->last_srvidptr=client->last_srvidptr;
+		}
 	}
 
 #ifdef CS_LED
