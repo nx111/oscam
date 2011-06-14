@@ -733,6 +733,7 @@ void dvbapi_read_priority() {
 			} else {
  				struct s_dvbapi_priority *p;
 				for (p = dvbapi_priority; p->next != NULL; p = p->next);
+				entry->last = p;
 				p->next = entry;
 			}
 			continue;
@@ -790,6 +791,7 @@ void dvbapi_read_priority() {
 					} else {
  						struct s_dvbapi_priority *p;
 						for (p = dvbapi_priority; p->next != NULL; p = p->next);
+						entry2->last = p;
 						p->next = entry2;
 					}
 				}
@@ -854,34 +856,45 @@ int32_t dvbapi_write_prio() {
 	}
 	struct s_dvbapi_priority *p;
 	for (p=dvbapi_priority; p != NULL;p=p->next) {
-		fprintf(fp,"%c: %04X",p->type,p->caid);
-		int loop=0;
-		for(loop=0;loop<1;loop++){
-			if(p->provid == 0xFFFFFF)continue;
-			fprintf(fp,":%06X",p->provid);
-			if(p->ecmpid==0)continue;
-			fprintf(fp,":%04X",p->ecmpid);
-			if(p->srvid == 0)continue;
-			fprintf(fp,":%04X",p->srvid);
-			if(p->chid)
-				fprintf(fp,":%04X",p->chid);
+		if(p->type == 's'){
+#ifdef WITH_STAPI
+			fprintf(fp,"%c: %s %s";p->type,p->devname,p->pmtfile);
+			if(p->disablefilter)
+				fprintf(fp," %d",p->disablefilter);	
+			fprintf(fp,"\n");			
+#endif
 		}
+		else{
+			fprintf(fp,"%c: %04X",p->type,p->caid);
+			int loop=0;
+			for(loop=0;loop<1;loop++){
+				if(p->provid == 0xFFFFFF)continue;
+				fprintf(fp,":%06X",p->provid);
+				if(p->ecmpid==0)continue;
+				fprintf(fp,":%04X",p->ecmpid);
+				if(p->srvid == 0)continue;
+				fprintf(fp,":%04X",p->srvid);
+				if(p->chid)
+					fprintf(fp,":%04X",p->chid);
+			}
 
-		switch (p->type) {
-			case 'd':
-				if(p->delay)
-					fprintf(fp, " %4d", p->delay);
-				break;
-			case 'p':
-				if(p->force)
-					fprintf(fp, " %1d", p->force);
-				break;
-			case 'm':
-				if(p->mapcaid || p->mapprovid)
-					fprintf(fp, " %04X:%06X", p->mapcaid, p->mapprovid);
-				break;
+			switch (p->type) {
+				case 'd':
+				case 'l':
+					if(p->delay)
+						fprintf(fp, " %4d", p->delay);
+					break;
+				case 'p':
+					if(p->force)
+						fprintf(fp, " %1d", p->force);
+					break;
+				case 'm':
+					if(p->mapcaid || p->mapprovid)
+						fprintf(fp, " %04X:%06X", p->mapcaid, p->mapprovid);
+					break;
+			}
+			fprintf(fp,"\n");
 		}
-		fprintf(fp,"\n");
 	}	
 	fclose(fp);
 	return 0;	
