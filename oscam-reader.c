@@ -169,6 +169,7 @@ int32_t network_tcp_connection_open()
 	int32_t res = connect(sd, (struct sockaddr *)&cl->udp_sa, sizeof(cl->udp_sa));
 	if (res == 0) { 
 		fcntl(sd, F_SETFL, fl); //connect sucessfull, restore blocking mode
+		setKeepalive(sd);
 		clear_block_delay(rdr);
 		return sd;
 	}
@@ -184,6 +185,7 @@ int32_t network_tcp_connection_open()
 			if (getsockopt(sd, SOL_SOCKET, SO_ERROR, &r, (socklen_t*)&l) == 0) {
 				if (r == 0) {
 					fcntl(sd, F_SETFL, fl);
+					setKeepalive(sd);
 					clear_block_delay(rdr);
 					return sd; //now we are connected
 				}
@@ -195,6 +197,7 @@ int32_t network_tcp_connection_open()
 	else if (errno == EISCONN) {
 		cs_log("already connected!");
 		fcntl(sd, F_SETFL, fl);
+		setKeepalive(sd);
 		clear_block_delay(rdr);
 		return sd;
 	}
@@ -729,30 +732,27 @@ static void reader_do_pipe(struct s_reader * reader)
   uchar *ptr;
   struct s_client *cl = reader->client;
   if(cl){
-	  int32_t fd_m2c_c = cl->fd_m2c_c;
-	  if(fd_m2c_c){
-	  	int32_t pipeCmd = read_from_pipe(fd_m2c_c, &ptr);
-	
-		  switch(pipeCmd)
-		  {
-		    case PIP_ID_ECM:
-		      reader_get_ecm(reader, (ECM_REQUEST *)ptr);
-		      break;
-		    case PIP_ID_EMM:
-		      reader_do_emm(reader, (EMM_PACKET *)ptr);
-		      break;
-		    case PIP_ID_CIN: 
-		      reader_do_card_info(reader);
-		      break;
-		    case PIP_ID_ERR:
-		      cs_exit(1);
-		      break;
-		    default:
-		       cs_log("unhandled pipe message %d (reader %s)", pipeCmd, reader->label);
-		       break;
-		  }
-		  if (ptr) free(ptr);
-		}
+  	int32_t pipeCmd = read_from_pipe(cl, &ptr);
+
+	  switch(pipeCmd)
+	  {
+	    case PIP_ID_ECM:
+	      reader_get_ecm(reader, (ECM_REQUEST *)ptr);
+	      break;
+	    case PIP_ID_EMM:
+	      reader_do_emm(reader, (EMM_PACKET *)ptr);
+	      break;
+	    case PIP_ID_CIN: 
+	      reader_do_card_info(reader);
+	      break;
+	    case PIP_ID_ERR:
+	      cs_exit(1);
+	      break;
+	    default:
+	       cs_log("unhandled pipe message %d (reader %s)", pipeCmd, reader->label);
+	       break;
+	  }
+	  if (ptr) free(ptr);
 	}
 }
 
@@ -764,10 +764,10 @@ void reader_do_idle(struct s_reader * reader)
 
 static void reader_main(struct s_reader * reader)
 {
-  int32_t res=0;
   while (1)
   {
   	struct s_client *cl = reader->client;
+  	if(!cl) return;
     switch(reader_listen(reader, cl->fd_m2c_c, cl->pfd))
     {
       case 0: reader_do_idle(reader); break;
