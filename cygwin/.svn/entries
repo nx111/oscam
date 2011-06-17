@@ -1,15 +1,15 @@
 10
 
 dir
-5386
+5400
 http://streamboard.gmc.to/svn/oscam/trunk/cygwin
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2010-07-22T23:33:54.258816Z
-2823
-rorothetroll
+2011-06-16T11:45:23.300087Z
+5396
+lareq78
 
 
 
@@ -32,11 +32,11 @@ file
 
 
 
-2011-01-14T12:58:04.921854Z
-fb617ab37278cd6311cb7dfa3d31873e
-2010-07-22T19:12:10.395175Z
-2820
-rorothetroll
+2011-06-17T12:27:38.875176Z
+1558363ede717c44c294261f6e28904d
+2011-06-16T11:45:23.300087Z
+5396
+lareq78
 has-props
 
 
@@ -58,7 +58,7 @@ has-props
 
 
 
-42113
+41939
 
 SCardErr.h
 file

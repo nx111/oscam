@@ -449,7 +449,7 @@ int32_t cc_recv_to(struct s_client *cl, uint8_t *buf, int32_t len) {
 		rc = poll(&pfd, 1, 2000);
 	
 		if (rc < 0) {
-			if (errno==EINTR || errno==EAGAIN) continue;
+			if (errno==EINTR) continue;
 			return(-1); //error!!
 		}
 			                                                                 
@@ -490,7 +490,7 @@ int32_t cc_msg_recv(struct s_client *cl, uint8_t *buf, int32_t maxlen) {
 
 	while (cl->cc && cc->mode != CCCAM_MODE_SHUTDOWN && cs_trylock(&cc->lockcmd)) {
 		cs_debug_mask(D_TRACE, "%s trylock recv waiting", getprefix());
-		cs_sleepms(fast_rnd());
+		cs_sleepms(fast_rnd()%10+5);
 	}
 	if (!cl->cc || cc->mode == CCCAM_MODE_SHUTDOWN) return -1;
 
@@ -561,7 +561,7 @@ int32_t cc_cmd_send(struct s_client *cl, uint8_t *buf, int32_t len, cc_msg_type_
 
 	while (cl->cc && cc->mode != CCCAM_MODE_SHUTDOWN && cs_trylock(&cc->lockcmd)) { //We need this because cc_cmd_send is called from cccshare
 		cs_debug_mask(D_TRACE, "%s trylock send waiting", getprefix());
-		cs_sleepms(fast_rnd());
+		cs_sleepms(fast_rnd()%10+5);
 	}
 	if (!cl->cc || cc->mode == CCCAM_MODE_SHUTDOWN) return -1;
 	
@@ -1137,7 +1137,7 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 
 	while (cs_trylock(&cc->cards_busy)) {
 		cs_debug_mask(D_TRACE, "%s trylock send_ecm cards waiting", getprefix());
-		cs_sleepms(fast_rnd());
+		cs_sleepms(fast_rnd()%10+5);
 	}
 	//forward_origin:
 	if (cfg.cc_forward_origin_card && cur_er->origin_reader == rdr && cur_er->origin_card) {
@@ -1389,7 +1389,7 @@ int32_t cc_send_emm(EMM_PACKET *ep) {
 	//Last used card is first card of current_cards:
 	while (cs_trylock(&cc->cards_busy)) {
 		cs_debug_mask(D_TRACE, "trylock send_emm cards waiting", getprefix());
-		cs_sleepms(fast_rnd());
+		cs_sleepms(fast_rnd()%10+5);
 	}
 
 	struct cc_card *emm_card = cc->last_emm_card;
@@ -1809,7 +1809,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l) {
 		if (l == 0x48) { //72 bytes: normal server data
 			while (cs_trylock(&cc->cards_busy)) {
 				cs_debug_mask(D_TRACE, "%s trylock MSG_SRV_DATA cards waiting", getprefix());
-				cs_sleepms(fast_rnd());
+				cs_sleepms(fast_rnd()%10+5);
 			}
 			cc_free_cardlist(cc->cards, FALSE);
 			free_extended_ecm_idx(cc); 
@@ -1926,7 +1926,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l) {
 
 		while (cs_trylock(&cc->cards_busy)) {
 			cs_debug_mask(D_TRACE, "%s trylock MSG_NEW_CARD cards waiting", getprefix());
-			cs_sleepms(fast_rnd());
+			cs_sleepms(fast_rnd()%10+5);
 		}
 
 		struct cc_card *card = read_card(data, buf[1]==MSG_NEW_CARD_SIDINFO);
@@ -1994,7 +1994,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l) {
 	case MSG_CARD_REMOVED: {
 		while (cs_trylock(&cc->cards_busy)) {
 			cs_debug_mask(D_TRACE, "%s trylock MSG_CARD_REMOVED cards waiting", getprefix());
-			cs_sleepms(fast_rnd());
+			cs_sleepms(fast_rnd()%10+5);
 		}
 		cc_card_removed(cl, b2i(4, buf + 4));
 		cs_unlock(&cc->cards_busy);
@@ -2049,7 +2049,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l) {
 
 		while (cs_trylock(&cc->cards_busy)) {
 			cs_debug_mask(D_TRACE, "%s trylock MSG_CW_NOK cards waiting", getprefix());
-            cs_sleepms(fast_rnd());
+            cs_sleepms(fast_rnd()%10+5);
 		}
 
    		struct cc_extended_ecm_idx *eei = get_extended_ecm_idx(cl,
@@ -2207,7 +2207,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l) {
 		} else { //READER:
 			while (cs_trylock(&cc->cards_busy)) {
             	cs_debug_mask(D_TRACE, "%s trylock MSG_CW_ECM cards waiting", getprefix());
-				cs_sleepms(fast_rnd());
+				cs_sleepms(fast_rnd()%10+5);
             }
     		cc->recv_ecmtask = -1;
 			struct cc_extended_ecm_idx *eei = get_extended_ecm_idx(cl,
@@ -2959,7 +2959,7 @@ int32_t cc_cli_connect(struct s_client *cl) {
 		if (cc->cards) {
 			while (cs_trylock(&cc->cards_busy)) {
 				cs_debug_mask(D_TRACE, "%s trylock cc_cli_connect cards waiting", getprefix());
-				cs_sleepms(fast_rnd());
+				cs_sleepms(fast_rnd()%10+5);
 			}
 			                
 			cc_free_cardlist(cc->cards, FALSE);
