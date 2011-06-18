@@ -124,7 +124,7 @@ void cs_add_lastresponsetime(struct s_client *cl, int32_t ltime){
 	} else {
 		cl->cwlastresptimes_last++;
 	}
-	cl->cwlastresptimes[cl->cwlastresptimes_last] = ltime;
+	cl->cwlastresptimes[cl->cwlastresptimes_last] = ltime > 9999 ? 9999 : ltime;
 }
 
 /*****************************************************************************
@@ -1630,9 +1630,15 @@ static void store_cw_in_cache(ECM_REQUEST *er, uint64_t grp, int32_t rc)
 	if (cfg.double_check && er->checked < 2)
 		return;
 #endif
-	struct s_ecm *ecm = er->ecmcacheptr;
-	if (!ecm || rc >= ecm->rc) return;
+	// Check if ecm is outdated and ecmcacheptr thus is invalid (freed from ecmcache),
+	// We don't calculate with cfg.ctimeout as this may be changed by WebIf and ECMs older than CS_CACHE_TIMEOUT=60s are useless anyway
+	struct timeb tpe;
+	cs_ftime(&tpe);
+	if(tpe.time - er->tps.time - CS_CACHE_TIMEOUT >= 0) return;
 
+	struct s_ecm *ecm = er->ecmcacheptr;
+	if (!ecm || rc >= ecm->rc) return;	
+ 
 	//cs_log("store ecm from reader %d", er->selected_reader);
 	memcpy(ecm->ecmd5, er->ecmd5, CS_ECMSTORESIZE);
 	memcpy(ecm->cw, er->cw, 16);
@@ -1654,7 +1660,7 @@ int32_t write_to_pipe(struct s_client *client, int32_t id, uchar *data, int32_t 
 	int32_t rc = PIP_ID_ERR, fd;
 	if (id < 0 || id > PIP_ID_MAX)
 		return rc;
-	if(!client)
+	if(!client || !check_client(client))
 		return rc;
 	fd = client->fd_m2c;
 	if (!fd)
@@ -1697,20 +1703,20 @@ int32_t write_to_pipe(struct s_client *client, int32_t id, uchar *data, int32_t 
  */
 int32_t read_from_pipe(struct s_client *client, uchar **data)
 {
-	if(!client)
-		return PIP_ID_ERR;
-	int32_t n, rc, fd = client->fd_m2c_c;
+	if(!client) 
+		return PIP_ID_ERR; 
+	int32_t n, rc, fd = client->fd_m2c_c; 
+	
 	intptr_t hdr=0;
 	uchar buf[3+sizeof(void*)];
 	memset(buf, 0, sizeof(buf));
 
 	*data=(uchar *)0;
 	rc=PIP_ID_NUL;
-
-	cs_lock(&client->pipelock);
-	n=read(fd, buf, sizeof(buf));
-	if(client->pipecnt >= n) client->pipecnt -= n;
-	cs_unlock(&client->pipelock);
+	cs_lock(&client->pipelock); 
+	n=read(fd, buf, sizeof(buf)); 
+	if(client->pipecnt >= n) client->pipecnt -= n; 
+	cs_unlock(&client->pipelock); 
 	if (n==sizeof(buf)) {
 		memcpy(&hdr, buf+3, sizeof(void*));
 	} else {
@@ -1802,7 +1808,7 @@ int32_t write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er)
   }
 
   int32_t res=0;
-  if( er->client && er->client->fd_m2c ) {
+  if(er->client) {
     //We got an ECM (or nok). Now we should check for another clients waiting for it:
     res = write_to_pipe(er->client, PIP_ID_ECM, (uchar *) er, sizeof(ECM_REQUEST));
   }

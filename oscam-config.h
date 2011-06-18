@@ -76,11 +76,11 @@
 #endif
 
 #ifndef MODULE_GBOX
-#define MODULE_GBOX
+//#define MODULE_GBOX
 #endif
 
 #ifndef MODULE_RADEGAST
-#define MODULE_RADEGAST
+//#define MODULE_RADEGAST
 #endif
 
 #ifndef MODULE_SERIAL
@@ -142,7 +142,7 @@
 #endif
 
 #ifndef QBOXHD_LED
-#define QBOXHD_LED
+//#define QBOXHD_LED
 #endif
 
 #ifndef CS_LOGHISTORY

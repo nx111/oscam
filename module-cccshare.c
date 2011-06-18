@@ -1065,12 +1065,17 @@ void update_card_list() {
 }
 
 int32_t cc_srv_report_cards(struct s_client *cl) {
+	LLIST *carddata;
 	struct cc_data *cc = cl->cc;
-	LL_ITER it = ll_iter_create(reported_carddatas);
+	int8_t i = 0;
 	struct cc_card *card;
-	while (cl->cc && cc->mode != CCCAM_MODE_SHUTDOWN && (card = ll_iter_next(&it))) {
-		send_card_to_clients(card, cl);
-	}
+	do {
+		carddata = reported_carddatas;		// sending carddata sometimes takes longer and the static llist may get cleaned and recreated while that
+		LL_ITER it = ll_iter_create(carddata);
+		while (cl->cc && cc->mode != CCCAM_MODE_SHUTDOWN && carddata == reported_carddatas && (card = ll_iter_next(&it))) {
+			send_card_to_clients(card, cl);
+		}
+	} while (carddata != reported_carddatas && i++ < 3);
 
 	return cl->cc && cc->mode != CCCAM_MODE_SHUTDOWN;
 }
@@ -1108,6 +1113,7 @@ void share_updater()
 				
 				uint32_t cur_check = 0;
 				uint32_t cur_card_check = 0;
+				card_count = 0;
 				struct s_reader *rdr;
 				for (rdr=first_active_reader; rdr; rdr=rdr->next) {
 						if (rdr->client && rdr->client->cc) { //check cccam-cardlist:

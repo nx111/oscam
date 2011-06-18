@@ -1,13 +1,13 @@
 K 25
 svn:wc:ra_dav:version-url
 V 37
-/svn/oscam/!svn/ver/5396/trunk/cygwin
+/svn/oscam/!svn/ver/5406/trunk/cygwin
 END
 WinSCard.h
 K 25
 svn:wc:ra_dav:version-url
 V 48
-/svn/oscam/!svn/ver/5396/trunk/cygwin/WinSCard.h
+/svn/oscam/!svn/ver/5406/trunk/cygwin/WinSCard.h
 END
 SCardErr.h
 K 25

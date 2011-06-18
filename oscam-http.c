@@ -78,22 +78,23 @@ char *get_ecm_historystring(struct s_client *cl){
 	if(cl){
 		int32_t k, pos = 0, needed = 1;
 		char *value, *dot = "";
+		int32_t ptr = cl->cwlastresptimes_last;
 
 		needed = CS_ECM_RINGBUFFER_MAX * 5; //4 digits + delimiter
 		if(!cs_malloc(&value, needed * sizeof(char), -1)) return "";
 
-		if(cl->cwlastresptimes_last == CS_ECM_RINGBUFFER_MAX - 1){
+		if(ptr == CS_ECM_RINGBUFFER_MAX - 1){
 			for(k = 0; k < CS_ECM_RINGBUFFER_MAX ; k++){
 				pos += snprintf(value + pos, needed-pos, "%s%d", dot, cl->cwlastresptimes[k]);
 				dot=",";
 			}
 		} else {
-			for(k = cl->cwlastresptimes_last + 1; k < CS_ECM_RINGBUFFER_MAX; k++){
+			for(k = ptr + 1; k < CS_ECM_RINGBUFFER_MAX; k++){
 				pos += snprintf(value + pos, needed-pos, "%s%d", dot, cl->cwlastresptimes[k]);
 				dot=",";
 			}
 
-			for(k = 0; k < cl->cwlastresptimes_last + 1 ; k++){
+			for(k = 0; k < ptr + 1 ; k++){
 				pos += snprintf(value + pos, needed-pos, "%s%d", dot, cl->cwlastresptimes[k]);
 				dot=",";
 			}
@@ -1229,12 +1230,6 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 	if (strcmp(getParam(params, "action"), "resetstat") == 0) {
 		clear_reader_stat(rdr);
 		cs_log("Reader %s stats resetted by WebIF from %s", rdr->label, cs_inet_ntoa(GET_IP()));
-	}
-
-	if (apicall && (strcmp(getParam(params, "ecmhistory"), "1") == 0)) {
-		char *value = get_ecm_historystring(rdr->client);
-		tpl_printf(vars, TPLADD, "ECMHISTORY", "%s", value);
-		free_mk_t(value);
 	}
 
 	if (!apicall){
@@ -2433,6 +2428,8 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 
 	if (loghist) {
 		char *t_loghistptr = loghistptr, *ptr1 = NULL;
+		if(loghistptr >= loghist + (cfg.loghistorysize) - 1)
+			t_loghistptr = loghist;
 		int32_t d = 0, l1 = strlen(t_loghistptr+1) + 2;
 		char *lastpos = loghist + (cfg.loghistorysize)-1;
 
@@ -3017,6 +3014,30 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 			tpl_addVar(vars, TPLADD, "APIERRORMESSAGE", "no reader selected");
 			return tpl_getTpl(vars, "APIERROR");
 		}
+	} else if (strcmp(getParam(params, "part"), "ecmhistory") == 0) {
+		int32_t i;
+		int32_t isec;
+		time_t now = time((time_t)0); 
+		char *usr;
+		struct s_client *cl;
+		for (i=0, cl=first_client; cl ; cl=cl->next, i++) {
+			if (cl->wihidden != 1) {
+				if ( (cl->typ=='p') || (cl->typ=='r') ) {
+					tpl_printf(vars, TPLADD, "CLIENTTYPE", "%c", cl->typ);
+					usr=username(cl); 
+					tpl_addVar(vars, TPLADD, "CLIENTUSER", xml_encode(vars, usr));
+					tpl_printf(vars, TPLADD, "CLIENTLASTRESPONSETIME", "%d", cl->cwlastresptime?cl->cwlastresptime:-1);
+					isec = now - cl->last; 
+					tpl_printf(vars, TPLADD, "CLIENTIDLESECS", "%d", isec);
+	 				//load historical values from ringbuffer
+					//char *value = get_ecm_historystring(cl);
+					//tpl_printf(vars, TPLADD, "CLIENTLASTRESPONSETIMEHIST", "%s", value);
+					//free_mk_t(value);
+					tpl_addVar(vars, TPLAPPEND, "APISTATUSBITS", tpl_getTpl(vars, "APISTATUSBIT"));
+				}
+			}
+		}
+		return tpl_getTpl(vars, "APISTATUS"); 
 #ifdef WITH_LB
 	} else if (strcmp(getParam(params, "part"), "readerstats") == 0) {
 		if (strcmp(getParam(params, "label"),"")) {
@@ -3103,7 +3124,11 @@ static char *send_oscam_image(struct templatevars *vars, FILE *f, struct uripara
 	return "0";
 }
 
-static int8_t check_request(char *result, int32_t read){
+static char *send_oscam_graph(struct templatevars *vars) {
+	return tpl_getTpl(vars, "GRAPH");
+}
+
+static int8_t check_request(char *result, int32_t read) {
 	if(read < 50) return 0;
 	result[read]='\0';
 	int8_t method;
@@ -3303,7 +3328,8 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 			"/oscam.js",
 			"/oscamapi.html",
 			"/image",
-			"/favicon.ico"};
+			"/favicon.ico",
+			"/graph.svg"};
 	
 		int32_t pagescnt = sizeof(pages)/sizeof(char *); // Calculate the amount of items in array
 		int32_t i, bufsize, len, pgidx = -1;
@@ -3483,6 +3509,7 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 				case 18: result = send_oscam_api(vars, f, &params, keepalive); break;
 				case 19: result = send_oscam_image(vars, f, &params, NULL, modifiedheader, etagheader); break;
 				case 20: result = send_oscam_image(vars, f, &params, "ICMAI", modifiedheader, etagheader); break;
+				case 21: result = send_oscam_graph(vars); break;
 				default: result = send_oscam_status(vars, &params, 0); break;
 			}
 			if(pgidx != 19 && pgidx != 20) cs_unlock(&http_lock);
@@ -3492,6 +3519,8 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 				//it doesn't make sense to check for modified etagheader here as standard template has timestamp in output and so site changes on every request
 				if (pgidx == 18)
 					send_headers(f, 200, "OK", NULL, "text/xml", 0, strlen(result), NULL, 0);
+				else if (pgidx == 21)
+					send_headers(f, 200, "OK", NULL, "image/svg+xml", 0, strlen(result), NULL, 0);
 				else
 					send_headers(f, 200, "OK", NULL, "text/html", 0, strlen(result), NULL, 0);
 				webif_write(result, f);
