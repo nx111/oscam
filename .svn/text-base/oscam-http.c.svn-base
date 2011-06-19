@@ -1351,7 +1351,7 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 				if (!apicall) {
 					if (stat->rc == 4) {
 						tpl_addVar(vars, TPLAPPEND, "READERSTATSROWNOTFOUND", tpl_getTpl(vars, "READERSTATSBIT"));
-						tpl_addVar(vars, TPLADD, "READERSTATSNFHEADLINE", "\t\t<TR><TD CLASS=\"subheadline\" colspan=\"7\">Not found</TD></TR>\n");
+						tpl_addVar(vars, TPLADD, "READERSTATSNFHEADLINE", "\t\t<TR><TD CLASS=\"subheadline\" colspan=\"8\">Not found</TD></TR>\n");
 					}
 					else
 						tpl_addVar(vars, TPLAPPEND, "READERSTATSROWFOUND", tpl_getTpl(vars, "READERSTATSBIT"));
@@ -1366,7 +1366,7 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 		}
 
 	} else {
-		tpl_addVar(vars, TPLAPPEND, "READERSTATSROW","<TR><TD colspan=\"6\"> No statistics found </TD></TR>");
+		tpl_addVar(vars, TPLAPPEND, "READERSTATSROW","<TR><TD colspan=\"8\"> No statistics found </TD></TR>");
 	}
 
 	tpl_printf(vars, TPLADD, "ROWCOUNT", "%d", rowcount);
@@ -1672,7 +1672,7 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 	/* List accounts*/
 	char *status, *expired, *classname, *lastchan;
 	time_t now = time((time_t)0);
-	int32_t isec = 0;
+	int32_t isec = 0, chsec = 0;
 
 	char *filter = NULL;
 	int32_t clientcount = 0;
@@ -1684,6 +1684,7 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 		//clear for next client
 		status = "offline"; lastchan = "&nbsp;", expired = ""; classname = "offline";
 		isec = 0;
+		chsec = 0;
 
 		if(account->expirationdate && account->expirationdate < time(NULL)) {
 			expired = " (expired)";
@@ -1725,7 +1726,7 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 		}
 		if(latestclient != NULL) {
 			char channame[32];
-			status = "<b>connected</b>";
+			status = (!apicall) ? "<b>connected</b>" : "connected";
 			classname = "connected";
 			proto = monitor_get_proto(latestclient);
 			lastchan = xml_encode(vars, get_servicename(latestclient, latestclient->last_srvid, latestclient->last_caid, channame));
@@ -1734,9 +1735,10 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 		}
 		if(latestactivity > 0){
 			isec = now - latestactivity;
+			chsec = latestclient->lastswitch ? now - latestclient->lastswitch : 0;
 			if(isec < cfg.mon_hideclient_to) {
 				isactive = 1;
-				status = "<b>online</b>";
+				status = (!apicall) ? "<b>online</b>" : "online";
 				classname = "online";
 				if (latestclient->cwfound + latestclient->cwnot + latestclient->cwcache > 0) {
 					cwrate2 = now - latestclient->login;
@@ -1760,6 +1762,7 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 			tpl_addVar(vars, TPLADDONCE, "LASTCHANNEL", lastchan);
 			tpl_printf(vars, TPLADDONCE, "CWLASTRESPONSET", "%d", lastresponsetm);
 			tpl_addVar(vars, TPLADDONCE, "IDLESECS", sec2timeformat(vars, isec));
+			tpl_addVar(vars, TPLADDONCE, "CLIENTTIMEONCHANNEL", sec2timeformat(vars, chsec));
 
 			if ((strcmp(proto,"newcamd") == 0) && (latestclient->typ == 'c'))
 				tpl_printf(vars, TPLADDONCE, "CLIENTPROTO","%s (%s)", proto, get_ncd_client_name(latestclient->ncd_client_id));
@@ -2081,7 +2084,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 static char *send_oscam_status(struct templatevars *vars, struct uriparams *params, int32_t apicall) {
 	int32_t i;
 	char *usr;
-	int32_t lsec, isec, con, cau = 0;
+	int32_t lsec, isec, chsec, con, cau = 0;
 	time_t now = time((time_t)0);
 	struct tm lt;
 
@@ -2186,8 +2189,9 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 				}
 
 				shown = 1;
-				lsec=now-cl->login;
-				usr=username(cl);
+				lsec = now - cl->login;
+				chsec = now - cl->lastswitch;
+				usr = username(cl);
 
 				if ((cl->typ=='r') || (cl->typ=='p')) usr=cl->reader->label;
 
@@ -2316,6 +2320,7 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 					tpl_addVar(vars, TPLADD, "CLIENTSRVNAME", cl->last_srvidptr && cl->last_srvidptr->name ? xml_encode(vars, cl->last_srvidptr->name) : "");
 					tpl_addVar(vars, TPLADD, "CLIENTSRVTYPE", cl->last_srvidptr && cl->last_srvidptr->type ? xml_encode(vars, cl->last_srvidptr->type) : "");
 					tpl_addVar(vars, TPLADD, "CLIENTSRVDESCRIPTION", cl->last_srvidptr && cl->last_srvidptr->desc ? xml_encode(vars, cl->last_srvidptr->desc) : "");
+					tpl_addVar(vars, TPLADD, "CLIENTTIMEONCHANNEL", sec2timeformat(vars, chsec));
 				} else {
 					tpl_addVar(vars, TPLADD, "CLIENTCAID", "0000");
 					tpl_addVar(vars, TPLADD, "CLIENTSRVID", "0000");
@@ -2324,6 +2329,7 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 					tpl_addVar(vars, TPLADD, "CLIENTSRVTYPE","");
 					tpl_addVar(vars, TPLADD, "CLIENTSRVDESCRIPTION","");
 					tpl_addVar(vars, TPLADD, "CLIENTLBVALUE","");
+					tpl_addVar(vars, TPLADD, "CLIENTTIMEONCHANNEL", "");
 
 				}
 
@@ -3177,11 +3183,11 @@ static int32_t readRequest(FILE *f, struct in_addr in, char **result, int8_t for
 				int32_t errcode = ERR_peek_error();
 				char errstring[128];
 				ERR_error_string_n(errcode, errstring, sizeof(errstring) - 1);
-				cs_debug_mask(D_CLIENT, "WebIf: read error ret=%d (%d%s%s)", n, SSL_get_error(cur_ssl(), n), errcode?" ":"", errcode?errstring:"");
+				cs_debug_mask(D_TRACE, "WebIf: read error ret=%d (%d%s%s)", n, SSL_get_error(cur_ssl(), n), errcode?" ":"", errcode?errstring:"");
 				return -1;
 			}
 #else
-			cs_debug_mask(D_CLIENT, "WebIf: read error ret=%d (errno=%d %s)", n, errno, strerror(errno));
+			cs_debug_mask(D_TRACE, "WebIf: read error ret=%d (errno=%d %s)", n, errno, strerror(errno));
 #endif
 			return -1;
 		}
@@ -3664,17 +3670,6 @@ void http_srv() {
 		cs_log("HTTP Server: Setting SO_REUSEADDR via setsockopt failed! (errno=%d %s)", errno, strerror(errno));
 	}
 
-    stimeout.tv_sec = 20;
-    stimeout.tv_usec = 0;
-
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &stimeout, sizeof(stimeout)) < 0) {
-     		cs_log("HTTP Server: Setting SO_RCVTIMEO via setsockopt failed! (errno=%d %s)", errno, strerror(errno));
-    }
-
-    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &stimeout, sizeof(stimeout)) < 0) {
-     		cs_log("HTTP Server: Setting SO_SNDTIMEO via setsockopt failed! (errno=%d %s)", errno, strerror(errno));
-    }
-
 	memset(&sin, 0, sizeof sin);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = INADDR_ANY;
@@ -3713,6 +3708,7 @@ void http_srv() {
 				close(s);
 				continue;
 			}
+			setTCPTimeouts(s);
 			cur_client()->last = time((time_t)0); //reset last busy time
 			conn->cl = cur_client();
 			memcpy(&conn->remote, &remote.sin_addr, sizeof(struct in_addr));

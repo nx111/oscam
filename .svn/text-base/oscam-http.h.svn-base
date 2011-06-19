@@ -614,7 +614,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
     </totals>\n\
 ##TPLAPIFOOTER##"
 
-#define TPLAPIUSERCONFIGLISTBIT "        <user name=\"##USER##\">\n\
+#define TPLAPIUSERCONFIGLISTBIT "        <user name=\"##USER##\" status=\"##STATUS##\" ip=\"##CLIENTIP##\" protocol=\"##CLIENTPROTO##\">\n\
             <stats>\n\
                 <cwok>##CWOK##</cwok>\n\
                 <cwnok>##CWNOK##</cwnok>\n\
@@ -650,6 +650,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 			<TH>Address</TH>\n\
 			<TH>Protocol</TH>\n\
 			<TH>Last Channel</TH>\n\
+			<TH>Time on Channel</TH>\n\
 			<TH>Idle</TH>\n\
 			<TH>OK</TH>\n\
 			<TH>NOK</TH>\n\
@@ -702,10 +703,11 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 		<TR class=\"##CLASSNAME##\">\n\
 			<TD class=\"centered\"><A HREF=\"userconfig.html?user=##USERENC##&amp;action=##SWITCH##\" TITLE=\"##SWITCHTITLE##\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"##SWITCHICO##\"BORDER=\"0\" ALT=\"##SWITCHTITLE##\"></A></TD>\n\
 			<TD><SPAN TITLE=\"##DESCRIPTION##\">##USER##</SPAN></TD>\n\
-			<TD>##STATUS##</TD>\n\
-			<TD>##CLIENTIP##</TD>\n\
+			<TD class=\"centered\">##STATUS##</TD>\n\
+			<TD class=\"centered\">##CLIENTIP##</TD>\n\
 			<TD class=\"centered\"><SPAN TITLE=\"##CLIENTPROTOTITLE##\">##CLIENTPROTO##</SPAN></TD>\n\
 			<TD>##LASTCHANNEL##</TD>\n\
+			<TD class=\"centered\">##CLIENTTIMEONCHANNEL##</TD>\n\
 			<TD class=\"centered\">##IDLESECS##</TD>\n\
 			<TD class=\"centered\">##CWOK##</TD>\n\
 			<TD class=\"centered\">##CWNOK##</TD>\n\
