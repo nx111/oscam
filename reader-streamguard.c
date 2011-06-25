@@ -76,10 +76,11 @@ int streamguard_do_ecm(struct s_reader *reader, ECM_REQUEST *er)
   int read_size = 0;
   int data_len = 0;
   ushort status = 0;
-  
+  char tmp[256];
+
   if((ecm_len = check_sct_len(er->ecm, 3)) < 0) return ERROR;
 
-	cs_debug_mask(D_IFD, "ECM: %s", cs_hexdump(1, er->ecm, ecm_len));
+	cs_debug_mask(D_IFD, "ECM: %s", cs_hexdump(1, er->ecm, ecm_len,tmp,sizeof(tmp)));
 
   write_len = er->ecm[2] + 3;
   ecm_cmd[4] = write_len;

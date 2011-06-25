@@ -1908,7 +1908,7 @@ static void * dvbapi_main_local(void *cli) {
 					len = read(connfd, mbuf, sizeof(mbuf));
 
 					if (len < 3) {
-						cs_debug_mask(D_DVBAPI, "camd.socket: too int16_t message received");
+						cs_debug_mask(D_DVBAPI, "camd.socket: too small message received");
 						continue;
 					}
 
@@ -2083,6 +2083,7 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 			FILE *ecmtxt;
 			ecmtxt = fopen(ECMINFO_FILE, "w"); 
 			if(ecmtxt != NULL && er->selected_reader) { 
+			    char tmp[17];
 			    if(!cfg.dvbapi_ecm_infomode){	//oscam
 				fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
 				fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
@@ -2095,8 +2096,8 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 				fprintf(ecmtxt, "hops: %d\n", er->selected_reader->cc_currenthops);
 #endif
 				fprintf(ecmtxt, "ecm time: %.3f\n", (float) client->cwlastresptime/1000);
-				fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[i].lastcw[0],8));
-				fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[i].lastcw[1],8));
+				fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[i].lastcw[0],8, tmp, sizeof(tmp)));
+				fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[i].lastcw[1],8, tmp, sizeof(tmp)));
 				fclose(ecmtxt);
 				ecmtxt = NULL;
 			     }
@@ -2113,10 +2114,12 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 				else
 					fprintf(ecmtxt, "address: local\n");
 				fprintf(ecmtxt, "using: %s\n", er->selected_reader->ph.desc);
+#ifdef MODULE_CCCAM
 				fprintf(ecmtxt, "hops: %d\n", er->selected_reader->cc_currenthops);
+#endif
 				fprintf(ecmtxt, "ecm time: %.3f\n", (float) client->cwlastresptime/1000);
-				fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[i].lastcw[0],8));
-				fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[i].lastcw[1],8));
+				fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[i].lastcw[0],8, tmp, sizeof(tmp)));
+				fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[i].lastcw[1],8, tmp, sizeof(tmp)));
 				fclose(ecmtxt);
 				ecmtxt = NULL;
 			     }
@@ -2894,6 +2897,7 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 
     FILE *ecmtxt;
     if (ecmtxt = fopen(ECMINFO_FILE, "w")) {
+    	char tmp[17];
     	if(er->rc <= E_EMU) {
 			fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
 			fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
@@ -2904,8 +2908,8 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 			fprintf(ecmtxt, "protocol: %s\n", er->selected_reader->ph.desc);
 			fprintf(ecmtxt, "hops: %d\n", er->selected_reader->cc_currenthops);
 			fprintf(ecmtxt, "ecm time: %.3f\n", (float) client->cwlastresptime/1000);
-			fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[0].lastcw[0],8));
-			fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[0].lastcw[1],8));
+			fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[0].lastcw[0],8, tmp, sizeof(tmp)));
+			fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[0].lastcw[1],8, tmp, sizeof(tmp)));
 			fclose(ecmtxt);
 			ecmtxt = NULL;
 		} else {

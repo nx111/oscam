@@ -22,30 +22,17 @@ pthread_mutex_t http_lock;
 
 pthread_key_t getip;
 
-#ifdef CS_ANTICASC
-static void kill_ac_client(void)
-{
-		struct s_client *cl;
-		for (cl=first_client->next; cl ; cl=cl->next)
-		if (cl->typ=='a') {
-			 cs_accounts_chk();
-			break;
-		}
-}
-#endif
-
 static void refresh_oscam(enum refreshtypes refreshtype) {
 
 	switch (refreshtype) {
 		case REFR_ACCOUNTS:
 		cs_log("Refresh Accounts requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
-
 		cs_accounts_chk();
 		break;
-
-		case REFR_READERS:
-		cs_card_info();
-		cs_log("Refresh Reader/Tiers requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
+		
+		case REFR_CLIENTS:
+		cs_log("Refresh Clients requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
+		cs_reinit_clients(cfg.account);
 		break;
 
 		case REFR_SERVER:
@@ -63,7 +50,24 @@ static void refresh_oscam(enum refreshtypes refreshtype) {
 #ifdef CS_ANTICASC
 		case REFR_ANTICASC:
 		cs_log("Refresh Anticascading requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
-		kill_ac_client();
+		ac_init_stat();
+		int8_t foundac = 0;
+		struct s_client *cl;
+		struct s_auth *account;
+		for (cl=first_client->next; cl ; cl=cl->next){
+			if (cl->typ=='c' && (account = cl->account)) {
+				 cl->ac_limit	= (account->ac_users * 100 + 80) * cfg.ac_stime;
+			} else if (cl->typ=='a'){				
+				if(!cfg.ac_enabled)
+					kill_thread(cl);
+				else foundac = 1;
+			}
+		}
+		if (cfg.ac_enabled && !foundac){
+			init_ac();
+			start_thread((void *) &start_anticascader, "anticascader");
+		}
+		break;
 #endif
 		default:
 			break;
@@ -85,17 +89,17 @@ char *get_ecm_historystring(struct s_client *cl){
 
 		if(ptr == CS_ECM_RINGBUFFER_MAX - 1){
 			for(k = 0; k < CS_ECM_RINGBUFFER_MAX ; k++){
-				pos += snprintf(value + pos, needed-pos, "%s%d", dot, cl->cwlastresptimes[k]);
+				pos += snprintf(value + pos, needed-pos, "%s%d", dot, cl->cwlastresptimes[k].duration);
 				dot=",";
 			}
 		} else {
 			for(k = ptr + 1; k < CS_ECM_RINGBUFFER_MAX; k++){
-				pos += snprintf(value + pos, needed-pos, "%s%d", dot, cl->cwlastresptimes[k]);
+				pos += snprintf(value + pos, needed-pos, "%s%d", dot, cl->cwlastresptimes[k].duration);
 				dot=",";
 			}
 
 			for(k = 0; k < ptr + 1 ; k++){
-				pos += snprintf(value + pos, needed-pos, "%s%d", dot, cl->cwlastresptimes[k]);
+				pos += snprintf(value + pos, needed-pos, "%s%d", dot, cl->cwlastresptimes[k].duration);
 				dot=",";
 			}
 		}
@@ -106,7 +110,39 @@ char *get_ecm_historystring(struct s_client *cl){
 		return "";
 	}
 }
+char *get_ecm_fullhistorystring(struct s_client *cl){
 
+	if(cl){
+		int32_t k, pos = 0, needed = 1;
+		char *value, *dot = "";
+		int32_t ptr = cl->cwlastresptimes_last;
+
+		needed = CS_ECM_RINGBUFFER_MAX * 19; //4 digits + : + returncode(2) + : + time(10) + delimiter
+		if(!cs_malloc(&value, needed * sizeof(char), -1)) return "";
+
+		if(ptr == CS_ECM_RINGBUFFER_MAX - 1){
+			for(k = 0; k < CS_ECM_RINGBUFFER_MAX ; k++){
+				pos += snprintf(value + pos, needed-pos, "%s%d:%d:%ld", dot, cl->cwlastresptimes[k].duration, cl->cwlastresptimes[k].rc, cl->cwlastresptimes[k].timestamp);
+				dot=",";
+			}
+		} else {
+			for(k = ptr + 1; k < CS_ECM_RINGBUFFER_MAX; k++){
+				pos += snprintf(value + pos, needed-pos, "%s%d:%d:%ld", dot, cl->cwlastresptimes[k].duration, cl->cwlastresptimes[k].rc, cl->cwlastresptimes[k].timestamp);
+				dot=",";
+			}
+
+			for(k = 0; k < ptr + 1 ; k++){
+				pos += snprintf(value + pos, needed-pos, "%s%d:%d:%ld", dot, cl->cwlastresptimes[k].duration, cl->cwlastresptimes[k].rc, cl->cwlastresptimes[k].timestamp);
+				dot=",";
+			}
+		}
+
+		return (value);
+
+	} else {
+		return "";
+	}
+}
 static char *send_oscam_config_global(struct templatevars *vars, struct uriparams *params) {
 	int32_t i;
 
@@ -427,6 +463,7 @@ static char *send_oscam_config_cccam(struct templatevars *vars, struct uriparams
 				chk_t_cccam((*params).params[i], (*params).values[i]);
 			}
 		}
+		tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<BR><BR><B>Configuration CCCam done. You should restart OSCam now.</B><BR><BR>");
 		if(write_config()==0) refresh_oscam(REFR_SERVER);
 		else tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
 		cc_update_nodeid();
@@ -675,10 +712,10 @@ static char *send_oscam_config_anticasc(struct templatevars *vars, struct uripar
 				chk_t_ac((*params).params[i], (*params).values[i]);
 			}
 		}
-		tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<BR><BR><B>Configuration Anticascading done. You should restart OSCam now.</B><BR><BR>");
+		tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<BR><BR><B>Configuration Anticascading done.</B><BR><BR>");
 		refresh_oscam(REFR_ANTICASC);
-		if(write_config()==0) refresh_oscam(REFR_SERVER);
-		else tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
+		if(write_config()!=0)
+			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
 	}
 	if (cfg.ac_enabled > 0) tpl_addVar(vars, TPLADD, "CHECKED", "checked");
 	tpl_printf(vars, TPLADD, "NUMUSERS", "%d", cfg.ac_users);
@@ -765,8 +802,8 @@ static char *send_oscam_reader(struct templatevars *vars, struct uriparams *para
 				
 				free_reader(rdr);
 
-				if(write_server()==0) refresh_oscam(REFR_READERS);
-				else tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
+				if(write_server()!=0)
+					tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
 			}
 		}
 	}
@@ -781,13 +818,11 @@ static char *send_oscam_reader(struct templatevars *vars, struct uriparams *para
 				rdr->emmskipped[i] = 0;
 				rdr->emmblocked[i] = 0;
 			}
-			/*
-			if( rdr->enable == 1 && rdr->client->typ == 'r' && rdr->client->fd_m2c ) {
-				uchar dummy[1]={0x00};
-				write_to_pipe(rdr->client->fd_m2c, PIP_ID_CIN, dummy, 1);
-			}*/
 
-			refresh_oscam(REFR_READERS); // refresh all reader because  write pipe seams not work from here
+			if(rdr->enable == 1 && rdr->client && rdr->client->typ == 'r') {
+				uchar dummy[1]={0x00};
+				write_to_pipe(rdr->client, PIP_ID_CIN, dummy, 1);
+			}
 		}
 	}
 
@@ -882,7 +917,6 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		// Add new reader
 		struct s_reader *newrdr;
 		if(!cs_malloc(&newrdr,sizeof(struct s_reader), -1)) return "0";
-		memset(newrdr, 0, sizeof(struct s_reader));
 		newrdr->next = NULL; // terminate list
 		newrdr->enable = 0; // do not start the reader because must configured before
 		ll_append(configured_readers, newrdr);
@@ -920,13 +954,10 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		}
 		chk_reader("services", servicelabels, rdr);
 
-		if(write_server()==0) {
-			refresh_oscam(REFR_READERS);
-			// fixme: restart_cardreader causes segfaults sometimes
-			if (rdr->typ & R_IS_NETWORK)
-				restart_cardreader(rdr, 1); //physical readers make trouble if re-started
-		}
-		else
+		if (rdr->typ & R_IS_NETWORK)
+			restart_cardreader(rdr, 1); //physical readers make trouble if re-started
+
+		if(write_server()!=0)
 			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
 	}
 
@@ -1046,6 +1077,12 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		tpl_printf(vars, TPLADD, "DETECT", "!%s", RDR_CD_TXT[rdr->detect&0x7f]);
 	else
 		tpl_addVar(vars, TPLADD, "DETECT", RDR_CD_TXT[rdr->detect&0x7f]);
+		
+	// Ratelimit
+	if(rdr->ratelimitecm){
+		tpl_printf(vars, TPLADD, "RATELIMITECM", "%d", rdr->ratelimitecm);
+		tpl_printf(vars, TPLADD, "RATELIMITSECONDS", "%d", rdr->ratelimitseconds);
+	}
 
 	// Frequencies
 	tpl_printf(vars, TPLADD, "MHZ", "%d", rdr->mhz);
@@ -1344,6 +1381,26 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 		}
 	}
 
+	if (apicall) {
+		char *txt = "UNDEF";
+		switch(rdr->card_status)
+		{
+		case NO_CARD: txt = "OFF"; break;
+		case UNKNOWN: txt = "UNKNOWN"; break;
+		case CARD_NEED_INIT: txt = "NEEDINIT"; break;
+		case CARD_INSERTED:
+			if (rdr->client->typ=='p')
+				txt = "CONNECTED";
+			else
+				txt = "CARDOK";
+			break;
+		case CARD_FAILURE: txt = "ERROR"; break;
+		default: txt = "UNDEF";
+		}
+		tpl_addVar(vars, TPLADD, "READERSTATUS", txt);
+		tpl_printf(vars, TPLADD, "READERCAID", "%04X", rdr->caid);
+	}
+
 	int32_t rc2hide = (-1);
 	if (strlen(getParam(params, "hide")) > 0)
 			rc2hide = atoi(getParam(params, "hide"));
@@ -1475,7 +1532,7 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 			for (ptr = cfg.account; ptr != NULL && ptr->next != NULL; ptr = ptr->next);
 			ptr->next = account;
 		}
-		memset(account, 0, sizeof(struct s_auth));
+		account->disabled = 1;
 		cs_strncpy((char *)account->usr, user, sizeof(account->usr));
 		account->monlvl=cfg.mon_level;
 		account->tosleep=cfg.tosleep;
@@ -1488,12 +1545,9 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 #endif
 		tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>New user has been added with default settings</b><BR>");
 
-		if (write_userdb(cfg.account)==0)
-			refresh_oscam(REFR_ACCOUNTS);
-		else
+		if (write_userdb()!=0)
 			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
-		// need to reget account as writing to disk changes account!
-		for (account = cfg.account; account != NULL && strcmp(user, account->usr) != 0; account = account->next);
+		// no need to refresh anything here as the account is disabled by default and there's no client with this new account anyway!
 	}
 
 	if((strcmp(getParam(params, "action"), "Save") == 0) || (strcmp(getParam(params, "action"), "Save As") == 0)) {
@@ -1512,15 +1566,12 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 			}
 		}
 		chk_account("services", servicelabels, account);
-		tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Settings updated</B><BR><BR>");
+		tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Account updated</B><BR><BR>");
+		
+		refresh_oscam(REFR_CLIENTS);
 
-		if (write_userdb(cfg.account)==0)
-			refresh_oscam(REFR_ACCOUNTS);
-		else
+		if (write_userdb()!=0)
 			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
-
-		// need to reget account as writing to disk changes account!
-		for (account = cfg.account; account != NULL && strcmp(user, account->usr) != 0; account = account->next);
 	}
 
 	tpl_addVar(vars, TPLADD, "USERNAME", account->usr);
@@ -1684,7 +1735,8 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 }
 
 static char *send_oscam_user_config(struct templatevars *vars, struct uriparams *params, int32_t apicall) {
-	struct s_auth *account, *account2;
+	struct s_auth *account;
+	struct s_client *cl;
 	char *user = getParam(params, "user");
 	int32_t found = 0, hideclient = 10;
 
@@ -1701,31 +1753,33 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 			if(cfg.http_readonly) {
 				tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Webif is in readonly mode. No deletion will be made!</b><BR>");
 			} else {
-				account = cfg.account;
-				if(strcmp(account->usr, user) == 0) {
-					cfg.account = account->next;
-					ll_clear(account->aureader_list);
-					add_garbage(account);
-					found = 1;
-				} else if (account->next != NULL) {
-					do {
-						if(strcmp(account->next->usr, user) == 0) {
-							account2 = account->next;
-							account->next = account2->next;
-							ll_clear(account2->aureader_list);
-							add_garbage(account2);
-							found = 1;
-							break;
+				struct s_auth *account_prev = NULL;
+				
+				for(account = cfg.account; (account); account = account->next){
+					if(strcmp(account->usr, user) == 0) {
+						if(account_prev == NULL)
+							cfg.account = account->next;
+						else
+							account_prev->next = account->next;
+						ll_clear(account->aureader_list);
+						for (cl=first_client->next; cl ; cl=cl->next){
+							if(cl->account == account){
+								if (ph[cl->ctyp].type & MOD_CONN_NET) {
+									kill_thread(cl);
+								} else {
+									cl->account = first_client->account;
+								}
+							}
 						}
-					} while ((account = account->next) && (account->next != NULL));
+						add_garbage(account);
+						found = 1;
+						break;
+					}
+					account_prev = account;
 				}
-
 				if (found > 0) {
-					if (write_userdb(cfg.account)==0)
-						refresh_oscam(REFR_ACCOUNTS);
-					else
+					if (write_userdb()!=0)
 						tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
-
 				} else tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Sorry but the specified user doesn't exist. No deletion will be made!</b><BR>");
 			}
 		}
@@ -1733,12 +1787,21 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 		if ((strcmp(getParam(params, "action"), "disable") == 0) || (strcmp(getParam(params, "action"), "enable") == 0)) {
 			account = get_account_by_name(getParam(params, "user"));
 			if (account) {
-				if(strcmp(getParam(params, "action"), "disable") == 0)
+				if(strcmp(getParam(params, "action"), "disable") == 0){
 					account->disabled = 1;
-				else
+					for (cl=first_client->next; cl ; cl=cl->next){
+						if(cl->account == account){
+							if (ph[cl->ctyp].type & MOD_CONN_NET) {
+								kill_thread(cl);
+							} else {
+								cl->account = first_client->account;
+							}
+						}
+					}
+				} else
 					account->disabled = 0;
-				if (write_userdb(cfg.account) == 0)
-					refresh_oscam(REFR_ACCOUNTS);
+				if (write_userdb() != 0)
+					tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
 			} else {
 				tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Sorry but the specified user doesn't exist. No deletion will be made!</b><BR>");
 			}
@@ -1810,7 +1873,7 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 		//search account in active clients
 		int32_t isactive = 0;
 		struct s_client *cl, *latestclient=NULL;
-		for (cl=first_client; cl ; cl=cl->next) {
+		for (cl=first_client->next; cl ; cl=cl->next) {
 			if (cl->account && !strcmp(cl->account->usr, account->usr)) {
 				if(cl->lastecm > latestactivity || cl->login > latestactivity){
 					if(cl->lastecm > cl->login) latestactivity = cl->lastecm;
@@ -2016,8 +2079,8 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 					if (cc_UA_valid(card->hexserial)) { //Add UA:
 						cc_UA_cccam2oscam(card->hexserial, serbuf, card->caid);
 						char tmp[20];
-						tpl_printf(vars, TPLAPPEND, "HOST", "<BR>\nUA_Oscam:%s", cs_hexdump_buf(0, serbuf, 8, tmp, 20));
-						tpl_printf(vars, TPLAPPEND, "HOST", "<BR>\nUA_CCcam:%s", cs_hexdump_buf(0, card->hexserial, 8, tmp, 20));
+						tpl_printf(vars, TPLAPPEND, "HOST", "<BR>\nUA_Oscam:%s", cs_hexdump(0, serbuf, 8, tmp, 20));
+						tpl_printf(vars, TPLAPPEND, "HOST", "<BR>\nUA_CCcam:%s", cs_hexdump(0, card->hexserial, 8, tmp, 20));
 					}
    					if (!apicall) {
 								int32_t n;
@@ -2312,15 +2375,19 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 						if (cau == 0) {
 							tpl_addVar(vars, TPLADD, "CLIENTCAUHTTP", "OFF");
 						} else {
-							if (cau == -1) tpl_addVar(vars, TPLADD, "CLIENTCAUHTTP", "<a href=\"#\" class=\"tooltip\">ON");
-							else tpl_addVar(vars, TPLADD, "CLIENTCAUHTTP", "<a href=\"#\" class=\"tooltip\">ACTIVE");
+							if (cau == -1)
+								tpl_addVar(vars, TPLADD, "CLIENTCAUHTTP", "<a href=\"#\" class=\"tooltip\">ON");
+							else
+								tpl_addVar(vars, TPLADD, "CLIENTCAUHTTP", "<a href=\"#\" class=\"tooltip\">ACTIVE");
 							tpl_addVar(vars, TPLAPPEND, "CLIENTCAUHTTP", "<span>");
 							if (cl->typ == 'c'){
 								struct s_reader *rdr;
 								LL_ITER itr = ll_iter_create(cl->aureader_list);
 								while ((rdr = ll_iter_next(&itr))) {
-									if(rdr->audisabled) tpl_printf(vars, TPLAPPEND, "CLIENTCAUHTTP", "(%s)<br>", rdr->label);
-									else tpl_printf(vars, TPLAPPEND, "CLIENTCAUHTTP", "%s<br>", rdr->label);
+									if(rdr->audisabled)
+										tpl_printf(vars, TPLAPPEND, "CLIENTCAUHTTP", "(%s)<br>", rdr->label);
+									else
+										tpl_printf(vars, TPLAPPEND, "CLIENTCAUHTTP", "%s<br>", rdr->label);
 								}
 							} else tpl_addVar(vars, TPLAPPEND, "CLIENTCAUHTTP", cl->reader->label);
 							tpl_addVar(vars, TPLAPPEND, "CLIENTCAUHTTP", "</span></a>");
@@ -2628,14 +2695,12 @@ static char *send_oscam_services_edit(struct templatevars *vars, struct uriparam
 			for (ptr = cfg.sidtab; ptr != NULL && ptr->next != NULL; ptr = ptr->next);
 			ptr->next = sidtab;
 		}
-		memset(sidtab, 0, sizeof(struct s_sidtab));
 		cs_strncpy((char *)sidtab->label, label, sizeof(sidtab->label));
 
 		tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>New service has been added</b><BR>");
-		if (write_services()==0) refresh_oscam(REFR_SERVICES);
-		else tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Writing services to disk failed!</b><BR>");
-
-		for (sidtab = cfg.sidtab; sidtab != NULL && strcmp(label, sidtab->label) != 0; sidtab=sidtab->next);
+		// Adding is uncritical as the new service is appended to sidtabok/sidtabno and accounts/clients/readers have zeros there
+		if (write_services()!=0) 
+			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Writing services to disk failed!</b><BR>");
 	}
 
 	if (strcmp(getParam(params, "action"), "Save") == 0) {
@@ -2645,8 +2710,9 @@ static char *send_oscam_services_edit(struct templatevars *vars, struct uriparam
 			}
 		}
 		tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Services updated</B><BR><BR>");
-		if (write_services()==0) refresh_oscam(REFR_SERVICES);
-		else tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
+		// We don't need any refresh here as accounts/clients/readers sidtabok/sidtabno are unaffected!
+		if (write_services()!=0)
+			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<B>Write Config failed</B><BR><BR>");
 
 		for (sidtab = cfg.sidtab; sidtab != NULL && strcmp(label, sidtab->label) != 0; sidtab=sidtab->next);
 	}
@@ -2670,36 +2736,78 @@ static char *send_oscam_services_edit(struct templatevars *vars, struct uriparam
 	return tpl_getTpl(vars, "SERVICEEDIT");
 }
 
+static void delete_from_SIDTABBITS(SIDTABBITS *orgsidtab, int32_t position, int32_t sidtablength){
+	if(*orgsidtab){
+		int32_t i;
+		SIDTABBITS newsidtab = 0;
+		for(i = 0; i < position; ++i){
+			if(*orgsidtab&((SIDTABBITS)1<<i))
+				newsidtab|=((SIDTABBITS)1<<i);
+		}
+		for(; i < sidtablength; ++i){
+			if(*orgsidtab&((SIDTABBITS)1<<(i+1)))
+				newsidtab|=((SIDTABBITS)1<<i);
+		}
+		*orgsidtab = newsidtab;
+	}
+}
+
 static char *send_oscam_services(struct templatevars *vars, struct uriparams *params) {
-	struct s_sidtab *sidtab, *sidtab2;
+	struct s_sidtab *sidtab;
 	char *service = getParam(params, "service");
 	char channame[32];
-	int32_t i, found = 0;
+	int32_t i;	
 
 	if (strcmp(getParam(params, "action"), "delete") == 0) {
 		if(cfg.http_readonly) {
 			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Sorry, Webif is in readonly mode. No deletion will be made!</b><BR>");
 		} else {
+			struct s_sidtab *sidtab_prev = NULL;
+			int32_t sidtablength = -1, counter = 0;			
 			sidtab=cfg.sidtab;
-			if(strcmp(sidtab->label, service) == 0) {
-				cfg.sidtab = sidtab->next;
-				free_sidtab(sidtab);
-				found = 1;
-			} else if (sidtab->next != NULL) {
-				do {
-					if(strcmp(sidtab->next->label, service) == 0) {
-						sidtab2 = sidtab->next;
-						sidtab->next = sidtab2->next;
-						free_sidtab(sidtab2);
-						found = 1;
-						break;
+			
+			// Calculate sidtablength before deletion so that updating sidtabs is faster
+			for (sidtab=cfg.sidtab; sidtab; sidtab = sidtab->next)
+				++sidtablength;
+			
+			for (sidtab=cfg.sidtab; sidtab; sidtab = sidtab->next){
+				if(strcmp(sidtab->label, service) == 0) {
+					struct s_auth *account;
+					struct s_client *cl;
+					struct s_reader *rdr;					
+					
+					if(sidtab_prev == NULL)
+						cfg.sidtab = sidtab->next;
+					else
+						sidtab_prev->next = sidtab->next;						
+					free_sidtab(sidtab);
+					
+					for (account = cfg.account; (account); account = account->next) {
+						delete_from_SIDTABBITS(&account->sidtabok, counter, sidtablength);
+						delete_from_SIDTABBITS(&account->sidtabno, counter, sidtablength);
 					}
-				} while ((sidtab = sidtab->next) && (sidtab->next != NULL));
+					
+					for (cl=first_client->next; cl ; cl=cl->next){
+						if(account = cl->account){
+							cl->sidtabok = account->sidtabok;
+							cl->sidtabno = account->sidtabok;
+						}
+					}
+					
+					LL_ITER itr = ll_iter_create(configured_readers);
+					while((rdr = ll_iter_next(&itr))){
+						delete_from_SIDTABBITS(&rdr->sidtabok, counter, sidtablength);
+						delete_from_SIDTABBITS(&rdr->sidtabno, counter, sidtablength);
+					}
+					break;
+				}
+				++counter;
+				sidtab_prev = sidtab;
 			}
-			if (found > 0) {
+			if (counter > 0) {
 				tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Service has been deleted!</b><BR>");
-				if (write_services() == 0) refresh_oscam(REFR_SERVICES);
-				else tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Writing services to disk failed!</b><BR>");
+				if (write_services() != 0) 
+					tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Writing services to disk failed!</b><BR>");
 			} else tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Sorry but the specified service doesn't exist. No deletion will be made!</b><BR>");
 		}
 	}
@@ -3165,6 +3273,12 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 					tpl_addVar(vars, TPLADD, "CLIENTUSER", xml_encode(vars, usr));
 					tpl_printf(vars, TPLADD, "CLIENTLASTRESPONSETIME", "%d", cl->cwlastresptime?cl->cwlastresptime:-1);
 					tpl_printf(vars, TPLADD, "CLIENTIDLESECS", "%d", isec);
+				
+					//load historical values from ringbuffer
+					char *value = get_ecm_fullhistorystring(cl);
+					tpl_printf(vars, TPLADD, "CLIENTLASTRESPONSETIMEHIST", "%s", value);
+					free_mk_t(value);
+					
 					tpl_addVar(vars, TPLAPPEND, "APISTATUSBITS", tpl_getTpl(vars, "APISTATUSBIT"));
 				}
 			}
@@ -3313,7 +3427,8 @@ static int32_t readRequest(FILE *f, struct in_addr in, char **result, int8_t for
 				return -1;
 			}
 #else
-			cs_debug_mask(D_TRACE, "WebIf: read error ret=%d (errno=%d %s)", n, errno, strerror(errno));
+			if(errno != ECONNRESET)
+				cs_debug_mask(D_TRACE, "WebIf: read error ret=%d (errno=%d %s)", n, errno, strerror(errno));
 #endif
 			return -1;
 		}
@@ -3421,7 +3536,8 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 			"/oscamapi.html",
 			"/image",
 			"/favicon.ico",
-			"/graph.svg"};
+			"/graph.svg",
+			"/oscamapi.xml"};
 	
 		int32_t pagescnt = sizeof(pages)/sizeof(char *); // Calculate the amount of items in array
 		int32_t i, bufsize, len, pgidx = -1;
@@ -3598,10 +3714,11 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 #endif
 				case 16: result = send_oscam_failban(vars, &params); break;
 				//case  17: js file
-				case 18: result = send_oscam_api(vars, f, &params, keepalive); break;
+				case 18: result = send_oscam_api(vars, f, &params, keepalive); break; //oscamapi.html
 				case 19: result = send_oscam_image(vars, f, &params, NULL, modifiedheader, etagheader); break;
 				case 20: result = send_oscam_image(vars, f, &params, "ICMAI", modifiedheader, etagheader); break;
 				case 21: result = send_oscam_graph(vars); break;
+				case 22: result = send_oscam_api(vars, f, &params, keepalive); break; //oscamapi.xml
 				default: result = send_oscam_status(vars, &params, 0); break;
 			}
 			if(pgidx != 19 && pgidx != 20) cs_unlock(&http_lock);
