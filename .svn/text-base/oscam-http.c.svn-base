@@ -2342,17 +2342,18 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 					if (cfg.http_hide_idle_clients != 1 && cfg.mon_hideclient_to > 0 && (now - cl->lastecm) <= cfg.mon_hideclient_to){
 						user_count_active++;
 						tpl_addVar(vars, TPLADD, "CLIENTTYPE", "a");
-					} else tpl_addVar(vars, TPLADD, "CLIENTTYPE", "c");
-					if(cl->lastecm > cl->login) isec = now - cl->lastecm;
-					else isec = now - cl->login;
+					} else tpl_addVar(vars, TPLADD, "CLIENTTYPE", "c");					
 				} else {
 					if (cl->typ=='r' && cl->reader->card_status==CARD_INSERTED)
 						reader_count_conn++;
 					else if (cl->typ=='p' && (cl->reader->card_status==CARD_INSERTED ||cl->reader->tcp_connected))
 						proxy_count_conn++;
-					tpl_printf(vars, TPLADD, "CLIENTTYPE", "%c", cl->typ);
-					isec = now - cl->last;
+					tpl_printf(vars, TPLADD, "CLIENTTYPE", "%c", cl->typ);					
 				}
+				if(cl->typ == 'c' || cl->typ == 'r' || cl->typ == 'p'){
+					if(cl->lastecm > cl->login) isec = now - cl->lastecm;
+					else isec = now - cl->login;
+				} else isec = now - cl->last;
 
 				shown = 1;
 				lsec = now - cl->login;
@@ -2453,9 +2454,13 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 				}
 
 				if (!apicall) {
-					tpl_printf(vars, TPLADD, "CLIENTLOGINDATE", "%02d.%02d.%02d", lt.tm_mday, lt.tm_mon+1, lt.tm_year%100);
-					tpl_printf(vars, TPLAPPEND, "CLIENTLOGINDATE", " %02d:%02d:%02d", lt.tm_hour, lt.tm_min, lt.tm_sec);
-					tpl_addVar(vars, TPLADD, "CLIENTLOGINSECS", sec2timeformat(vars, lsec));
+					if((cl->typ != 'p' && cl->typ != 'r') || cl->reader->card_status == CARD_INSERTED){
+						tpl_printf(vars, TPLADD, "CLIENTLOGINDATE", "%02d.%02d.%02d  %02d:%02d:%02d", lt.tm_mday, lt.tm_mon+1, lt.tm_year%100, lt.tm_hour, lt.tm_min, lt.tm_sec);
+						tpl_addVar(vars, TPLADD, "CLIENTLOGINSECS", sec2timeformat(vars, lsec));
+					} else {
+						tpl_addVar(vars, TPLADD, "CLIENTLOGINDATE", "");
+						tpl_addVar(vars, TPLADD, "CLIENTLOGINSECS", "");
+					}
 				} else {
 					char tbuffer [30];
 					strftime(tbuffer, 30, "%Y-%m-%dT%H:%M:%S%z", &lt);
@@ -2756,14 +2761,14 @@ static char *send_oscam_services(struct templatevars *vars, struct uriparams *pa
 	struct s_sidtab *sidtab;
 	char *service = getParam(params, "service");
 	char channame[32];
-	int32_t i;	
+	int32_t i, counter = 0;
 
 	if (strcmp(getParam(params, "action"), "delete") == 0) {
 		if(cfg.http_readonly) {
 			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Sorry, Webif is in readonly mode. No deletion will be made!</b><BR>");
 		} else {
 			struct s_sidtab *sidtab_prev = NULL;
-			int32_t sidtablength = -1, counter = 0;			
+			int32_t sidtablength = -1;
 			sidtab=cfg.sidtab;
 			
 			// Calculate sidtablength before deletion so that updating sidtabs is faster
@@ -2788,7 +2793,7 @@ static char *send_oscam_services(struct templatevars *vars, struct uriparams *pa
 					}
 					
 					for (cl=first_client->next; cl ; cl=cl->next){
-						if(account = cl->account){
+						if(account == cl->account){
 							cl->sidtabok = account->sidtabok;
 							cl->sidtabno = account->sidtabok;
 						}
@@ -2814,6 +2819,7 @@ static char *send_oscam_services(struct templatevars *vars, struct uriparams *pa
 
 	sidtab = cfg.sidtab;
 	// Show List
+	counter = 0;
 	while(sidtab != NULL) {
 		tpl_printf(vars, TPLADD, "SID","");
 		if ((strcmp(getParam(params, "service"), sidtab->label) == 0) && (strcmp(getParam(params, "action"), "list") == 0) ) {
@@ -2832,6 +2838,11 @@ static char *send_oscam_services(struct templatevars *vars, struct uriparams *pa
 
 		tpl_addVar(vars, TPLAPPEND, "SERVICETABS", tpl_getTpl(vars, "SERVICECONFIGLISTBIT"));
 		sidtab=sidtab->next;
+		counter++;
+	}
+	if(counter >= MAX_SIDBITS) {
+		tpl_addVar(vars, TPLADD, "BTNDISABLED", "DISABLED");
+		tpl_addVar(vars, TPLADD, "MESSAGE", "Maximum Number of Services is reached");
 	}
 	return tpl_getTpl(vars, "SERVICECONFIGLIST");
 }

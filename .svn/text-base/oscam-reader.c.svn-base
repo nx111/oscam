@@ -171,6 +171,8 @@ int32_t network_tcp_connection_open()
 		fcntl(sd, F_SETFL, fl); //connect sucessfull, restore blocking mode
 		setTCPTimeouts(sd);
 		clear_block_delay(rdr);
+		cl->last=cl->login=time((time_t)0);
+		cl->last_caid=cl->last_srvid=0;
 		return sd;
 	}
 
@@ -187,6 +189,8 @@ int32_t network_tcp_connection_open()
 					fcntl(sd, F_SETFL, fl);
 					setTCPTimeouts(sd);
 					clear_block_delay(rdr);
+					cl->last=cl->login=time((time_t)0);
+					cl->last_caid=cl->last_srvid=0;
 					return sd; //now we are connected
 				}
 			}
@@ -199,6 +203,8 @@ int32_t network_tcp_connection_open()
 		fcntl(sd, F_SETFL, fl);
 		setTCPTimeouts(sd);
 		clear_block_delay(rdr);
+		cl->last=cl->login=time((time_t)0);
+		cl->last_caid=cl->last_srvid=0;
 		return sd;
 	}
 
@@ -449,6 +455,8 @@ static int32_t reader_store_emm(uchar *emm, uchar type)
 
 static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
 {
+	struct s_client *cl = reader->client;
+	if(!cl) return;
   //cs_log("hallo idx:%d rc:%d caid:%04X",er->idx,er->rc,er->caid);
   if (er->rc<=E_STOPPED)
     {
@@ -479,6 +487,7 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
     cl->last_srvid=er->srvid;
     cl->last_caid=er->caid;
     casc_process_ecm(reader, er);
+    cl->lastecm=time((time_t)0);
     return;
   }
 #ifdef WITH_CARDREADER
@@ -528,6 +537,7 @@ static void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
   	cs_log("Error processing ecm for caid %04X, srvid %04X (servicename: %s) on reader %s.", er->caid, er->srvid, get_servicename(reader->client, er->srvid, er->caid, buf), reader->label);  	
   }
   cs_ftime(&tpe);
+ 	cl->lastecm=time((time_t)0);
   if (cs_dblevel) {
 	uint16_t lc, *lp;
 	for (lp=(uint16_t *)er->ecm+(er->l>>2), lc=0; lp>=(uint16_t *)er->ecm; lp--)
@@ -819,6 +829,7 @@ void * start_cardreader(void * rdr)
    	while (reader_device_init(reader)==2)
      	cs_sleepms(60000); // wait 60 secs and try again
   }
+  client->login=time((time_t)0);
 
 #endif
 	cs_malloc(&client->emmcache,CS_EMMCACHESIZE*(sizeof(struct s_emm)), 1);
