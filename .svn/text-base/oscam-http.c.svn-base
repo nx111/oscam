@@ -1023,6 +1023,13 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		tpl_addVar(vars, TPLADD, "FIX9993VALUE", (rdr->fix_9993 == 1) ? "1" : "0");
 	}
 
+	// Drop CWs with wrong checksum:
+	if(!apicall) {
+		tpl_addVar(vars, TPLADD, "DROPBADCWSCHECKED", (rdr->dropbadcws == 1) ? "checked" : "");
+	} else {
+		tpl_addVar(vars, TPLADD, "DROPBADCWSVALUE", (rdr->dropbadcws == 1) ? "1" : "0");
+	}
+
 	// AUdisabled
 	if(!apicall) {
 		tpl_addVar(vars, TPLADD, "AUDISABLED", (rdr->audisabled == 1) ? "checked" : "");
@@ -2509,7 +2516,10 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 				}
 
 				if (!apicall) {
-					tpl_addVar(vars, TPLADD, "CLIENTIDLESECS", sec2timeformat(vars, isec));
+					if((cl->typ != 'p' && cl->typ != 'r') || cl->reader->card_status == CARD_INSERTED)
+						tpl_addVar(vars, TPLADD, "CLIENTIDLESECS", sec2timeformat(vars, isec));
+					else
+						tpl_printf(vars, TPLADD, "CLIENTIDLESECS", "<font color=\"red\">%s</font>", sec2timeformat(vars, isec));
 				} else {
 					tpl_printf(vars, TPLADD, "CLIENTIDLESECS", "%d", isec);
 				}

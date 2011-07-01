@@ -2,7 +2,7 @@
 
 #include "globals.h"
 
-#ifdef OS_MACOSX
+#if defined OS_MACOSX || defined OS_FREEBSD
 #include <net/if_dl.h>
 #include <ifaddrs.h>
 #elif defined OS_SOLARIS
@@ -2774,6 +2774,9 @@ int32_t write_server()
 				fprintf_conf(f, "blocknano", "%s\n", value);
 			free_mk_t(value);
 
+			if (rdr->dropbadcws)
+				fprintf_conf(f, "dropbadcws", "%d\n", rdr->dropbadcws);
+				
 #ifdef MODULE_CCCAM
 			if (rdr->typ == R_CCCAM) {
 				if (rdr->cc_version[0] || cfg.http_full_cfg)
@@ -3683,7 +3686,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
     }
 
     if (!memcmp(mac, "\x00\x00\x00\x00\x00\x00", 6)) {
-#ifdef OS_MACOSX
+#if defined OS_MACOSX || defined OS_FREEBSD
       // no mac address specified so use mac of en0 on local box
       struct ifaddrs *ifs, *current;
 
@@ -4429,6 +4432,12 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 			return;
 		}
 	}
+	
+	if (!strcmp(token, "dropbadcws")) {
+		rdr->dropbadcws = strToIntVal(value, 0);
+		return;
+	}
+	
 	if (token[0] != '#')
 		fprintf(stderr, "Warning: keyword '%s' in reader section not recognized\n",token);
 }

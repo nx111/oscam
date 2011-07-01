@@ -129,7 +129,7 @@ void block_connect(struct s_reader *rdr) {
   	rdr->tcp_block_delay = 100; //starting blocking time, 100ms
   rdr->tcp_block_connect_till.time += rdr->tcp_block_delay / 1000;
   rdr->tcp_block_connect_till.millitm += rdr->tcp_block_delay % 1000;
-  rdr->tcp_block_delay *= 2; //increment timeouts
+  rdr->tcp_block_delay *= 4; //increment timeouts
 //  if (rdr->tcp_block_delay >= 60*1000)
 //    rdr->tcp_block_delay = 60*1000; //max 1min, todo config
   cs_debug_mask(D_TRACE, "tcp connect blocking delay for %s set to %d", rdr->label, rdr->tcp_block_delay);
@@ -167,6 +167,7 @@ int32_t network_tcp_connection_open()
 	fcntl(sd, F_SETFL, O_NONBLOCK); //set to nonblocking mode to avoid "endless" connecting loops and pipe-overflows:
 
 	int32_t res = connect(sd, (struct sockaddr *)&cl->udp_sa, sizeof(cl->udp_sa));
+	cs_sleepms(100);	// wait a bit for the connection to set up
 	if (res == 0) { 
 		fcntl(sd, F_SETFL, fl); //connect sucessfull, restore blocking mode
 		setTCPTimeouts(sd);
@@ -250,6 +251,7 @@ void network_tcp_connection_close(struct s_client *cl, int32_t fd)
     if(reader) {
         reader->ncd_msgid=0;
         reader->last_s=reader->last_g=0;
+        cl->login=time((time_t)0);
         
         if (reader->ph.c_init(cl)) {
             cs_debug_mask(D_READER, "network_tcp_connection_close() exit(1);");
