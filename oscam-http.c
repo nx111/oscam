@@ -2238,6 +2238,25 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 				}
 			}
 
+			if (rdr->ll_entitlements) {
+
+				struct tm start_t, end_t;
+				LL_ITER itr = ll_iter_create(rdr->ll_entitlements);
+				S_ENTITLEMENT *item;
+
+				tpl_addVar(vars, TPLAPPEND, "LOGHISTORY", "<BR><BR>New Structure:<BR>");
+				while ((item = ll_iter_next(&itr))) {
+
+					localtime_r(&item->start, &start_t);
+					localtime_r(&item->end, &end_t);
+
+					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "entitlement: caid %04X id %04X ", item->caid, item->id);
+					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%02d.%02d.%02d - %02d.%02d.%02d<BR>\n",
+							start_t.tm_mday, start_t.tm_mon+1, start_t.tm_year%100,
+							end_t.tm_mday, end_t.tm_mon+1, end_t.tm_year%100);
+				}
+			}
+
 			tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
 			tpl_addVar(vars, TPLADD, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTGENERICBIT"));
 		}
@@ -3247,7 +3266,14 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 			tpl_addVar(vars, TPLADD, "APIERRORMESSAGE", "API is in readonly mode");
 			return tpl_getTpl(vars, "APIERROR");
 		} else {
-			return send_oscam_user_config_edit(vars, params, 1);
+			struct s_auth *account = get_account_by_name(getParam(params, "user"));
+			if (!account && strcmp(getParam(params, "action"), "Save")) {
+				//Send Errormessage
+				tpl_addVar(vars, TPLADD, "APIERRORMESSAGE", "user not exist");
+				return tpl_getTpl(vars, "APIERROR");
+			} else {
+				return send_oscam_user_config_edit(vars, params, 1);
+			}
 		}
 	}
 	else if (strcmp(getParam(params, "part"), "entitlement") == 0) {
