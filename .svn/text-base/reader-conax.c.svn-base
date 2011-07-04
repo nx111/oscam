@@ -11,6 +11,18 @@ static char *chid_date(const uchar *ptr, char *buf, int32_t l)
   return(buf);
 }
 
+/* todo: for discussion
+static time_t chid_date_t(const uchar *ptr, char *buf, int32_t l)
+{
+	struct tm tm;
+	if (buf) {
+		snprintf(buf, l, "%04d/%02d/%02d", 1990+(ptr[1]>>4)+(((ptr[0]>>5)&7)*10), ptr[1]&0xf, ptr[0]&0x1f);
+		strptime(buf, "%Y/%m/%d", &tm);
+	}
+	return(mktime(&tm));
+}
+*/
+
 static int32_t read_record(struct s_reader * reader, const uchar *cmd, const uchar *data, uchar * cta_res)
 {
   uint16_t cta_lr;
@@ -294,6 +306,8 @@ static int32_t conax_card_info(struct s_reader * reader)
 	uchar insCA[] = {0xDD, 0xCA, 0x00, 0x00, 0x00};
 	char *txt[] = { "Package", "PPV-Event" };
 	static const uchar *cmd[] = { insC6, ins26 };
+	struct tm tm;
+	time_t start_t, end_t;
 
 	for (type=0; type<2; type++) {
 		n=0;
@@ -315,8 +329,25 @@ static int32_t conax_card_info(struct s_reader * reader)
 							case 0x30:
 								if (k > 1) {
 									cs_ri_log(reader, "%s: %d, id: %04X%s, date: %s - %s, name: %s", txt[type], ++n, provid, chid, pdate, pdate+16, trim(provname));
+
+									strptime(pdate, "%Y/%m/%d", &tm);
+									start_t = mktime(&tm);
+									strptime(pdate + 16, "%Y/%m/%d", &tm);
+									end_t = mktime(&tm);
+
+									// todo: add entitlements to list
+									cs_add_entitlement(reader,
+													reader->caid,
+													b2ll(4, reader->prid[0]),
+													provid,
+													0,
+													start_t,
+													end_t,
+													type + 1);
+
 									k = 0;
 									chid[0] = '\0';
+
 								}
 								chid_date(cta_res+i+2, pdate+(k++<<4), 15);
 								break;
@@ -327,6 +358,21 @@ static int32_t conax_card_info(struct s_reader * reader)
 						}
 					}
 					cs_ri_log(reader, "%s: %d, id: %04X%s, date: %s - %s, name: %s", txt[type], ++n, provid, chid, pdate, pdate+16, trim(provname));
+
+					strptime(pdate, "%Y/%m/%d", &tm);
+					start_t = mktime(&tm);
+					strptime(pdate + 16, "%Y/%m/%d", &tm);
+					end_t = mktime(&tm);
+
+					// todo: add entitlements to list
+					cs_add_entitlement(reader,
+							reader->caid,
+							b2ll(4, reader->prid[0]),
+							provid,
+							0,
+							start_t,
+							end_t,
+							type + 1);
 				}
 			}
 		}

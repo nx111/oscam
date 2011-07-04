@@ -39,7 +39,7 @@ void cs_ri_log(struct s_reader * reader, char *fmt,...)
 /**
  * add one entitlement item to entitlements of reader.
  **/
-void cs_add_entitlement(struct s_reader *rdr, uint16_t caid, uint32_t provid, uint16_t id, uint16_t class, time_t start, time_t end)
+void cs_add_entitlement(struct s_reader *rdr, uint16_t caid, uint32_t provid, uint16_t id, uint16_t class, time_t start, time_t end, uint8_t type)
 {
 	if (!rdr->ll_entitlements) rdr->ll_entitlements = ll_create();
 
@@ -55,11 +55,12 @@ void cs_add_entitlement(struct s_reader *rdr, uint16_t caid, uint32_t provid, ui
 		item->class = class;
 		item->start = start;
 		item->end = end;
+		item->type = type;
 
 		//add item
 		ll_iter_insert(&itr, item);
 
-		cs_debug_mask(D_TRACE, "entitlement: Add caid %4X id %4X %s - %s ", item->caid, item->id, item->start, item->end);
+		// cs_debug_mask(D_TRACE, "entitlement: Add caid %4X id %4X %s - %s ", item->caid, item->id, item->start, item->end);
 	}
 
 }
