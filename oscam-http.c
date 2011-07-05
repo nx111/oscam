@@ -2241,6 +2241,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 			if (rdr->ll_entitlements) {
 
 				char *typetxt[] = {"", "Package", "PPV-Event", "chid", "tier" };
+				time_t now = time((time_t)0);
 
 				struct tm start_t, end_t;
 				LL_ITER itr = ll_iter_create(rdr->ll_entitlements);
@@ -2252,12 +2253,12 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 					localtime_r(&item->start, &start_t);
 					localtime_r(&item->end, &end_t);
 
-					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "entitlement %s: caid %04X provid %08X id %04X ",
-							typetxt[item->type], item->caid, item->provid, item->id);
+					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "<SPAN CLASS=\"%s\">entitlement %s: caid %04X provid %06X id %04X ",
+							item->end > now ? "e_valid" : "e_expired" , typetxt[item->type], item->caid, item->provid, item->id);
 
-					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%02d.%02d.%02d - %02d.%02d.%02d<BR>\n",
-							start_t.tm_mday, start_t.tm_mon+1, start_t.tm_year%100,
-							end_t.tm_mday, end_t.tm_mon+1, end_t.tm_year%100);
+					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%02d.%02d.%04d - %02d.%02d.%04d</SPAN><BR>\n",
+							start_t.tm_mday, start_t.tm_mon + 1, start_t.tm_year + 1900,
+							end_t.tm_mday, end_t.tm_mon + 1, end_t.tm_year + 1900);
 				}
 			}
 
@@ -2446,8 +2447,14 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 				tpl_printf(vars, TPLADD, "CLIENTTYPE", "%c", cl->typ);
 				tpl_printf(vars, TPLADD, "CLIENTCNR", "%d", get_threadnum(cl));
 				tpl_addVar(vars, TPLADD, "CLIENTUSER", xml_encode(vars, usr));
-				if (cl->typ == 'c')
+				
+				if(cl->typ == 'c') {
 					tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->account?cl->account->description:""));
+				}
+				else if(cl->typ == 'p' || cl->typ == 'r') {
+					tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->reader->description));
+				}
+				
 				tpl_printf(vars, TPLADD, "CLIENTCAU", "%d", cau);
 				if(!apicall){
 					if(cl->typ == 'c' || cl->typ == 'p' || cl->typ == 'r'){
@@ -3322,6 +3329,12 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 				if ( shown == 1 ) {
 					tpl_printf(vars, TPLADD, "CLIENTTYPE", "%c", cl->typ);
 					tpl_addVar(vars, TPLADD, "CLIENTUSER", xml_encode(vars, usr));
+					if(cl->typ == 'c') {
+						tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->account?cl->account->description:""));
+					}
+					else if(cl->typ == 'p' || cl->typ == 'r') {
+						tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->reader->description));
+					}
 					tpl_printf(vars, TPLADD, "CLIENTLASTRESPONSETIME", "%d", cl->cwlastresptime?cl->cwlastresptime:-1);
 					tpl_printf(vars, TPLADD, "CLIENTIDLESECS", "%d", isec);
 				

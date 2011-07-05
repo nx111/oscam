@@ -573,7 +573,7 @@ static int32_t ParseDataType(struct s_reader * reader, unsigned char dt, unsigne
       				// todo: add entitlements to list
       				cs_add_entitlement(reader,
       								reader->caid,
-      								b2i(3, reader->prid[0]),
+      								id,
       								chid,
       								0,
       								tier_date(b2i(2, cta_res+20)-0x7f7, ds, 15),
@@ -627,6 +627,8 @@ static int32_t nagra2_card_init(struct s_reader * reader, ATR newatr)
  	memset(reader->irdId, 0xff, 4);
 	memset(reader->hexserial, 0, 8); 
 	
+	cs_clear_entitlement(reader); // reset the entitlements
+
 	if(memcmp(atr+11,"DNASP240",8)==0 || memcmp(atr+11,"DNASP241", 8)==0) {
 		cs_ri_log(reader, "detect nagra 3 NA card");
 		memcpy(reader->rom,atr+11,15);
