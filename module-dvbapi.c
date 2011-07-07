@@ -2107,7 +2107,7 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 			FILE *ecmtxt;
 			ecmtxt = fopen(ECMINFO_FILE, "w"); 
 			if(ecmtxt != NULL && er->selected_reader) { 
-			    char tmp[132];
+			    char tmp[25];
 			    if(!cfg.dvbapi_ecm_infomode){	//oscam
 				fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
 				fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
@@ -2921,7 +2921,7 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er) {
 
     FILE *ecmtxt;
     if (ecmtxt = fopen(ECMINFO_FILE, "w")) {
-    	char tmp[34];
+    	char tmp[25];
     	if(er->rc <= E_EMU) {
 			fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
 			fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
