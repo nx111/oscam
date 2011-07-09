@@ -245,6 +245,18 @@ extern const char *boxdesc[];
 #define EMM_GLOBAL 4
 #define EMM_UNKNOWN 8
 
+//Listener Types
+#define LIS_CAMD33TCP	1
+#define LIS_CAMD35UDP	2
+#define LIS_CAMD35TCP	4
+#define LIS_NEWCAMD		8
+#define LIS_CCCAM		16
+#define LIS_GBOX		32
+#define LIS_RADEGAST	64
+#define LIS_DVBAPI		128
+#define LIS_CONSTCW		256
+#define LIS_SERIAL		1024
+
 //EMM types:
 #define UNKNOWN 0
 #define UNIQUE	1
@@ -461,6 +473,7 @@ struct s_emm {
 typedef struct v_ban {					// failban listmember
 	int32_t 		v_count;
 	uint32_t 		v_ip;
+	int32_t			v_port;
 	time_t 			v_time;
 } V_BAN;
 
@@ -483,6 +496,7 @@ struct s_module {
 	int8_t			active;
 	int8_t			multi;
 	int8_t			type;
+	int16_t			listenertype;
 	int8_t			watchdog;
 	char 			desc[16];
 	char 			*logtxt;

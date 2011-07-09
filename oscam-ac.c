@@ -62,10 +62,10 @@ void ac_do_stat()
         prev_deny=acasc->ac_deny;
         acasc->ac_deny = (exceeds >= cfg.ac_denysamples);
         
-        cs_debug_mask(D_CLIENT, "%s limit=%d, max=%d, samples=%d, dsamples=%d, [idx=%d]:",
+        cs_debug_mask(D_CLIENT, "[ac_do_stat]%s limit=%d, max=%d, samples=%d, dsamples=%d, [idx=%d]:",
           client->account->usr, client->ac_limit, maxval, 
           cfg.ac_samples, cfg.ac_denysamples, idx);
-        cs_debug_mask(D_CLIENT, "%d %d %d %d %d %d %d %d %d %d ", ac_stat->stat[0],
+        cs_debug_mask(D_CLIENT, "[ac_do_stat]%d %d %d %d %d %d %d %d %d %d ", ac_stat->stat[0],
           ac_stat->stat[1], ac_stat->stat[2], ac_stat->stat[3],
           ac_stat->stat[4], ac_stat->stat[5], ac_stat->stat[6],
           ac_stat->stat[7], ac_stat->stat[8], ac_stat->stat[9]);
@@ -149,6 +149,7 @@ void ac_chk(struct s_client *cl, ECM_REQUEST *er, int32_t level)
 	struct s_acasc_shm *acasc = &cl->acasc;
 
 	if( level == 1 ) {
+		cs_debug_mask(D_CLIENT,"[ac_chk 1]er->rc=%d,acasc->ac_count=%d",er->rc,acasc->ac_count);
 		if( er->rc == E_FAKE )
 			acasc->ac_count++;
 
@@ -159,6 +160,7 @@ void ac_chk(struct s_client *cl, ECM_REQUEST *er, int32_t level)
 			acasc->ac_count += ac_dw_weight(er);
 			memcpy(ac_ecmd5, er->ecmd5, CS_ECMSTORESIZE);
 		}
+		cs_debug_mask(D_CLIENT,"[ac_chk 2]acasc->ac_count=%d",acasc->ac_count);
 		return;
 	}
 

@@ -1600,11 +1600,12 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 
 	//Expirationdate
 	struct tm timeinfo;
-	localtime_r (&account->expirationdate, &timeinfo);
+	gmtime_r (&account->expirationdate, &timeinfo);
 	char buf [80];
 	strftime (buf,80,"%Y-%m-%d",&timeinfo);
 	if(strcmp(buf,"1970-01-01")) tpl_addVar(vars, TPLADD, "EXPDATE", buf);
 
+	//Allowed TimeFrame
 	if(account->allowedtimeframe[0] && account->allowedtimeframe[1]) {
 		tpl_printf(vars, TPLADD, "ALLOWEDTIMEFRAME", "%02d:%02d-%02d:%02d",
 				account->allowedtimeframe[0]/60,
@@ -2262,12 +2263,12 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 							item->end > now ? "e_valid" : "e_expired" , typetxt[item->type], item->caid, item->provid, item->id, item->class);
 
 					if ( item->start != 0 ){
-					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%02d.%02d.%04d - %02d.%02d.%04d</SPAN><BR>\n",
-							start_t.tm_mday, start_t.tm_mon + 1, start_t.tm_year + 1900,
-							end_t.tm_mday, end_t.tm_mon + 1, end_t.tm_year + 1900);
+						tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%02d.%02d.%04d - %02d.%02d.%04d</SPAN><BR>\n",
+								start_t.tm_mday, start_t.tm_mon + 1, start_t.tm_year + 1900,
+								end_t.tm_mday, end_t.tm_mon + 1, end_t.tm_year + 1900);
 					} else {
 						tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "      n/a      - %02d.%02d.%04d</SPAN><BR>\n",
-							end_t.tm_mday, end_t.tm_mon + 1, end_t.tm_year + 1900);
+								end_t.tm_mday, end_t.tm_mon + 1, end_t.tm_year + 1900);
 					}
 
 					//char tbuffer[30];
@@ -3248,7 +3249,7 @@ static char *send_oscam_failban(struct templatevars *vars, struct uriparams *par
 
 	while ((v_ban_entry=ll_iter_next(&itr))) {
 
-		tpl_addVar(vars, TPLADD, "IPADDRESS", cs_inet_ntoa(v_ban_entry->v_ip));
+		tpl_printf(vars, TPLADD, "IPADDRESS", "%s : %d", cs_inet_ntoa(v_ban_entry->v_ip), v_ban_entry->v_port);
 
 		struct tm st ;
 		localtime_r(&v_ban_entry->v_time, &st);
