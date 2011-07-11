@@ -281,7 +281,7 @@ extern int32_t casc_recv_timer(struct s_reader * reader, uchar *buf, int32_t l, 
 extern void clear_reader_pipe(struct s_reader * reader);
 extern void block_connect(struct s_reader *rdr);
 extern int32_t is_connect_blocked(struct s_reader *rdr);
-void cs_add_entitlement(struct s_reader *rdr, uint16_t caid, uint32_t provid, uint16_t id, uint16_t class, time_t start, time_t end, uint8_t type);
+void cs_add_entitlement(struct s_reader *rdr, uint16_t caid, uint32_t provid, uint64_t id, uint32_t class, time_t start, time_t end, uint8_t type);
 extern void cs_clear_entitlement(struct s_reader *rdr);
 
 /* ===========================
@@ -414,4 +414,4 @@ extern int32_t reader_emm(struct s_reader * reader, EMM_PACKET *);
 extern int32_t reader_get_emm_type(EMM_PACKET *ep, struct s_reader * reader);
 extern struct s_cardsystem *get_cardsystem_by_caid(uint16_t caid);
 extern void reader_device_close(struct s_reader * reader);
-extern int8_t cs_emmlen_is_blocked(struct s_reader *rdr, int8_t len);
+extern int8_t cs_emmlen_is_blocked(struct s_reader *rdr, int16_t len);

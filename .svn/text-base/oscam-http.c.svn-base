@@ -2246,7 +2246,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 
 			if (rdr->ll_entitlements) {
 
-				char *typetxt[] = {"", "Package", "PPV-Event", "chid", "tier", "class" };
+				char *typetxt[] = {"", "package", "PPV-Event", "chid", "tier", "class", "PBM" };
 				time_t now = time((time_t)0);
 
 				struct tm start_t, end_t;
@@ -2259,7 +2259,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 					localtime_r(&item->start, &start_t);
 					localtime_r(&item->end, &end_t);
 
-					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "<SPAN CLASS=\"%s\">entitlement %s: caid %04X provid %06X id %04X class %02X valid ",
+					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "<SPAN CLASS=\"%s\">entitlement %s: caid %04X provid %06X id %016lX class %08X valid ",
 							item->end > now ? "e_valid" : "e_expired" , typetxt[item->type], item->caid, item->provid, item->id, item->class);
 
 					if ( item->start != 0 ){
@@ -2267,7 +2267,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 								start_t.tm_mday, start_t.tm_mon + 1, start_t.tm_year + 1900,
 								end_t.tm_mday, end_t.tm_mon + 1, end_t.tm_year + 1900);
 					} else {
-						tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "      n/a      - %02d.%02d.%04d</SPAN><BR>\n",
+						tpl_printf(vars, TPLAPPEND, "LOGHISTORY", " until %02d.%02d.%04d</SPAN><BR>\n",
 								end_t.tm_mday, end_t.tm_mon + 1, end_t.tm_year + 1900);
 					}
 
@@ -2598,6 +2598,47 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 								}
 					}
 					tpl_addVar(vars, TPLADD, "CLIENTCON", txt);
+
+					if (cl->typ == 'r') //reader
+					{ 
+						struct s_reader *rdr = cl->reader;
+						if (rdr->ll_entitlements)
+						{
+							char *typetxt[] = {"Id", "Package", "PPV-Event", "Chid", "Tier", "Class", "PBM" };
+							LL_ITER itr = ll_iter_create(rdr->ll_entitlements);
+							S_ENTITLEMENT *ent;
+							uint16_t total_ent = 0;
+							uint16_t active_ent = 0;
+							time_t now = time((time_t)0);
+							struct tm end_t;
+							
+							tpl_printf(vars, TPLADD, "TMPSPAN", "<SPAN>");
+							while((ent = ll_iter_next(&itr)))
+							{
+								total_ent++;
+								if (ent->end > now)
+								{	active_ent++;
+									localtime_r(&ent->end, &end_t);
+									    tpl_printf(vars, TPLAPPEND, "TMPSPAN", (ent->type == 6)?"%s:%016lX<BR>":"%s:%04lX<BR>", 
+										typetxt[ent->type],
+										ent->id);
+									tpl_printf(vars, TPLAPPEND, "TMPSPAN", "%04X:%06X<BR>exp:%04d/%02d/%02d<BR><BR>",
+									    ent->caid, ent->provid, 
+									    end_t.tm_year + 1900, end_t.tm_mon + 1, end_t.tm_mday);
+								}
+							}
+							tpl_printf(vars, TPLAPPEND, "TMPSPAN", "</SPAN>");
+							
+							tpl_printf(vars, TPLADD, "TMP", "(%d of %d entitlements)", active_ent, total_ent);
+							
+							
+							tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" class=\"tooltip%s\">%s%s</A>",
+														urlencode(vars, cl->reader->label),
+														active_ent > 0 ? "1": "",
+														tpl_getVar(vars, "TMP"),
+														active_ent > 0 ? tpl_getVar(vars, "TMPSPAN") : "");
+						}
+					}
 
 #ifdef MODULE_CCCAM
 					if (!apicall) {
@@ -3332,11 +3373,17 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 		struct s_client *cl;
 		for (i=0, cl=first_client; cl ; cl=cl->next, i++) {
 			if (cl->wihidden != 1) {
-				isec = now - cl->last;
+				isec = now - cl->lastecm;
 				usr=username(cl); 
 				shown = 0;
 				if (strcmp(getParam(params, "label"),"") == 0) {
-					if ( (cl->typ=='p') || (cl->typ=='r') ) shown = 1;
+					if (strcmp(getParam(params, "type"),"servers") == 0) {
+						if ( (cl->typ=='p') || (cl->typ=='r') ) shown = 1;
+					} else if (strcmp(getParam(params, "type"),"users") == 0) {
+						if ( (cl->typ=='c') ) shown = 1;
+					} else {
+						shown = 1;
+					}
 				} else if (strcmp(getParam(params, "label"),usr) == 0) {
 					shown = 1;
 				}

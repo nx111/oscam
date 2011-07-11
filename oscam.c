@@ -104,6 +104,7 @@ int32_t cs_check_v(uint32_t ip, int32_t port, int32_t add) {
 				v_ban_entry->v_time = time((time_t *)0);
 				v_ban_entry->v_ip = ip;
 				v_ban_entry->v_port = port;
+				v_ban_entry->v_count = 1;
 
 				ll_iter_insert(&itr, v_ban_entry);
 
@@ -886,7 +887,8 @@ void cs_reinit_clients(struct s_auth *new_accounts)
 					if (account->uniq)
 						cs_fake_client(cl, account->usr, (account->uniq == 1 || account->uniq == 2)?account->uniq+2:account->uniq, cl->ip);
 #ifdef CS_ANTICASC
-					cl->ac_limit	= (account->ac_users * 100 + 80) * cfg.ac_stime;
+					//cl->ac_limit	= (account->ac_users * 100 + 80) * cfg.ac_stime;
+					ac_init_client(cl,account);
 #endif
 				}
 			} else {
