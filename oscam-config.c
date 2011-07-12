@@ -79,17 +79,17 @@ static const char *cctag[]={"global", "monitor", "camd33", "camd35", "newcamd", 
 /* Returns the default value if string length is zero, otherwise atoi is called*/
 static int32_t strToIntVal(char *value, int32_t defaultvalue){
 	if (strlen(value) == 0) return defaultvalue;
+	errno = 0; // errno should be set to 0 before calling strtol
 	int32_t i = strtol(value, NULL, 10);
-	if (i < 0) return defaultvalue;
-	else return i;
+	return (errno == 0) ? i : defaultvalue;
 }
 
 /* Returns the default value if string length is zero, otherwise strtoul is called*/
 static uint32_t strToUIntVal(char *value, uint32_t defaultvalue){
 	if (strlen(value) == 0) return defaultvalue;
+	errno = 0; // errno should be set to 0 before calling strtoul
 	uint32_t i = strtoul(value, NULL, 10);
-	if (errno != 0) return defaultvalue;
-	else return i;
+	return (errno == 0) ? i : defaultvalue;
 }
 
  /* Replacement of fprintf which adds necessary whitespace to fill up the varname to a fixed width.
@@ -4804,7 +4804,6 @@ void * read_cccamcfg(int mode)
 				authptr = ptr;
 
 			account = ptr;
-			chk_cccam_cfg_F_more(line,account);
 
 			cs_strncpy(account->usr,uname,sizeof(account->usr));
 			cs_strncpy(account->pwd,upass,sizeof(account->pwd));
@@ -4819,7 +4818,6 @@ void * read_cccamcfg(int mode)
 			account->monlvl = cfg.mon_level;
 			account->tosleep = cfg.tosleep;
 			account->c35_suppresscmd08 = cfg.c35_suppresscmd08;
-			account->cccmaxhops = 10;
 			account->cccreshare = -1; //-1 = use cfg.
 			account->cccignorereshare = -1;
 			account->cccstealth = -1;
@@ -4832,6 +4830,7 @@ void * read_cccamcfg(int mode)
 			account->ac_users = cfg.ac_users;
 			account->ac_penalty = cfg.ac_penalty;
 #endif
+			chk_cccam_cfg_F_more(line,account);
 			cs_debug_mask(D_TRACE,"Add usr: %s from CCcam.cfg",account->usr);
 		}
 	}
