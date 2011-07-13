@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 38
-/svn/oscam/!svn/ver/5393/trunk/cscrypt
+/svn/oscam/!svn/ver/5615/trunk/cscrypt
 END
 bn_lcl.h
 K 25
@@ -175,7 +175,7 @@ CMakeLists.txt
 K 25
 svn:wc:ra_dav:version-url
 V 53
-/svn/oscam/!svn/ver/4738/trunk/cscrypt/CMakeLists.txt
+/svn/oscam/!svn/ver/5615/trunk/cscrypt/CMakeLists.txt
 END
 cscrypt.h
 K 25
