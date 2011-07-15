@@ -1,14 +1,14 @@
 10
 
 dir
-5620
+5634
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-07-12T23:08:31.783288Z
-5620
+2011-07-14T22:58:14.218689Z
+5633
 Admin
 has-props
 
@@ -35,8 +35,17 @@ has-props
 
 ((conflict datastruct-llist.c file update deleted edited (version http://streamboard.gmc.to/svn/oscam 4 3599 trunk/datastruct-llist.c file) (version http://streamboard.gmc.to/svn/oscam 4 3640 trunk/datastruct-llist.c none)))
 
-Distribution
-dir
+Maketype
+file
+
+
+
+
+
+358dc152d77c69f23081b0ae61bc6a42
+2011-05-24T19:27:52.460362Z
+5282
+alno
 
 module-cccam.h
 file
@@ -72,19 +81,7 @@ Admin
 
 5698
 
-Maketype
-file
-
-
-
-
-
-358dc152d77c69f23081b0ae61bc6a42
-2011-05-24T19:27:52.460362Z
-5282
-alno
-
-openxcas
+Distribution
 dir
 
 module-camd35.c
@@ -120,6 +117,9 @@ alno
 
 
 20318
+
+openxcas
+dir
 
 reader-viaccess.c
 file
@@ -359,9 +359,6 @@ Admin
 
 15310
 
-toolchains
-dir
-
 module-gbox.c
 file
 
@@ -374,6 +371,9 @@ file
 5618
 Admin
 has-props
+
+toolchains
+dir
 
 reader-videoguard-common.h
 file
@@ -554,9 +554,9 @@ file
 
 
 
-2902308056149c60961f1fa95ab08d1d
-2011-07-11T23:04:13.113702Z
-5609
+5f24411604e22681eb18f3f84270e6e0
+2011-07-14T12:45:36.347869Z
+5627
 JrCs
 
 cscrypt
@@ -728,11 +728,11 @@ file
 
 
 
-2011-07-13T12:09:22.235759Z
-ea19a94cdd3247776c67804d4ed3747a
-2011-07-12T21:55:34.015986Z
-5618
-Admin
+2011-07-15T11:13:30.939965Z
+5419b81db5d2f347f8cb23e6bbb8f40b
+2011-07-14T12:45:50.001044Z
+5629
+JrCs
 
 
 
@@ -754,7 +754,7 @@ Admin
 
 
 
-146886
+147088
 
 oscam-http.h
 file
@@ -762,11 +762,11 @@ file
 
 
 
-2011-07-13T12:09:22.239759Z
-34baa3f67fd46d2164363e8915586e30
-2011-07-12T18:55:23.504532Z
-5616
-Admin
+2011-07-15T11:13:30.943965Z
+4934cda943b07c956ae411866dc87162
+2011-07-14T12:45:50.001044Z
+5629
+JrCs
 
 
 
@@ -788,7 +788,7 @@ Admin
 
 
 
-130780
+132038
 
 reader-irdeto.c
 file
@@ -824,17 +824,17 @@ alno
 
 28390
 
-reader-common.c
+oscam-garbage.c
 file
 
 
 
 
-2011-07-11T03:21:50.263675Z
-d9b3206568c57afb9c52ff98474ae2d1
-2011-07-09T11:38:46.706847Z
-5576
-alno
+2011-07-13T12:09:22.243759Z
+50030749ff474a4bde75dacad7d0dead
+2011-07-12T21:55:34.015986Z
+5618
+Admin
 
 
 
@@ -856,7 +856,7 @@ alno
 
 
 
-10556
+4078
 
 reader-nagra.c
 file
@@ -892,17 +892,17 @@ Admin
 
 37409
 
-oscam-garbage.c
+reader-common.c
 file
 
 
 
 
-2011-07-13T12:09:22.243759Z
-50030749ff474a4bde75dacad7d0dead
-2011-07-12T21:55:34.015986Z
-5618
-Admin
+2011-07-11T03:21:50.263675Z
+d9b3206568c57afb9c52ff98474ae2d1
+2011-07-09T11:38:46.706847Z
+5576
+alno
 
 
 
@@ -924,7 +924,7 @@ Admin
 
 
 
-4078
+10556
 
 reader-videoguard12.c
 file
@@ -1056,10 +1056,10 @@ file
 
 
 
-2011-07-13T12:09:50.731898Z
-4188ac35004934cdbe0b1d293f7425d0
-2011-07-12T23:08:31.783288Z
-5620
+2011-07-15T11:13:30.947965Z
+8de0e5f5081966196d4f00e5ae1d7630
+2011-07-14T22:58:14.218689Z
+5633
 Admin
 
 
@@ -1082,7 +1082,7 @@ Admin
 
 
 
-28755
+28767
 
 LICENCE
 file
@@ -1211,40 +1211,6 @@ cbf80014556e3cb1911ab050ce0cae75
 hapeba
 has-props
 
-module-cccshare.c
-file
-
-
-
-
-2011-06-29T04:43:37.155876Z
-0689cc286114dde25a49d359857700ef
-2011-06-22T20:52:11.555259Z
-5466
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-45187
-
 module-stat.c
 file
 
@@ -1279,31 +1245,16 @@ Admin
 
 29751
 
-algo
-dir
-
-oscam-reader.c
+module-cccshare.c
 file
 
 
 
 
-
-2b06d32cedde1a14da28fc48f23fcc92
-2011-07-10T18:29:51.561031Z
-5596
-docmarius
-
-module-cccshare.h
-file
-
-
-
-
-2011-05-31T02:12:22.377893Z
-109e8636de8bc11072040341f95d2cda
-2011-05-16T21:31:32.287189Z
-5245
+2011-06-29T04:43:37.155876Z
+0689cc286114dde25a49d359857700ef
+2011-06-22T20:52:11.555259Z
+5466
 schlocke
 
 
@@ -1326,7 +1277,22 @@ schlocke
 
 
 
-1173
+45187
+
+algo
+dir
+
+oscam-reader.c
+file
+
+
+
+
+
+2b06d32cedde1a14da28fc48f23fcc92
+2011-07-10T18:29:51.561031Z
+5596
+docmarius
 
 module-constcw.c
 file
@@ -1361,6 +1327,40 @@ alno
 
 
 4255
+
+module-cccshare.h
+file
+
+
+
+
+2011-05-31T02:12:22.377893Z
+109e8636de8bc11072040341f95d2cda
+2011-05-16T21:31:32.287189Z
+5245
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1173
 
 oscam-chk.c
 file
@@ -1464,40 +1464,6 @@ Admin
 
 21848
 
-reader-seca.c
-file
-
-
-
-
-2011-07-11T03:21:50.263675Z
-ddcc4a0817ca0db229dbf1c8f23c373c
-2011-07-10T18:29:51.561031Z
-5596
-docmarius
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-13588
-
 reader-videoguard2.c
 file
 
@@ -1531,6 +1497,40 @@ alno
 
 
 25818
+
+reader-seca.c
+file
+
+
+
+
+2011-07-11T03:21:50.263675Z
+ddcc4a0817ca0db229dbf1c8f23c373c
+2011-07-10T18:29:51.561031Z
+5596
+docmarius
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+13588
 
 README
 file
@@ -1569,10 +1569,10 @@ Deas
 OSCam.xcodeproj
 dir
 
-cygwin
+utils
 dir
 
-utils
+cygwin
 dir
 
 .gitignore
@@ -1615,11 +1615,11 @@ file
 
 
 
-2011-07-13T12:12:00.404532Z
-562ad1c33d6f0deed2bee0c75bd4f232
-2011-07-12T21:55:34.015986Z
-5618
-Admin
+2011-07-15T11:13:30.947965Z
+8e1939ddc02c6907be3ecef34a3ec8cc
+2011-07-14T19:38:31.724959Z
+5631
+lareq78
 has-props
 
 
@@ -1641,7 +1641,7 @@ has-props
 
 
 
-8124
+8126
 
 globals.h
 file
@@ -1674,11 +1674,11 @@ file
 
 
 
-2011-07-13T12:12:00.412532Z
-77d5a1587e1273e7e1a9d994b77c9255
-2011-07-12T21:55:34.015986Z
-5618
-Admin
+2011-07-15T11:13:30.951965Z
+fadc3736d561946a1afe22da54f3902d
+2011-07-14T19:38:31.724959Z
+5631
+lareq78
 has-props
 
 
@@ -1700,7 +1700,7 @@ has-props
 
 
 
-2475
+2476
 
 module-camd33.c
 file
