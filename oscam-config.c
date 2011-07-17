@@ -763,26 +763,28 @@ void chk_t_ac(char *token, char *value)
 
 	if (!strcmp(token, "numusers")) {
 		cfg.ac_users = strToIntVal(value, 0);
+		if ( cfg.ac_users < 0 )
+			cfg.ac_users = 0;
 		return;
 	}
 
 	if (!strcmp(token, "sampletime")) {
-		cfg.ac_stime = atoi(value);
+		cfg.ac_stime = strToIntVal(value, 2);
 		if( cfg.ac_stime < 0 )
 			cfg.ac_stime = 2;
 		return;
 	}
 
 	if (!strcmp(token, "samples")) {
-		cfg.ac_samples = atoi(value);
+		cfg.ac_samples = strToIntVal(value, 10);
 		if( cfg.ac_samples < 2 || cfg.ac_samples > 10)
 			cfg.ac_samples = 10;
 		return;
 	}
 
 	if (!strcmp(token, "penalty")) {
-		cfg.ac_penalty = atoi(value);
-		if( cfg.ac_penalty < 0 )
+		cfg.ac_penalty = strToIntVal(value, 0);
+		if( cfg.ac_penalty < 0  || cfg.ac_penalty > 3 )
 			cfg.ac_penalty = 0;
 		return;
 	}
@@ -793,14 +795,14 @@ void chk_t_ac(char *token, char *value)
 	}
 
 	if( !strcmp(token, "fakedelay") ) {
-		cfg.ac_fakedelay = atoi(value);
+		cfg.ac_fakedelay = strToIntVal(value, 1000);
 		if( cfg.ac_fakedelay < 100 || cfg.ac_fakedelay > 1000 )
 			cfg.ac_fakedelay = 1000;
 		return;
 	}
 
 	if( !strcmp(token, "denysamples") ) {
-		cfg.ac_denysamples = atoi(value);
+		cfg.ac_denysamples = strToIntVal(value, 8);
 		if( cfg.ac_denysamples < 2 || cfg.ac_denysamples > cfg.ac_samples - 1 )
 			cfg.ac_denysamples=cfg.ac_samples-1;
 		return;
@@ -1898,12 +1900,16 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 
 #ifdef CS_ANTICASC
 	if( !strcmp(token, "numusers") ) {
-		account->ac_users = strToIntVal(value, 0);
+		account->ac_users = strToIntVal(value, -1);
+		if ( account->ac_users < -1 )
+			account->ac_users = -1;
 		return;
 	}
 
 	if( !strcmp(token, "penalty") ) {
-		account->ac_penalty = strToIntVal(value, 0);
+		account->ac_penalty = strToIntVal(value, -1);
+		if ( account->ac_penalty < -1 )
+			account->ac_penalty = -1;
 		return;
 	}
 #endif
@@ -2531,9 +2537,9 @@ int32_t write_userdb()
 			fprintf_conf(f, "keepalive", "%d\n", account->ncd_keepalive);
 
 #ifdef CS_ANTICASC
-		if (account->ac_users || cfg.http_full_cfg)
+		if (account->ac_users != -1 || cfg.http_full_cfg)
 			fprintf_conf(f, "numusers", "%d\n", account->ac_users);
-		if (account->ac_penalty || cfg.http_full_cfg)
+		if (account->ac_penalty != -1 || cfg.http_full_cfg)
 			fprintf_conf(f, "penalty", "%d\n", account->ac_penalty);
 #endif
 		fputc((int)'\n', f);
@@ -3104,8 +3110,8 @@ struct s_auth *init_userdb()
 			for (i = 1; i < CS_MAXTUNTAB; account->ttab.bt_srvid[i++] = 0x0000);
 
 #ifdef CS_ANTICASC
-			account->ac_users = cfg.ac_users;
-			account->ac_penalty = cfg.ac_penalty;
+			account->ac_users   = -1; // use ac_users global value
+			account->ac_penalty = -1; // use ac_penalty global value
 #endif
 			continue;
 		}

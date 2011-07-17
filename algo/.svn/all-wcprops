@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 35
-/svn/oscam/!svn/ver/5615/trunk/algo
+/svn/oscam/!svn/ver/5649/trunk/algo
 END
 lzoconf.h
 K 25
@@ -25,7 +25,7 @@ CMakeLists.txt
 K 25
 svn:wc:ra_dav:version-url
 V 50
-/svn/oscam/!svn/ver/5615/trunk/algo/CMakeLists.txt
+/svn/oscam/!svn/ver/5649/trunk/algo/CMakeLists.txt
 END
 Makefile
 K 25
