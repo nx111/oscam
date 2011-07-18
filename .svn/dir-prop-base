@@ -8,4 +8,9 @@ build_sh4
 
 *.project
 
+K 13
+svn:mergeinfo
+V 47
+/branches/dynamic-threads:5324-5666
+/trunk:5665
 END
