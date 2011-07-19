@@ -1,14 +1,14 @@
 10
 
 dir
-5672
+5678
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-07-18T11:39:47.845708Z
-5672
+2011-07-18T22:09:33.794011Z
+5677
 zetack
 has-props
 
@@ -35,17 +35,8 @@ has-props
 
 ((conflict datastruct-llist.c file update deleted edited (version http://streamboard.gmc.to/svn/oscam 4 3599 trunk/datastruct-llist.c file) (version http://streamboard.gmc.to/svn/oscam 4 3640 trunk/datastruct-llist.c none)))
 
-Maketype
-file
-
-
-
-
-
-d98c9cf9325926c0546664ee02064356
-2011-07-17T18:23:19.113327Z
-5667
-zetack
+Distribution
+dir
 
 module-cccam.h
 file
@@ -81,7 +72,19 @@ schlocke
 
 5867
 
-Distribution
+Maketype
+file
+
+
+
+
+
+d98c9cf9325926c0546664ee02064356
+2011-07-17T18:23:19.113327Z
+5667
+zetack
+
+openxcas
 dir
 
 module-camd35.c
@@ -117,9 +120,6 @@ zetack
 
 
 18371
-
-openxcas
-dir
 
 reader-viaccess.c
 file
@@ -359,6 +359,9 @@ zetack
 
 13744
 
+toolchains
+dir
+
 module-gbox.c
 file
 
@@ -392,9 +395,6 @@ has-props
 
 
 28051
-
-toolchains
-dir
 
 reader-videoguard-common.h
 file
@@ -529,9 +529,9 @@ file
 
 
 
-ac3b95fba25d930098afbac10c9d5f25
-2011-07-18T11:39:47.845708Z
-5672
+2d9dbbad17318f0f3a5adedbbec69120
+2011-07-18T22:09:33.794011Z
+5677
 zetack
 
 reader-tongfang.c
@@ -681,11 +681,11 @@ file
 
 
 
-2011-07-13T12:09:22.235759Z
-ba942aff00b524c2af5e4e8b103887d4
-2011-07-12T21:55:34.015986Z
-5618
-Admin
+2011-07-19T13:09:09.607878Z
+9abb2a86b86334f7c8c2be4bc8ebe441
+2011-07-18T22:09:33.794011Z
+5677
+zetack
 
 
 
@@ -707,7 +707,7 @@ Admin
 
 
 
-34818
+34796
 
 module-radegast.c
 file
@@ -845,17 +845,17 @@ alno
 
 28390
 
-oscam-garbage.c
+reader-common.c
 file
 
 
 
 
-2011-07-13T12:09:22.243759Z
-50030749ff474a4bde75dacad7d0dead
-2011-07-12T21:55:34.015986Z
-5618
-Admin
+2011-07-18T13:31:33.502516Z
+ab984f509ca59a2d070a0adb2da4e5e8
+2011-07-17T18:23:19.113327Z
+5667
+zetack
 
 
 
@@ -877,7 +877,7 @@ Admin
 
 
 
-4078
+10842
 
 reader-nagra.c
 file
@@ -913,17 +913,17 @@ Admin
 
 37409
 
-reader-common.c
+oscam-garbage.c
 file
 
 
 
 
-2011-07-18T13:31:33.502516Z
-ab984f509ca59a2d070a0adb2da4e5e8
-2011-07-17T18:23:19.113327Z
-5667
-zetack
+2011-07-13T12:09:22.243759Z
+50030749ff474a4bde75dacad7d0dead
+2011-07-12T21:55:34.015986Z
+5618
+Admin
 
 
 
@@ -945,7 +945,7 @@ zetack
 
 
 
-10842
+4078
 
 reader-videoguard12.c
 file
@@ -1210,40 +1210,6 @@ cbf80014556e3cb1911ab050ce0cae75
 hapeba
 has-props
 
-module-stat.c
-file
-
-
-
-
-2011-07-06T05:55:21.498691Z
-bd0a1d3334390042d9290d0b110a9fe9
-2011-06-29T21:17:31.787342Z
-5506
-Admin
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-29751
-
 module-cccshare.c
 file
 
@@ -1278,6 +1244,40 @@ schlocke
 
 45187
 
+module-stat.c
+file
+
+
+
+
+2011-07-06T05:55:21.498691Z
+bd0a1d3334390042d9290d0b110a9fe9
+2011-06-29T21:17:31.787342Z
+5506
+Admin
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+29751
+
 algo
 dir
 
@@ -1292,40 +1292,6 @@ ef7d5fb326fb9bd327d11a475b8a190b
 2011-07-18T06:44:10.553571Z
 5671
 schlocke
-
-module-constcw.c
-file
-
-
-
-
-2011-07-08T11:00:52.951909Z
-56e7a51c7d1d7f3ebac2ba69ceb3867d
-2011-07-07T19:03:45.988607Z
-5567
-alno
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-4255
 
 module-cccshare.h
 file
@@ -1360,6 +1326,40 @@ schlocke
 
 
 1173
+
+module-constcw.c
+file
+
+
+
+
+2011-07-08T11:00:52.951909Z
+56e7a51c7d1d7f3ebac2ba69ceb3867d
+2011-07-07T19:03:45.988607Z
+5567
+alno
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+4255
 
 oscam-chk.c
 file
@@ -1463,40 +1463,6 @@ zetack
 
 22054
 
-reader-videoguard2.c
-file
-
-
-
-
-2011-07-18T13:31:33.530516Z
-c63983dca4c4a97ffb451b4c14ffac36
-2011-07-17T18:23:19.113327Z
-5667
-zetack
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-25883
-
 reader-seca.c
 file
 
@@ -1530,6 +1496,40 @@ docmarius
 
 
 13588
+
+reader-videoguard2.c
+file
+
+
+
+
+2011-07-18T13:31:33.530516Z
+c63983dca4c4a97ffb451b4c14ffac36
+2011-07-17T18:23:19.113327Z
+5667
+zetack
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+25883
 
 README
 file
@@ -1568,10 +1568,10 @@ Deas
 OSCam.xcodeproj
 dir
 
-utils
+cygwin
 dir
 
-cygwin
+utils
 dir
 
 .gitignore
@@ -1649,9 +1649,9 @@ file
 
 
 
-11b273f1db280dcc356ec39deeca5627
-2011-07-17T18:23:19.113327Z
-5667
+91e944b276e06fbe94b688b3d11fd79a
+2011-07-18T22:09:33.794011Z
+5677
 zetack
 
 module-cccam.c
