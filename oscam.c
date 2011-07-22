@@ -1342,7 +1342,7 @@ int32_t cs_auth_client(struct s_client * client, struct s_auth *account, const c
 	memset(&client->grp, 0xff, sizeof(uint64_t));
 	//client->grp=0xffffffffffffff;
 	if ((intptr_t)account != 0 && (intptr_t)account != -1 && account->disabled){
-		cs_add_violation((uint32_t)client->ip, ph[client->ctyp].ptab->ports[client->port_idx].s_port);
+		cs_add_violation((uint32_t)client->ip, ph[client->ctyp].ptab ? ph[client->ctyp].ptab->ports[client->port_idx].s_port : 0);
 		cs_log("%s %s-client %s%s (%s%sdisabled account)",
 				client->crypted ? t_crypt : t_plain,
 				ph[client->ctyp].desc,
@@ -2542,6 +2542,16 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 
 		if (aureader->audisabled) {
 			cs_debug_mask(D_EMM, "AU is disabled for reader %s", aureader->label);
+			/* we have to write the log for blocked EMM here because
+	  		 this EMM never reach the reader module where the rest
+			 of EMM log is done. */
+			if (aureader->logemm & 0x10)  {
+				cs_log("%s emmtype=%s, len=%d, idx=0, cnt=1: audisabled (0 ms) by %s",
+						client->account->usr,
+						typtext[ep->type],
+						ep->emm[2],
+						aureader->label);
+			}
 			continue;
 		}
 
@@ -2598,7 +2608,6 @@ void do_emm(struct s_client * client, EMM_PACKET *ep)
 			strftime (buf, sizeof(buf), "%Y/%m/%d %H:%M:%S", &timeinfo);
 			snprintf (token, sizeof(token), "%s%s_emm.log", cfg.emmlogdir?cfg.emmlogdir:cs_confdir, aureader->label);
 			
-
 			if (!(fp = fopen (token, "a"))) {
 				cs_log ("ERROR: Cannot open file '%s' (errno=%d: %s)\n", token, errno, strerror(errno));
 			} else if(cs_malloc(&tmp2, (emm_length + 3)*2 + 1, -1)){
@@ -2833,6 +2842,7 @@ void * work_thread(void *ptr) {
 			data = NULL;
 			cleanup_thread(cl);
 			pthread_exit(NULL);
+			return 0;
 		}
 
 		if (!data->action)
@@ -2974,6 +2984,7 @@ void * work_thread(void *ptr) {
 	cs_debug_mask(D_TRACE, "ending thread");
 
 	pthread_exit(NULL);
+	return 0;
 }
 
 void add_job(struct s_client *cl, int8_t action, void *ptr, int len) {

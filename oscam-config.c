@@ -4912,7 +4912,6 @@ int32_t init_readerdb()
 	char *value;
 	char token[MAXLINESIZE];
 
-	struct s_reader *rdr;
 	if(!configured_readers)
 		configured_readers = ll_create();
 	
@@ -4924,9 +4923,12 @@ int32_t init_readerdb()
 		cs_log("can't open file \"%s\" (errno=%d %s)\n", token, errno, strerror(errno));
 	}
 	else{
+
+	  struct s_reader *rdr;
 	  cs_malloc(&rdr, sizeof(struct s_reader), SIGINT);
+
 	  ll_append(configured_readers, rdr);
-          while (fgets(token, sizeof(token), fp)) {
+	  while (fgets(token, sizeof(token), fp)) {
 		int32_t i, l;
 		if ((l = strlen(trim(token))) < 3)
 			continue;
@@ -4993,6 +4995,7 @@ int32_t init_readerdb()
 	  }
 	  fclose(fp);
 	}
+	struct s_reader *rdr;
 	LL_ITER itr = ll_iter_create(configured_readers);
 	while((rdr = ll_iter_next(&itr))) { //build active readers list
 		int32_t i;

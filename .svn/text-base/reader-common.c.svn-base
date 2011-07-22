@@ -1,6 +1,6 @@
 #include "globals.h"
 #include "reader-common.h"
-#include "csctapi/defines.h" 
+#include "csctapi/defines.h"
 #include "csctapi/atr.h" 
 #include "csctapi/icc_async_exports.h" 
 #ifdef AZBOX
@@ -153,10 +153,9 @@ static void do_emm_from_file(struct s_reader * reader)
       	fclose (fp);
       	return;
       }
-	  size_t result; 
-      result = fread (eptmp, sizeof(EMM_PACKET), 1, fp);      
-      fclose (fp);
-   
+   size_t result;  
+   result = fread (eptmp, sizeof(EMM_PACKET), 1, fp); 
+   fclose (fp);
 			//save old b_nano value
 			//clear lsb and lsb+1, so no blocking, and no saving for this nano  
 			uint16_t save_s_nano = reader->s_nano;
