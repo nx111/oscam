@@ -14,6 +14,29 @@
 #include "module-cccam.h"
 #include "module-cccshare.h"
 
+#ifdef IPV6SUPPORT 
+char *cs_inet6_ntoa(struct in6_addr addr)
+{
+	static char buff[40];
+	
+	if (IN6_IS_ADDR_V4MAPPED(&addr) || IN6_IS_ADDR_V4COMPAT(&addr))
+	{
+	    snprintf(buff, sizeof(buff), "%d.%d.%d.%d",
+		addr.s6_addr[12], addr.s6_addr[13], addr.s6_addr[14], addr.s6_addr[15]);
+	}
+	else
+	{
+	    snprintf(buff, sizeof(buff), "%x:%x:%x:%x:%x:%x:%x:%x",
+		ntohs(addr.s6_addr16[0]), ntohs(addr.s6_addr16[1]), ntohs(addr.s6_addr16[2]), ntohs(addr.s6_addr16[3]),
+		ntohs(addr.s6_addr16[4]), ntohs(addr.s6_addr16[5]), ntohs(addr.s6_addr16[6]), ntohs(addr.s6_addr16[7]));
+	}
+	return buff;
+}
+#else
+#define cs_inet6_ntoa	cs_inet_ntoa
+#endif
+
+
 extern void restart_cardreader(struct s_reader *rdr, int32_t restart);
 
 static int8_t running = 1;
@@ -26,46 +49,37 @@ static void refresh_oscam(enum refreshtypes refreshtype) {
 
 	switch (refreshtype) {
 		case REFR_ACCOUNTS:
-		cs_log("Refresh Accounts requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
+		cs_log("Refresh Accounts requested by WebIF from %s", cs_inet6_ntoa(GET_IP()));
 		cs_accounts_chk();
 		break;
 		
 		case REFR_CLIENTS:
-		cs_log("Refresh Clients requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
+		cs_log("Refresh Clients requested by WebIF from %s", cs_inet6_ntoa(GET_IP()));
 		cs_reinit_clients(cfg.account);
 		break;
 
 		case REFR_SERVER:
-		cs_log("Refresh Server requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
+		cs_log("Refresh Server requested by WebIF from %s", cs_inet6_ntoa(GET_IP()));
 		//kill(first_client->pid, SIGHUP);
 		//todo how I can refresh the server after global settings
 		break;
 
 		case REFR_SERVICES:
-		cs_log("Refresh Services requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
+		cs_log("Refresh Services requested by WebIF from %s", cs_inet6_ntoa(GET_IP()));
 		//init_sidtab();
 		cs_accounts_chk();
 		break;
 
 #ifdef CS_ANTICASC
 		case REFR_ANTICASC:
-		cs_log("Refresh Anticascading requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
+		cs_log("Refresh Anticascading requested by WebIF from %s", cs_inet6_ntoa(GET_IP()));
 		ac_init_stat();
-		int8_t foundac = 0;
 		struct s_client *cl;
 		struct s_auth *account;
 		for (cl=first_client->next; cl ; cl=cl->next){
 			if (cl->typ=='c' && (account = cl->account)) {
 				 cl->ac_limit	= (account->ac_users * 100 + 80) * cfg.ac_stime;
-			} else if (cl->typ=='a'){				
-				if(!cfg.ac_enabled)
-					kill_thread(cl);
-				else foundac = 1;
 			}
-		}
-		if (cfg.ac_enabled && !foundac){
-			init_ac();
-			start_thread((void *) &start_anticascader, "anticascader");
 		}
 		break;
 #endif
@@ -1324,7 +1338,7 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 
 	if (strcmp(getParam(params, "action"), "resetstat") == 0) {
 		clear_reader_stat(rdr);
-		cs_log("Reader %s stats resetted by WebIF from %s", rdr->label, cs_inet_ntoa(GET_IP()));
+		cs_log("Reader %s stats resetted by WebIF from %s", rdr->label, cs_inet6_ntoa(GET_IP()));
 	}
 
 	if (!apicall){
@@ -2167,6 +2181,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 							tpl_printf(vars, TPLADD, "APIPROVIDERNUMBER", "%d", providercount);
 							tpl_addVar(vars, TPLADD, "APIPROVIDERNAME", xml_encode(vars, provider));
 							tpl_addVar(vars, TPLAPPEND, "PROVIDERLIST", tpl_getTpl(vars, "APICCCAMCARDPROVIDERBIT"));
+
 						}
 						providercount++;
 						tpl_printf(vars, TPLADD, "APITOTALPROVIDERS", "%d", providercount);
@@ -2249,48 +2264,68 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 
 			rdr = get_reader_by_label(reader_);
 
-			if (rdr->init_history) {
-				char *ptr, *saveptr1 = NULL;
-				for (ptr=strtok_r(rdr->init_history, "\n", &saveptr1); ptr; ptr=strtok_r(NULL, "\n", &saveptr1)) {
-					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%s<BR />", ptr);
-					saveptr1[-1]='\n';
-				}
-			}
+			if (rdr) {
 
-			if (rdr->ll_entitlements) {
+				if (rdr->ll_entitlements) {
 
-				char *typetxt[] = {"", "package", "PPV-Event", "chid", "tier", "class", "PBM" };
-				time_t now = time((time_t)0);
+					char *typetxt[] = {"", "package", "PPV-Event", "chid", "tier", "class", "PBM", "admin" };
+					time_t now = time((time_t)0);
 
-				struct tm start_t, end_t;
-				LL_ITER itr = ll_iter_create(rdr->ll_entitlements);
-				S_ENTITLEMENT *item;
+					struct tm start_t, end_t;
+					LL_ITER itr = ll_iter_create(rdr->ll_entitlements);
+					S_ENTITLEMENT *item;
 
-				tpl_addVar(vars, TPLAPPEND, "LOGHISTORY", "<BR><BR>New Structure:<BR>");
-				while ((item = ll_iter_next(&itr))) {
+					tpl_addVar(vars, TPLAPPEND, "LOGHISTORY", "<BR><BR>New Structure:<BR>");
+					char tbuffer[30];
+					while ((item = ll_iter_next(&itr))) {
 
-					localtime_r(&item->start, &start_t);
-					localtime_r(&item->end, &end_t);
-					// to be able to display correctly on 32bit systems, uint64 has to be split in 2 uint32 values and used as 2 params
-					tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "<SPAN CLASS=\"%s\">entitlement %s: caid %04X provid %06X id %08X%08X class %08X valid ",
-							item->end > now ? "e_valid" : "e_expired" , typetxt[item->type], item->caid, item->provid, (uint32_t)(item->id >> 32), (uint32_t)item->id, item->class);
+						localtime_r(&item->start, &start_t);
+						localtime_r(&item->end, &end_t);
 
-					if ( item->start != 0 ){
-						tpl_printf(vars, TPLAPPEND, "LOGHISTORY", "%02d.%02d.%04d - %02d.%02d.%04d</SPAN><BR>\n",
-								start_t.tm_mday, start_t.tm_mon + 1, start_t.tm_year + 1900,
-								end_t.tm_mday, end_t.tm_mon + 1, end_t.tm_year + 1900);
-					} else {
-						tpl_printf(vars, TPLAPPEND, "LOGHISTORY", " until %02d.%02d.%04d</SPAN><BR>\n",
-								end_t.tm_mday, end_t.tm_mon + 1, end_t.tm_year + 1900);
+						if(!apicall)
+							strftime(tbuffer, 30, "%Y-%m-%d", &start_t);
+						else
+							strftime(tbuffer, 30, "%Y-%m-%dT%H:%M:%S%z", &start_t);
+						tpl_addVar(vars, TPLADD, "ENTSTARTDATE", tbuffer);
+
+						if(!apicall)
+							strftime(tbuffer, 30, "%Y-%m-%d", &end_t);
+						else
+							strftime(tbuffer, 30, "%Y-%m-%dT%H:%M:%S%z", &end_t);
+						tpl_addVar(vars, TPLADD, "ENTENDDATE", tbuffer);
+
+						tpl_addVar(vars, TPLADD, "ENTEXPIERED", item->end > now ? "e_valid" : "e_expired");
+						tpl_printf(vars, TPLADD, "ENTCAID", "%04X", item->caid);
+						tpl_printf(vars, TPLADD, "ENTPROVID", "%06X", item->provid);
+						tpl_printf(vars, TPLADD, "ENTID", "%08X%08X", (uint32_t)(item->id >> 32), (uint32_t)item->id);
+						tpl_printf(vars, TPLADD, "ENTCLASS", "%08X", item->class);
+						tpl_addVar(vars, TPLADD, "ENTTYPE", typetxt[item->type]);
+
+						if ((strcmp(getParam(params, "hideexpired"), "1") != 0) || (item->end > now))
+							tpl_addVar(vars, TPLAPPEND, "READERENTENTRY", tpl_getTpl(vars, "ENTITLEMENTITEMBIT"));
+
 					}
-
-					//char tbuffer[30];
-					//strftime(tbuffer, 30, "%Y-%m-%dT%H:%M:%S%z", &start_t);
 				}
-			}
 
-			tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
-			tpl_addVar(vars, TPLADD, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTGENERICBIT"));
+				if (rdr->client && rdr->client->typ)
+					tpl_printf(vars, TPLADD, "READERTYPE", "%c", rdr->client->typ);
+				else
+					tpl_addVar(vars, TPLADD, "READERTYPE", "null");
+				tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
+
+				int8_t i;
+				for(i = 0; i < 15; i++)	tpl_printf(vars, TPLAPPEND, "READERROM", "%c", rdr->rom[i]);
+				for(i = 0; i < 8; i++)	tpl_printf(vars, TPLAPPEND, "READERSERIAL", "%02X", rdr->hexserial[i]);
+				if(rdr->card_atr_length)
+					for(i = 0; i < rdr->card_atr_length; i++) tpl_printf(vars, TPLAPPEND, "READERATR", "%02X ", rdr->card_atr[i]);
+
+				tpl_addVar(vars, TPLADD, "READERCSYSTEM", rdr->csystem.desc ? rdr->csystem.desc : "unknown");
+
+				tpl_addVar(vars, TPLADD, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTBIT"));
+
+			} else {
+				tpl_addVar(vars, TPLADD, "MESSAGE", "Reader does not exist or is not started");
+			}
 		}
 
 	} else {
@@ -2313,10 +2348,14 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 	struct tm lt;
 
 	if (strcmp(getParam(params, "action"), "kill") == 0) {
-		struct s_client *cl = get_client_by_tid(atol(getParam(params, "threadid")));
-		if (cl) {
+		char *cptr = getParam(params, "threadid");
+		struct s_client *cl = NULL;
+		if (strlen(cptr)>1)
+			sscanf(cptr, "%p", (void**)&cl);
+
+		if (cl && is_valid_client(cl)) {
 			kill_thread(cl);
-			cs_log("Client %s killed by WebIF from %s", cl->account->usr, cs_inet_ntoa(GET_IP()));
+			cs_log("Client %s killed by WebIF from %s", cl->account->usr, cs_inet6_ntoa(GET_IP()));
 		}
 	}
 
@@ -2324,7 +2363,7 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 		struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
 		if(rdr) {
 			add_job(rdr->client, ACTION_READER_RESTART, NULL, 0);
-			cs_log("Reader %s restarted by WebIF from %s", rdr->label, cs_inet_ntoa(GET_IP()));
+			cs_log("Reader %s restarted by WebIF from %s", rdr->label, cs_inet6_ntoa(GET_IP()));
 		}
 	}
 
@@ -2341,10 +2380,10 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 
 	char *hide = getParam(params, "hide");
 	if(strlen(hide) > 0) {
-		uint32_t clidx;
-		clidx = atol(hide);
-		struct s_client *hideidx = get_client_by_tid(clidx);
-		if(hideidx)
+		struct s_client *hideidx = NULL;
+		sscanf(hide, "%p", (void**)&hideidx);
+
+		if(hideidx && is_valid_client(hideidx))
 			hideidx->wihidden = 1;
 	}
 
@@ -2459,18 +2498,16 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 
 				localtime_r(&cl->login, &lt);
 
-				tpl_printf(vars, TPLADD, "HIDEIDX", "%ld", cl->thread);
+				tpl_printf(vars, TPLADD, "HIDEIDX", "%p", cl);
 
 				if(cl->typ == 'c' && !cfg.http_readonly) {
-
-					//todo: we have no unique ID for clients. ThreadID not longer works bcaus changes permanently
-					//tpl_printf(vars, TPLADD, "CSIDX", "<A HREF=\"status.html?action=kill&threadid=%ld\" TITLE=\"Kill this client\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICKIL\" ALT=\"Kill\"></A>", cl->thread);
+					tpl_printf(vars, TPLADD, "CSIDX", "<A HREF=\"status.html?action=kill&threadid=%p\" TITLE=\"Kill this client\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICKIL\" ALT=\"Kill\"></A>", cl);
 				}
 				else if((cl->typ == 'p') && !cfg.http_readonly) {
 					tpl_printf(vars, TPLADD, "CSIDX", "<A HREF=\"status.html?action=restart&amp;label=%s\" TITLE=\"Restart this reader/ proxy\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICKIL\" ALT=\"Restart\"></A>", urlencode(vars, cl->reader->label));
 				}
 				else {
-					tpl_printf(vars, TPLADD, "CSIDX", "%8X&nbsp;", cl->thread);
+					tpl_printf(vars, TPLADD, "CSIDX", "%p&nbsp;", cl);
 				}
 
 				tpl_printf(vars, TPLADD, "CLIENTTYPE", "%c", cl->typ);
@@ -2619,7 +2656,6 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 						struct s_reader *rdr = cl->reader;
 						if (rdr->ll_entitlements)
 						{
-							//char *typetxt[] = {"Id", "Package", "PPV-Event", "Chid", "Tier", "Class", "PBM" };
 							LL_ITER itr = ll_iter_create(rdr->ll_entitlements);
 							S_ENTITLEMENT *ent;
 							uint16_t total_ent = 0;
@@ -2631,23 +2667,11 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 							while((ent = ll_iter_next(&itr)))
 							{
 								total_ent++;
-								if (ent->end > now)
+								if ((ent->end > now) && (ent->type != 7))
 								{	
 									if (active_ent) tpl_printf(vars, TPLAPPEND, "TMPSPAN", "<BR><BR>");
 									active_ent++;
 									localtime_r(&ent->end, &end_t);
-									/*
-									tpl_printf(vars, TPLAPPEND, "TMPSPAN", "%s:", 
-										typetxt[ent->type]);
-									// Attention: to be able to display correctly on 32bit systems, uint64 has to be split
-									// in 2 uint32 values and used as 2 params
-									if (ent->type == 6)
-									{
-									    tpl_printf(vars, TPLAPPEND, "TMPSPAN", "%08X", (uint32_t)(ent->id>>32));
-									}
-									tpl_printf(vars, TPLAPPEND, "TMPSPAN", (ent->type == 6)?"%08X<BR>":"%04X<BR>", 
-										(uint32_t)ent->id);
-									*/
 									tpl_printf(vars, TPLAPPEND, "TMPSPAN", "%04X:%06X<BR>exp:%04d/%02d/%02d",
 									    ent->caid, ent->provid, 
 									    end_t.tm_year + 1900, end_t.tm_mon + 1, end_t.tm_mday);
@@ -2671,7 +2695,7 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 								
 							}
 							
-							tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" class=\"tooltip%s\">%s%s</A>",
+							tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s&hideexpired=1\" class=\"tooltip%s\">%s%s</A>",
 													urlencode(vars, cl->reader->label),
 													active_ent > 0 ? "": "1",
 													tpl_getVar(vars, "TMP"),
@@ -2679,7 +2703,7 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 						}
 						else
 						{
-							tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s\" class=\"tooltip\">(no entitlements)"
+							tpl_printf(vars, TPLAPPEND, "CLIENTCON", " <A HREF=\"entitlements.html?label=%s&hideexpired=1\" class=\"tooltip\">(no entitlements)"
 												    "<SPAN>No active entitlements found</SPAN></A>",
 													urlencode(vars, cl->reader->label));
 						}
@@ -3007,10 +3031,10 @@ static char *send_oscam_shutdown(struct templatevars *vars, FILE *f, struct urip
 			char *result = tpl_getTpl(vars, "SHUTDOWN");
 			send_headers(f, 200, "OK", NULL, "text/html", 0, strlen(result), NULL, 0);
 			webif_write(result, f);
-			cs_log("Shutdown requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
+			cs_log("Shutdown requested by WebIF from %s", cs_inet6_ntoa(GET_IP()));
 		} else {
 			tpl_addVar(vars, TPLADD, "APICONFIRMMESSAGE", "shutdown");
-			cs_log("Shutdown requested by XMLApi from %s", cs_inet_ntoa(GET_IP()));
+			cs_log("Shutdown requested by XMLApi from %s", cs_inet6_ntoa(GET_IP()));
 		}
 		running = 0;
 		pthread_kill(httpthread, SIGPIPE);		// send signal to master thread to wake up from accept()
@@ -3033,10 +3057,10 @@ static char *send_oscam_shutdown(struct templatevars *vars, FILE *f, struct urip
 			char *result = tpl_getTpl(vars, "SHUTDOWN");
 			send_headers(f, 200, "OK", NULL, "text/html", 0,strlen(result), NULL, 0);
 			webif_write(result, f);
-			cs_log("Restart requested by WebIF from %s", cs_inet_ntoa(GET_IP()));
+			cs_log("Restart requested by WebIF from %s", cs_inet6_ntoa(GET_IP()));
 		} else {
 			tpl_addVar(vars, TPLADD, "APICONFIRMMESSAGE", "restart");
-			cs_log("Restart requested by XMLApi from %s", cs_inet_ntoa(GET_IP()));
+			cs_log("Restart requested by XMLApi from %s", cs_inet6_ntoa(GET_IP()));
 		}
 		running = 0;
 		pthread_kill(httpthread, SIGPIPE);		// send signal to master thread to wake up from accept()
@@ -3619,7 +3643,12 @@ static int8_t check_request(char *result, int32_t read) {
 	return 0;
 }
 
-static int32_t readRequest(FILE *f, struct in_addr in, char **result, int8_t forcePlain){
+#ifdef IPV6SUPPORT
+static int32_t readRequest(FILE *f, struct in6_addr in, char **result, int8_t forcePlain)
+#else
+static int32_t readRequest(FILE *f, struct in_addr in, char **result, int8_t forcePlain)
+#endif
+{
 	int32_t n, bufsize=0, errcount = 0, is_ssl = 0;
 	char buf2[1024];
 	struct pollfd pfd2[1];
@@ -3665,7 +3694,11 @@ static int32_t readRequest(FILE *f, struct in_addr in, char **result, int8_t for
 
 		//max request size 100kb
 		if (bufsize>102400) {
+#ifdef IPV6SUPPORT
+			cs_log("error: too much data received from %s", cs_inet6_ntoa(in));
+#else
 			cs_log("error: too much data received from %s", inet_ntoa(in));
+#endif
 			free(*result);
 			return -1;
 		}
@@ -3694,11 +3727,18 @@ static int32_t readRequest(FILE *f, struct in_addr in, char **result, int8_t for
 	}
 	return bufsize;
 }
-
-static int32_t process_request(FILE *f, struct in_addr in) {	
+#ifdef IPV6SUPPORT
+static int32_t process_request(FILE *f, struct in6_addr in) {
+#else
+static int32_t process_request(FILE *f, struct in_addr in) {
+#endif
 	int32_t ok=0,v=cv();
 	int8_t *keepalive = (int8_t *)pthread_getspecific(getkeepalive);
+#ifdef IPV6SUPPORT
+	struct in6_addr addr = GET_IP();
+#else
 	in_addr_t addr = GET_IP();
+#endif
 	
 	do {
 #ifdef WITH_SSL
@@ -3706,28 +3746,44 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 #else
 		if (*keepalive) fflush(f);
 #endif
+#ifdef IPV6SUPPORT
+		if (IN6_IS_ADDR_V4MAPPED(&in) || IN6_IS_ADDR_V4COMPAT(&in))
+		{
+		    // check for IPv4 as before
+		    ok = check_ip(cfg.http_allowed, *((in_addr_t *)&addr.s6_addr32[3])) ? v : 0;
+		}
+		else
+		{
+		    // Allow all IPv6
+		    // todo: check and filter
+		    ok = v;
+		}
+#else
 		ok = check_ip(cfg.http_allowed, addr) ? v : 0;
-	
+#endif
+		
 		if (!ok && cfg.http_dyndns[0]) {
 			cs_debug_mask(D_TRACE, "WebIf: IP not found in allowed range - test dyndns");
-	
+#ifdef IPV6SUPPORT
+			if(cfg.http_dynip && cfg.http_dynip == addr.s6_addr32[3]) {
+#else
 			if(cfg.http_dynip && cfg.http_dynip == addr) {
+#endif
 				ok = v;
 				cs_debug_mask(D_TRACE, "WebIf: dyndns address previously resolved and ok");	
 			} else {
 				cfg.http_dynip = cs_getIPfromHost((char*)cfg.http_dyndns);
 				cs_debug_mask(D_TRACE, "WebIf: dynip resolved %s access from %s",
 					cs_inet_ntoa(cfg.http_dynip),
-					cs_inet_ntoa(addr));
+					cs_inet6_ntoa(addr));
 			}
 		} else {
 			if (cfg.http_dyndns[0])
 				cs_debug_mask(D_TRACE, "WebIf: IP found in allowed range - bypass dyndns");
 		}
-	
 		if (!ok) {
 			send_error(f, 403, "Forbidden", NULL, "Access denied.", 0);
-			cs_log("unauthorized access from %s flag %d", cs_inet_ntoa(addr), v);
+			cs_log("unauthorized access from %s flag %d", cs_inet6_ntoa(addr), v);
 			return 0;
 		}
 	
@@ -3772,7 +3828,7 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 		bufsize = readRequest(f, in, &filebuf, 0);
 	
 		if (!filebuf || bufsize < 1) {
-			if(!*keepalive) cs_debug_mask(D_CLIENT, "WebIf: No data received from client %s. Closing connection.", cs_inet_ntoa(addr));
+			if(!*keepalive) cs_debug_mask(D_CLIENT, "WebIf: No data received from client %s. Closing connection.", cs_inet6_ntoa(addr));
 			return -1;
 		}
 	
@@ -3842,12 +3898,12 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 	
 		if(authok != 1) {
 			if(authok == 2)
-				cs_debug_mask(D_TRACE, "WebIf: Received stale header from %s.", cs_inet_ntoa(addr));
+				cs_debug_mask(D_TRACE, "WebIf: Received stale header from %s.", cs_inet6_ntoa(addr));
 			else if(authheader){
-				cs_debug_mask(D_CLIENT, "WebIf: Received wrong auth header from %s:", cs_inet_ntoa(addr));
+				cs_debug_mask(D_CLIENT, "WebIf: Received wrong auth header from %s:", cs_inet6_ntoa(addr));
 				cs_debug_mask(D_CLIENT, "%s", authheader);
 			} else
-				cs_debug_mask(D_CLIENT, "WebIf: Received no auth header from %s.", cs_inet_ntoa(addr));
+				cs_debug_mask(D_CLIENT, "WebIf: Received no auth header from %s.", cs_inet6_ntoa(addr));
 			char temp[sizeof(AUTHREALM) + sizeof(expectednonce) + 100];
 			snprintf(temp, sizeof(temp), "WWW-Authenticate: Digest algorithm=\"MD5\", realm=\"%s\", qop=\"auth\", opaque=\"\", nonce=\"%s\"", AUTHREALM, expectednonce);
 			if(authok == 2) strncat(temp, ", stale=true", sizeof(temp));
@@ -3908,7 +3964,7 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 				tpl_addVar(vars, TPLADD, "LANGUAGE", "en");
 	
 			tpl_addVar(vars, TPLADD, "UPTIME", sec2timeformat(vars, (now - first_client->login)));
-			tpl_addVar(vars, TPLADD, "CURIP", cs_inet_ntoa(addr));
+			tpl_addVar(vars, TPLADD, "CURIP", cs_inet6_ntoa(addr));
 			if(cfg.http_readonly)
 				tpl_addVar(vars, TPLAPPEND, "BTNDISABLED", "DISABLED");
 	
@@ -3969,14 +4025,22 @@ static void *serve_process(void *conn){
 	struct s_connection *myconn = (struct s_connection*)conn;
 	int32_t s = myconn->socket;
 	struct s_client *cl = myconn->cl;
+#ifdef IPV6SUPPORT
+	struct in6_addr in = myconn->remote;
+#else
 	struct in_addr in = myconn->remote;
+#endif
+	
 #ifdef WITH_SSL
 	SSL *ssl = myconn->ssl;
 	pthread_setspecific(getssl, ssl);
 #endif
 	free(myconn);
-
+#ifdef IPV6SUPPORT
+	pthread_setspecific(getip, &in.s6_addr);
+#else
 	pthread_setspecific(getip, &in.s_addr);
+#endif
 	pthread_setspecific(getclient, cl);
 
 	int8_t keepalive = 0;
@@ -4064,11 +4128,8 @@ void http_srv() {
 	pthread_setspecific(getclient, cl);
 	cl->typ = 'h';
 	int32_t sock, s, reuse = 1;
-	struct sockaddr_in sin;
-	struct sockaddr_in remote;
 	struct s_connection *conn;
 
-	socklen_t len = sizeof(remote);
 	/* Create random string for nonce value generation */
 	create_rand_str(noncekey,32);
 	
@@ -4082,6 +4143,50 @@ void http_srv() {
 		cs_log("Could not create getkeepalive");
 		return;
 	}
+
+#ifdef IPV6SUPPORT
+	static uint8_t ipv4fallback = 0;
+	struct sockaddr sin;
+	struct sockaddr_in6 *ia;
+	struct sockaddr remote;
+	struct sockaddr_in6 *ra;
+
+	socklen_t len = sizeof(remote);
+
+	ia = (struct sockaddr_in6 *)&sin;
+	ra = (struct sockaddr_in6 *)&remote;
+
+	/* Startup server */
+	if((sock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+		cs_log("HTTP Server: Creating IPv6 socket failed! (errno=%d %s)", errno, strerror(errno));
+		cs_log("HTTP Server: Trying fallback to IPv4.");
+		if((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+			cs_log("HTTP Server: Creating socket failed! (errno=%d %s)", errno, strerror(errno));
+			return;
+		}
+		ipv4fallback = 1;
+	}
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+		cs_log("HTTP Server: Setting SO_REUSEADDR via setsockopt failed! (errno=%d %s)", errno, strerror(errno));
+	}
+
+	memset(&sin, 0, sizeof sin);
+	
+	ia->sin6_family = AF_INET6;
+	ia->sin6_addr = in6addr_any;
+	ia->sin6_port = htons(cfg.http_port);
+
+	if((bind(sock, &sin, sizeof(struct sockaddr_in6))) < 0) {
+		cs_log("HTTP Server couldn't bind on port %d (errno=%d %s). Not starting HTTP!", cfg.http_port, errno, strerror(errno));
+		close(sock);
+		return;
+	}
+#else
+	struct sockaddr_in sin;
+	struct sockaddr_in remote;
+
+
+	socklen_t len = sizeof(remote);
 
 	/* Startup server */
 	if((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
@@ -4101,6 +4206,7 @@ void http_srv() {
 		close(sock);
 		return;
 	}
+#endif
 	if (listen(sock, SOMAXCONN) < 0) {
 		cs_log("HTTP Server: Call to listen() failed! (errno=%d %s)", errno, strerror(errno));
 		close(sock);
@@ -4118,6 +4224,8 @@ void http_srv() {
 	} else ssl_active = 0;
 #endif
 
+	memset(&remote, 0, sizeof(remote));
+
 	while (running) {
 		if((s = accept(sock, (struct sockaddr *) &remote, &len)) < 0) {
 			if(errno != EAGAIN && errno != EINTR){
@@ -4126,6 +4234,7 @@ void http_srv() {
 			} else cs_sleepms(5);
 			continue;
 		} else {
+			getpeername(s, (struct sockaddr *) &remote, &len);
 			if(!cs_malloc(&conn, sizeof(struct s_connection), -1)){
 				close(s);
 				continue;
@@ -4133,7 +4242,22 @@ void http_srv() {
 			setTCPTimeouts(s);
 			cur_client()->last = time((time_t)0); //reset last busy time
 			conn->cl = cur_client();
+#ifdef IPV6SUPPORT
+			if (ipv4fallback)
+			{
+				struct sockaddr_in *fba = (struct sockaddr_in *)&remote;
+				struct in6_addr taddr;
+				memset(&taddr, 0, sizeof(taddr));
+				taddr.s6_addr32[3] = fba->sin_addr.s_addr;
+				memcpy(&conn->remote, &taddr, sizeof(struct in6_addr));
+			}
+			else
+			{
+				memcpy(&conn->remote, &ra->sin6_addr, sizeof(struct in6_addr));
+			}
+#else
 			memcpy(&conn->remote, &remote.sin_addr, sizeof(struct in_addr));
+#endif
 			conn->socket = s;
 #ifdef WITH_SSL
 			conn->ssl = NULL;

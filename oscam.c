@@ -390,15 +390,6 @@ static struct s_client * idx_from_ip(in_addr_t ip, in_port_t port)
   return NULL;
 }
 
-struct s_client * get_client_by_tid(uint32_t tid) //FIXME untested!! no longer pid in output...
-{
-  struct s_client *cl;
-  for (cl=first_client; cl ; cl=cl->next)
-    if ((uint32_t)(cl->thread)==tid)
-      return cl;
-  return NULL;
-}
-
 static int32_t chk_caid(uint16_t caid, CAIDTAB *ctab)
 {
   int32_t n;
@@ -1758,6 +1749,9 @@ static void checkCW(ECM_REQUEST *er)
 
 int32_t send_dcw(struct s_client * client, ECM_REQUEST *er)
 {
+	if (!client || client->kill || client->typ != 'c')
+		return 0;
+		
 	static const char *stxt[]={"found", "cache1", "cache2", "emu",
 			"not found", "timeout", "sleeping",
 			"fake", "invalid", "corrupt", "no card", "expdate", "disabled", "stopped"};
@@ -2774,35 +2768,6 @@ void cs_waitforcardinit()
 	}
 }
 
-static int8_t is_valid_client(struct s_client *client) {
-	struct s_client *cl;
-	for (cl=first_client; cl ; cl=cl->next) {
-		if (cl==client)
-			return 1;
-	}
-	return 0;
-}
-
-int8_t check_fd_for_data(int32_t fd) {
-	int32_t rc;
-	struct pollfd pfd[1];
-
-	pfd[0].fd = fd;
-	pfd[0].events = POLLIN | POLLPRI | POLLHUP;
-	rc = poll(pfd, 1, 0);
-
-	if (rc == -1)
-		cs_log("check_fd_for_data(fd=%d) failed: (errno=%d %s)", fd, errno, strerror(errno));
-
-	if (rc == -1 || rc == 0)
-		return rc;
-
-	if (pfd[0].revents & POLLHUP)
-		return -2;
-
-	return 1;
-}
-
 void * work_thread(void *ptr) {
 	struct s_data *data = (struct s_data *) ptr;
 	struct s_client *cl = data->cl;
@@ -2836,13 +2801,13 @@ void * work_thread(void *ptr) {
 			cs_log("client killed");
 
 			if (data->ptr)
-				free(data->ptr);
+				add_garbage(data->ptr);
 
-			free(data);
+			add_garbage(data);
 			data = NULL;
 			cleanup_thread(cl);
 			pthread_exit(NULL);
-			return 0;
+			return NULL;
 		}
 
 		if (!data->action)
@@ -2984,7 +2949,7 @@ void * work_thread(void *ptr) {
 	cs_debug_mask(D_TRACE, "ending thread");
 
 	pthread_exit(NULL);
-	return 0;
+	return NULL;
 }
 
 void add_job(struct s_client *cl, int8_t action, void *ptr, int len) {
@@ -3051,7 +3016,7 @@ static struct timespec *make_timeout(struct timespec *timeout, int32_t msec) {
 static void * check_thread(void) {
 	int32_t next_check = 100, time_to_check, rc;
 	struct timeb t_now;
-	ECM_REQUEST *er;
+	ECM_REQUEST *er = NULL;
 
 	pthread_mutex_init(&check_mutex,NULL);
 	pthread_cond_init(&check_cond,NULL);
@@ -3075,16 +3040,24 @@ static void * check_thread(void) {
 		while ((t1 = ll_iter_next(&itr))) {
 			time_to_check = ((t1->t_check.time - t_now.time) * 1000) + (t1->t_check.millitm - t_now.millitm);
 			if (time_to_check <= 0) {
-				//TODO: we should check here if cl and t1->ptr is still a valid pointer to avoid segfaults
-				if (!t1->cl || !is_valid_client(t1->cl) || !t1->ptr) {
+				if (t1->cl && !is_valid_client(t1->cl)) {
 					cs_log("removing invalid check");
 					ll_iter_remove(&itr);
 					add_garbage(t1);
 					continue;
 				}
 				switch(t1->action) {
+#ifdef CS_ANTICASC
+					case CHECK_ANTICASCADER:
+						if (cfg.ac_enabled) {
+							ac_do_stat();
+							add_check(NULL, CHECK_ANTICASCADER, NULL, 0, cfg.ac_stime*60*1000);
+						}
+						break;
+#endif
 					case CHECK_ECM_TIMEOUT:
 						er = t1->ptr;
+						if (!er) continue;
 						if (er->rc<E_99)
 							break;
 						
@@ -3104,6 +3077,7 @@ static void * check_thread(void) {
 						break;
 					case CHECK_ECM_FALLBACK:
 						er = t1->ptr;
+						if (!er) continue;
 						if (er->rc<E_99)
 							break;
 						
@@ -3130,6 +3104,7 @@ static void * check_thread(void) {
 			make_timeout(&timeout, 30000);
 		}
 	}
+	return NULL;
 }
 
 void * client_check(void) {
@@ -3681,8 +3656,8 @@ if (pthread_key_create(&getclient, NULL)) {
 		cs_log("anti cascading disabled");
 	else {
 		init_ac();
-		start_thread((void *) &start_anticascader, "anticascader"); // 96
-
+		ac_init_stat();
+		add_check(NULL, CHECK_ANTICASCADER, NULL, 0, cfg.ac_stime*60*1000);
 	}
 #endif
 

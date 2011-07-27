@@ -387,6 +387,7 @@ extern void cs_switch_led(int32_t led, int32_t action);
 
 #define CHECK_ECM_FALLBACK		1
 #define CHECK_ECM_TIMEOUT		2
+#define CHECK_ANTICASCADER		3
 
 #define AVAIL_CHECK_CONNECTED	0
 #define AVAIL_CHECK_LOADBALANCE	1
@@ -502,7 +503,7 @@ typedef struct v_ban {					// failban listmember
 typedef struct s_entitlement {			// contains entitlement Info
 	uint64_t		id;				// the element ID
 	uint32_t		type;				// enumerator for tier,chid whatever
-										// 0="", 1="Package", 2="PPV-Event", 3="chid", 4="tier", 5 = "class", 6 = "PBM"
+										// 0="", 1="Package", 2="PPV-Event", 3="chid", 4="tier", 5 = "class", 6 = "PBM". 7 = "seca-admin"
 	uint16_t		caid;				// the caid of element
 	uint32_t		provid;				// the provid of element
 	uint32_t		class;				// the class needed for some systems
@@ -891,6 +892,8 @@ struct s_reader  									//contains device info, reader info and card info
 	int8_t			force_irdeto;
 	uchar			rsa_mod[120];					// rsa modulus for nagra cards.
 	uchar			atr[64];
+	uchar			card_atr[64];					// ATR readed from card
+	int8_t			card_atr_length;				// length of ATR
 	int32_t			atrlen;
 	SIDTABBITS		sidtabok;						// positiv services
 	SIDTABBITS		sidtabno;						// negative services

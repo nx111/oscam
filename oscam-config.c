@@ -4943,6 +4943,8 @@ int32_t init_readerdb()
 					rdr = newreader;
 				}
 			}
+			memset(rdr->hexserial, 0, sizeof(rdr->hexserial));
+			memset(rdr->rom, 0, sizeof(rdr->rom));
 			rdr->enable = 1;
 			rdr->tcp_rto = 30;
 			rdr->show_cls = 10;
