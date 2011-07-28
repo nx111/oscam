@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/5734/trunk
+/svn/oscam/!svn/ver/5738/trunk
 END
 module-cccam.h
 K 25
@@ -247,7 +247,7 @@ reader-videoguard2.c
 K 25
 svn:wc:ra_dav:version-url
 V 51
-/svn/oscam/!svn/ver/5667/trunk/reader-videoguard2.c
+/svn/oscam/!svn/ver/5738/trunk/reader-videoguard2.c
 END
 global-functions.h
 K 25
