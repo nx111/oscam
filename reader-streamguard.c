@@ -1,10 +1,10 @@
 #include "globals.h"
 #include "reader-common.h"
 
-static int streamguard_read_data(struct s_reader *reader, uchar size, uchar *cta_res, ushort *status)
+static int32_t streamguard_read_data(struct s_reader *reader, uchar size, uchar *cta_res, uint16_t *status)
 {
   static uchar read_data_cmd[]={0x00,0xc0,0x00,0x00,0xff};
-  ushort cta_lr;
+  uint16_t cta_lr;
 
   read_data_cmd[4] = size;
   write_cmd(read_data_cmd, NULL);
@@ -14,15 +14,15 @@ static int streamguard_read_data(struct s_reader *reader, uchar size, uchar *cta
   return(cta_lr - 2);
 }
 
-int streamguard_card_init(struct s_reader *reader, ATR newatr)
+static int32_t streamguard_card_init(struct s_reader *reader, ATR newatr)
 {
   static const uchar begin_cmd1[] = {0x00,0xa4,0x04,0x00,0x02,0x3f,0x00};
   static const uchar begin_cmd2[] = {0x00,0xa4,0x04,0x00,0x02,0x4a,0x00};
   static const uchar get_serial_cmd[] = {0x00,0xb2,0x00,0x05,0x06,0x00,0x01,0xff,0x00,0x01,0xff};
 
   uchar data[257];
-  int data_len = 0;
-  ushort status = 0;
+  int32_t data_len = 0;
+  uint16_t status = 0;
 
   def_resp;
   get_atr;
@@ -64,23 +64,25 @@ int streamguard_card_init(struct s_reader *reader, ATR newatr)
 /*
 Example ecm:
 */
-int streamguard_do_ecm(struct s_reader *reader, ECM_REQUEST *er)
+static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct s_ecm_answer *ea)
 {
   uchar ecm_cmd[200] = {0x80,0x32,0x00,0x00};
   uchar data[100];
-  int ecm_len;
+  int32_t ecm_len;
   uchar* pbuf = data;
-  int i = 0;
-  int write_len = 0;
+  int32_t i = 0;
+  int32_t write_len = 0;
   def_resp;
-  int read_size = 0;
-  int data_len = 0;
-  ushort status = 0;
-  char tmp[256];
+  int32_t read_size = 0;
+  int32_t data_len = 0;
+  uint16_t status = 0;
+  char *tmp;
 
   if((ecm_len = check_sct_len(er->ecm, 3)) < 0) return ERROR;
-
-	cs_debug_mask(D_IFD, "ECM: %s", cs_hexdump(1, er->ecm, ecm_len,tmp,sizeof(tmp)));
+	if(cs_malloc(&tmp, ecm_len * 3 + 1, -1)){
+		cs_debug_mask(D_IFD, "ECM: %s", cs_hexdump(1, er->ecm, ecm_len, tmp, ecm_len * 3 + 1));
+		free(tmp);
+	}
 
   write_len = er->ecm[2] + 3;
   ecm_cmd[4] = write_len;
@@ -124,23 +126,23 @@ int streamguard_do_ecm(struct s_reader *reader, ECM_REQUEST *er)
   
   if((er->ecm[0] & 0x01))
   {
-    memcpy(er->cw +  8, pbuf + 6, 4);
-    memcpy(er->cw + 12, pbuf + 6 + 4 + 1, 4);
-    memcpy(er->cw +  0, pbuf + 6 + 8 + 1, 4);
-    memcpy(er->cw +  4, pbuf + 6 + 8 + 4 + 1 + 1, 4);
+    memcpy(ea->cw +  8, pbuf + 6, 4);
+    memcpy(ea->cw + 12, pbuf + 6 + 4 + 1, 4);
+    memcpy(ea->cw +  0, pbuf + 6 + 8 + 1, 4);
+    memcpy(ea->cw +  4, pbuf + 6 + 8 + 4 + 1 + 1, 4);
   }
   else
   {
-    memcpy(er->cw +  0, pbuf + 6, 4);
-    memcpy(er->cw +  4, pbuf + 6 + 4 + 1, 4);
-    memcpy(er->cw +  8, pbuf + 6 + 8 + 1, 4);
-    memcpy(er->cw + 12, pbuf + 6 + 8 + 4 + 1 + 1, 4);
+    memcpy(ea->cw +  0, pbuf + 6, 4);
+    memcpy(ea->cw +  4, pbuf + 6 + 4 + 1, 4);
+    memcpy(ea->cw +  8, pbuf + 6 + 8 + 1, 4);
+    memcpy(ea->cw + 12, pbuf + 6 + 8 + 4 + 1 + 1, 4);
   }
 
   return OK;
 }
 
-int streamguard_get_emm_type(EMM_PACKET *ep, struct s_reader *UNUSED(reader))
+static int32_t streamguard_get_emm_type(EMM_PACKET *ep, struct s_reader *UNUSED(reader))
 {
   ep->type = UNKNOWN;
   return TRUE;
@@ -150,11 +152,11 @@ void streamguard_get_emm_filter(struct s_reader *UNUSED(reader), uchar *UNUSED(f
 {
 }
 
-int streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
+static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 {
   uchar emm_cmd[200] = {0x80,0x30,0x00,0x00};
   def_resp;
-  int write_len;
+  int32_t write_len;
 
   if(ep->emm[2] < 5) return ERROR;
 
@@ -167,7 +169,7 @@ int streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
   return OK;
 }
 
-int streamguard_card_info(struct s_reader * UNUSED(reader))
+static int32_t streamguard_card_info(struct s_reader * UNUSED(reader))
 {
   return OK;
 }
