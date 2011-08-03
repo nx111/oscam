@@ -1769,9 +1769,7 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 	}
 
 	if (!strcmp(token, "cccignorereshare")) {
-		account->cccignorereshare = strToIntVal(value, -1);
-		if (account->cccignorereshare == cfg.cc_ignore_reshare)
-			account->cccignorereshare = -1;
+		account->cccignorereshare = strToIntVal(value, DEFAULT_CC_IGNRSHR);
 		return;
 	}
 
@@ -2521,13 +2519,13 @@ int32_t write_userdb()
 		if (account->cccmaxhops != DEFAULT_CC_MAXHOP || cfg.http_full_cfg)
 			fprintf_conf(f, "cccmaxhops", "%d\n", account->cccmaxhops);
 
-		if ((account->cccreshare != DEFAULT_CC_RESHARE) || cfg.http_full_cfg)
+		if (account->cccreshare != DEFAULT_CC_RESHARE || cfg.http_full_cfg)
 			fprintf_conf(f, "cccreshare", "%d\n", account->cccreshare);
 
-		if ((account->cccignorereshare != cfg.cc_ignore_reshare && account->cccignorereshare != -1) || cfg.http_full_cfg)
+		if (account->cccignorereshare != DEFAULT_CC_IGNRSHR || cfg.http_full_cfg)
 			fprintf_conf(f, "cccignorereshare", "%d\n", account->cccignorereshare);
 
-		if ((account->cccstealth != DEFAULT_CC_STEALTH) || cfg.http_full_cfg)
+		if (account->cccstealth != DEFAULT_CC_STEALTH || cfg.http_full_cfg)
 			fprintf_conf(f, "cccstealth", "%d\n", account->cccstealth);
 #endif
 
@@ -3093,20 +3091,22 @@ struct s_auth *init_userdb()
 			account->monlvl = cfg.mon_level;
 			account->tosleep = cfg.tosleep;
 			account->c35_suppresscmd08 = cfg.c35_suppresscmd08;
-			account->cccmaxhops = DEFAULT_CC_MAXHOP;
-			account->cccreshare = DEFAULT_CC_RESHARE; // default: use global cfg
-			account->cccignorereshare = -1;
-			account->cccstealth = DEFAULT_CC_STEALTH; // default: use global cfg
 			account->ncd_keepalive = cfg.ncd_keepalive;
 			account->firstlogin = 0;
-			for (i = 1; i < CS_MAXCAIDTAB; account->ctab.mask[i++] = 0xffff);
-			for (i = 1; i < CS_MAXTUNTAB; account->ttab.bt_srvid[i++] = 0x0000);
-			nr++;
-
+#ifdef MODULE_CCCAM
+			account->cccmaxhops = DEFAULT_CC_MAXHOP;
+			account->cccreshare = DEFAULT_CC_RESHARE; // default: use global cfg
+			account->cccignorereshare = DEFAULT_CC_IGNRSHR; // default: use global cfg
+			account->cccstealth = DEFAULT_CC_STEALTH; // default: use global cfg
+#endif
 #ifdef CS_ANTICASC
 			account->ac_users   = DEFAULT_AC_USERS;   // use ac_users global value
 			account->ac_penalty = DEFAULT_AC_PENALTY; // use ac_penalty global value
 #endif
+			for (i = 1; i < CS_MAXCAIDTAB; account->ctab.mask[i++] = 0xffff);
+			for (i = 1; i < CS_MAXTUNTAB; account->ttab.bt_srvid[i++] = 0x0000);
+			nr++;
+
 			continue;
 		}
 

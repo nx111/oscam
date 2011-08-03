@@ -510,8 +510,8 @@ static char *send_oscam_config_cccam(struct templatevars *vars, struct uriparams
 	tpl_printf(vars, TPLADD, "TMP", "RESHAREMODE%d", cfg.cc_reshare_services);
 	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
 
-	if (cfg.cc_ignore_reshare)
-		tpl_printf(vars, TPLADD, "IGNORERESHARE", "selected");
+	tpl_printf(vars, TPLADD, "TMP", "IGNRSHRSELECTED%d", cfg.cc_ignore_reshare);
+	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
 
 	if (cfg.cc_forward_origin_card)
 		tpl_printf(vars, TPLADD, "FORWARDORIGINCARD", "selected");
@@ -762,7 +762,7 @@ static void inactivate_reader(struct s_reader *rdr)
 		kill_thread(rdr->client);
 }
 
-static char *send_oscam_reader(struct templatevars *vars, struct uriparams *params) {
+static char *send_oscam_reader(struct templatevars *vars, struct uriparams *params, int32_t apicall) {
 	struct s_reader *rdr;
 	int32_t i;
 
@@ -797,7 +797,7 @@ static char *send_oscam_reader(struct templatevars *vars, struct uriparams *para
 			if (rdr) {
 				inactivate_reader(rdr);
 				ll_remove(configured_readers, rdr);
-				
+
 				free_reader(rdr);
 
 				if(write_server()!=0)
@@ -824,82 +824,103 @@ static char *send_oscam_reader(struct templatevars *vars, struct uriparams *para
 	}
 
 	LL_ITER itr = ll_iter_create(configured_readers);
-	for (i = 0, rdr = ll_iter_next(&itr); rdr && rdr->label[0]; rdr = ll_iter_next(&itr), i++);
-	tpl_printf(vars, TPLADD, "NEXTREADER", "Reader-%d", i); //Next Readername
+
+	if(!apicall) {
+		for (i = 0, rdr = ll_iter_next(&itr); rdr && rdr->label[0]; rdr = ll_iter_next(&itr), i++);
+		tpl_printf(vars, TPLADD, "NEXTREADER", "Reader-%d", i); //Next Readername
+	}
 
 	ll_iter_reset(&itr); //going to iterate all configured readers
 	while ((rdr = ll_iter_next(&itr))) {
 
 		if(rdr->label[0] && rdr->typ) {
 
-			if (rdr->enable)
-				tpl_addVar(vars, TPLADD, "READERCLASS", "enabledreader");
-			else
-				tpl_addVar(vars, TPLADD, "READERCLASS", "disabledreader");
-
+			// used for API and WebIf
 			tpl_addVar(vars, TPLADD, "READERNAME", xml_encode(vars, rdr->label));
 			tpl_addVar(vars, TPLADD, "READERNAMEENC", urlencode(vars, rdr->label));
-			tpl_printf(vars, TPLADD, "EMMERRORUK", "%d", rdr->emmerror[UNKNOWN]);
-			tpl_printf(vars, TPLADD, "EMMERRORG", "%d", rdr->emmerror[GLOBAL]);
-			tpl_printf(vars, TPLADD, "EMMERRORS", "%d", rdr->emmerror[SHARED]);
-			tpl_printf(vars, TPLADD, "EMMERRORUQ", "%d", rdr->emmerror[UNIQUE]);
+			tpl_addVar(vars, TPLADD, "CTYP", reader_get_type_desc(rdr, 0));
 
-			tpl_printf(vars, TPLADD, "EMMWRITTENUK", "%d", rdr->emmwritten[UNKNOWN]);
-			tpl_printf(vars, TPLADD, "EMMWRITTENG", "%d", rdr->emmwritten[GLOBAL]);
-			tpl_printf(vars, TPLADD, "EMMWRITTENS", "%d", rdr->emmwritten[SHARED]);
-			tpl_printf(vars, TPLADD, "EMMWRITTENUQ", "%d", rdr->emmwritten[UNIQUE]);
+			// used only for WebIf
+			if(!apicall){
+				if (rdr->enable)
+					tpl_addVar(vars, TPLADD, "READERCLASS", "enabledreader");
+				else
+					tpl_addVar(vars, TPLADD, "READERCLASS", "disabledreader");
 
-			tpl_printf(vars, TPLADD, "EMMSKIPPEDUK", "%d", rdr->emmskipped[UNKNOWN]);
-			tpl_printf(vars, TPLADD, "EMMSKIPPEDG", "%d", rdr->emmskipped[GLOBAL]);
-			tpl_printf(vars, TPLADD, "EMMSKIPPEDS", "%d", rdr->emmskipped[SHARED]);
-			tpl_printf(vars, TPLADD, "EMMSKIPPEDUQ", "%d", rdr->emmskipped[UNIQUE]);
+				tpl_printf(vars, TPLADD, "EMMERRORUK", "%d", rdr->emmerror[UNKNOWN]);
+				tpl_printf(vars, TPLADD, "EMMERRORG", "%d", rdr->emmerror[GLOBAL]);
+				tpl_printf(vars, TPLADD, "EMMERRORS", "%d", rdr->emmerror[SHARED]);
+				tpl_printf(vars, TPLADD, "EMMERRORUQ", "%d", rdr->emmerror[UNIQUE]);
 
-			tpl_printf(vars, TPLADD, "EMMBLOCKEDUK", "%d", rdr->emmblocked[UNKNOWN]);
-			tpl_printf(vars, TPLADD, "EMMBLOCKEDG", "%d", rdr->emmblocked[GLOBAL]);
-			tpl_printf(vars, TPLADD, "EMMBLOCKEDS", "%d", rdr->emmblocked[SHARED]);
-			tpl_printf(vars, TPLADD, "EMMBLOCKEDUQ", "%d", rdr->emmblocked[UNIQUE]);
+				tpl_printf(vars, TPLADD, "EMMWRITTENUK", "%d", rdr->emmwritten[UNKNOWN]);
+				tpl_printf(vars, TPLADD, "EMMWRITTENG", "%d", rdr->emmwritten[GLOBAL]);
+				tpl_printf(vars, TPLADD, "EMMWRITTENS", "%d", rdr->emmwritten[SHARED]);
+				tpl_printf(vars, TPLADD, "EMMWRITTENUQ", "%d", rdr->emmwritten[UNIQUE]);
 
-			if (!(rdr->typ & R_IS_NETWORK)) { //reader is physical
-				tpl_addVar(vars, TPLADD, "REFRICO", "image?i=ICREF");
-				tpl_addVar(vars, TPLADD, "READERREFRESH", tpl_getTpl(vars, "READERREFRESHBIT"));
-				tpl_addVar(vars, TPLADD, "ENTICO", "image?i=ICENT");
-				tpl_addVar(vars, TPLADD, "ENTITLEMENT", tpl_getTpl(vars, "READERENTITLEBIT"));
-			} else {
-				tpl_addVar(vars, TPLADD, "READERREFRESH","");
-				if (rdr->typ == R_CCCAM) {
+				tpl_printf(vars, TPLADD, "EMMSKIPPEDUK", "%d", rdr->emmskipped[UNKNOWN]);
+				tpl_printf(vars, TPLADD, "EMMSKIPPEDG", "%d", rdr->emmskipped[GLOBAL]);
+				tpl_printf(vars, TPLADD, "EMMSKIPPEDS", "%d", rdr->emmskipped[SHARED]);
+				tpl_printf(vars, TPLADD, "EMMSKIPPEDUQ", "%d", rdr->emmskipped[UNIQUE]);
+
+				tpl_printf(vars, TPLADD, "EMMBLOCKEDUK", "%d", rdr->emmblocked[UNKNOWN]);
+				tpl_printf(vars, TPLADD, "EMMBLOCKEDG", "%d", rdr->emmblocked[GLOBAL]);
+				tpl_printf(vars, TPLADD, "EMMBLOCKEDS", "%d", rdr->emmblocked[SHARED]);
+				tpl_printf(vars, TPLADD, "EMMBLOCKEDUQ", "%d", rdr->emmblocked[UNIQUE]);
+
+				if (!(rdr->typ & R_IS_NETWORK)) { //reader is physical
+					tpl_addVar(vars, TPLADD, "REFRICO", "image?i=ICREF");
+					tpl_addVar(vars, TPLADD, "READERREFRESH", tpl_getTpl(vars, "READERREFRESHBIT"));
 					tpl_addVar(vars, TPLADD, "ENTICO", "image?i=ICENT");
 					tpl_addVar(vars, TPLADD, "ENTITLEMENT", tpl_getTpl(vars, "READERENTITLEBIT"));
 				} else {
-					tpl_addVar(vars, TPLADD, "ENTITLEMENT","");
+					tpl_addVar(vars, TPLADD, "READERREFRESH","");
+					if (rdr->typ == R_CCCAM) {
+						tpl_addVar(vars, TPLADD, "ENTICO", "image?i=ICENT");
+						tpl_addVar(vars, TPLADD, "ENTITLEMENT", tpl_getTpl(vars, "READERENTITLEBIT"));
+					} else {
+						tpl_addVar(vars, TPLADD, "ENTITLEMENT","");
+					}
 				}
-			}
 
-			if(rdr->enable == 0) {
-				tpl_addVar(vars, TPLADD, "SWITCHICO", "image?i=ICENA");
-				tpl_addVar(vars, TPLADD, "SWITCHTITLE", "enable this reader");
-				tpl_addVar(vars, TPLADD, "SWITCH", "enable");
+				if(rdr->enable == 0) {
+					tpl_addVar(vars, TPLADD, "SWITCHICO", "image?i=ICENA");
+					tpl_addVar(vars, TPLADD, "SWITCHTITLE", "enable this reader");
+					tpl_addVar(vars, TPLADD, "SWITCH", "enable");
+				} else {
+					tpl_addVar(vars, TPLADD, "SWITCHICO", "image?i=ICDIS");
+					tpl_addVar(vars, TPLADD, "SWITCHTITLE", "disable this reader");
+					tpl_addVar(vars, TPLADD, "SWITCH", "disable");
+				}
+
+				// Add to WebIf Template
+				tpl_addVar(vars, TPLAPPEND, "READERLIST", tpl_getTpl(vars, "READERSBIT"));
+
 			} else {
-				tpl_addVar(vars, TPLADD, "SWITCHICO", "image?i=ICDIS");
-				tpl_addVar(vars, TPLADD, "SWITCHTITLE", "disable this reader");
-				tpl_addVar(vars, TPLADD, "SWITCH", "disable");
+
+				// used only for API
+				tpl_addVar(vars, TPLADD, "APIREADERENABLED", !rdr->enable ? "0": "1");
+				if(rdr->client)
+					tpl_printf(vars, TPLADD, "APIREADERTYPE", "%c", rdr->client->typ ? rdr->client->typ :'x');
+
+				// Add to API Template
+				tpl_addVar(vars, TPLAPPEND, "APIREADERLIST", tpl_getTpl(vars, "APIREADERSBIT"));
 			}
-
-			tpl_addVar(vars, TPLADD, "CTYP", reader_get_type_desc(rdr, 0));
-
-			tpl_addVar(vars, TPLAPPEND, "READERLIST", tpl_getTpl(vars, "READERSBIT"));
 		}
 	}
 
+	if(!apicall) {
 #ifdef HAVE_PCSC
-	tpl_addVar(vars, TPLAPPEND, "ADDPROTOCOL", "<option>pcsc</option>\n");
+		tpl_addVar(vars, TPLAPPEND, "ADDPROTOCOL", "<option>pcsc</option>\n");
 #endif
 
-	for (i=0; i<CS_MAX_MOD; i++) {
-		if (cardreader[i].desc[0]!=0)
-			tpl_printf(vars, TPLAPPEND, "ADDPROTOCOL", "<option>%s</option>\n", cardreader[i].desc);
+		for (i=0; i<CS_MAX_MOD; i++) {
+			if (cardreader[i].desc[0]!=0)
+				tpl_printf(vars, TPLAPPEND, "ADDPROTOCOL", "<option>%s</option>\n", cardreader[i].desc);
+		}
+		return tpl_getTpl(vars, "READERS");
+	} else {
+		return tpl_getTpl(vars, "APIREADERS");
 	}
-
-	return tpl_getTpl(vars, "READERS");
 }
 
 static char *send_oscam_reader_config(struct templatevars *vars, struct uriparams *params) {
@@ -1759,8 +1780,13 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 	tpl_printf(vars, TPLADD, "CCCMAXHOPS", "%d", account->cccmaxhops);
 	tpl_printf(vars, TPLADD, "CCCRESHARE", "%d", account->cccreshare);
 	tpl_printf(vars, TPLADD, "RESHARE",    "%d", cfg.cc_reshare);
-	if ((account->cccignorereshare==-1)?cfg.cc_ignore_reshare:account->cccignorereshare)
-		tpl_printf(vars, TPLADD, "CCCIGNORERESHARE", "selected");
+
+	//CCcam Ignore Reshare
+	tpl_printf(vars, TPLADD, "TMP", "CCCIGNRSHRSELECTED%d", account->cccignorereshare);
+	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
+	tpl_printf(vars, TPLADD, "CFGIGNORERESHARE", "%s",
+			   cfg.cc_ignore_reshare == 0 ?
+			   "0 - use reshare level of Server" : "1 - use reshare level of Reader or User");
 
 	//CCcam Stealth Mode
 	tpl_printf(vars, TPLADD, "TMP", "CCCSTEALTHSELECTED%d", account->cccstealth);
@@ -3448,10 +3474,8 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 	else if (strcmp(getParam(params, "part"), "files") == 0) {
 		return send_oscam_files(vars, params, 1);
 	}
-	else if (strcmp(getParam(params, "part"), "readerconfig") == 0) {
-		//Send Errormessage
-		tpl_addVar(vars, TPLADD, "APIERRORMESSAGE", "readerconfig not yet avail");
-		return tpl_getTpl(vars, "APIERROR");
+	else if (strcmp(getParam(params, "part"), "readerlist") == 0) {
+		return send_oscam_reader(vars, params, 1);
 	}
 	else if (strcmp(getParam(params, "part"), "serverconfig") == 0) {
 		//Send Errormessage
@@ -3985,7 +4009,7 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 			if(pgidx != 19 && pgidx != 20) cs_writelock(&http_lock);
 			switch(pgidx) {
 				case 0: result = send_oscam_config(vars, &params); break;
-				case 1: result = send_oscam_reader(vars, &params); break;
+				case 1: result = send_oscam_reader(vars, &params, 0); break;
 				case 2: result = send_oscam_entitlement(vars, &params, 0); break;
 				case 3: result = send_oscam_status(vars, &params, 0); break;
 				case 4: result = send_oscam_user_config(vars, &params, 0); break;

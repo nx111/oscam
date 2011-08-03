@@ -75,7 +75,7 @@
 #endif
 
 #ifdef UNUSED
-#elif defined(__GNUC__)
+#elif __GNUC__ >= 3 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7)
 # define UNUSED(x) UNUSED_ ## x __attribute__((unused))
 #elif defined(__LCLINT__)
 # define UNUSED(x) /*@unused@*/ x
@@ -92,7 +92,7 @@
 # define D_USE(x) x
 #else
 # define call(arg) arg
-# if defined(__GNUC__)
+# if  __GNUC__ >= 3 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7)
 #  define D_USE(x) D_USE_ ## x __attribute__((unused))
 # elif defined(__LCLINT__)
 #  define D_USE(x) /*@debug use only@*/ x
@@ -396,13 +396,19 @@ extern void cs_switch_led(int32_t led, int32_t action);
  * =========================== */
 #define DEFAULT_TCP_RECONNECT_TIMEOUT 30
 #define DEFAULT_NCD_KEEPALIVE 1
+
+#ifdef MODULE_CCCAM
 #define DEFAULT_CC_MAXHOP   10
 #define DEFAULT_CC_RESHARE  -1 // Use global cfg
+#define DEFAULT_CC_IGNRSHR  -1 // Use global cfg
 #define DEFAULT_CC_STEALTH  -1 // Use global cfg
 #define DEFAULT_CC_KEEPALIVE 0
+#endif
+
+#ifdef CS_ANTICASC
 #define DEFAULT_AC_USERS   -1 // Use global cfg
 #define DEFAULT_AC_PENALTY -1 // Use global cfg
-
+#endif
 
 /* ===========================
  *      global structures
@@ -1109,10 +1115,12 @@ struct s_auth
 	int8_t			c35_suppresscmd08;
 	uint8_t			c35_sleepsend;
 	int8_t			ncd_keepalive;
+#ifdef MODULE_CCCAM
 	int32_t			cccmaxhops;
 	int8_t			cccreshare;
 	int8_t			cccignorereshare;
 	int8_t			cccstealth;
+#endif
 	int8_t			disabled;
 	int32_t			failban;
 
