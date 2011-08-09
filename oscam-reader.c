@@ -153,7 +153,7 @@ int32_t network_tcp_connection_open(struct s_reader *rdr)
 {
 	if (!rdr) return -1;
 	struct s_client *client = rdr->client;
-	cs_log("connecting to %s:%d", rdr->device, rdr->r_port);
+	cs_log("connecting to %s on %s:%d", rdr->label, rdr->device, rdr->r_port);
 	struct sockaddr_in loc_sa;
 
 	memset((char *)&client->udp_sa, 0, sizeof(client->udp_sa));
@@ -266,7 +266,7 @@ void network_tcp_connection_close(struct s_reader *reader)
 	if(!cl) return;
 	int32_t fd = cl->udp_fd;
 
-	cs_log("tcp_conn_close(): fd=%d, cl->typ == '%c' is_udp %d", fd, cl->typ, cl->is_udp);
+	cs_log("tcp_conn_close(): fd=%d, cl->typ == '%c' is_udp %d label == '%s'", fd, cl->typ, cl->is_udp, reader->label);
 	int32_t i;
 
 	if (fd) {

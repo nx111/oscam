@@ -342,9 +342,10 @@ void cc_cli_close(struct s_client *cl, int32_t UNUSED(call_conclose)) {
 	rdr->available = 0;
 	rdr->ncd_msgid = 0;
 	rdr->last_s = rdr->last_g = 0;
-
+	
 	network_tcp_connection_close(rdr); 
 	
+	cc->ecm_busy = 0;
 	cc->just_logged_in = 0;
 }
 
@@ -556,9 +557,9 @@ int32_t cc_cmd_send(struct s_client *cl, uint8_t *buf, int32_t len, cc_msg_type_
 	uint8_t *netbuf = cs_malloc(&netbuf, len + 4, 0);
 	struct cc_data *cc = cl->cc;
 
-	if (!cl->cc || cc->mode == CCCAM_MODE_SHUTDOWN) return -1;
+	if (!cl->cc || cl->kill || cc->mode == CCCAM_MODE_SHUTDOWN) return -1;
 	cs_writelock(&cc->lockcmd);
-	if (!cl->cc || cc->mode == CCCAM_MODE_SHUTDOWN) {
+	if (!cl->cc || cl->kill || cc->mode == CCCAM_MODE_SHUTDOWN) {
 		cs_writeunlock(&cc->lockcmd);
 		return -1;
 	}
@@ -1092,7 +1093,11 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 			uint32_t tt = cfg.ctimeout+500;
 			timeout.time += tt / 1000;
 			timeout.millitm += tt % 1000;
-
+            if (timeout.millitm >= 1000) {
+            	timeout.time++;
+            	timeout.millitm -= 1000;
+			}
+			
 			if (comp_timeb(&cur_time, &timeout) < 0) { //TODO: Configuration?
 				return 0; //pending send...
 			} else {
@@ -2756,6 +2761,7 @@ int32_t cc_srv_connect(struct s_client *cl) {
 	cc->mode = CCCAM_MODE_NOTINIT;
 	cc->server_ecm_pending = 0;
 	cc->extended_mode = 0;
+	cc->ecm_busy = 0;
 
     int32_t keep_alive = 1;
     setsockopt(cl->udp_fd, SOL_SOCKET, SO_KEEPALIVE,
@@ -3044,7 +3050,6 @@ int32_t cc_cli_connect(struct s_client *cl) {
 		return -2;
 	}
 
-
 	cc->ecm_counter = 0;
 	cc->max_ecms = 0;
 	cc->cmd05_mode = MODE_UNKNOWN;
@@ -3150,6 +3155,7 @@ int32_t cc_cli_connect(struct s_client *cl) {
 	cc->just_logged_in = 1;
 	cc->mode = CCCAM_MODE_NORMAL;
 	cl->crypted = 1;
+	cc->ecm_busy = 0;
 
 	return 0;
 }
@@ -3296,12 +3302,24 @@ void cc_update_nodeid()
 		memcpy(cfg.cc_fixed_nodeid, cc_node_id, 8);
 }
 
+static void cc_s_idle(struct s_client *cl) {
+	cs_debug_mask(D_TRACE, "ccc idle %s", username(cl));
+	if (cfg.cc_keep_connected) {
+		if (cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE) < 0)
+			cl->kill = 1;
+		else
+			cl->last = time(NULL);
+	} else {
+		cs_debug_mask(D_CLIENT, "%s keepalive after maxidle is reached", getprefix());
+		cl->kill = 1;
+	}
+}
+
 void module_cccam(struct s_module *ph) {
 	cs_strncpy(ph->desc, "cccam", sizeof(ph->desc));
 	ph->type = MOD_CONN_TCP;
 	ph->listenertype = LIS_CCCAM;
 	ph->logtxt = ", crypted";
-	ph->watchdog = 1;
 	ph->recv = cc_recv;
 	ph->cleanup = cc_cleanup;
 	ph->multi = 1;
@@ -3314,6 +3332,7 @@ void module_cccam(struct s_module *ph) {
 	ph->s_ip = cfg.cc_srvip;
 	ph->s_handler = cc_srv_init;
 	ph->s_init = cc_srv_init2;
+	ph->s_idle = cc_s_idle;
 	ph->send_dcw = cc_send_dcw;
 	ph->c_available = cc_available;
 	ph->c_card_info = cc_card_info;
