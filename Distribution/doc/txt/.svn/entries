@@ -1,15 +1,15 @@
 10
 
 dir
-5809
+5835
 http://streamboard.gmc.to/svn/oscam/trunk/Distribution/doc/txt
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-08-02T21:26:07.077491Z
-5774
-JrCs
+2011-08-12T06:40:02.195980Z
+5824
+docman
 
 
 
@@ -282,10 +282,10 @@ file
 
 
 
-2011-07-22T09:50:30.354020Z
-de7e9e25febd6edbcb844deeb58c2d4b
-2011-07-21T18:13:51.964908Z
-5698
+2011-08-13T05:58:49.930525Z
+b3061870da2bc3051fdd7a9bc19b4e67
+2011-08-12T06:40:02.195980Z
+5824
 docman
 
 
@@ -308,7 +308,7 @@ docman
 
 
 
-14155
+14282
 
 oscam.tiers.txt
 file

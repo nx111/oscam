@@ -2664,6 +2664,9 @@ int32_t write_server()
 			if ((rdr->tcp_ito || cfg.http_full_cfg) && !isphysical && rdr->typ != R_CCCAM)
 				fprintf_conf(f, "inactivitytimeout", "%d\n", rdr->tcp_ito);
 
+			if ((rdr->resetcycle != 0 || cfg.http_full_cfg) && isphysical)
+				fprintf_conf(f, "resetcycle", "%d\n", rdr->resetcycle);
+
 			if ((rdr->tcp_rto != DEFAULT_TCP_RECONNECT_TIMEOUT || cfg.http_full_cfg) && !isphysical)
 				fprintf_conf(f, "reconnecttimeout", "%d\n", rdr->tcp_rto);
 
@@ -3355,12 +3358,14 @@ int32_t init_provid() {
 
 		int32_t l;
 		void *ptr;
-		char *tmp;
+		char *tmp, *providasc; 
 		tmp = trim(token);
 
 		if (tmp[0] == '#') continue;
 		if ((l = strlen(tmp)) < 11) continue;
 		if (!(payload = strchr(token, '|'))) continue;
+		if (!(providasc = strchr(token, ':'))) continue;
+
 		*payload++ = '\0';
 
 		if (!cs_malloc(&ptr, sizeof(struct s_provid), -1)) return(1);
@@ -3387,7 +3392,6 @@ int32_t init_provid() {
 			}
 		}
 
-		char *providasc = strchr(token, ':');
 		*providasc++ = '\0';
 		provid->provid = a2i(providasc, 3);
 		provid->caid = a2i(token, 3);
@@ -3430,10 +3434,12 @@ int32_t init_srvid()
 	while (fgets(token, sizeof(token), fp)) {
 		int32_t l, j, len=0, len2, srvidtmp;
 		uint32_t pos;
+		char *srvidasc;
 		tmp = trim(token);
 
 		if (tmp[0] == '#') continue;
 		if ((l=strlen(tmp)) < 6) continue;
+		if (!(srvidasc = strchr(token, ':'))) continue;
 		if (!(payload=strchr(token, '|'))) continue;
 		*payload++ = '\0';
 
@@ -3494,7 +3500,6 @@ int32_t init_srvid()
 			}
 		}
 
-		char *srvidasc = strchr(token, ':');
 		*srvidasc++ = '\0';
 		srvidtmp = dyn_word_atob(srvidasc) & 0xFFFF;
 		//printf("srvid %s - %d\n",srvidasc,srvid->srvid );
@@ -3578,12 +3583,13 @@ int32_t init_tierid()
 
 		int32_t l;
 		void *ptr;
-		char *tmp;
+		char *tmp, *tieridasc;
 		tmp = trim(token);
 
 		if (tmp[0] == '#') continue;
 		if ((l=strlen(tmp)) < 6) continue;
 		if (!(payload=strchr(token, '|'))) continue;
+		if (!(tieridasc = strchr(token, ':'))) continue;
 		*payload++ = '\0';
 
 		if (!cs_malloc(&ptr,sizeof(struct s_tierid), -1)) return(1);
@@ -3599,7 +3605,6 @@ int32_t init_tierid()
 		if (ptr1)
 			cs_strncpy(tierid->name, trim(ptr1), sizeof(tierid->name));
 
-		char *tieridasc = strchr(token, ':');
 		*tieridasc++ = '\0';
 		tierid->tierid = dyn_word_atob(tieridasc);
 		//printf("tierid %s - %d\n",tieridasc,tierid->tierid );
@@ -3874,6 +3879,11 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 
 	if (!strcmp(token, "inactivitytimeout")) {
 		rdr->tcp_ito  = strToIntVal(value, 0);
+		return;
+	}
+
+	if (!strcmp(token, "resetcycle")) {
+		rdr->resetcycle  = strToIntVal(value, 0);
 		return;
 	}
 

@@ -38,8 +38,10 @@ int32_t ll_lock(LLIST *l)
 
 void ll_unlock(LLIST *l)
 {
-	if (l)
+	if (l) {
+		l->version++;
 		cs_writeunlock(&l->lock);
+	}
 }
 
 void ll_destroy(LLIST *l)
@@ -58,20 +60,45 @@ void ll_destroy_data(LLIST *l)
     _destroy(l);
 }
 
-void *ll_iter_next_nolock(LL_ITER *it)
+static void *ll_iter_next_nolock(LL_ITER *it)
 {
-    if (it && it->l) {
-        if (it->cur) {
-            it->prv = it->cur;
-            it->cur = it->cur->nxt;
-        } else if (it->l->initial && !it->prv)
-            it->cur = it->l->initial;
-        
-        if (it->cur)
-            return it->cur->obj;
-    }
+	if (it && it->l) {
+		if (it->l->version > it->ll_version) {
+			cs_debug_mask_nolock(D_TRACE, "list changed, searching new position");
 
-    return NULL;
+			LL_NODE *ptr;
+			for (ptr = it->l->initial; ptr; ptr = ptr->nxt) {
+				if (!it->cur && !it->prv) {
+					it->cur = ptr;
+					break;
+				}
+
+				if (ptr == it->prv && ptr->nxt != it->cur) {
+					it->cur = ptr->nxt;
+					break;
+				}
+				if (ptr == it->cur) {
+					it->prv = ptr;
+					it->cur = ptr->nxt;
+					break;
+				}
+			}
+
+			if (it->cur)
+				return it->cur->obj;
+
+		} else {
+			if (it->cur) {
+				it->prv = it->cur;
+				it->cur = it->cur->nxt;
+			} else if (it->l->initial && !it->prv)
+				it->cur = it->l->initial;
+        
+			if (it->cur)
+				return it->cur->obj;
+		}
+	}
+	return NULL;
 }
 
 static void ll_clear_int(LLIST *l, int32_t clear_data)
@@ -164,10 +191,12 @@ LL_NODE *ll_prepend(LLIST *l, void *obj)
 
 LL_ITER ll_iter_create(LLIST *l)
 {
-    LL_ITER it;
-    memset(&it, 0, sizeof(it));
-    it.l = l;
-    return it;
+	LL_ITER it;
+	memset(&it, 0, sizeof(it));
+	it.l = l;
+	if (it.l)
+		it.ll_version = it.l->version;
+	return it;
 }
 
 
@@ -175,8 +204,9 @@ void *ll_iter_next(LL_ITER *it)
 {
     if (it && it->l) {
 		if (!ll_lock(it->l)) return NULL;
-    	void *res = ll_iter_next_nolock(it);
+		void *res = ll_iter_next_nolock(it);
 		ll_unlock(it->l);
+		it->ll_version = it->l->version;
 		return res;
     }
     return NULL;
@@ -191,9 +221,10 @@ void *ll_iter_move(LL_ITER *it, int32_t offset)
     	for (i=0; i<offset; i++) {
     		res = ll_iter_next_nolock(it);
     		if (!res) break;
-		}
-		ll_unlock(it->l);
-		return res;
+	}
+	ll_unlock(it->l);
+	it->ll_version = it->l->version;
+	return res;
     }
     return NULL;
 }
@@ -278,6 +309,7 @@ void *ll_iter_remove(LL_ITER *it)
             add_garbage(del);
         }
         ll_unlock(it->l);
+        it->ll_version = it->l->version;
     }
 
     return obj;

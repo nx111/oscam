@@ -148,6 +148,8 @@ static time_t chid_date(struct s_reader * reader, uint32_t date, char *buf, int3
                             {0x0624, 0x0006, "CZE", 946598400L},    // 30.12.1999, 16:00 	//skyklink irdeto
                             {0x0624, 0x0006, "SVK", 946598400L},    // 30.12.1999, 16:00	//skyklink irdeto
                             {0x0648, 0x0608, "AUT", 946598400L},    // 31.12.1999, 00:00 	//orf ice irdeto
+                            {0x0604, 0x0607, "GRC", 1066089600L},   // 14.10.2003, 00:00    //nova irdeto
+                            {0x0604, 0x0005, "GRC", 1066089600L},   // 14.10.2003, 00:00    //nova irdeto
                             // {0x1702, 0x0384, "AUT", XXXXXXXXXL},     // -> we need the base date for this
                             // {0x1702, 0x0384, "GER", 888883200L},     // 02.03.1998, 16:00 -> this fixes some card but break others (S02).
                             {0x0, 0x0, "", 0L}
@@ -388,6 +390,11 @@ static int32_t irdeto_card_init(struct s_reader * reader, ATR newatr)
 		}
 	}
 
+	if (reader->caid == 0x0648) { // acs 6.08
+		camkey = 4;
+		sc_Acs57CamKey[2] = 0;
+	}
+
 	cs_debug_mask(D_READER, "[irdeto-reader] set camkey for type=%d", camkey);
 
 	switch (camkey)
@@ -406,10 +413,16 @@ static int32_t irdeto_card_init(struct s_reader * reader, ATR newatr)
 			int32_t i,crc=61;
 			crc^=0x01, crc^=0x02, crc^=0x09;
 			crc^=sc_Acs57CamKey[2], crc^=sc_Acs57CamKey[3], crc^=(sc_Acs57CamKey[4]+1);
-			for(i=5;i<(int)sizeof(sc_Acs57CamKey);i++)
+			for(i=5;i<(int)sizeof(sc_Acs57CamKey)-1;i++)
 				crc^=sc_Acs57CamKey[i];
 			sc_Acs57CamKey[69]=crc;
-			irdeto_do_cmd(reader, sc_Acs57CamKey, 0x9012, cta_res, &cta_lr);
+			if (reader->caid == 0x0648) {
+				if (irdeto_do_cmd(reader, sc_Acs57CamKey, 0x9011, cta_res, &cta_lr)) {
+					cs_log("[reader-irdeto] You have a bad Cam Key set");
+					return ERROR;
+				}
+			} else
+				irdeto_do_cmd(reader, sc_Acs57CamKey, 0x9012, cta_res, &cta_lr);
 			int32_t acslength=cta_res[cta_lr-1];
 			sc_Acs57_Cmd[4]=acslength;
 			reader_chk_cmd(sc_Acs57_Cmd, acslength+2);

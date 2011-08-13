@@ -47,6 +47,7 @@ CS_MUTEX_LOCK gethostbyname_lock;
 CS_MUTEX_LOCK clientlist_lock;
 CS_MUTEX_LOCK readerlist_lock;
 CS_MUTEX_LOCK fakeuser_lock;
+CS_MUTEX_LOCK ecmcache_lock;
 pthread_key_t getclient;
 
 pthread_mutex_t	check_mutex;
@@ -962,6 +963,7 @@ static void init_first_client()
   cs_lock_create(&clientlist_lock, 5, "clientlist_lock");
   cs_lock_create(&readerlist_lock, 5, "readerlist_lock");
   cs_lock_create(&fakeuser_lock, 5, "fakeuser_lock");
+  cs_lock_create(&ecmcache_lock, 5, "ecmcache_lock");
 
 #ifdef COOL
   coolapi_open_all();
@@ -1473,28 +1475,58 @@ static int32_t check_and_store_ecmcache(ECM_REQUEST *er, uint64_t grp)
 {
 	time_t now = time(NULL);
 	time_t timeout = now-(time_t)(cfg.ctimeout/1000)-CS_CACHE_TIMEOUT;
-	struct s_ecm *ecmc;
+	struct s_ecm *ecmc, *ecmc_initial = NULL;
+
+	cs_readlock(&ecmcache_lock);
+
 	LL_ITER it = ll_iter_create(ecmcache);
 	while ((ecmc=ll_iter_next(&it))) {
-		if (ecmc->time < timeout) {
-			ll_iter_remove_data(&it);
-			continue;
-		}
+		if (!ecmcache->initial)
+			ecmc_initial = ecmc;
 
-		if (grp && !(grp & ecmc->grp))
-			continue;
+		if (ecmc->time < timeout)
+			break;
 
-		if (ecmc->caid!=er->caid)
+		if ((grp && !(grp & ecmc->grp)) || ecmc->caid!=er->caid)
 			continue;
 
 		if (memcmp(ecmc->ecmd5, er->ecmd5, CS_ECMSTORESIZE))
 			continue;
 
-		//cs_debug_mask(D_TRACE, "cachehit! (ecm)");
+		cs_readunlock(&ecmcache_lock);
+
 		memcpy(er->cw, ecmc->cw, 16);
 		er->selected_reader = ecmc->reader;
 		if (ecmc->rc == E_FOUND)
-				return E_CACHE1;
+			return E_CACHE1;
+		er->ecmcacheptr = ecmc;
+		return ecmc->rc;
+	}
+	cs_readunlock(&ecmcache_lock);
+
+	cs_writelock(&ecmcache_lock);
+	ll_iter_reset(&it);
+
+	//check cache again up to the point we started the first time (ecmc_initial) in case a new entry was added
+	while ((ecmc=ll_iter_next(&it))) {
+		if (ecmc == ecmc_initial)
+			break;
+
+		if (ecmc->time < timeout)
+			break;
+
+		if ((grp && !(grp & ecmc->grp)) || ecmc->caid!=er->caid)
+			continue;
+
+		if (memcmp(ecmc->ecmd5, er->ecmd5, CS_ECMSTORESIZE))
+			continue;
+
+		cs_writeunlock(&ecmcache_lock);
+
+		memcpy(er->cw, ecmc->cw, 16);
+		er->selected_reader = ecmc->reader;
+		if (ecmc->rc == E_FOUND)
+			return E_CACHE1;
 		er->ecmcacheptr = ecmc;
 		return ecmc->rc;
 	}
@@ -1509,14 +1541,12 @@ static int32_t check_and_store_ecmcache(ECM_REQUEST *er, uint64_t grp)
 	er->ecmcacheptr = ecmc;
 	ll_prepend(ecmcache, ecmc);
 
+	cs_writeunlock(&ecmcache_lock);
+
 	return E_UNHANDLED;
 }
 
-/**
- * cache 1: client-invoked
- * returns found ecm task index
- **/
-static int32_t check_cwcache1(ECM_REQUEST *er, uint64_t grp)
+int32_t check_cwcache2(ECM_REQUEST *er, uint64_t grp)
 {
 	//cs_ddump_mask(D_TRACE,er->ecmd5, CS_ECMSTORESIZE, "ECM search");
 	//cs_log("cache1 CHECK: grp=%lX", grp);
@@ -1526,41 +1556,29 @@ static int32_t check_cwcache1(ECM_REQUEST *er, uint64_t grp)
 	time_t timeout = now-(time_t)(cfg.ctimeout/1000)-CS_CACHE_TIMEOUT;
 	struct s_ecm *ecmc;
 
-    LL_ITER it = ll_iter_create(ecmcache);
-    while ((ecmc=ll_iter_next(&it))) {
-        if (ecmc->time < timeout) {
-			ll_iter_remove_data(&it);
-			continue;
-		}
+	cs_readlock(&ecmcache_lock);
+	LL_ITER it = ll_iter_create(ecmcache);
+	while ((ecmc=ll_iter_next(&it))) {
+       	if (ecmc->time < timeout)
+			break;
 
    		if (ecmc->rc != E_FOUND)
 			continue;
 
-		if (ecmc->caid != er->caid)
-			continue;
-
-		if (grp && !(grp & ecmc->grp))
+		if ((grp && !(grp & ecmc->grp)) || ecmc->caid!=er->caid)
 			continue;
 
 		if (memcmp(ecmc->ecmd5, er->ecmd5, CS_ECMSTORESIZE))
 			continue;
 
+		cs_readunlock(&ecmcache_lock);
 		memcpy(er->cw, ecmc->cw, 16);
 		er->selected_reader = ecmc->reader;
 		//cs_debug_mask(D_TRACE, "cachehit!");
 		return 1;
 	}
+	cs_readunlock(&ecmcache_lock);
 	return 0;
-}
-
-/**
- * cache 2: reader-invoked
- * returns 1 if found in cache. cw is copied to er
- **/
-int32_t check_cwcache2(ECM_REQUEST *er, uint64_t grp)
-{
-	int32_t rc = check_cwcache1(er, grp);
-	return rc;
 }
 
 
@@ -1680,15 +1698,27 @@ int32_t write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er, int8_t rc, u
 			logCWtoFile(er, ea->cw);
 	}
 
+	int res = 0;
 	if (er->client) {
 		if (ea->rc==E_TIMEOUT)
 			store_cw_in_cache(er, er->client->grp, E_TIMEOUT, NULL);
 
 		add_job(er->client, ACTION_CLIENT_ECM_ANSWER, ea, sizeof(struct s_ecm_answer));
-		return 1;
+		res = 1;
+	}
+	
+	if (rc == E_FOUND && reader->resetcycle > 0)
+	{
+		reader->resetcounter++;
+		if (reader->resetcounter > reader->resetcycle) {
+			reader->resetcounter = 0;
+			cs_log("resetting reader %s resetcyle of %d ecms reached", reader->label, reader->resetcycle);
+			reader->card_status = CARD_NEED_INIT;
+			reader_reset(reader);
+		}
 	}
 
-	return 0;
+	return res;
 }
 
 ECM_REQUEST *get_ecmtask()
@@ -1719,12 +1749,12 @@ ECM_REQUEST *get_ecmtask()
 		cs_log("WARNING: ecm pending table overflow !");
 	else
 	{
-		LLIST *save = er->matching_rdr, *save_al = er->answer_list;
+		LLIST *save = er->matching_rdr;
 		memset(er, 0, sizeof(ECM_REQUEST));
+		cs_ftime(&er->tps);
 		er->rc=E_UNHANDLED;
 		er->cpti=n;
 		er->client=cl;
-		cs_ftime(&er->tps);
 
 		if (cl->typ=='c') { //for clients only! Not for readers!
 			if (save) {
@@ -1732,12 +1762,6 @@ ECM_REQUEST *get_ecmtask()
 				er->matching_rdr = save;
 			} else
 				er->matching_rdr = ll_create();
-
-			if (save_al) {
-				ll_clear(save_al);
-				er->answer_list = save_al;
-			} else
-				er->answer_list = ll_create();
 
 			//cs_log("client %s ECMTASK %d multi %d ctyp %d", username(cl), n, (ph[cl->ctyp].multi)?CS_MAXPENDING:1, cl->ctyp);
                 }
@@ -1983,6 +2007,13 @@ static void chk_dcw(struct s_client *cl, struct s_ecm_answer *ea)
 			break;
 		case E_TIMEOUT:
 			ert->rc = E_TIMEOUT;
+#ifdef WITH_LB
+			if (cfg.lb_mode) {
+				LL_NODE *ptr;
+				for (ptr = ert->matching_rdr?ert->matching_rdr->initial:NULL; ptr ; ptr = ptr->nxt)
+					send_reader_stat((struct s_reader *)ptr->obj, ert, E_TIMEOUT);
+			}
+#endif
 			break;
 		case E_NOTFOUND:
 			ert->rcEx=ea->rcEx;
@@ -2526,7 +2557,8 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		er->checksum^=*lp;
 
 	if (er->rc == E_99) {
-		add_check(er->client, CHECK_ECM_TIMEOUT, er, sizeof(ECM_REQUEST), cfg.ctimeout);
+		er->stage++;
+		add_check(er->client, CHECK_WAKEUP, er, sizeof(ECM_REQUEST), cfg.ctimeout);
 		return; //ECM already requested / found in ECM cache
 	}
 
@@ -2541,7 +2573,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 	request_cw(er, 0, (cfg.preferlocalcards && local_reader_count) ? 1 : 0);
 
 	//send ecm request to fallback reader after fallbacktimeout
-	add_check(er->client, CHECK_ECM_FALLBACK, er, sizeof(ECM_REQUEST), cfg.ftimeout);
+	add_check(er->client, CHECK_WAKEUP, er, sizeof(ECM_REQUEST), cfg.ftimeout);
 }
 
 void do_emm(struct s_client * client, EMM_PACKET *ep)
@@ -2706,18 +2738,23 @@ void add_check(struct s_client *client, int8_t action, void *ptr, int32_t size, 
 	if (!checklist)
 		return;
 
+	if (action == CHECK_WAKEUP) {
+		pthread_mutex_lock(&check_mutex);
+		pthread_cond_signal(&check_cond);
+		pthread_mutex_unlock(&check_mutex);
+		return;
+	}
+
 	struct timeb t_now;
 	cs_ftime(&t_now);
-	
-	t_now.time += ms_delay / 1000;
-	t_now.millitm += ms_delay % 1000;
+	add_ms_to_timeb(&t_now, ms_delay);
 
 	struct s_check *tt = cs_malloc(&tt, sizeof(struct s_check), -1);
 
 	tt->cl = client;
 	tt->ptr = ptr;
 	tt->len = size;
-	tt->action=action;
+	tt->action = action;
 	tt->t_check = t_now;
 
 	ll_append(checklist, tt);
@@ -2797,6 +2834,52 @@ void cs_waitforcardinit()
 	}
 }
 
+static void check_status(struct s_client *cl) {
+	if (!cl || cl->kill || !cl->init_done)
+		return;
+
+	struct s_reader *rdr = cl->reader;
+
+	switch (cl->typ) {
+		case 'c':
+			//check clients for exceeding cmaxidle by checking cl->last
+			if (cl->last && cfg.cmaxidle && (time(NULL) - cl->last) > (time_t)cfg.cmaxidle) {
+				add_job(cl, ACTION_CLIENT_IDLE, NULL, 0);
+			}
+
+			break;
+#ifdef WITH_CARDREADER
+		case 'r':
+			//check for card inserted or card removed on pysical reader
+			if (!rdr || !rdr->enable)
+				break;
+			reader_checkhealth(rdr);
+			break;
+#endif
+		case 'p':
+			//execute reader do idle on proxy reader after a certain time (rdr->tcp_ito = inactivitytimeout)
+			//disconnect when no keepalive available
+			if (!rdr || !rdr->enable)
+				break;
+			if (rdr->tcp_ito && (rdr->typ & R_IS_CASCADING)) {
+				int32_t time_diff;
+				time_diff = abs(time(NULL) - rdr->last_s);
+
+				if (time_diff>(rdr->tcp_ito*60)) {
+					add_job(rdr->client, ACTION_READER_IDLE, NULL, 0);
+					rdr->last_s = time(NULL);
+				}
+			}
+			if (!rdr->tcp_connected && ((time(NULL) - rdr->last_s) > 30) && rdr->typ == R_CCCAM) {
+				add_job(rdr->client, ACTION_READER_IDLE, NULL, 0);
+				rdr->last_s = time(NULL);
+			}
+			break;
+		default:
+			break;
+	}
+}
+
 void * work_thread(void *ptr) {
 	struct s_data *data = (struct s_data *) ptr;
 	struct s_client *cl = data->cl;
@@ -2821,7 +2904,7 @@ void * work_thread(void *ptr) {
 
 	while (1) {
 		if (data)
-			cs_debug_mask(D_TRACE, "data from add_job");
+			cs_debug_mask(D_TRACE, "data from add_job action=%d", data->action);
 
 		if (!cl || !is_valid_client(cl)) {
 			if (data && data!=&tmp_data)
@@ -2842,8 +2925,8 @@ void * work_thread(void *ptr) {
 		}
 
 		if (!data) {
-			if (keep_threads_alive && cl->reader && cl->init_done && cl->typ == 'r')
-				reader_checkhealth(cl->reader);
+			if (keep_threads_alive)
+				check_status(cl);
 
 			pthread_mutex_lock(&cl->thread_lock);
 			if (cl->joblist && ll_count(cl->joblist)>0) {
@@ -2876,8 +2959,10 @@ void * work_thread(void *ptr) {
 				data->action = ACTION_CLIENT_TCP;
 				data->ptr = NULL;
 
-				if (pfd[0].revents & (POLLHUP | POLLNVAL))
+				if (pfd[0].revents & (POLLHUP | POLLNVAL)) {
 					cl->kill = 1;
+					continue;
+				}
 			}
 		}
 
@@ -2948,7 +3033,7 @@ void * work_thread(void *ptr) {
 				break;
 			case ACTION_READER_EMM:
 				reader_do_emm(reader, data->ptr);
-				add_garbage(data->ptr); // allocated in do_emm()
+				free(data->ptr); // allocated in do_emm()
 				break;
 			case ACTION_READER_CARDINFO:
 				reader_do_card_info(reader);
@@ -2978,7 +3063,7 @@ void * work_thread(void *ptr) {
 					break;
 				}
 				ph[cl->ctyp].s_handler(cl, data->ptr, n);
-				add_garbage(data->ptr); // allocated in accept_connection()
+				free(data->ptr); // allocated in accept_connection()
 				break;
 			case ACTION_CLIENT_TCP:
 				s = check_fd_for_data(cl->pfd);
@@ -2999,7 +3084,7 @@ void * work_thread(void *ptr) {
 				break;
 			case ACTION_CLIENT_ECM_ANSWER:
 				chk_dcw(cl, data->ptr);
-				add_garbage(data->ptr);
+				free(data->ptr);
 				break;
 			case ACTION_CLIENT_INIT:
 				if (ph[cl->ctyp].s_init)
@@ -3079,22 +3164,14 @@ void add_job(struct s_client *cl, int8_t action, void *ptr, int len) {
 	pthread_mutex_unlock(&cl->thread_lock);
 }
 
-static struct timespec *make_timeout(struct timespec *timeout, int32_t msec) {
-	struct timeval now;
-	gettimeofday(&now, NULL);
-
-	int32_t nano_secs	= ((now.tv_usec * 1000) + ((msec % 1000) * 1000 * 1000));
-
-	timeout->tv_sec = now.tv_sec + (msec / 1000) + (nano_secs / 1000000000);
-	timeout->tv_nsec = nano_secs % 1000000000;
-
-	return timeout;
-}
-
 static void * check_thread(void) {
-	int32_t next_check = 100, time_to_check, rc;
-	struct timeb t_now;
+	int32_t next_check = 100, time_to_check, rc, i;
+	struct timeb t_now, tbc;
 	ECM_REQUEST *er = NULL;
+	struct s_client *cl;
+	struct s_check *t1;
+	struct s_ecm *ecmc;
+	time_t now, ecm_timeout;
 
 	pthread_mutex_init(&check_mutex,NULL);
 	pthread_cond_init(&check_cond,NULL);
@@ -3102,7 +3179,7 @@ static void * check_thread(void) {
 	checklist = ll_create();
 
 	struct timespec timeout;
-	make_timeout(&timeout, 30000);
+	add_ms_to_timespec(&timeout, 30000);
 
 	while(1) {
 		pthread_mutex_lock(&check_mutex);
@@ -3111,9 +3188,45 @@ static void * check_thread(void) {
 
 		cs_ftime(&t_now);
 
+		next_check = 0;
+		for (cl=first_client->next; cl ; cl=cl->next) {
+			if (cl->init_done && cl->typ=='c' && cl->ecmtask) {
+				for (i=0; i<CS_MAXPENDING; i++) {
+					if (cl->ecmtask[i].rc >= E_99) {
+						er = &cl->ecmtask[i];
+						tbc = er->tps;
+						time_to_check = add_ms_to_timeb(&tbc, !er->stage ? cfg.ftimeout : cfg.ctimeout);
+
+						if (comp_timeb(&t_now, &tbc) >= 0) {
+							if (!er->stage) {
+								er->stage++;
+								cs_debug_mask(D_TRACE, "fallback for %s %04X&%06X/%04X", username(er->client), er->caid, er->prid, er->srvid);
+								if (er->rc >= E_UNHANDLED) //do not request rc=99
+								        request_cw(er, er->stage, 0);
+
+							} else {
+								cs_debug_mask(D_TRACE, "timeout for %s %04X&%06X/%04X", username(er->client), er->caid, er->prid, er->srvid);
+								if (er->client && is_valid_client(er->client))
+									write_ecm_answer(NULL, er, E_TIMEOUT, 0, NULL, NULL);
+							}
+						}
+						if (!next_check || time_to_check < next_check) {
+							add_ms_to_timespec(&timeout, time_to_check);
+							next_check = time_to_check;
+						}
+					}
+				}
+			}
+		}
+
+		if (ll_count(checklist) == 0) {
+			if (!next_check)
+				add_ms_to_timespec(&timeout, 30000);
+			continue;
+		}	
+
 		LL_ITER itr = ll_iter_create(checklist);
 
-		struct s_check *t1;
 		next_check = 0;
 		while ((t1 = ll_iter_next(&itr))) {
 			time_to_check = ((t1->t_check.time - t_now.time) * 1000) + (t1->t_check.millitm - t_now.millitm);
@@ -3129,58 +3242,41 @@ static void * check_thread(void) {
 					case CHECK_ANTICASCADER:
 						if (cfg.ac_enabled) {
 							ac_do_stat();
-							add_check(NULL, CHECK_ANTICASCADER, NULL, 0, cfg.ac_stime*60*1000);
+							cs_ftime(&t1->t_check);
+							add_ms_to_timeb(&t1->t_check, cfg.ac_stime*60*1000);
+							time_to_check = cfg.ac_stime*60*1000;
 						}
 						break;
 #endif
-					case CHECK_ECM_TIMEOUT:
-						er = t1->ptr;
-						if (!er) continue;
-						if (er->rc<E_99)
-							break;
-						
-#ifdef WITH_LB
-						if (cfg.lb_mode) {
-							LL_NODE *ptr;
-							for (ptr = er->matching_rdr?er->matching_rdr->initial:NULL; ptr ; ptr = ptr->nxt)
-								send_reader_stat((struct s_reader *)ptr->obj, er, E_TIMEOUT);
-						}
-#endif
-						if (er->client && is_valid_client(er->client)) {
-							write_ecm_answer(NULL, er, E_TIMEOUT, 0, NULL, NULL);
-						}
-						break;
-					case CHECK_ECM_FALLBACK:
-						er = t1->ptr;
-						if (!er) continue;
-						if (er->rc<E_99)
-							break;
-						
-						er->stage++;
-						cs_debug_mask(D_TRACE, "fallback for %s %04X&%06X/%04X", username(er->client), er->caid, er->prid, er->srvid);
-						if (er->rc >= E_UNHANDLED) //do not request rc=99
-						        request_cw(er, er->stage, 0);
+					case CHECK_ECMCACHE:
+						now = time(NULL);
+						ecm_timeout = now-(time_t)(cfg.ctimeout/1000)-CS_CACHE_TIMEOUT;
 
-						//check ecm request for timeout after (clienttimeout - fallbacktimeout)
-						add_check(er->client, CHECK_ECM_TIMEOUT, er, sizeof(ECM_REQUEST), (cfg.ctimeout - cfg.ftimeout));
+						cs_writelock(&ecmcache_lock);
+						LL_ITER it = ll_iter_create(ecmcache);
+						while ((ecmc=ll_iter_next(&it))) {
+							if (ecmc->time < ecm_timeout)
+								ll_iter_remove_data(&it);
+						}
+						cs_writeunlock(&ecmcache_lock);
+
+						cs_ftime(&t1->t_check);
+						add_ms_to_timeb(&t1->t_check, 60000);
+						time_to_check = 60000;
 
 						break;
 					default:
 						break;
 				}
-
-				ll_iter_remove(&itr);
-				add_garbage(t1);
 			} else {
 				if (!next_check || time_to_check < next_check) {
-					make_timeout(&timeout, time_to_check);
+					add_ms_to_timespec(&timeout, time_to_check);
 					next_check = time_to_check;
 				}
 			}
 		}
-		if (next_check == 0) {
-			make_timeout(&timeout, 30000);
-		}
+		if (!next_check)
+			add_ms_to_timespec(&timeout, 30000);
 	}
 	return NULL;
 }
@@ -3313,48 +3409,13 @@ void * client_check(void) {
 }
 
 void * reader_check(void) {
-	struct s_reader *rdr;
 	struct s_client *cl;
-	int8_t counter = 0;
 
 	while (1) {
-		//check clients for exceeding cmaxidle by checking cl->last
 		for (cl=first_client->next; cl ; cl=cl->next) {
-			if (cl->init_done && !cl->kill && cl->typ=='c') {
-				if (cl->last && cfg.cmaxidle && (time(0) - cl->last) > (time_t)cfg.cmaxidle) {
-					add_job(cl, ACTION_CLIENT_IDLE, NULL, 0);
-					continue;
-				}
-			}
+			if (!cl->thread_active)
+				check_status(cl);
 		}
-
-		for (rdr=first_active_reader; rdr ; rdr=rdr->next) {
-			if (!rdr->enable || !rdr->client)
-				continue;
-#ifdef WITH_CARDREADER
-			//check for card inserted or card removed on pysical reader
-			if (rdr->client->init_done && rdr->client->typ == 'r' && !rdr->client->thread_active)
-				reader_checkhealth(rdr);
-#endif
-			//execute reader do idle on proxy reader after a certain time (rdr->tcp_ito = inactivitytimeout)
-			//disconnect when no keepalive available
-			if (rdr->tcp_ito && rdr->typ & R_IS_CASCADING && !rdr->client->thread_active) {
-				time_t now;
-				int32_t time_diff;
-				time(&now);
-				time_diff = abs(now - rdr->last_s);
-
-				if (time_diff>(rdr->tcp_ito*60)) {
-					add_job(rdr->client, ACTION_READER_IDLE, NULL, 0);
-					rdr->last_s = now;
-				}
-			}
-			if (counter>20 && rdr->typ == R_CCCAM && !rdr->client->thread_active) {
-				add_job(rdr->client, ACTION_READER_IDLE, NULL, 0);
-			}
-		}
-		if (counter>20) counter=0;
-		counter++;
 		cs_sleepms(1000);
 	}
 }
@@ -3729,6 +3790,8 @@ int32_t main (int32_t argc, char *argv[])
 		add_check(NULL, CHECK_ANTICASCADER, NULL, 0, cfg.ac_stime*60*1000);
 	}
 #endif
+
+	add_check(NULL, CHECK_ECMCACHE, NULL, 0, 60000);
 
 	for (i=0; i<CS_MAX_MOD; i++)
 		if (ph[i].type & MOD_CONN_SERIAL)   // for now: oscam_ser only

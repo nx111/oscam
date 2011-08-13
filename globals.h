@@ -240,6 +240,14 @@
 extern const char *boxdesc[];
 #endif
 
+#ifdef HAVE_DVBAPI
+#define ECMINFO_MODE_OSCAM 	0
+#define ECMINFO_MODE_CCCAM 	1
+#define ECMINFO_MODE_OSCAM_OLD	2
+#define ECMINFO_MODE_NEWCAMD	3
+#define ECMINFO_MODE_OTHER 	9
+#endif
+
 #define EMM_UNIQUE 1
 #define EMM_SHARED 2
 #define EMM_GLOBAL 4
@@ -390,9 +398,9 @@ extern void cs_switch_led(int32_t led, int32_t action);
 #define ACTION_CLIENT_INIT		26
 #define ACTION_CLIENT_IDLE		27
 
-#define CHECK_ECM_FALLBACK		1
-#define CHECK_ECM_TIMEOUT		2
-#define CHECK_ANTICASCADER		3
+#define CHECK_WAKEUP			1
+#define CHECK_ANTICASCADER		2
+#define CHECK_ECMCACHE		3
 
 #define AVAIL_CHECK_CONNECTED	0
 #define AVAIL_CHECK_LOADBALANCE	1
@@ -422,15 +430,11 @@ extern void cs_switch_led(int32_t led, int32_t action);
  *      global structures
  * =========================== */
 typedef struct cs_mutexlock {
-	time_t			lastlock;
 	int32_t		timeout;
 	pthread_mutex_t	lock;
-	pthread_cond_t	cond;
-	const char		*name;
-	struct s_client	*client;
-	int16_t		writelock;
-	int16_t		readlock;
-	int8_t			lock_active;
+	pthread_cond_t	writecond, readcond;
+	const char	*name;
+	int16_t		writelock, readlock;
 } CS_MUTEX_LOCK;
 
 #include "module-datastruct-llist.h"
@@ -675,7 +679,6 @@ typedef struct ecm_request_t {
 	void			*src_data;
 	struct s_ecm		*ecmcacheptr;		// Pointer to ecm-cw-rc-cache!
 	char			msglog[MSGLOGSIZE];
-	LLIST			*answer_list;
 	uint16_t		checksum;
 	struct ecm_request_t	*parent;
 } ECM_REQUEST;
@@ -809,7 +812,6 @@ struct s_client {
 	struct s_emm	*emmcache;
 
 	pthread_t		thread;
-	CS_MUTEX_LOCK		*lock;
 	
 	struct s_serial_client	*serialdata;
 
@@ -893,6 +895,8 @@ struct ecmrl {
 
 struct s_reader  									//contains device info, reader info and card info
 {
+	int32_t			resetcycle;						// ECM until reset
+	int32_t			resetcounter;					// actual count
 	uint32_t		auprovid;						// AU only for this provid
 	int8_t			audisabled;						// exclude reader from auto AU
 	int8_t			smargopatch;
@@ -1079,6 +1083,7 @@ struct s_reader  									//contains device info, reader info and card info
 	int32_t			ratelimitseconds;
 	struct ecmrl	rlecmh[MAXECMRATELIMIT];
 	int8_t			fix_9993;
+
 	struct s_reader *next;
 };
 
