@@ -36,6 +36,7 @@ int32_t thread_pipe[2] = {0, 0};
 int8_t cs_restart_mode=1; //Restartmode: 0=off, no restart fork, 1=(default)restart fork, restart by webif, 2=like=1, but also restart on segfaults
 #endif
 int8_t cs_capture_SEGV=0;
+uint16_t cs_waittime = 60;
 char  cs_tmpdir[200]={0x00};
 pid_t server_pid=0;
 #if defined(LIBUSB)
@@ -293,6 +294,7 @@ static void usage()
   fprintf(stderr, "\t               1 = restart activated, web interface can restart oscam (default)\n");
   fprintf(stderr, "\t               2 = like 1, but also restart on segmentation faults\n");
 #endif
+  fprintf(stderr, "\t-w <secs>  : wait up to <secs> seconds for the system time to be set correctly (default 60)\n");
   fprintf(stderr, "\t-h         : show this help\n");
   fprintf(stderr, "\n");
   exit(1);
@@ -892,10 +894,27 @@ struct s_client * create_client(in_addr_t ip) {
 		pthread_mutex_init(&cl->thread_lock, NULL);
 
 		cl->login=cl->last=time((time_t *)0);
+		
+		cl->tid = (uint32_t)(uintptr_t)cl;	// Use pointer adress of client as threadid (for monitor and log)
 
 		//Now add new client to the list:
 		struct s_client *last;
 		cs_writelock(&clientlist_lock);
+		if(sizeof(uintptr_t) > 4){		// 64bit systems can have collisions because of the cast so lets check if there are some
+			int8_t found;
+			do{
+				found = 0;
+				for (last=first_client; last; last=last->next){
+					if(last->tid == cl->tid){
+						found = 1;
+						break;
+					}
+				}
+				if(found || cl->tid == 0){
+					cl->tid = (uint32_t)rand();
+				}
+			} while (found || cl->tid == 0);
+		}
 		for (last=first_client; last->next != NULL; last=last->next); //ends with cl on last client
 		last->next = cl;
 		cs_writeunlock(&clientlist_lock);
@@ -979,11 +998,11 @@ static void init_check(){
 		timeinfo.tm_year = year - 1900;
 		time_t builddate = mktime(&timeinfo) - 86400;
 	  int32_t i = 0;
-	  while(time((time_t)0) < builddate){
-	  	cs_log("The current system time is smaller than the build date (%s). Waiting 5s for time to correct...", ptr);
-	  	cs_sleepms(5000);
+	  while(time((time_t*)0) < builddate){
+	  	if(i == 0) cs_log("The current system time is smaller than the build date (%s). Waiting up to %d seconds for time to correct", ptr, cs_waittime);
+	  	cs_sleepms(1000);
 	  	++i;
-	  	if(i > 6){
+	  	if(i > cs_waittime){
 	  		cs_log("Waiting was not successful. OSCam will be started but is UNSUPPORTED this way. Do not report any errors with this version.");
 				break;
 	  	}
@@ -1690,7 +1709,7 @@ int32_t write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er, int8_t rc, u
 			logCWtoFile(er, ea->cw);
 	}
 
-	int res = 0;
+	int32_t res = 0;
 	if (er->client) {
 		if (ea->rc==E_TIMEOUT)
 			store_cw_in_cache(er, er->client->grp, E_TIMEOUT, NULL);
@@ -2485,7 +2504,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 #endif
 	}
 
-	int local_reader_count = 0;
+	int16_t local_reader_count = 0;
 	if(er->rc >= E_99) {
 		er->reader_avail=0;
 		struct s_reader *rdr;
@@ -2886,6 +2905,7 @@ void * work_thread(void *ptr) {
 	cl->thread=pthread_self();
 
 	uchar mbuf[1024];
+	memset(mbuf, 0, sizeof(mbuf));
 	int32_t n=0, rc=0, i, idx, s;
 	uchar dcw[16];
 	sigset_t newmask;
@@ -3111,7 +3131,7 @@ void * work_thread(void *ptr) {
 	return NULL;
 }
 
-void add_job(struct s_client *cl, int8_t action, void *ptr, int len) {
+void add_job(struct s_client *cl, int8_t action, void *ptr, int32_t len) {
 
 	if (!cl) {
 		cs_log("WARNING: add_job failed.");
@@ -3613,12 +3633,12 @@ int32_t main (int32_t argc, char *argv[])
 	0
   };
 
-  while ((i=getopt(argc, argv, "gbsc:t:d:r:hm:x"))!=EOF)
+  while ((i=getopt(argc, argv, "gbsc:t:d:r:w:hm:x"))!=EOF)
   {
 	  switch(i) {
-	  	  case 'g':
-		      gbdb=1;
-		      break;
+		  case 'g':
+			  gbdb=1;
+			  break;
 		  case 'b':
 			  bg=1;
 			  break;
@@ -3632,9 +3652,9 @@ int32_t main (int32_t argc, char *argv[])
 			  cs_dblevel=atoi(optarg);
 			  break;
 #ifdef WEBIF
-                  case 'r':
-                          cs_restart_mode=atoi(optarg);
-                          break;
+		  case 'r':
+			  cs_restart_mode=atoi(optarg);
+			  break;
 #endif
 		  case 't':
 			  mkdir(optarg, S_IRWXU);
@@ -3646,6 +3666,9 @@ int32_t main (int32_t argc, char *argv[])
 				printf("WARNING: tmpdir does not exist. using default value.\n");
 			  }
 			  break;
+			case 'w':
+				cs_waittime=strtoul(optarg, NULL, 10);
+				break;
 		  case 'm':
 				printf("WARNING: -m parameter is deprecated, ignoring it.\n");
 				break;

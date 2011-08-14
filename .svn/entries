@@ -1,15 +1,15 @@
 10
 
 dir
-5835
+5851
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-08-13T09:21:50.702330Z
-5835
-kpc
+2011-08-13T22:35:02.398507Z
+5851
+Deas
 has-props
 
 
@@ -35,8 +35,17 @@ has-props
 
 ((conflict datastruct-llist.c file update deleted edited (version http://streamboard.gmc.to/svn/oscam 4 3599 trunk/datastruct-llist.c file) (version http://streamboard.gmc.to/svn/oscam 4 3640 trunk/datastruct-llist.c none)))
 
-Distribution
-dir
+Maketype
+file
+
+
+
+
+
+d98c9cf9325926c0546664ee02064356
+2011-07-17T18:23:19.113327Z
+5667
+zetack
 
 module-cccam.h
 file
@@ -72,19 +81,7 @@ zetack
 
 5860
 
-Maketype
-file
-
-
-
-
-
-d98c9cf9325926c0546664ee02064356
-2011-07-17T18:23:19.113327Z
-5667
-zetack
-
-openxcas
+Distribution
 dir
 
 module-camd35.c
@@ -93,11 +90,11 @@ file
 
 
 
-2011-08-13T05:58:50.426528Z
-2a174553ae8d7965fb997c4dacf68c1c
-2011-08-10T11:27:56.120395Z
-5812
-zetack
+2011-08-14T01:07:24.349676Z
+95c6ae7ed2585f3f95c59a7d7e4083be
+2011-08-13T13:26:00.089754Z
+5838
+Admin
 
 
 
@@ -119,7 +116,10 @@ zetack
 
 
 
-17975
+17979
+
+openxcas
+dir
 
 reader-viaccess.c
 file
@@ -331,11 +331,11 @@ file
 
 
 
-2011-07-31T12:31:23.861938Z
-064275be19bb5c2be646d90df74fdbdb
-2011-07-27T17:03:11.289757Z
-5739
-zetack
+2011-08-14T01:07:24.365677Z
+c458b58cb33494d85785a45ceefb3aab
+2011-08-13T14:32:11.572329Z
+5841
+Admin
 
 
 
@@ -357,10 +357,7 @@ zetack
 
 
 
-13610
-
-toolchains
-dir
+13602
 
 module-gbox.c
 file
@@ -368,11 +365,11 @@ file
 
 
 
-2011-08-09T03:11:24.641365Z
-d44768ab5327e017cdd9ab858ad4fe96
-2011-08-08T16:35:28.658790Z
-5808
-zetack
+2011-08-14T01:07:24.373677Z
+1e51202b302a79a90194f861172ecf67
+2011-08-13T13:26:00.089754Z
+5838
+Admin
 has-props
 
 
@@ -394,7 +391,10 @@ has-props
 
 
 
-27982
+27953
+
+toolchains
+dir
 
 reader-videoguard-common.h
 file
@@ -437,10 +437,10 @@ file
 
 
 
-8355076601b17be2ef8ac7fe5d5e4e58
-2011-08-12T21:42:01.992322Z
-5829
-jerdvb
+af40e4379410f32a316e1fe9340ec69c
+2011-08-13T13:46:26.516423Z
+5840
+zetack
 
 Makefile
 file
@@ -494,11 +494,11 @@ file
 
 
 
-2011-08-09T03:11:24.645365Z
-c95468cf428f206afa32a22deafbda94
-2011-08-08T16:35:28.658790Z
-5808
-zetack
+2011-08-14T01:07:24.405677Z
+1346cd8bf73de0977ab54abaf8bb6819
+2011-08-13T13:26:00.089754Z
+5838
+Admin
 
 
 
@@ -520,7 +520,7 @@ zetack
 
 
 
-33650
+33654
 
 oscam.c
 file
@@ -529,10 +529,10 @@ file
 
 
 
-cd6d8bf482734d7cee6f084828cab4fa
-2011-08-12T22:06:43.098930Z
-5830
-zetack
+e10afa1678a53cd49186fb59a39336d9
+2011-08-13T18:20:54.506461Z
+5845
+kpc
 
 reader-tongfang.c
 file
@@ -575,10 +575,10 @@ file
 
 
 
-86c9b2ec9730fd756f9a9943f32d0c75
-2011-08-13T09:21:50.702330Z
-5835
-kpc
+1e3372afb3d6725c0df3703c5c5a97aa
+2011-08-13T15:11:49.114984Z
+5842
+Admin
 
 cscrypt
 dir
@@ -670,10 +670,10 @@ file
 
 
 
-b35bb45360f10b40ea837ae1c50c85c2
-2011-08-11T14:48:57.921748Z
-5816
-zetack
+968f63946dc9a3af4f9cefca43aeb35b
+2011-08-13T13:29:41.782478Z
+5839
+Admin
 
 oscam-simples.c
 file
@@ -715,11 +715,11 @@ file
 
 
 
-2011-08-09T03:11:24.645365Z
-388e5af35244224fb4e6fb64b2ccab2e
-2011-08-08T16:35:28.658790Z
-5808
-zetack
+2011-08-14T01:07:24.417677Z
+f30a3d5eac7b47b6aad5cc509c1069c8
+2011-08-13T13:26:00.089754Z
+5838
+Admin
 
 
 
@@ -741,7 +741,7 @@ zetack
 
 
 
-6181
+6185
 
 oscam-http.c
 file
@@ -749,10 +749,10 @@ file
 
 
 
-2011-08-13T11:13:39.885137Z
-4a25e011cba9c596338bc9d86a315664
-2011-08-13T07:32:38.558405Z
-5832
+2011-08-14T01:07:24.417677Z
+3823ced3b59b32d04ec987621e9b8508
+2011-08-13T17:06:25.023882Z
+5844
 alno
 
 
@@ -775,7 +775,7 @@ alno
 
 
 
-156125
+157041
 
 oscam-http.h
 file
@@ -783,11 +783,11 @@ file
 
 
 
-2011-08-13T05:58:50.478528Z
-d07aa88685b0057e3b327564ebd715e1
-2011-08-12T21:27:45.342469Z
-5828
-jerdvb
+2011-08-14T01:07:24.421677Z
+d7b82ab706bc4620530798a1cc97174f
+2011-08-13T15:11:49.114984Z
+5842
+Admin
 
 
 
@@ -809,7 +809,7 @@ jerdvb
 
 
 
-136099
+136101
 
 reader-irdeto.c
 file
@@ -817,10 +817,10 @@ file
 
 
 
-2011-08-13T11:13:39.885137Z
-ab56c322065a517de47025c18c2ab03d
-2011-08-13T09:11:16.043739Z
-5834
+2011-08-14T01:07:24.421677Z
+934c66ee9247881c98d17c46c6af29fb
+2011-08-13T22:35:02.398507Z
+5851
 Deas
 
 
@@ -843,18 +843,18 @@ Deas
 
 
 
-29122
+29148
 
-reader-common.c
+oscam-garbage.c
 file
 
 
 
 
-2011-07-31T12:31:23.889938Z
-706b656dc52f3a2ea742ec88a0c4dd09
-2011-07-27T17:03:11.289757Z
-5739
+2011-08-05T10:33:18.040203Z
+9c6ea78449de55ea8e41f2583f2f41c3
+2011-08-04T14:31:02.506843Z
+5782
 zetack
 
 
@@ -877,7 +877,7 @@ zetack
 
 
 
-10856
+4056
 
 reader-nagra.c
 file
@@ -913,16 +913,16 @@ zetack
 
 37446
 
-oscam-garbage.c
+reader-common.c
 file
 
 
 
 
-2011-08-05T10:33:18.040203Z
-9c6ea78449de55ea8e41f2583f2f41c3
-2011-08-04T14:31:02.506843Z
-5782
+2011-07-31T12:31:23.889938Z
+706b656dc52f3a2ea742ec88a0c4dd09
+2011-07-27T17:03:11.289757Z
+5739
 zetack
 
 
@@ -945,7 +945,7 @@ zetack
 
 
 
-4056
+10856
 
 reader-videoguard12.c
 file
@@ -1022,10 +1022,10 @@ file
 
 
 
-fd7ea82a8b0ea7ac0a36fd28e4aea6ac
-2011-07-24T22:53:17.577533Z
-5725
-lareq78
+89750a2f579db556fe11b977a658e77a
+2011-08-13T13:26:00.089754Z
+5838
+Admin
 
 csctapi
 dir
@@ -1232,40 +1232,6 @@ c2b77c46b4f3007295c75cbb3bc24b1e
 docmarius
 has-props
 
-module-cccshare.c
-file
-
-
-
-
-2011-08-03T10:09:03.511770Z
-5520de1eb92496904eb9f82e97744e43
-2011-08-02T21:26:07.077491Z
-5774
-JrCs
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-45103
-
 module-stat.c
 file
 
@@ -1300,6 +1266,40 @@ alno
 
 30707
 
+module-cccshare.c
+file
+
+
+
+
+2011-08-14T01:07:24.425677Z
+3307cf5baee01a5ad33e089931d9bd52
+2011-08-13T13:26:00.089754Z
+5838
+Admin
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+45106
+
 algo
 dir
 
@@ -1314,40 +1314,6 @@ file
 2011-08-07T15:41:32.271939Z
 5802
 alno
-
-module-cccshare.h
-file
-
-
-
-
-2011-05-31T02:12:22.377893Z
-109e8636de8bc11072040341f95d2cda
-2011-05-16T21:31:32.287189Z
-5245
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-1173
 
 module-constcw.c
 file
@@ -1382,6 +1348,40 @@ zetack
 
 
 4250
+
+module-cccshare.h
+file
+
+
+
+
+2011-05-31T02:12:22.377893Z
+109e8636de8bc11072040341f95d2cda
+2011-05-16T21:31:32.287189Z
+5245
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1173
 
 oscam-chk.c
 file
@@ -1457,11 +1457,11 @@ file
 
 
 
-2011-08-09T03:11:24.649365Z
-2a58b201f8e2b6fad8f64f7ab59fe754
-2011-08-08T16:35:28.658790Z
-5808
-zetack
+2011-08-14T01:07:24.425677Z
+7520805284f021751a0007af760c4348
+2011-08-13T13:29:41.782478Z
+5839
+Admin
 
 
 
@@ -1483,7 +1483,41 @@ zetack
 
 
 
-22048
+22024
+
+reader-videoguard2.c
+file
+
+
+
+
+2011-08-14T01:07:24.429677Z
+71be80d9c5a822d94fb0b2991225947e
+2011-08-13T13:26:00.089754Z
+5838
+Admin
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+25921
 
 reader-seca.c
 file
@@ -1518,40 +1552,6 @@ zetack
 
 
 13343
-
-reader-videoguard2.c
-file
-
-
-
-
-2011-07-31T12:31:23.901939Z
-5d102132cdbe23c25acddb8fd852e581
-2011-07-28T07:01:33.053787Z
-5740
-lattjo
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-25913
 
 README
 file
@@ -1590,10 +1590,10 @@ Deas
 OSCam.xcodeproj
 dir
 
-cygwin
+utils
 dir
 
-utils
+cygwin
 dir
 
 .gitignore
@@ -1671,10 +1671,10 @@ file
 
 
 
-6e4cd88301f169cc60210740c3e31e24
-2011-08-12T17:17:28.913650Z
-5826
-zetack
+569b1430ba6e0ef62ef41a49f4aa2de3
+2011-08-13T15:11:49.114984Z
+5842
+Admin
 
 module-cccam.c
 file
@@ -1683,10 +1683,10 @@ file
 
 
 
-d5d8f54fda9ff22d80b7926f6682d28b
-2011-08-08T16:35:28.658790Z
-5808
-zetack
+030b9a8aa770e73365eb3a4e6f88c33d
+2011-08-13T13:26:00.089754Z
+5838
+Admin
 has-props
 
 module-datastruct-llist.h
@@ -1729,11 +1729,11 @@ file
 
 
 
-2011-08-09T03:11:24.649365Z
-0b18f0066e41ba54468953ba29d0a569
-2011-08-08T16:35:28.658790Z
-5808
-zetack
+2011-08-14T01:07:24.441677Z
+b0b6c3b9998f3e8f0e589a018a69ef8e
+2011-08-13T13:26:00.089754Z
+5838
+Admin
 
 
 
@@ -1755,5 +1755,5 @@ zetack
 
 
 
-4209
+4213
 

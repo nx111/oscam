@@ -1043,7 +1043,7 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	rdr = get_reader_by_label(reader_);
 
 	tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
-	tpl_addVar(vars, TPLADD, "DESCRIPTION", rdr->description);
+	tpl_addVar(vars, TPLADD, "DESCRIPTION", rdr->description?rdr->description:"");
 
 	// enabled
 	if(!apicall) {
@@ -1419,24 +1419,40 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 	struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
 	if(!rdr) return "0";
 
+	char *stxt[]={"found", "cache1", "cache2", "emu",
+			"not found", "timeout", "sleeping",
+			"fake", "invalid", "corrupt", "no card", "expdate",
+			"disabled", "stopped"};
+
 	if (strcmp(getParam(params, "action"), "resetstat") == 0) {
 		char *rcs = getParam(params, "rc");
+		int32_t retval = 0;
 		if(strlen(rcs) > 0) {
 			int8_t rc;
 			rc = atoi(rcs);
-			clean_stat_by_rc(rdr, rc);
+			retval = clean_stat_by_rc(rdr, rc);
+			cs_log("Reader %s stats %d %s entr%s deleted by WebIF from %s",
+								rdr->label, retval, stxt[rc],
+								retval == 1 ? "y":"ies",
+								cs_inet6_ntoa(GET_IP()));
 		} else {
 			clear_reader_stat(rdr);
+			cs_log("Reader %s stats resetted by WebIF from %s", rdr->label, cs_inet6_ntoa(GET_IP()));
 		}
-		cs_log("Reader %s stats resetted by WebIF from %s", rdr->label, cs_inet6_ntoa(GET_IP()));
+
 	}
 
 	if (strcmp(getParam(params, "action"), "deleterecord") == 0) {
 		char *record = getParam(params, "record");
 		if(strlen(record) > 0) {
+			int32_t retval = 0;
 			uint32_t caid, provid, sid, len;
 			sscanf(record, "%x:%x:%x:%x", &caid, &provid, &sid, &len);
-			clean_stat_by_id(rdr, caid, provid , sid, len);
+			retval = clean_stat_by_id(rdr, caid, provid , sid, len);
+			cs_log("Reader %s stats %d entr%s deleted by WebIF from %s",
+					rdr->label, retval,
+					retval == 1 ? "y":"ies",
+					cs_inet6_ntoa(GET_IP()));
 		}
 	}
 
@@ -1447,10 +1463,7 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 		tpl_addVar(vars, TPLADD, "READERNAME", rdr->label);
 	}
 
-	char *stxt[]={"found", "cache1", "cache2", "emu",
-			"not found", "timeout", "sleeping",
-			"fake", "invalid", "corrupt", "no card", "expdate",
-			"disabled", "stopped"};
+
 
 	if (apicall) {
 		int32_t i, emmcount = 0;
@@ -1710,7 +1723,8 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 
 	tpl_addVar(vars, TPLADD, "USERNAME", account->usr);
 	tpl_addVar(vars, TPLADD, "PASSWORD", account->pwd);
-	tpl_addVar(vars, TPLADD, "DESCRIPTION", account->description);
+	if(account->description)
+		tpl_addVar(vars, TPLADD, "DESCRIPTION", account->description);
 
 	//Disabled
 	if(!apicall) {
@@ -2123,7 +2137,7 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 		tpl_addVar(vars, TPLADD, "CLASSNAME", classname);
 		tpl_addVar(vars, TPLADD, "USER", xml_encode(vars, account->usr));
 		tpl_addVar(vars, TPLADD, "USERENC", urlencode(vars, account->usr));
-		tpl_addVar(vars, TPLADD, "DESCRIPTION", xml_encode(vars, account->description));
+		tpl_addVar(vars, TPLADD, "DESCRIPTION", xml_encode(vars, account->description?account->description:""));
 		tpl_addVar(vars, TPLADD, "STATUS", status);
 		tpl_addVar(vars, TPLAPPEND, "STATUS", expired);
 		// append row to table template
@@ -2640,10 +2654,10 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 				tpl_addVar(vars, TPLADD, "CLIENTUSER", xml_encode(vars, usr));
 				
 				if(cl->typ == 'c') {
-					tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->account?cl->account->description:""));
+					tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, (cl->account && cl->account->description)?cl->account->description:""));
 				}
 				else if(cl->typ == 'p' || cl->typ == 'r') {
-					tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->reader->description));
+					tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->reader->description?cl->reader->description:""));
 				}
 				
 				tpl_printf(vars, TPLADD, "CLIENTCAU", "%d", cau);
@@ -3636,10 +3650,10 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 					tpl_printf(vars, TPLADD, "CLIENTTYPE", "%c", cl->typ);
 					tpl_addVar(vars, TPLADD, "CLIENTUSER", xml_encode(vars, usr));
 					if(cl->typ == 'c') {
-						tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->account?cl->account->description:""));
+						tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, (cl->account && cl->account->description)?cl->account->description:""));
 					}
 					else if(cl->typ == 'p' || cl->typ == 'r') {
-						tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->reader->description));
+						tpl_addVar(vars, TPLADD, "CLIENTDESCRIPTION", xml_encode(vars, cl->reader->description?cl->reader->description:""));
 					}
 					tpl_printf(vars, TPLADD, "CLIENTLASTRESPONSETIME", "%d", cl->cwlastresptime?cl->cwlastresptime:-1);
 					tpl_printf(vars, TPLADD, "CLIENTIDLESECS", "%d", isec);
@@ -3896,9 +3910,20 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 				cs_debug_mask(D_TRACE, "WebIf: dyndns address previously resolved and ok");	
 			} else {
 				cfg.http_dynip = cs_getIPfromHost((char*)cfg.http_dyndns);
-				cs_debug_mask(D_TRACE, "WebIf: dynip resolved %s access from %s",
-					cs_inet_ntoa(cfg.http_dynip),
-					cs_inet6_ntoa(addr));
+#ifdef IPV6SUPPORT
+				if(cfg.http_dynip && cfg.http_dynip == addr.s6_addr32[3]) {
+#else
+				if(cfg.http_dynip && cfg.http_dynip == addr) {
+#endif
+					ok = v;
+					cs_debug_mask(D_TRACE, "WebIf: dynip resolved %s access from %s => granted",
+						cs_inet_ntoa(cfg.http_dynip),
+						cs_inet6_ntoa(addr));	
+				} else {
+					cs_debug_mask(D_TRACE, "WebIf: dynip resolved %s access from %s => forbidden",
+						cs_inet_ntoa(cfg.http_dynip),
+						cs_inet6_ntoa(addr));
+				}
 			}
 		} else {
 			if (cfg.http_dyndns[0])

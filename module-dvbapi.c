@@ -1150,6 +1150,12 @@ void dvbapi_try_next_caid(int32_t demux_id) {
 		er->ecm[2] = 0x02;
 		i2b_buf(2, er->srvid, er->ecm+3);
 
+		for (j=0, n=5; j<demux[demux_id].STREAMpidcount; j++, n+=2) {
+			i2b_buf(2, demux[demux_id].STREAMpids[j], er->ecm+n);
+			er->ecm[2] += 2;
+			er->l += 2;
+		}
+
 		cs_debug_mask(D_DVBAPI, "request cw for caid %04X provid %06X srvid %04X pid %04X", er->caid, er->prid, er->srvid, er->pid);
 		get_cw(dvbapi_client, er);
 
@@ -1666,11 +1672,6 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uchar *buffer, i
 			chid = (buffer[6] << 8) | buffer[7];
 			if (demux[demux_id].pidindex==-1) {
 				int8_t i = 0, found = 0;
-				if (curpid->irdeto_chids & (1<<curpid->irdeto_curchid)) {
-					curpid->irdeto_curchid++;
-					return;
-				}
-
 				for (p=dvbapi_priority, i=0; p != NULL && curpid->irdeto_cycle > -1; p = p->next) {
 					if (p->type != 'p' && p->type != 'i') continue;
 
@@ -1986,27 +1987,25 @@ static void dvbapi_write_cw(int32_t demux_id, uchar *cw, int32_t index) {
 	}
 }
 
-int getca(int value ,char *txt)
-{
-	int size = 25;
+void getca(uint16_t value, char *txt){
+        size_t size = 25;
 
-	if(value == 0x0000) return snprintf(txt,size,"%s","Free to Air");                       // Standardized systems
-	if(value >= 0x0001 && value <= 0x009F) return snprintf(txt,size,"%s","Fixed");          // Standardized systems
-	if(value >= 0x00A0 && value <= 0x00A1) return snprintf(txt,size,"%s","Analog");         // Analog signals
-	if(value >= 0x00A2 && value <= 0x00FF) return snprintf(txt,size,"%s","Fixed");          // Standardized systems
-	if(value >= 0x0100 && value <= 0x01FF) return snprintf(txt,size,"%s","Seca/Mediaguard");// Canal Plus
-	if(value >= 0x0500 && value <= 0x05FF) return snprintf(txt,size,"%s","Viaccess");       // France Telecom
-	if(value >= 0x0600 && value <= 0x06FF) return snprintf(txt,size,"%s","Irdeto");         // Irdeto
-	if(value >= 0x0900 && value <= 0x09FF) return snprintf(txt,size,"%s","NDS/Videoguard"); // News Datacom
-	if(value >= 0x0B00 && value <= 0x0BFF) return snprintf(txt,size,"%s","Conax");          // Norwegian Telekom
-	if(value >= 0x0D00 && value <= 0x0DFF) return snprintf(txt,size,"%s","CryptoWorks");    // Philips
-	if(value >= 0x0E00 && value <= 0x0EFF) return snprintf(txt,size,"%s","PowerVu");        // Scientific Atlanta
-	if(value >= 0x1200 && value <= 0x12FF) return snprintf(txt,size,"%s","NagraVision");    // BellVu Express
-	if(value >= 0x1700 && value <= 0x17FF) return snprintf(txt,size,"%s","BetaCrypt");      // BetaTechnik
-	if(value >= 0x1800 && value <= 0x18FF) return snprintf(txt,size,"%s","NagraVision");    // Kudelski SA
-	if(value >= 0x4A60 && value <= 0x4A6F) return snprintf(txt,size,"%s","SkyCrypt");       // @Sky
-
-	return snprintf(txt,size,"0x%04X", value);
+        if(value == 0x0000) cs_strncpy(txt, "Free to Air", size);                       // Standardized systems
+        else if(value >= 0x0001 && value <= 0x009F) cs_strncpy(txt, "Fixed", size);          // Standardized systems
+        else if(value >= 0x00A0 && value <= 0x00A1) cs_strncpy(txt ,"Analog", size);         // Analog signals
+        else if(value >= 0x00A2 && value <= 0x00FF) cs_strncpy(txt, "Fixed", size);          // Standardized systems
+        else if(value >= 0x0100 && value <= 0x01FF) cs_strncpy(txt, "Seca/Mediaguard", size);// Canal Plus
+        else if(value >= 0x0500 && value <= 0x05FF) cs_strncpy(txt, "Viaccess", size);       // France Telecom
+        else if(value >= 0x0600 && value <= 0x06FF) cs_strncpy(txt, "Irdeto", size);            // Irdeto
+        else if(value >= 0x0900 && value <= 0x09FF) cs_strncpy(txt, "NDS/Videoguard", size); // News Datacom
+        else if(value >= 0x0B00 && value <= 0x0BFF) cs_strncpy(txt, "Conax", size);          // Norwegian Telekom
+        else if(value >= 0x0D00 && value <= 0x0DFF) cs_strncpy(txt, "CryptoWorks", size);    // Philips
+        else if(value >= 0x0E00 && value <= 0x0EFF) cs_strncpy(txt, "PowerVu", size);        // Scientific Atlanta
+        else if(value >= 0x1200 && value <= 0x12FF) cs_strncpy(txt, "NagraVision", size);    // BellVu Express
+        else if(value >= 0x1700 && value <= 0x17FF) cs_strncpy(txt, "BetaCrypt", size);      // BetaTechnik
+        else if(value >= 0x1800 && value <= 0x18FF) cs_strncpy(txt, "NagraVision", size);    // Kudelski SA
+        else if(value >= 0x4A60 && value <= 0x4A6F) cs_strncpy(txt, "SkyCrypt", size);       // @Sky
+        else snprintf(txt, size, "0x%04X", value);
 }
 
 static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) 
@@ -2114,8 +2113,8 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 			client->last=time((time_t)0);
 
 			FILE *ecmtxt;
-			ecmtxt = fopen(ECMINFO_FILE, "w"); 
-			if(ecmtxt != NULL && er->selected_reader) { 
+			ecmtxt = fopen(ECMINFO_FILE, "w");
+			if(ecmtxt != NULL && er->selected_reader) {
 			    	char tmp[25];
 				getca(er->caid,tmp);
 				fprintf(ecmtxt, "system:     %s\n", tmp);
@@ -2131,20 +2130,24 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 				else
 					fprintf(ecmtxt, "address:    %s\n", er->selected_reader->device);
 #ifdef MODULE_CCCAM
-				fprintf(ecmtxt, "hops:       %d\n", er->selected_reader->cc_currenthops);
+				fprintf(ecmtxt, "hops: %d\n", er->selected_reader->cc_currenthops);
 #endif
-				fprintf(ecmtxt, "reader:     %s\n", er->selected_reader->label);
-				fprintf(ecmtxt, "ecm time:   %05.3lf ms\n", (float) client->cwlastresptime/1000);
+				fprintf(ecmtxt, "ecm time: %.3f\n", (float) client->cwlastresptime/1000);
 				fprintf(ecmtxt, "cw0: %s\n", cs_hexdump(1,demux[i].lastcw[0],8, tmp, sizeof(tmp)));
 				fprintf(ecmtxt, "cw1: %s\n", cs_hexdump(1,demux[i].lastcw[1],8, tmp, sizeof(tmp)));
 				fclose(ecmtxt);
 				ecmtxt = NULL;
 			}
+			if (ecmtxt) {
+				fclose(ecmtxt);
+				ecmtxt = NULL;
+			}
+				
 		}
 	}
 }
 
-static void * dvbapi_handler(struct s_client * cl, uchar* UNUSED(mbuf), int len) {
+static void * dvbapi_handler(struct s_client * cl, uchar* UNUSED(mbuf), int32_t len) {
 	//cs_log("dvbapi loaded fd=%d", idx);
 	if (cfg.dvbapi_enabled == 1) {
 		cl = create_client(0);

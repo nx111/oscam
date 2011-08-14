@@ -134,26 +134,27 @@ static time_t chid_date(struct s_reader * reader, uint32_t date, char *buf, int3
     // this is the known default value.
     uint32_t date_base=870393600L; // this is actually 01.08.1997, 00:00
                                 // CAID, ACS, Country, base date       D . M.   Y, h : m
-    CHID_BASE_DATE table[] = { {0x0604, 0x1541, "GRC", 977817600L}, // 26.12.2000, 00:00
-                            {0x0604, 0x1542, "GRC", 977817600L},    // 26.12.2000, 00:00
-                            {0x0604, 0x1543, "GRC", 977817600L},    // 26.12.2000, 00:00
-                            {0x0604, 0x1544, "GRC", 977817600L},    // 26.12.2000, 17:00
-                            {0x0604, 0x0606, "NLD", 1066089600L},   // 14.10.2003, 00:00
-                            {0x0628, 0x0606, "MCR", 1159574400L},   // 29.09.2006, 00:00
-                            {0x0604, 0x0608, "EGY", 999993600L},    // 08.09.2001, 17:00
-                            {0x0604, 0x0606, "EGY", 1003276800L},   // 16.10.2001, 17:00
-                            {0x0627, 0x0608, "EGY", 946598400L},    // 30.12.1999, 16:00
-                            {0x0662, 0x0608, "ITA", 944110500L},    // 01.12.1999, 23.55
-                            {0x0664, 0x0608, "TUR", 946598400L},    // 31.12.1999, 00:00
-                            {0x0624, 0x0006, "CZE", 946598400L},    // 30.12.1999, 16:00 	//skyklink irdeto
-                            {0x0624, 0x0006, "SVK", 946598400L},    // 30.12.1999, 16:00	//skyklink irdeto
-                            {0x0648, 0x0608, "AUT", 946598400L},    // 31.12.1999, 00:00 	//orf ice irdeto
-                            {0x0604, 0x0607, "GRC", 1066089600L},   // 14.10.2003, 00:00    //nova irdeto
-                            {0x0604, 0x0005, "GRC", 1066089600L},   // 14.10.2003, 00:00    //nova irdeto
-                            // {0x1702, 0x0384, "AUT", XXXXXXXXXL},     // -> we need the base date for this
-                            // {0x1702, 0x0384, "GER", 888883200L},     // 02.03.1998, 16:00 -> this fixes some card but break others (S02).
-                            {0x0, 0x0, "", 0L}
-                            };
+    CHID_BASE_DATE table[] = { {0x0604, 0x1541, "GRC", 977817600L},    // 26.12.2000, 00:00
+                               {0x0604, 0x1542, "GRC", 977817600L},    // 26.12.2000, 00:00
+                               {0x0604, 0x1543, "GRC", 977817600L},    // 26.12.2000, 00:00
+                               {0x0604, 0x1544, "GRC", 977817600L},    // 26.12.2000, 17:00
+                               {0x0604, 0x0606, "NLD", 1066089600L},   // 14.10.2003, 00:00
+                               {0x0628, 0x0606, "MCR", 1159574400L},   // 29.09.2006, 00:00
+                               {0x0604, 0x0608, "EGY", 999993600L},    // 08.09.2001, 17:00
+                               {0x0604, 0x0606, "EGY", 1003276800L},   // 16.10.2001, 17:00
+                               {0x0627, 0x0608, "EGY", 946598400L},    // 30.12.1999, 16:00
+                               {0x0662, 0x0608, "ITA", 944110500L},    // 01.12.1999, 23.55
+                               {0x0664, 0x0608, "TUR", 946598400L},    // 31.12.1999, 00:00
+                               {0x0624, 0x0006, "CZE", 946598400L},    // 30.12.1999, 16:00    //skyklink irdeto
+                               {0x0624, 0x0006, "SVK", 946598400L},    // 30.12.1999, 16:00	   //skyklink irdeto
+                               {0x0648, 0x0608, "AUT", 946598400L},    // 31.12.1999, 00:00    //orf ice irdeto
+                               {0x0604, 0x0607, "GRC", 1010782800L},   // 11.01.2002, 22:00    //nova irdeto
+                               {0x0604, 0x0608, "GRC", 1010782800L},   // 11.01.2002, 22:00    //nova irdeto
+                               {0x0604, 0x0005, "GRC", 1010782800L},   // 11.01.2002, 22:00    //nova irdeto
+                               // {0x1702, 0x0384, "AUT", XXXXXXXXXL},     // -> we need the base date for this
+                               // {0x1702, 0x0384, "GER", 888883200L},     // 02.03.1998, 16:00 -> this fixes some card but break others (S02).
+                               {0x0, 0x0, "", 0L}
+                             };
 
     // now check for specific providers base date
     int32_t i=0;
@@ -229,6 +230,9 @@ static int32_t irdeto_card_init_provider(struct s_reader * reader)
 				memset(&reader->prid[i][0], 0, 4);
 			else
 				memcpy(&reader->prid[i][0], cta_res+acspadd, 4);
+
+			if (!memcmp(cta_res+acspadd+1, &reader->hexserial, 3))
+				reader->prid[i][3] = 0xFF;
 
 			snprintf((char *) buf+strlen((char *)buf), sizeof(buf)-strlen((char *)buf), ",%06x", b2i(3, &reader->prid[i][1]));
 		}
@@ -345,15 +349,10 @@ static int32_t irdeto_card_init(struct s_reader * reader, ATR newatr)
 		reader_chk_cmd(sc_GetHEXSerial, 18);
 	}
 	reader->nprov = cta_res[10+acspadd];
-	if (reader->caid==0x0624) {
-		memcpy(reader->hexserial, cta_res+12+acspadd, 4);
-		cs_ri_log(reader, "providers: %d, ascii serial: %s, hex serial: %02X%02X%02X, hex base: %02X",
-			reader->nprov, buf, cta_res[20], cta_res[21], cta_res[22], cta_res[23]);
-	} else {
-		memcpy(reader->hexserial, cta_res+12+acspadd, 8);
-		cs_ri_log(reader, "providers: %d, ascii serial: %s, hex serial: %02X%02X%02X, hex base: %02X",
-			reader->nprov, buf, cta_res[12], cta_res[13], cta_res[14], cta_res[15]);
-	}
+	memcpy(reader->hexserial, cta_res+12+acspadd, 4);
+	
+	cs_ri_log(reader, "providers: %d, ascii serial: %s, hex serial: %02X%02X%02X, hex base: %02X",
+		reader->nprov, buf, reader->hexserial[0], reader->hexserial[1], reader->hexserial[2], reader->hexserial[3]);
 
 	/*
 	 * CardFile
@@ -542,8 +541,7 @@ static int32_t irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader * rdr) {
 				return (base == rdr->hexserial[3] && !memcmp(ep->emm + 4, rdr->hexserial, l));
 			}
 			else {
-				// not hex addressed and emm mode zero
-				if (base == 0)
+				if (!memcmp(ep->emm + 4, rdr->hexserial, l))
 					return TRUE;
 
 				// provider addressed
@@ -581,18 +579,18 @@ static void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
 	filter[0]=0xFF;
 	filter[1]=0;		//filter count
 
-	int32_t base = rdr->hexserial[3];
-	int32_t emm_g = base * 8;
-	int32_t emm_s = emm_g + 2;
-	int32_t emm_u = emm_g + 3;
+	//int32_t base = rdr->hexserial[3];
+	//int32_t emm_g = base * 8;
+	//int32_t emm_s = emm_g + 2;
+	//int32_t emm_u = emm_g + 3;
 
 
 	filter[idx++]=EMM_GLOBAL;
 	filter[idx++]=0;
 	filter[idx+0]    = 0x82;
 	filter[idx+0+16] = 0xFF;
-	filter[idx+1]    = emm_g;
-	filter[idx+1+16] = 0xFF;
+	filter[idx+1]    = 0x00;
+	filter[idx+1+16] = 0x03;
 	filter[1]++;
 	idx += 32;
 
@@ -611,8 +609,8 @@ static void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
 	filter[idx++]=0;
 	filter[idx+0]    = 0x82;
 	filter[idx+0+16] = 0xFF;
-	filter[idx+1]    = emm_u;
-	filter[idx+1+16] = 0xFF;
+	filter[idx+1]    = 0x03;
+	filter[idx+1+16] = 0x03;
 	memcpy(filter+idx+2, rdr->hexserial, 3);
 	memset(filter+idx+2+16, 0xFF, 3);
 	filter[1]++;
@@ -622,8 +620,8 @@ static void irdeto_get_emm_filter(struct s_reader * rdr, uchar *filter)
 	filter[idx++]=0;
 	filter[idx+0]    = 0x82;
 	filter[idx+0+16] = 0xFF;
-	filter[idx+1]    = emm_s;
-	filter[idx+1+16] = 0xFF;
+	filter[idx+1]    = 0x02;
+	filter[idx+1+16] = 0x03;
 	memcpy(filter+idx+2, rdr->hexserial, 2);
 	memset(filter+idx+2+16, 0xFF, 2);
 	filter[1]++;
@@ -675,15 +673,11 @@ static int32_t irdeto_do_emm(struct s_reader * reader, EMM_PACKET *ep)
 		ok = (mode == reader->hexserial[3] && (!l || !memcmp(&emm[4], reader->hexserial, l)));
 	}
 	else {
-		// not hex addressed and emm mode zero
-		if (mode == 0)
-			ok = 1;
-		else {
-			// provider addressed
-			for(i = 0; i < reader->nprov; i++) {
-				ok = (mode == reader->prid[i][0] && (!l || !memcmp(&emm[4], &reader->prid[i][1], l)));
-				if (ok) break;
-			}
+		ok = !memcmp(&emm[4], reader->hexserial, l);
+
+		// provider addressed
+		for(i = 0; i < reader->nprov && !ok; i++) {
+			ok = (mode == reader->prid[i][0] && (!l || !memcmp(&emm[4], &reader->prid[i][1], l)));
 		}
 	}
 
@@ -697,7 +691,7 @@ static int32_t irdeto_do_emm(struct s_reader * reader, EMM_PACKET *ep)
 				}else{
 					dataLen=ep->emm[2];
 				}
-				if (ep->type==GLOBAL && reader->caid==0x0624) dataLen+=2;
+				if (ep->type==GLOBAL && (reader->caid==0x0624 || reader->caid==0x0648)) dataLen+=2;
 				int32_t crc=63;
 				sc_Acs57Emm[4]=dataLen;
 				memcpy(&cta_cmd, sc_Acs57Emm, sizeof(sc_Acs57Emm));
@@ -706,7 +700,7 @@ static int32_t irdeto_do_emm(struct s_reader * reader, EMM_PACKET *ep)
 				if (ep->type==UNIQUE) {
 					memcpy(&cta_cmd[9],&ep->emm[9],dataLen-4);
 				} else {
-					if (ep->type==GLOBAL && reader->caid==0x0624) {
+					if (ep->type==GLOBAL && (reader->caid==0x0624 || reader->caid==0x0648)) {
 						memcpy(&cta_cmd[9],&ep->emm[6],1);
 						memcpy(&cta_cmd[10],&ep->emm[7],dataLen-6);					
 //						cta_cmd[9]=0x00;

@@ -557,7 +557,7 @@ struct s_module {
 	char 			*logtxt;
 	//int32_t  		s_port;
 	in_addr_t		s_ip;
-	void			*(*s_handler)(struct s_client *, uchar *, int);
+	void			*(*s_handler)(struct s_client *, uchar *, int32_t);
 	void			(*s_init)(struct s_client *);
 	int32_t		(*recv)(struct s_client *, uchar *, int32_t);
 	void			(*send_dcw)(struct s_client*, struct ecm_request_t *);
@@ -715,6 +715,7 @@ struct s_cwresponse {
 #endif
 
 struct s_client {
+	uint32_t		tid;
 	int8_t			init_done;
 	pthread_mutex_t	thread_lock;
 	int8_t			thread_active;
@@ -911,7 +912,7 @@ struct s_reader  									//contains device info, reader info and card info
 	int32_t			typ;
 	char			label[64];
 #ifdef WEBIF
-	char			description[64];
+	char			*description;
 #endif
 	char			device[128];
 	void			*spec_dev;						// pointer to structure that contains specific device data
@@ -1104,7 +1105,7 @@ struct s_auth
 	char			usr[64];
 	char			pwd[64];
 #ifdef WEBIF
-	char			description[64];
+	char			*description;
 #endif
 	int8_t			uniq;
 	int16_t			allowedprotocols;
