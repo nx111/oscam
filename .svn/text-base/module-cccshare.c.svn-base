@@ -543,10 +543,10 @@ struct cc_card *create_card(struct cc_card *card) {
         memcpy(card2, card, sizeof(struct cc_card));
     else
         memset(card2, 0, sizeof(struct cc_card));
-    card2->providers = ll_create();
-    card2->badsids = ll_create();
-    card2->goodsids = ll_create();
-    card2->remote_nodes = ll_create();
+    card2->providers = ll_create("providers");
+    card2->badsids = ll_create("badsids");
+    card2->goodsids = ll_create("goodsids");
+    card2->remote_nodes = ll_create("remote_nodes");
 
     if (card) {
         copy_sids(card2->goodsids, card->goodsids);
@@ -828,8 +828,8 @@ void update_card_list() {
 	cs_writelock(&cc_shares_lock);
     int32_t j, flt;
 
-    LLIST *server_cards = ll_create();
-    LLIST *new_reported_carddatas = ll_create();
+    LLIST *server_cards = ll_create("server_cards");
+    LLIST *new_reported_carddatas = ll_create("new_reported_carddatas");
 
     card_added_count = 0;
     card_removed_count = 0;
@@ -1070,7 +1070,7 @@ void update_card_list() {
         }
     }
 
-    LLIST *new_cards = ll_create(); //List of new (added) cards
+    LLIST *new_cards = ll_create("new_cards"); //List of new (added) cards
     
     //report reshare cards:
     //cs_debug_mask(D_TRACE, "%s reporting %d cards", getprefix(), ll_count(server_cards));
@@ -1222,17 +1222,17 @@ int32_t compare_cards_by_hop_r(struct cc_card **pcard1, struct cc_card **pcard2)
 	return -compare_cards_by_hop(pcard1, pcard2);
 }
 
-void sort_cards_by_hop(LLIST *cards, int32_t reverse)
+struct cc_card **get_sorted_card_copy(LLIST *cards, int32_t reverse, int32_t *size)
 {
 	if (reverse)
-		ll_sort(cards, compare_cards_by_hop_r);
+		return (struct cc_card **)ll_sort(cards, compare_cards_by_hop_r, size);
 	else
-		ll_sort(cards, compare_cards_by_hop);
+		return (struct cc_card **)ll_sort(cards, compare_cards_by_hop, size);
 }
 
 void init_share() {
 
-		reported_carddatas = ll_create();
+		reported_carddatas = ll_create("reported_carddatas");
 		cs_lock_create(&cc_shares_lock, 10, "cc_shares_lock");
 
 		share_updater_thread = 0;

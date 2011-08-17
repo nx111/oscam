@@ -1,14 +1,14 @@
 10
 
 dir
-5851
+5882
 http://streamboard.gmc.to/svn/oscam/trunk/Distribution/doc/txt
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-08-12T06:40:02.195980Z
-5824
+2011-08-16T11:58:01.318512Z
+5877
 docman
 
 
@@ -32,10 +32,10 @@ file
 
 
 
-2011-07-07T10:29:40.798146Z
-66f1cf7cf4c951ce12cf13ba1ed016b7
-2011-07-07T07:27:20.584224Z
-5559
+2011-08-17T12:19:51.955221Z
+52475a628e191dd83162ea08b0604cf6
+2011-08-14T07:23:16.936526Z
+5852
 docman
 
 
@@ -58,7 +58,7 @@ docman
 
 
 
-2709
+2783
 
 list_smargo.txt
 file
@@ -282,10 +282,10 @@ file
 
 
 
-2011-08-13T05:58:49.930525Z
-b3061870da2bc3051fdd7a9bc19b4e67
-2011-08-12T06:40:02.195980Z
-5824
+2011-08-17T12:19:51.955221Z
+b18dea3e109148fa70b7e7c97b15f6af
+2011-08-16T11:58:01.318512Z
+5877
 docman
 
 
@@ -308,7 +308,7 @@ docman
 
 
 
-14282
+14229
 
 oscam.tiers.txt
 file

@@ -1,13 +1,13 @@
 K 25
 svn:wc:ra_dav:version-url
 V 52
-/svn/oscam/!svn/ver/5825/trunk/Distribution/doc/html
+/svn/oscam/!svn/ver/5877/trunk/Distribution/doc/html
 END
 oscam.1.html
 K 25
 svn:wc:ra_dav:version-url
 V 65
-/svn/oscam/!svn/ver/5559/trunk/Distribution/doc/html/oscam.1.html
+/svn/oscam/!svn/ver/5852/trunk/Distribution/doc/html/oscam.1.html
 END
 oscam.cert.5.html
 K 25
@@ -73,7 +73,7 @@ oscam.server.5.html
 K 25
 svn:wc:ra_dav:version-url
 V 72
-/svn/oscam/!svn/ver/5825/trunk/Distribution/doc/html/oscam.server.5.html
+/svn/oscam/!svn/ver/5877/trunk/Distribution/doc/html/oscam.server.5.html
 END
 oscam.tiers.5.html
 K 25

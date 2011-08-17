@@ -203,6 +203,7 @@ static void chk_caidtab(char *caidasc, CAIDTAB *ctab)
 	memcpy(ctab, &newctab, sizeof(CAIDTAB));
 }
 
+#ifdef WITH_LB
 static void chk_caidvaluetab(char *lbrlt, CAIDVALUETAB *tab, int32_t minvalue)
 {
 		int32_t i;
@@ -227,6 +228,7 @@ static void chk_caidvaluetab(char *lbrlt, CAIDVALUETAB *tab, int32_t minvalue)
 		}
 		memcpy(tab, &newtab, sizeof(CAIDVALUETAB));
 }
+#endif
 
 static void chk_tuntab(char *tunasc, TUNTAB *ttab)
 {
@@ -1719,7 +1721,7 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 #ifdef WEBIF
 	if (!strcmp(token, "description")) {
 		NULLFREE(account->description);
-		if(cs_malloc(&account->description, strlen(value)+1, -1)){
+		if(strlen(value) > 0 && cs_malloc(&account->description, strlen(value)+1, -1)){
 			cs_strncpy(account->description, value, strlen(value)+1);
 		}
 		return;
@@ -1821,7 +1823,7 @@ void chk_account(const char *token, char *value, struct s_auth *account)
 		account->autoau = 0;
 
 		if (!account->aureader_list)
-			account->aureader_list = ll_create();
+			account->aureader_list = ll_create("aureader_list");
 
 		if(value && value[0] == '1') {
 			account->autoau = 1;
@@ -3703,7 +3705,7 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 #ifdef WEBIF
 	if (!strcmp(token, "description")) {
 		NULLFREE(rdr->description);
-		if(cs_malloc(&rdr->description, strlen(value)+1, -1)){
+		if(strlen(value) > 0 && cs_malloc(&rdr->description, strlen(value)+1, -1)){
 			cs_strncpy(rdr->description, value, strlen(value)+1);
 		}
 		return;
@@ -4715,7 +4717,7 @@ void * read_cccamcfg(int mode)
 	struct s_reader *rdr;
 
 	if(!configured_readers && mode==CCCAMCFGREADER)
-			configured_readers = ll_create();
+			configured_readers = ll_create("configured_readers");
 
 	while (fgets(token,sizeof(token),fp)) {
 		void *ptr;
@@ -4929,7 +4931,7 @@ int32_t init_readerdb()
 	char token[MAXLINESIZE];
 
 	if(!configured_readers)
-		configured_readers = ll_create();
+		configured_readers = ll_create("configured_readers");
 	
 	if(cfg.cc_cfgfile)
 		read_cccamcfg(CCCAMCFGREADER);
@@ -5016,11 +5018,11 @@ int32_t init_readerdb()
 	LL_ITER itr = ll_iter_create(configured_readers);
 	while((rdr = ll_iter_next(&itr))) { //build active readers list
 		int32_t i;
-		if (rdr->device[0] && (rdr->typ & R_IS_CASCADING)) {
+		if (rdr->typ & R_IS_CASCADING) {
 			for (i=0; i<CS_MAX_MOD; i++) {
 				if (ph[i].num && rdr->typ==ph[i].num) {
 					rdr->ph=ph[i];
-					rdr->ph.active=1;
+					if(rdr->device[0]) rdr->ph.active=1;
 				}
 			}
 		}

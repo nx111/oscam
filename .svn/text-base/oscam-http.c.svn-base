@@ -856,7 +856,6 @@ static char *send_oscam_reader(struct templatevars *vars, struct uriparams *para
 
 	ll_iter_reset(&itr); //going to iterate all configured readers
 	while ((rdr = ll_iter_next(&itr))) {
-
 		if(rdr->label[0] && rdr->typ) {
 
 			// used for API and WebIf
@@ -1000,7 +999,7 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 			for (i=0; i<CS_MAX_MOD; i++) {
 				if (ph[i].num && newrdr->typ==ph[i].num) {
 					newrdr->ph=ph[i];
-					newrdr->ph.active=1;
+					if(newrdr->device[0]) newrdr->ph.active=1;
 				}
 			}
 		}
@@ -1301,8 +1300,6 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 #endif
 
 #ifdef LIBUSB
-	tpl_addVar(vars, TPLADD, "DEVICEEP", tpl_getTpl(vars, "READERCONFIGDEVICEEPBIT"));
-
 	if(!rdr->device_endpoint) {
 		tpl_addVar(vars, TPLADD, "DEVICEOUTEP0", "selected");
 	} else if (rdr->device_endpoint == 0x82) {
@@ -1310,6 +1307,7 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	} else if (rdr->device_endpoint == 0x81) {
 		tpl_addVar(vars, TPLADD, "DEVICEOUTEP2", "selected");
 	}
+	tpl_addVar(vars, TPLADD, "DEVICEEP", tpl_getTpl(vars, "READERCONFIGDEVICEEPBIT"));
 #else
 	tpl_addVar(vars, TPLADD, "DEVICEEP", "not avail LIBUSB");
 #endif
@@ -1535,15 +1533,12 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 	time_t lastaccess = 0;
 
 	if (rdr->lb_stat) {
-	
+		int32_t statsize;
 		// @todo alno: sort by click, 0=ascending, 1=descending (maybe two buttons or reverse on second click)
-		sort_stat(rdr, 0);
-		
-		LL_ITER it = ll_iter_create(rdr->lb_stat);
-		READER_STAT *stat = ll_iter_next(&it);
+		READER_STAT **statarray = get_sorted_stat_copy(rdr, 0, &statsize);
 		char channame[32];
-		while (stat) {
-
+		for(; rowcount < statsize; ++rowcount){
+			READER_STAT *stat = statarray[rowcount];
 			if (!(stat->rc == rc2hide)) {
 				struct tm lt;
 				localtime_r(&stat->last_received, &lt);
@@ -1610,11 +1605,8 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 					tpl_addVar(vars, TPLAPPEND, "ECMSTATS", tpl_getTpl(vars, "APIREADERSTATSECMBIT"));
 				}
 			}
-
-		stat = ll_iter_next(&it);
-		rowcount++;
 		}
-
+		free(statarray);
 	} else {
 		tpl_addVar(vars, TPLAPPEND, "READERSTATSROW","<TR><TD colspan=\"8\"> No statistics found </TD></TR>");
 	}
@@ -2173,12 +2165,6 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 #define ENTITLEMENT_PAGE_SIZE 500
 
 static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams *params, int32_t apicall) {
-
-	//just to stop the guys open tedious tickets for warnings related to unused variables xD
-	tpl_printf(vars, TPLADD, "ISAPICALL", "%d", apicall);
-	//**************
-
-	/* build entitlements from reader init history */
 	char *reader_ = getParam(params, "label");
 #ifdef MODULE_CCCAM	
 	char *sharelist_ = getParam(params, "globallist");
@@ -2228,19 +2214,18 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 			if (cards) {
 
 				uint8_t serbuf[8];
+				int32_t cardsize, i, count = 0;
 				char provname[83];
 
 				// @todo alno: sort by click, 0=ascending, 1=descending (maybe two buttons or reverse on second click)
-				sort_cards_by_hop(cards, 0);
-				
-                LL_ITER it = ll_iter_create(cards);
-                int32_t offset2 = offset+1;
-                int32_t count = 0;
-                while ((card = ll_iter_move(&it, offset2))) {
-                	offset2 = 1;
-                	if (count == ENTITLEMENT_PAGE_SIZE)
-                		break;
-                	count++;
+				struct cc_card **cardarray = get_sorted_card_copy(cards, 0, &cardsize);
+					
+					for(i = offset; i < cardsize; ++i) {
+					card = cardarray[i];
+
+					if (count == ENTITLEMENT_PAGE_SIZE)
+						break;
+					count++;
                 	
 					if (!apicall) {
 						if (show_global_list)
@@ -2354,6 +2339,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 
 					cardcount++;
 				}
+				free(cardarray);
 				
 				// set previous Link if needed
 				if (offset >= ENTITLEMENT_PAGE_SIZE) {
@@ -2364,7 +2350,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 				}
 
 				// set next link if needed
-				if (card) {
+				if (cardsize > count && offset < cardsize) {
 					tpl_printf(vars, TPLAPPEND, "CONTROLS", "<A HREF=\"entitlements.html?offset=%d&globallist=%s&amp;label=%s\"> > NEXT >> </A>",
 							offset + ENTITLEMENT_PAGE_SIZE,
 							getParam(params, "globallist"),
@@ -2372,10 +2358,10 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 				}
 
 				if (!apicall) {
-					tpl_printf(vars, TPLADD, "TOTALS", "card count=%d", cardcount);
+					tpl_printf(vars, TPLADD, "TOTALS", "card count=%d", cardsize);
 					tpl_addVar(vars, TPLADD, "ENTITLEMENTCONTENT", tpl_getTpl(vars, "ENTITLEMENTCCCAMBIT"));
 				} else {
-					tpl_printf(vars, TPLADD, "APITOTALCARDS", "%d", cardcount);
+					tpl_printf(vars, TPLADD, "APITOTALCARDS", "%d", cardsize);
 				}
 
 			} else {
@@ -2415,7 +2401,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 					S_ENTITLEMENT *item;
 
 					tpl_addVar(vars, TPLAPPEND, "LOGHISTORY", "<BR><BR>New Structure:<BR>");
-					char tbuffer[30];
+					char tbuffer[32];
 					while ((item = ll_iter_next(&itr))) {
 
 						localtime_r(&item->start, &start_t);
@@ -2440,6 +2426,9 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 						tpl_printf(vars, TPLADD, "ENTCLASS", "%08X", item->class);
 						tpl_addVar(vars, TPLADD, "ENTTYPE", typetxt[item->type]);
 
+						get_tiername((uint16_t)(item->id & 0xFFFF), item->caid, tbuffer);
+						tpl_addVar(vars, TPLADD, "ENTRESNAME", tbuffer);
+
 						if ((strcmp(getParam(params, "hideexpired"), "1") != 0) || (item->end > now))
 							tpl_addVar(vars, TPLAPPEND, "READERENTENTRY", tpl_getTpl(vars, "ENTITLEMENTITEMBIT"));
 
@@ -2455,6 +2444,23 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 				int8_t i;
 				for(i = 0; i < 15; i++)	tpl_printf(vars, TPLAPPEND, "READERROM", "%c", rdr->rom[i]);
 				for(i = 0; i < 8; i++)	tpl_printf(vars, TPLAPPEND, "READERSERIAL", "%02X", rdr->hexserial[i]);
+
+				if (rdr->card_valid_to) {
+					struct tm vto_t;
+					char vtobuffer[30];
+					localtime_r(&rdr->card_valid_to, &vto_t);
+					strftime(vtobuffer, 30, "%Y-%m-%d", &vto_t);
+					tpl_addVar(vars, TPLADD, "READERCARDVALIDTO", vtobuffer);
+				} else {
+					tpl_addVar(vars, TPLADD, "READERCARDVALIDTO", "n/a");
+				}
+
+				if (rdr->irdId[0]){
+					for(i = 0; i < 4; i++)	tpl_printf(vars, TPLAPPEND, "READERIRDID", "%02X ", rdr->irdId[i]);
+				} else {
+					tpl_addVar(vars, TPLADD, "READERIRDID", "n/a");
+				}
+
 				if(rdr->card_atr_length)
 					for(i = 0; i < rdr->card_atr_length; i++) tpl_printf(vars, TPLAPPEND, "READERATR", "%02X ", rdr->card_atr[i]);
 

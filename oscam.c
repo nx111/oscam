@@ -71,7 +71,7 @@ int32_t cs_check_v(uint32_t ip, int32_t port, int32_t add) {
 	if (cfg.failbantime) {
 
 		if (!cfg.v_list)
-			cfg.v_list = ll_create();
+			cfg.v_list = ll_create("v_list");
 
 		time_t now = time((time_t)0);
 		LL_ITER itr = ll_iter_create(cfg.v_list);
@@ -950,7 +950,7 @@ static void init_first_client()
 		processUsername = "root";
 
   //Generate 5 ECM cache entries:
-  ecmcache = ll_create();
+  ecmcache = ll_create("ecmcache");
 
   if(!cs_malloc(&first_client, sizeof(struct s_client), -1)){
     fprintf(stderr, "Could not allocate memory for master client, exiting...");
@@ -1780,7 +1780,7 @@ ECM_REQUEST *get_ecmtask()
 				ll_clear(save);
 				er->matching_rdr = save;
 			} else
-				er->matching_rdr = ll_create();
+				er->matching_rdr = ll_create("matching_rdr");
 
 			//cs_log("client %s ECMTASK %d multi %d ctyp %d", username(cl), n, (ph[cl->ctyp].multi)?CS_MAXPENDING:1, cl->ctyp);
                 }
@@ -2028,9 +2028,10 @@ static void chk_dcw(struct s_client *cl, struct s_ecm_answer *ea)
 			ert->rc = E_TIMEOUT;
 #ifdef WITH_LB
 			if (cfg.lb_mode) {
-				LL_NODE *ptr;
-				for (ptr = ert->matching_rdr?ert->matching_rdr->initial:NULL; ptr ; ptr = ptr->nxt)
-					send_reader_stat((struct s_reader *)ptr->obj, ert, E_TIMEOUT);
+				LL_ITER it = ll_iter_create(ert->matching_rdr);
+				struct s_reader *rdr;
+				while ((rdr = (struct s_reader *) ll_iter_next(&it)))
+					send_reader_stat(rdr, ert, E_TIMEOUT);
 			}
 #endif
 			break;
@@ -2043,10 +2044,9 @@ static void chk_dcw(struct s_client *cl, struct s_ecm_answer *ea)
 			if (ll_has_elements(ert->matching_rdr)) {//we have still another chance
 				if (cfg.preferlocalcards && !ert->locals_done) {
 					ert->locals_done=1;
-					LL_NODE *ptr;
+					LL_ITER it = ll_iter_create(ert->matching_rdr);
 					struct s_reader *rdr;
-					for (ptr = ert->matching_rdr?ert->matching_rdr->initial:NULL; ptr; ptr = ptr->nxt) {
-						rdr = (struct s_reader*)ptr->obj;
+					while ((rdr = (struct s_reader *) ll_iter_next(&it))) {
 						if (!(rdr->typ & R_IS_NETWORK))
 							ert->locals_done=0;
 					}
@@ -2284,12 +2284,10 @@ void request_cw(ECM_REQUEST *er, int32_t flag, int32_t reader_types)
 		er->level=flag;
 	struct s_reader *rdr;
 
-	LL_NODE *ptr;
-	for (ptr = er->matching_rdr?er->matching_rdr->initial:NULL; ptr; ptr = ptr->nxt) {
-	        if (!flag && ptr == er->fallback)
-	          break;
-
-		rdr = (struct s_reader*)ptr->obj;
+	LL_ITER it = ll_iter_create(er->matching_rdr);
+	while ((rdr = (struct s_reader *) ll_iter_next(&it))) {
+		if (!flag && rdr == er->fallback)
+			break;
 
 		int32_t status = 0;
 		//reader_types:
@@ -2518,11 +2516,9 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		for (rdr=first_active_reader; rdr ; rdr=rdr->next) {
 			if (matching_reader(er, rdr)) {
 				if (rdr->fallback) {
+					ll_append(er->matching_rdr, rdr);
 					if (er->fallback == NULL) //first fallbackreader to be added
-						er->fallback=ll_append(er->matching_rdr, rdr);
-					else
-						ll_append(er->matching_rdr, rdr);
-
+						er->fallback = rdr;
 				}
 				else {
 					ll_prepend(er->matching_rdr, rdr);
@@ -2545,9 +2541,12 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 			get_best_reader(er);
 		}
 #endif
-		LL_NODE *ptr;
-		for (ptr = er->matching_rdr->initial; ptr && ptr != er->fallback; ptr = ptr->nxt)
+		LL_ITER it = ll_iter_create(er->matching_rdr);
+		while ((rdr = (struct s_reader *) ll_iter_next(&it))) {
+			if (rdr == er->fallback)
+				break;
 			er->reader_count++;
+		}
 
 		if (!ll_has_elements(er->matching_rdr)) { //no reader -> not found
 				er->rc = E_NOTFOUND;
@@ -2556,9 +2555,10 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 				snprintf(er->msglog, MSGLOGSIZE, "no matching reader");
 		}
 		else
-			if (er->matching_rdr->initial == er->fallback) { //fallbacks only
-					er->fallback = NULL; //switch them
-					er->reader_count = er->reader_avail;
+			ll_iter_reset(&it);
+			if ((struct s_reader *) ll_iter_next(&it) == er->fallback) { //fallbacks only
+				er->fallback = NULL; //switch them
+				er->reader_count = er->reader_avail;
 			}
 
 		//we have to go through matching_reader() to check services!
@@ -3128,9 +3128,12 @@ void * work_thread(void *ptr) {
 		data = NULL;
 	}
 
-	if (!keep_threads_alive && thread_pipe[1])
-		write(thread_pipe[1], mbuf, 1); //wakeup client check
-
+	if (!keep_threads_alive && thread_pipe[1]){
+		if(write(thread_pipe[1], mbuf, 1) == -1){ //wakeup client check
+			cs_debug_mask(D_TRACE, "Writing to pipe failed (errno=%d %s)", errno, strerror(errno));
+		}
+	}
+	
 	cs_debug_mask(D_TRACE, "ending thread");
 
 	pthread_exit(NULL);
@@ -3153,7 +3156,7 @@ void add_job(struct s_client *cl, int8_t action, void *ptr, int32_t len) {
 	pthread_mutex_lock(&cl->thread_lock);
 	if (cl->thread_active) {
 		if (!cl->joblist)
-			cl->joblist = ll_create();
+			cl->joblist = ll_create("joblist");
 
 		ll_append(cl->joblist, data);
 		cs_debug_mask(D_TRACE, "add %s job action %d", action > 20 ? "client" : "reader", action);
@@ -3196,7 +3199,7 @@ static void * check_thread(void) {
 	pthread_mutex_init(&check_mutex,NULL);
 	pthread_cond_init(&check_cond,NULL);
 
-	checklist = ll_create();
+	checklist = ll_create("checklist");
 
 	struct timespec timeout;
 	add_ms_to_timespec(&timeout, 30000);
@@ -3370,7 +3373,9 @@ void * client_check(void) {
 
 			if (pfd[i].fd == thread_pipe[0] && (pfd[i].revents & (POLLIN | POLLPRI))) {
 				// a thread ended and cl->pfd should be added to pollfd list again (thread_active==0)
-				read(thread_pipe[0], buf, sizeof(buf));
+				if(read(thread_pipe[0], buf, sizeof(buf)) == -1){
+					cs_debug_mask(D_TRACE, "Reading from pipe failed (errno=%d %s)", errno, strerror(errno));
+				}
 				continue;
 			}
 
