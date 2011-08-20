@@ -241,11 +241,10 @@ extern const char *boxdesc[];
 #endif
 
 #ifdef HAVE_DVBAPI
-#define ECMINFO_MODE_OSCAM 	0
-#define ECMINFO_MODE_CCCAM 	1
-#define ECMINFO_MODE_OSCAM_OLD	2
-#define ECMINFO_MODE_NEWCAMD	3
-#define ECMINFO_MODE_OTHER 	9
+#define ECMINFO_MODE_OSCAM 	1
+#define ECMINFO_MODE_OSCAM_NEW	3
+#define ECMINFO_MODE_CCCAM 	4
+#define ECMINFO_MODE_NEWCAMD	8
 #endif
 
 #define EMM_UNIQUE 1
@@ -1085,8 +1084,12 @@ struct s_reader  									//contains device info, reader info and card info
 	//ratelimit
 	int32_t			ratelimitecm;
 	int32_t			ratelimitseconds;
+	int32_t			cooldown[2];
+	int8_t			cooldownstate;
+	time_t			cooldowntime;
 	struct ecmrl	rlecmh[MAXECMRATELIMIT];
 	int8_t			fix_9993;
+	uint8_t			ins7E[0x1A+1];
 
 	struct s_reader *next;
 };
@@ -1388,14 +1391,6 @@ struct s_data {
 	uint16_t len;
 };
 
-struct s_check {
-	struct s_client *cl;
-	int8_t action;
-	void *ptr;
-	int32_t len;
-	struct timeb t_check;
-};
-
 typedef struct reader_stat_t
 {
 	int32_t			rc;
@@ -1443,6 +1438,7 @@ typedef struct {
  *      global variables
  * =========================== */
 extern char cs_tmpdir[200];
+extern uint8_t cs_http_use_utf8;
 extern pthread_key_t getclient;
 extern struct s_client *first_client;
 extern struct s_reader *first_active_reader;		//points to list of _active_ readers (enable = 1, deleted = 0)

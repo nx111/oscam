@@ -1,7 +1,7 @@
 #include "globals.h"
 #include "reader-common.h"
 
-int32_t logfd=0;
+int32_t logfd = 0;
 
 void reader_do_idle(struct s_reader * reader);
 
@@ -245,7 +245,7 @@ int32_t network_tcp_connection_open(struct s_reader *rdr)
 
 	setTCPTimeouts(sd);
 	clear_block_delay(rdr);
-	client->last=client->login=time((time_t)0);
+	client->last=client->login=time((time_t*)0);
 	client->last_caid=client->last_srvid=0;
 	client->pfd = client->udp_fd;
 	rdr->tcp_connected = 1;
@@ -296,7 +296,7 @@ void casc_do_sock_log(struct s_reader * reader)
   if(!cl) return;
 
   idx=reader->ph.c_recv_log(&caid, &provid, &srvid);
-  cl->last=time((time_t)0);
+  cl->last=time((time_t*)0);
   if (idx<0) return;        // no dcw-msg received
 
   if(!cl->ecmtask) {
@@ -436,12 +436,34 @@ void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
 		cl->last_srvid=er->srvid;
 		cl->last_caid=er->caid;
 		casc_process_ecm(reader, er);
-		cl->lastecm=time((time_t)0);
+		cl->lastecm=time((time_t*)0);
 		return;
 	}
 
 #ifdef WITH_CARDREADER
-	if (reader->ratelimitecm) {
+
+	if (reader->cooldown[0] && reader->ratelimitecm){
+		if (!reader->cooldowntime)
+			reader->cooldowntime = time((time_t*)0);
+
+		time_t now = time((time_t*)0);
+
+		if (reader->cooldownstate == 1) {
+			if (now - reader->cooldowntime >= reader->cooldown[1]) {
+				reader->cooldownstate = 0;
+				reader->cooldowntime = now;
+				cs_log("%s cooldown OFF", reader->label);
+			}
+		} else {
+			if (now - reader->cooldowntime >= reader->cooldown[0]) {
+				reader->cooldownstate = 1;
+				reader->cooldowntime = now;
+				cs_log("%s cooldown ON", reader->label);
+			}
+		}
+	}
+
+	if ((reader->ratelimitecm && !reader->cooldown[0]) || reader->cooldownstate == 1 ) {
 		cs_debug_mask(D_READER, "ratelimit idx:%d rc:%d caid:%04X srvid:%04X",er->idx,er->rc,er->caid,er->srvid);
 		int32_t foundspace=-1;
 		int32_t h;
@@ -489,7 +511,7 @@ void reader_get_ecm(struct s_reader * reader, ECM_REQUEST *er)
 		ea.rc = E_FOUND;
 
 	cs_ftime(&tpe);
-	cl->lastecm=time((time_t)0);
+	cl->lastecm=time((time_t*)0);
 
 	cs_debug_mask(D_TRACE, "reader: %s ecm: %04X real time: %d ms", reader->label, htons(er->checksum), 1000*(tpe.time-tps.time)+tpe.millitm-tps.millitm);
 
@@ -552,7 +574,7 @@ int32_t reader_do_emm(struct s_reader * reader, EMM_PACKET *ep)
           }
   }
 
-  if (rc) cl->lastemm=time((time_t)0);
+  if (rc) cl->lastemm=time((time_t*)0);
 
 #ifdef CS_LED
   if (rc) cs_switch_led(LED3, LED_BLINK_ON);
@@ -657,7 +679,7 @@ int32_t reader_init(struct s_reader *reader) {
 
 	cs_malloc(&client->emmcache,CS_EMMCACHESIZE*(sizeof(struct s_emm)), 1);
 
-	client->login=time((time_t)0);
+	client->login=time((time_t*)0);
 	client->init_done=1;
 
 	return 1;

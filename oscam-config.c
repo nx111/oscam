@@ -2713,6 +2713,12 @@ int32_t write_server()
 			} else if(cfg.http_full_cfg && isphysical)
 				fprintf_conf(f, "rsakey", "\n");
 
+			if (rdr->ins7E[0x1A] && isphysical) {
+				char tmp[0x1A*2+1];
+				fprintf_conf(f, "ins7e", "%s\n", cs_hexdump(0, rdr->ins7E, 0x1A, tmp, sizeof(tmp)));
+			} else if (cfg.http_full_cfg && isphysical)
+				fprintf_conf(f, "ins7e", "\n");
+
 			if ((rdr->force_irdeto || cfg.http_full_cfg) && isphysical) {
 				fprintf_conf(f, "force_irdeto", "%d\n", rdr->force_irdeto);
 			}
@@ -2866,6 +2872,11 @@ int32_t write_server()
 				fprintf_conf(f, "ratelimitecm", "%d\n", rdr->ratelimitecm);
 				fprintf_conf(f, "ratelimitseconds", "%d\n", rdr->ratelimitseconds);
 			}
+
+			if ((rdr->cooldown[0] || cfg.http_full_cfg) && isphysical) {
+				fprintf_conf(f, "cooldown", "%d,%d\n", rdr->cooldown[0], rdr->cooldown[1]);
+			}
+
 			fprintf(f, "\n\n");
 		}
 	}
@@ -2885,7 +2896,7 @@ void write_versionfile() {
   if (!(fp=fopen(targetfile, "w"))) {
 	  cs_log("Cannot open %s (errno=%d %s)", targetfile, errno, strerror(errno));
   } else {
-	  time_t now = time((time_t)0);
+	  time_t now = time((time_t*)0);
 	  struct tm st;
 	  localtime_r(&now, &st);
 	  fprintf(fp, "Unix starttime: %d\n", (int)now);
@@ -3974,6 +3985,18 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 		}
 	}
 
+	if (!strcmp(token, "ins7e")) {
+		int32_t len = strlen(value);
+		if (len != 0x1A*2 || key_atob_l(value, rdr->ins7E, len)) {
+			if (len > 0)
+				fprintf(stderr, "Configuration reader: Error in ins7E\n");
+			memset(rdr->ins7E, 0, sizeof(rdr->ins7E));
+		}
+		else
+			rdr->ins7E[0x1A] = 1; // found and correct
+		return;
+	}
+
 	if (!strcmp(token, "boxkey")) {
 		if(strlen(value) != 16 ) {
 			memset(rdr->nagra_boxkey, 0, 16);
@@ -4260,6 +4283,36 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 			if ((g>0) && (g<65)) {
 				rdr->grp |= (((uint64_t)1)<<(g-1));
 			}
+		}
+		return;
+	}
+
+	if (!strcmp(token, "cooldown")) {
+		if(strlen(value) == 0) {
+			rdr->cooldown[0] = 0;
+			rdr->cooldown[1] = 0;
+			return;
+		} else {
+			for (i = 0, ptr = strtok_r(value, ",", &saveptr1); (i < 2) && (ptr); ptr = strtok_r(NULL, ",", &saveptr1), i++) {
+				switch(i) {
+				case 0:
+					rdr->cooldown[0] = atoi(ptr);
+					break;
+
+				case 1:
+					rdr->cooldown[1] = atoi(ptr);
+					break;
+				}
+			}
+
+			if (!rdr->cooldown[0] || !rdr->cooldown[1]) {
+				fprintf(stderr, "cooldown must have 2 values (x,y) set values %d,%d ! cooldown deactivated\n",
+						rdr->cooldown[0], rdr->cooldown[1]);
+
+				rdr->cooldown[0] = 0;
+				rdr->cooldown[1] = 0;
+			}
+
 		}
 		return;
 	}

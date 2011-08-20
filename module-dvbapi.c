@@ -1302,7 +1302,7 @@ int32_t dvbapi_parse_capmt(unsigned char *buffer, uint32_t length, int32_t connf
 		dvbapi_client->last_srvid = demux[demux_id].program_number;
 		dvbapi_client->last_caid = 0;
 		// reset idle-Time
-		dvbapi_client->last=time((time_t)0);
+		dvbapi_client->last=time((time_t*)0);
 	}
 
 	return demux_id;
@@ -1987,27 +1987,6 @@ static void dvbapi_write_cw(int32_t demux_id, uchar *cw, int32_t index) {
 	}
 }
 
-void getca(uint16_t value, char *txt){
-        size_t size = 25;
-
-        if(value == 0x0000) cs_strncpy(txt, "Free to Air", size);                       // Standardized systems
-        else if(value >= 0x0001 && value <= 0x009F) cs_strncpy(txt, "Fixed", size);          // Standardized systems
-        else if(value >= 0x00A0 && value <= 0x00A1) cs_strncpy(txt ,"Analog", size);         // Analog signals
-        else if(value >= 0x00A2 && value <= 0x00FF) cs_strncpy(txt, "Fixed", size);          // Standardized systems
-        else if(value >= 0x0100 && value <= 0x01FF) cs_strncpy(txt, "Seca/Mediaguard", size);// Canal Plus
-        else if(value >= 0x0500 && value <= 0x05FF) cs_strncpy(txt, "Viaccess", size);       // France Telecom
-        else if(value >= 0x0600 && value <= 0x06FF) cs_strncpy(txt, "Irdeto", size);            // Irdeto
-        else if(value >= 0x0900 && value <= 0x09FF) cs_strncpy(txt, "NDS/Videoguard", size); // News Datacom
-        else if(value >= 0x0B00 && value <= 0x0BFF) cs_strncpy(txt, "Conax", size);          // Norwegian Telekom
-        else if(value >= 0x0D00 && value <= 0x0DFF) cs_strncpy(txt, "CryptoWorks", size);    // Philips
-        else if(value >= 0x0E00 && value <= 0x0EFF) cs_strncpy(txt, "PowerVu", size);        // Scientific Atlanta
-        else if(value >= 0x1200 && value <= 0x12FF) cs_strncpy(txt, "NagraVision", size);    // BellVu Express
-        else if(value >= 0x1700 && value <= 0x17FF) cs_strncpy(txt, "BetaCrypt", size);      // BetaTechnik
-        else if(value >= 0x1800 && value <= 0x18FF) cs_strncpy(txt, "NagraVision", size);    // Kudelski SA
-        else if(value >= 0x4A60 && value <= 0x4A6F) cs_strncpy(txt, "SkyCrypt", size);       // @Sky
-        else snprintf(txt, size, "0x%04X", value);
-}
-
 static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er) 
 {
 #ifdef AZBOX
@@ -2110,25 +2089,27 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 			}
 
 			// reset idle-Time
-			client->last=time((time_t)0);
+			client->last=time((time_t*)0);
 
 			FILE *ecmtxt;
 			ecmtxt = fopen(ECMINFO_FILE, "w");
 			if(ecmtxt != NULL && er->selected_reader) {
-			    	char tmp[25];
-				getca(er->caid,tmp);
-				fprintf(ecmtxt, "system:     %s\n", tmp);
-				fprintf(ecmtxt, "caid:       0x%04X\n", er->caid);
-				fprintf(ecmtxt, "prov:       0x%06X\n", (uint) er->prid);
-				fprintf(ecmtxt, "pid:        0x%04X\n",  er->pid);
+				char tmp[25];
+				fprintf(ecmtxt, "caid: 0x%04X\npid: 0x%04X\nprov: 0x%06X\n", er->caid, er->pid, (uint) er->prid);
+				fprintf(ecmtxt, "reader: %s\n", er->selected_reader->label);
 				if (cfg.dvbapi_ecm_infomode == ECMINFO_MODE_OSCAM) 
+					fprintf(ecmtxt, "from:");
+				else 
+					fprintf(ecmtxt,"address:");
+				if (er->selected_reader->typ & R_IS_CASCADING)
+					fprintf(ecmtxt, " %s\n", er->selected_reader->device);
+				else
+					fprintf(ecmtxt, " local\n");
+
+				if (cfg.dvbapi_ecm_infomode | ECMINFO_MODE_OSCAM) 
 					fprintf(ecmtxt, "protocol:    %s\n", er->selected_reader->ph.desc);
 				else
 					fprintf(ecmtxt, "using:   %s\n", er->selected_reader->ph.desc);
-				if (cfg.dvbapi_ecm_infomode == ECMINFO_MODE_OSCAM_OLD) 
-					fprintf(ecmtxt, "from:    %s\n", er->selected_reader->device);
-				else
-					fprintf(ecmtxt, "address:    %s\n", er->selected_reader->device);
 #ifdef MODULE_CCCAM
 				fprintf(ecmtxt, "hops: %d\n", er->selected_reader->cc_currenthops);
 #endif
@@ -2142,6 +2123,7 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 				fclose(ecmtxt);
 				ecmtxt = NULL;
 			}
+
 				
 		}
 	}

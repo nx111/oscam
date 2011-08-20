@@ -966,7 +966,7 @@ static char *send_oscam_reader(struct templatevars *vars, struct uriparams *para
 
 		for (i=0; i<CS_MAX_MOD; i++) {
 			if (cardreader[i].desc[0]!=0)
-				tpl_printf(vars, TPLAPPEND, "ADDPROTOCOL", "<option>%s</option>\n", cardreader[i].desc);
+				tpl_printf(vars, TPLAPPEND, "ADDPROTOCOL", "<option>%s</option>\n", xml_encode(vars, cardreader[i].desc));
 		}
 		return tpl_getTpl(vars, "READERS");
 	} else {
@@ -1141,6 +1141,11 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	len = check_filled(rdr->nagra_boxkey, 8);
 	if(len > 0) {
 		for (i = 0; i < 8 ; i++) tpl_printf(vars, TPLAPPEND, "BOXKEY", "%02X", rdr->nagra_boxkey[i]);
+	}
+
+	// ins7E
+	if(rdr->ins7E[0x1A]) {
+		for (i = 0; i < 26 ; i++) tpl_printf(vars, TPLAPPEND, "INS7E", "%02X", rdr->ins7E[i]);
 	}
 
 	// ATR
@@ -1397,7 +1402,7 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 #endif
 		default :
 			tpl_addVar(vars, TPLAPPEND, "MESSAGE", "<b>Error: protocol not resolvable</b><BR>");
-			tpl_printf(vars, TPLAPPEND, "MESSAGE", "<b>Error: protocol number: %d readername: %s</b><BR>", rdr->typ, rdr->label);
+			tpl_printf(vars, TPLAPPEND, "MESSAGE", "<b>Error: protocol number: %d readername: %s</b><BR>", rdr->typ, xml_encode(vars, rdr->label));
 			break;
 
 	}
@@ -1412,11 +1417,11 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	return tpl_getTpl(vars, "READERCONFIG");
 }
 
-#ifdef WITH_LB
 static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams *params, int32_t apicall) {
 	struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
 	if(!rdr) return "0";
 
+#ifdef WITH_LB
 	char *stxt[]={"found", "cache1", "cache2", "emu",
 			"not found", "timeout", "sleeping",
 			"fake", "invalid", "corrupt", "no card", "expdate",
@@ -1453,6 +1458,7 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 					cs_inet6_ntoa(GET_IP()));
 		}
 	}
+#endif
 
 	if (!apicall){
 		tpl_addVar(vars, TPLADD, "LABEL", rdr->label);
@@ -1532,6 +1538,7 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 	uint64_t ecmcount = 0;
 	time_t lastaccess = 0;
 
+#ifdef WITH_LB
 	if (rdr->lb_stat) {
 		int32_t statsize;
 		// @todo alno: sort by click, 0=ascending, 1=descending (maybe two buttons or reverse on second click)
@@ -1607,9 +1614,9 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 			}
 		}
 		free(statarray);
-	} else {
+	} else
+#endif
 		tpl_addVar(vars, TPLAPPEND, "READERSTATSROW","<TR><TD colspan=\"8\"> No statistics found </TD></TR>");
-	}
 
 	tpl_printf(vars, TPLADD, "ROWCOUNT", "%d", rowcount);
 
@@ -1638,7 +1645,6 @@ static char *send_oscam_reader_stats(struct templatevars *vars, struct uriparams
 	else
 		return tpl_getTpl(vars, "APIREADERSTATS");
 }
-#endif
 
 static char *send_oscam_user_config_edit(struct templatevars *vars, struct uriparams *params, int32_t apicall) {
 	struct s_auth *account, *ptr;
@@ -1998,7 +2004,7 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 
 	/* List accounts*/
 	char *status, *expired, *classname, *lastchan;
-	time_t now = time((time_t)0);
+	time_t now = time((time_t*)0);
 	int32_t isec = 0, chsec = 0;
 
 	char *filter = NULL;
@@ -2155,7 +2161,7 @@ static char *send_oscam_user_config(struct templatevars *vars, struct uriparams 
 		if (!filter || clientcount > 0) {
 			return tpl_getTpl(vars, "APIUSERCONFIGLIST");
 		} else {
-			tpl_printf(vars, TPLADD, "APIERRORMESSAGE", "Invalid client %s", filter);
+			tpl_printf(vars, TPLADD, "APIERRORMESSAGE", "Invalid client %s", xml_encode(vars, filter));
 			return tpl_getTpl(vars, "APIERROR");
 		}
 	}
@@ -2394,7 +2400,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 				if (rdr->ll_entitlements) {
 
 					char *typetxt[] = {"", "package", "PPV-Event", "chid", "tier", "class", "PBM", "admin" };
-					time_t now = (time((time_t)0)/84600)*84600;
+					time_t now = (time((time_t*)0)/84600)*84600;
 
 					struct tm start_t, end_t;
 					LL_ITER itr = ll_iter_create(rdr->ll_entitlements);
@@ -2489,7 +2495,7 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 	int32_t i;
 	char *usr;
 	int32_t lsec, isec, chsec, con, cau = 0;
-	time_t now = time((time_t)0);
+	time_t now = time((time_t*)0);
 	struct tm lt;
 
 	if (strcmp(getParam(params, "action"), "kill") == 0) {
@@ -2805,7 +2811,7 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 							S_ENTITLEMENT *ent;
 							uint16_t total_ent = 0;
 							uint16_t active_ent = 0;
-							time_t now = (time((time_t)0)/84600)*84600;
+							time_t now = (time((time_t*)0)/84600)*84600;
 							struct tm end_t;
 							
 							tpl_printf(vars, TPLADD, "TMPSPAN", "<SPAN>");
@@ -3031,7 +3037,7 @@ static char *send_oscam_services_edit(struct templatevars *vars, struct uriparam
 		for (sidtab = cfg.sidtab; sidtab != NULL && strcmp(label, sidtab->label) != 0; sidtab=sidtab->next);
 	}
 
-	tpl_addVar(vars, TPLADD, "LABEL", sidtab->label);
+	tpl_addVar(vars, TPLADD, "LABEL", xml_encode(vars, sidtab->label));
 	tpl_addVar(vars, TPLADD, "LABELENC", urlencode(vars, sidtab->label));
 
 
@@ -3530,7 +3536,7 @@ static char *send_oscam_failban(struct templatevars *vars, struct uriparams *par
 	}
 	ll_iter_reset(&itr);
 
-	time_t now = time((time_t)0);
+	time_t now = time((time_t*)0);
 
 	while ((v_ban_entry=ll_iter_next(&itr))) {
 
@@ -3633,7 +3639,7 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 		int32_t i;
 		int32_t isec;
 		int32_t shown;
-		time_t now = time((time_t)0); 
+		time_t now = time((time_t*)0); 
 		char *usr;
 		struct s_client *cl;
 		for (i=0, cl=first_client; cl ; cl=cl->next, i++) {
@@ -3674,7 +3680,6 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 			}
 		}
 		return tpl_getTpl(vars, "APISTATUS"); 
-#ifdef WITH_LB
 	} else if (strcmp(getParam(params, "part"), "readerstats") == 0) {
 		if (strcmp(getParam(params, "label"),"")) {
 			struct s_reader *rdr = get_reader_by_label(getParam(params, "label"));
@@ -3690,7 +3695,6 @@ static char *send_oscam_api(struct templatevars *vars, FILE *f, struct uriparams
 			tpl_addVar(vars, TPLADD, "APIERRORMESSAGE", "no reader selected");
 			return tpl_getTpl(vars, "APIERROR");
 		}
-#endif
 	} else if (strcmp(getParam(params, "part"), "shutdown") == 0) {
 		if ((strcmp(strtolower(getParam(params, "action")), "restart") == 0) ||
 				(strcmp(strtolower(getParam(params, "action")), "shutdown") == 0)){
@@ -4088,6 +4092,7 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 	
 			tpl_addVar(vars, TPLADD, "CS_VERSION", CS_VERSION);
 			tpl_addVar(vars, TPLADD, "CS_SVN_VERSION", CS_SVN_VERSION);
+			tpl_addVar(vars, TPLADD, "HTTP_CHARSET", cs_http_use_utf8?"UTF-8":"ISO-8859-1");
 			if(cfg.http_refresh > 0 && (pgidx == 3 || pgidx == -1)) {
 				tpl_printf(vars, TPLADD, "REFRESHTIME", "%d", cfg.http_refresh);
 				tpl_addVar(vars, TPLADD, "REFRESHURL", "status.html");
@@ -4101,7 +4106,7 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 			tpl_printf(vars, TPLADD, "STARTTIME", "%02d:%02d:%02d", st.tm_hour, st.tm_min, st.tm_sec);
 			tpl_printf(vars, TPLADD, "PROCESSID", "%d", server_pid);
 	
-			time_t now = time((time_t)0);
+			time_t now = time((time_t*)0);
 			// XMLAPI
 			if (pgidx == 18) {
 				char tbuffer [30];
@@ -4142,9 +4147,7 @@ static int32_t process_request(FILE *f, struct in_addr in) {
 				case 12: result = send_oscam_script(vars); break;
 				case 13: result = send_oscam_scanusb(vars); break;
 				case 14: result = send_oscam_files(vars, &params, 0); break;
-#ifdef WITH_LB
 				case 15: result = send_oscam_reader_stats(vars, &params, 0); break;
-#endif
 				case 16: result = send_oscam_failban(vars, &params, 0); break;
 				//case  17: js file
 				case 18: result = send_oscam_api(vars, f, &params, keepalive); break; //oscamapi.html
@@ -4394,7 +4397,7 @@ void http_srv() {
 				continue;
 			}
 			setTCPTimeouts(s);
-			cur_client()->last = time((time_t)0); //reset last busy time
+			cur_client()->last = time((time_t*)0); //reset last busy time
 			conn->cl = cur_client();
 #ifdef IPV6SUPPORT
 			if (ipv4fallback)
