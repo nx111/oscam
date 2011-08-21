@@ -301,11 +301,7 @@ int32_t gethexval(char c)
 
 int32_t comp_timeb(struct timeb *tpa, struct timeb *tpb)
 {
-  if (tpa->time>tpb->time) return(1);
-  if (tpa->time<tpb->time) return(-1);
-  if (tpa->millitm>tpb->millitm) return(1);
-  if (tpa->millitm<tpb->millitm) return(-1);
-  return(0);
+	return ((tpa->time - tpb->time) * 1000) + (tpa->millitm - tpb->millitm);
 }
 
 int32_t cs_atob(uchar *buf, char *asc, int32_t n)
@@ -755,7 +751,7 @@ int32_t safe_overwrite_with_bak(char *destfile, char *tmpfile, char *bakfile, in
 	}
 	if((rc = file_copy(tmpfile, destfile)) < 0){
 		cs_log("An error occured while writing the new config file %s.", destfile);
-		if(rc == -2) cs_log("The config will be missing or only partly filled upon next startup as this is a non-recoverable error! Please restore from backup or try again.", destfile);
+		if(rc == -2) cs_log("The config will be missing or only partly filled upon next startup as this is a non-recoverable error! Please restore from backup or try again.");
 		if(remove(tmpfile) < 0) cs_log("Error removing temp config file %s (errno=%d %s)!", tmpfile, errno, strerror(errno));
 		return(1);
 	}
@@ -1297,15 +1293,5 @@ int32_t add_ms_to_timeb(struct timeb *tb, int32_t ms) {
 	struct timeb tb_now;
 	cs_ftime(&tb_now);
 
-	int32_t secs, msecs;
-	secs = tb->time - tb_now.time;
-
-	msecs = tb->millitm - tb_now.millitm;
-
-	if (msecs<0) {
-		secs--;
-		msecs += 1000;
-	}
-
-	return ((secs * 1000) + msecs);
+	return comp_timeb(tb, &tb_now);
 }

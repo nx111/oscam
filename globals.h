@@ -241,10 +241,10 @@ extern const char *boxdesc[];
 #endif
 
 #ifdef HAVE_DVBAPI
-#define ECMINFO_MODE_OSCAM 	1
-#define ECMINFO_MODE_OSCAM_NEW	3
-#define ECMINFO_MODE_CCCAM 	4
-#define ECMINFO_MODE_NEWCAMD	8
+#define ECMINFO_MODE_OSCAM 	0
+#define ECMINFO_MODE_OSCAM_NEW	2
+#define ECMINFO_MODE_CCCAM 	1
+#define ECMINFO_MODE_NEWCAMD	3
 #endif
 
 #define EMM_UNIQUE 1

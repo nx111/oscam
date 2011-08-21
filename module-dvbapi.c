@@ -2106,7 +2106,7 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 				else
 					fprintf(ecmtxt, " local\n");
 
-				if (cfg.dvbapi_ecm_infomode | ECMINFO_MODE_OSCAM) 
+				if (cfg.dvbapi_ecm_infomode == ECMINFO_MODE_OSCAM || cfg.dvbapi_ecm_infomode == ECMINFO_MODE_OSCAM_NEW) 
 					fprintf(ecmtxt, "protocol:    %s\n", er->selected_reader->ph.desc);
 				else
 					fprintf(ecmtxt, "using:   %s\n", er->selected_reader->ph.desc);

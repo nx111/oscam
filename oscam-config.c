@@ -5079,7 +5079,7 @@ int32_t init_readerdb()
 				}
 			}
 		}
-		cs_debug_mask(D_READER,"[debug reader] device=%s port=%d enable=%d group=%d",rdr->device,rdr->r_port,rdr->enable,rdr->grp);
+		cs_debug_mask(D_READER,"[debug reader] device=%s port=%d enable=%d group=%llu",rdr->device,rdr->r_port,rdr->enable,rdr->grp);
 	}
 	return(0);
 }
