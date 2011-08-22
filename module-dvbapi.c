@@ -2003,7 +2003,7 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 				demux[i].tries = 0;
 
 			for (j=0; j<demux[i].ECMpidcount; j++)
-				if (demux[i].ECMpids[j].CAID == er->caid && demux[i].ECMpids[j].ECM_PID == er->pid)
+				if ((demux[i].ECMpids[j].CAID == er->caid || demux[i].ECMpids[j].CAID == er->ocaid) && demux[i].ECMpids[j].ECM_PID == er->pid)
 						break;
 			if (j==demux[i].ECMpidcount) continue;
 

@@ -2293,7 +2293,7 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 						tpl_addVar(vars, TPLADD, "PROVIDERLIST", "");
 
 					while ((prov = ll_iter_next(&pit))) {
-						provider = xml_encode(vars, get_provider(card->caid, prov->prov, provname));
+						provider = xml_encode(vars, get_provider(card->caid, prov->prov, provname, sizeof(provname)));
 
 						if (!apicall) {
 							if (prov->sa[0] || prov->sa[1] || prov->sa[2] || prov->sa[3]) {
@@ -2433,6 +2433,8 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 						tpl_addVar(vars, TPLADD, "ENTTYPE", typetxt[item->type]);
 
 						get_tiername((uint16_t)(item->id & 0xFFFF), item->caid, tbuffer);
+						if (!tbuffer[0])
+							get_provider(item->caid, item->provid, tbuffer, sizeof(tbuffer));
 						tpl_addVar(vars, TPLADD, "ENTRESNAME", tbuffer);
 
 						if ((strcmp(getParam(params, "hideexpired"), "1") != 0) || (item->end > now))
@@ -2451,7 +2453,6 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 				for(i = 0; i < 15; i++)	tpl_printf(vars, TPLAPPEND, "READERROM", "%c", rdr->rom[i]);
 				for(i = 0; i < 8; i++)	tpl_printf(vars, TPLAPPEND, "READERSERIAL", "%02X", rdr->hexserial[i]);
 				for (i = 0; i < rdr->nprov; i++) {
-					tpl_addVar(vars, TPLAPPEND, "READERPROVIDS", "Prv.ID: ");
 					for(j = 0; j < 4; j++)	tpl_printf(vars, TPLAPPEND, "READERPROVIDS", "%02X ", rdr->prid[i][j]);
 					tpl_addVar(vars, TPLAPPEND, "READERPROVIDS", i==0 ? "(sysid)<br>\n" : "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>\n");
 				}
