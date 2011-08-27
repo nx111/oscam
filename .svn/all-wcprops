@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/5929/trunk
+/svn/oscam/!svn/ver/5932/trunk
 END
 module-cccam.h
 K 25
@@ -73,7 +73,7 @@ reader-videoguard-common.c
 K 25
 svn:wc:ra_dav:version-url
 V 57
-/svn/oscam/!svn/ver/5882/trunk/reader-videoguard-common.c
+/svn/oscam/!svn/ver/5930/trunk/reader-videoguard-common.c
 END
 oscam-log.c
 K 25
@@ -115,7 +115,7 @@ module-dvbapi.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/5923/trunk/module-dvbapi.c
+/svn/oscam/!svn/ver/5932/trunk/module-dvbapi.c
 END
 CMakeLists.txt
 K 25
@@ -241,7 +241,7 @@ reader-seca.c
 K 25
 svn:wc:ra_dav:version-url
 V 44
-/svn/oscam/!svn/ver/5915/trunk/reader-seca.c
+/svn/oscam/!svn/ver/5932/trunk/reader-seca.c
 END
 reader-videoguard2.c
 K 25
@@ -313,7 +313,7 @@ reader-common.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/5918/trunk/reader-common.c
+/svn/oscam/!svn/ver/5931/trunk/reader-common.c
 END
 reader-nagra.c
 K 25
