@@ -484,8 +484,8 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 		</TR>\n\
 	</TABLE>\
 	<TABLE CLASS=\"stats\">\n\
-		<TR><TH colspan=\"5\">List of banned IP Addresses</TH></TR>\n\
-		<TR><TH>IP Address</TH><TH>Violation date</TH><TH>Violation count</TH><TH>left ban time</TH><TH>Action</TH></TR>\n\
+		<TR><TH colspan=\"6\">List of banned IP Addresses</TH></TR>\n\
+		<TR><TH>IP Address</TH><TH>User</TH><TH>Violation date</TH><TH>Violation count</TH><TH>left ban time</TH><TH>Action</TH></TR>\n\
 ##FAILBANROW##\
 	</TABLE><BR>\n\
 ##TPLFOOTER##"
@@ -499,6 +499,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 #define TPLFAILBANBIT "\
 		<TR>\n\
 			<TD>##IPADDRESS##</TD>\
+			<TD>##VIOLATIONUSER##</TD>\
 			<TD>##VIOLATIONDATE##</TD>\
 			<TD>##VIOLATIONCOUNT##</TD>\
 			<TD class=\"centered\">##LEFTTIME##</TD>\
@@ -506,7 +507,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 		</TR>\n"
 
 #define TPLAPIFAILBANBIT "\
-		<ip ipinteger=\"##INTIP##\" count=\"##VIOLATIONCOUNT##\" date=\"##VIOLATIONDATE##\" secondsleft=\"\">##IPADDRESS##</ip>\n"
+		<ip ipinteger=\"##INTIP##\" user=\"##VIOLATIONUSER##\" count=\"##VIOLATIONCOUNT##\" date=\"##VIOLATIONDATE##\" secondsleft=\"\">##IPADDRESS##</ip>\n"
 
 #ifdef CS_ANTICASC
 #define TPLCONFIGMENUANTICASC "			<TD CLASS=\"configmenu\"><A HREF=\"config.html?part=anticasc\">Anticascading</A></TD>\n"
@@ -1163,6 +1164,18 @@ provid=\"##APIPROVIDERPROVID##\">##APIPROVIDERNAME##</provider>\n"
 						<TD class=\"centered\"><input name=\"blockemm-u\" type=\"hidden\" value=\"0\"><input name=\"blockemm-u\" type=\"checkbox\" value=\"1\" ##BLOCKEMMUNIQCHK##></TD>\n\
 						<TD class=\"centered\"><input name=\"blockemm-s\" type=\"hidden\" value=\"0\"><input name=\"blockemm-s\" type=\"checkbox\" value=\"1\" ##BLOCKEMMSHAREDCHK##></TD>\n\
 						<TD class=\"centered\"><input name=\"blockemm-g\" type=\"hidden\" value=\"0\"><input name=\"blockemm-g\" type=\"checkbox\" value=\"1\" ##BLOCKEMMGLOBALCHK##></TD>\n\
+					</TR>\n\
+				</TABLE>\n\
+			</TD>\n\
+			<TR><TD>##TPLHELPPREFIX##server#saveemm-u##TPLHELPSUFFIX##Saveemm:</A></TD>\n\
+			<TD>\n\
+				<TABLE class=\"invisible\">\n\
+					<TR><TD class=\"centered\">unknown</TD><TD class=\"centered\">unique</TD><TD class=\"centered\">shared</TD><TD class=\"centered\">global</TD></TR>\n\
+					<TR>\n\
+						<TD class=\"centered\"><input name=\"saveemm-unknown\" type=\"hidden\" value=\"0\"><input name=\"saveemm-unknown\" type=\"checkbox\" value=\"1\" ##SAVEEMMUNKNOWNCHK##></TD>\n\
+						<TD class=\"centered\"><input name=\"saveemm-u\" type=\"hidden\" value=\"0\"><input name=\"saveemm-u\" type=\"checkbox\" value=\"1\" ##SAVEEMMUNIQCHK##></TD>\n\
+						<TD class=\"centered\"><input name=\"saveemm-s\" type=\"hidden\" value=\"0\"><input name=\"saveemm-s\" type=\"checkbox\" value=\"1\" ##SAVEEMMSHAREDCHK##></TD>\n\
+						<TD class=\"centered\"><input name=\"saveemm-g\" type=\"hidden\" value=\"0\"><input name=\"saveemm-g\" type=\"checkbox\" value=\"1\" ##SAVEEMMGLOBALCHK##></TD>\n\
 					</TR>\n\
 				</TABLE>\n\
 			</TD>\n\
