@@ -77,7 +77,7 @@ void load_stat_from_file()
 	int32_t count=0;
 	int32_t type=0;
 	char *ptr, *saveptr1 = NULL;
-	char *split[10];
+	char *split[11];
 	
 	while (fgets(line, LINESIZE, file))
 	{
@@ -93,20 +93,21 @@ void load_stat_from_file()
 		}	
 		
 		if (type==1) { //New format - faster parsing:
-			for (i = 0, ptr = strtok_r(line, ",", &saveptr1); ptr && i<10 ; ptr = strtok_r(NULL, ",", &saveptr1), i++)
+			for (i = 0, ptr = strtok_r(line, ",", &saveptr1); ptr && i<11 ; ptr = strtok_r(NULL, ",", &saveptr1), i++)
 				split[i] = ptr;
-			valid = (i==10);
+			valid = (i==11);
 			if (valid) {
 				strncpy(buf, split[0], sizeof(buf)-1);
 				stat->rc = atoi(split[1]);
 				stat->caid = a2i(split[2], 4);
 				stat->prid = a2i(split[3], 6);
 				stat->srvid = a2i(split[4], 4);
-				stat->time_avg = atoi(split[5]);
-				stat->ecm_count = atoi(split[6]);
-				stat->last_received = atol(split[7]);
-				stat->fail_factor = atoi(split[8]);
-				stat->ecmlen = a2i(split[9], 2);
+				stat->chid = a2i(split[5], 4);
+				stat->time_avg = atoi(split[6]);
+				stat->ecm_count = atoi(split[7]);
+				stat->last_received = atol(split[8]);
+				stat->fail_factor = atoi(split[9]);
+				stat->ecmlen = a2i(split[10], 2);
 			}
 		} else { //Old format - keep for compatibility:
 			i = sscanf(line, "%s rc %d caid %04hX prid %06X srvid %04hX time avg %dms ecms %d last %ld fail %d len %02hX\n",
@@ -131,7 +132,7 @@ void load_stat_from_file()
 					
 				//Duplicate check:
 				if (cs_dblevel == 0xFF) //Only with full debug for faster reading...
-					dup = get_stat(rdr, stat->caid, stat->prid, stat->srvid, stat->ecmlen);
+					dup = get_stat(rdr, stat->caid, stat->prid, stat->srvid, stat->chid, stat->ecmlen);
 					
 				if (dup)
 					free(stat); //already loaded
@@ -190,13 +191,13 @@ static uint32_t get_prid(uint16_t caid, uint32_t prid)
  *
  * But: This function does not check user groups or reader configuration!
  **/
-READER_STAT *get_fastest_stat(uint16_t caid, uint32_t prid, uint16_t srvid, int16_t ecmlen)
+READER_STAT *get_fastest_stat(uint16_t caid, uint32_t prid, uint16_t srvid, uint16_t chid, int16_t ecmlen)
 {
 	READER_STAT *stat, *result = NULL, *result2 = NULL;
 	int32_t result_time = 0;
 	struct s_reader *rdr = first_active_reader;
 	while (rdr) {
-		stat = get_stat(rdr, caid, prid, srvid, ecmlen);
+		stat = get_stat(rdr, caid, prid, srvid, chid, ecmlen);
 		if (stat && stat->rc == 0) {//only return "founds"
 			int32_t weight = rdr->lb_weight <= 0?100:rdr->lb_weight;
 			int32_t time = stat->time_avg*100/weight;
@@ -218,7 +219,7 @@ READER_STAT *get_fastest_stat(uint16_t caid, uint32_t prid, uint16_t srvid, int1
 /**
  * get statistic values for reader ridx and caid/prid/srvid/ecmlen
  **/
-READER_STAT *get_stat(struct s_reader *rdr, uint16_t caid, uint32_t prid, uint16_t srvid, int16_t ecmlen)
+READER_STAT *get_stat(struct s_reader *rdr, uint16_t caid, uint32_t prid, uint16_t srvid, uint16_t chid, int16_t ecmlen)
 {
 	if (!rdr->lb_stat)
 		rdr->lb_stat = ll_create("lb_stat");
@@ -230,7 +231,7 @@ READER_STAT *get_stat(struct s_reader *rdr, uint16_t caid, uint32_t prid, uint16
 	int32_t i = 0;
 	while ((stat = ll_iter_next(&it))) {
 		i++;
-		if (stat->caid==caid && stat->prid==prid && stat->srvid==srvid) {
+		if (stat->caid==caid && stat->prid==prid && stat->srvid==srvid && stat->chid==chid) {
 			if (stat->ecmlen == ecmlen)
 				break;
 			if (!stat->ecmlen) {
@@ -250,7 +251,7 @@ READER_STAT *get_stat(struct s_reader *rdr, uint16_t caid, uint32_t prid, uint16
 /**
  * removes caid/prid/srvid/ecmlen from stat-list of reader ridx
  */
-int32_t remove_stat(struct s_reader *rdr, uint16_t caid, uint32_t prid, uint16_t srvid, int16_t ecmlen)
+int32_t remove_stat(struct s_reader *rdr, uint16_t caid, uint32_t prid, uint16_t srvid, uint16_t chid, int16_t ecmlen)
 {
 	if (!rdr->lb_stat)
 		return 0;
@@ -259,7 +260,7 @@ int32_t remove_stat(struct s_reader *rdr, uint16_t caid, uint32_t prid, uint16_t
 	LL_ITER it = ll_iter_create(rdr->lb_stat);
 	READER_STAT *stat;
 	while ((stat = ll_iter_next(&it))) {
-		if (stat->caid==caid && stat->prid==prid && stat->srvid==srvid) {
+		if (stat->caid==caid && stat->prid==prid && stat->srvid==srvid && stat->chid==chid) {
 			if (!stat->ecmlen || stat->ecmlen == ecmlen) {
 				ll_iter_remove_data(&it);
 				c++;
@@ -335,9 +336,9 @@ void save_stat_to_file_thread()
 				//	stat->srvid, stat->time_avg, stat->ecm_count, stat->last_received, stat->fail_factor, stat->ecmlen);
 				
 				//New version:
-				fprintf(file, "%s,%d,%04hX,%06X,%04hX,%d,%d,%ld,%d,%02hX\n",
+				fprintf(file, "%s,%d,%04hX,%06X,%04hX,%04hX,%d,%d,%ld,%d,%02hX\n",
 					rdr->label, stat->rc, stat->caid, stat->prid, 
-					stat->srvid, stat->time_avg, stat->ecm_count, stat->last_received, stat->fail_factor, stat->ecmlen);
+					stat->srvid, stat->chid, stat->time_avg, stat->ecm_count, stat->last_received, stat->fail_factor, stat->ecmlen);
 				count++;
 			}
 		}
@@ -374,12 +375,13 @@ void inc_fail(READER_STAT *stat)
 
 READER_STAT *get_add_stat(struct s_reader *rdr, ECM_REQUEST *er, uint32_t prid)
 {
-	READER_STAT *stat = get_stat(rdr, er->caid, prid, er->srvid, er->l);
+	READER_STAT *stat = get_stat(rdr, er->caid, prid, er->srvid, er->chid, er->l);
 	if (!stat) {
 		if(cs_malloc(&stat,sizeof(READER_STAT), -1)){
 			stat->caid = er->caid;
 			stat->prid = prid;
 			stat->srvid = er->srvid;
+			stat->chid = er->chid;
 			stat->ecmlen = er->l;
 			stat->time_avg = UNDEF_AVG_TIME; //dummy placeholder
 			ll_append(rdr->lb_stat, stat);
@@ -477,7 +479,7 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 	}
 	else if (rc == 1 || rc == 2) { //cache
 		//no increase of statistics here, cachetime is not real time
-		stat = get_stat(rdr, er->caid, prid, er->srvid, er->l);
+		stat = get_stat(rdr, er->caid, prid, er->srvid, er->chid, er->l);
 		if (stat != NULL)
 			stat->last_received = ctime;
 		return;
@@ -486,7 +488,7 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 		//CCcam card can't decode, 0x28=NOK1, 0x29=NOK2
 		//CCcam loop detection = E2_CCCAM_LOOP
 		if (er->rcEx == E2_CCCAM_NOK1 || er->rcEx == E2_CCCAM_NOK2 || er->rcEx == E2_CCCAM_LOOP || er->rcEx == E2_WRONG_CHKSUM) {
-			stat = get_stat(rdr, er->caid, prid, er->srvid, er->l);
+			stat = get_stat(rdr, er->caid, prid, er->srvid, er->chid, er->l);
 			if (stat != NULL)
 				stat->last_received = ctime; //to avoid timeouts
 			return;
@@ -536,16 +538,16 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 	else
 	{
 		if (rc >= 0)
-			cs_debug_mask(D_TRACE, "loadbalancer: not handled stat for reader %s: rc %d %04hX&%06X/%04hX/%02hX time %dms",
-				rdr->label, rc, er->caid, prid, er->srvid, er->l, ecm_time);
+			cs_debug_mask(D_TRACE, "loadbalancer: not handled stat for reader %s: rc %d %04hX&%06X/%04hX/%04hX/%02hX time %dms",
+				rdr->label, rc, er->caid, prid, er->srvid, er->chid, er->l, ecm_time);
 	
 		return;
 	}
 	
 	housekeeping_stat(0);
 		
-	cs_debug_mask(D_TRACE, "loadbalancer: adding stat for reader %s: rc %d %04hX&%06X/%04hX/%02hX time %dms fail %d",
-				rdr->label, rc, er->caid, prid, er->srvid, er->l, ecm_time, stat->fail_factor);
+	cs_debug_mask(D_TRACE, "loadbalancer: adding stat for reader %s: rc %d %04hX&%06X/%04hX/%04hX/%02hX time %dms fail %d",
+				rdr->label, rc, er->caid, prid, er->srvid, er->chid, er->l, ecm_time, stat->fail_factor);
 	
 	if (cfg.lb_save) {
 		stat_load_save++;
@@ -554,13 +556,13 @@ void add_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t ecm_time, int32_t r
 	}
 }
 
-void reset_stat(uint16_t caid, uint32_t prid, uint16_t srvid, int16_t ecmlen)
+void reset_stat(uint16_t caid, uint32_t prid, uint16_t srvid, uint16_t chid, int16_t ecmlen)
 {
 	//cs_debug_mask(D_TRACE, "loadbalance: resetting ecm count");
 	struct s_reader *rdr;
 	for (rdr=first_active_reader; rdr ; rdr=rdr->next) {
 		if (rdr->lb_stat && rdr->client) {
-			READER_STAT *stat = get_stat(rdr, caid, prid, srvid, ecmlen);
+			READER_STAT *stat = get_stat(rdr, caid, prid, srvid, chid, ecmlen);
 			if (stat) {
 				if (stat->ecm_count > 0)
 					stat->ecm_count = 1; //not zero, so we know it's decodeable
@@ -587,7 +589,7 @@ int32_t clean_stat_by_rc(struct s_reader *rdr, int8_t rc)
 	return count;
 }
 
-int32_t clean_stat_by_id(struct s_reader *rdr, uint32_t caid, uint32_t provid, uint32_t sid, uint32_t len)
+int32_t clean_stat_by_id(struct s_reader *rdr, uint32_t caid, uint32_t provid, uint32_t sid, uint32_t cid, uint32_t len)
 {
 	int32_t count = 0;
 	if (rdr && rdr->lb_stat) {
@@ -597,6 +599,7 @@ int32_t clean_stat_by_id(struct s_reader *rdr, uint32_t caid, uint32_t provid, u
 			if (stat->caid == caid &&
 					stat->prid == provid &&
 					stat->srvid == sid &&
+					stat->chid == cid &&
 					stat->ecmlen == (int16_t)len) {
 				ll_iter_remove_data(&itr);
 				count++;
@@ -659,14 +662,15 @@ static int32_t get_nbest_readers(ECM_REQUEST *er) {
 		return cfg.lb_nbest_readers;
 }
 
-static int32_t get_reopen_seconds(READER_STAT *stat)
+static time_t get_reopen_seconds(READER_STAT *stat)
 {
 		int32_t max = (INT_MAX / cfg.lb_reopen_seconds);
+		if (max > 9999) max = 9999;
 		if (stat->fail_factor > max)
 				stat->fail_factor = max;
 		if (!stat->fail_factor)
 			return cfg.lb_reopen_seconds;
-		return stat->fail_factor * cfg.lb_reopen_seconds;
+		return (time_t)stat->fail_factor * (time_t)cfg.lb_reopen_seconds;
 }
 
 ushort get_betatunnel_caid_to(ushort caid) 
@@ -697,7 +701,6 @@ int32_t get_best_reader(ECM_REQUEST *er)
 	if (!cfg.lb_mode || cfg.lb_mode==LB_LOG_ONLY)
 		return 0;
 
-	LL_ITER it;
 	struct s_reader *rdr;
 	struct s_ecm_answer *ea;
 
@@ -741,8 +744,8 @@ int32_t get_best_reader(ECM_REQUEST *er)
 				weight = rdr->lb_weight;
 				if (weight <= 0) weight = 1;
 				
-				stat_nagra = get_stat(rdr, er->caid, prid, er->srvid, er->l);
-				stat_beta = get_stat(rdr, caid_to, prid, er->srvid, er->l+10);
+				stat_nagra = get_stat(rdr, er->caid, prid, er->srvid, er->chid, er->l);
+				stat_beta = get_stat(rdr, caid_to, prid, er->srvid, er->chid, er->l+10);
 				
 				if (stat_nagra && stat_nagra->rc == 0) {
 					time = stat_nagra->time_avg*100/weight;
@@ -819,20 +822,23 @@ int32_t get_best_reader(ECM_REQUEST *er)
 		if (nr>5)
 			snprintf(rptr, 20, "...(%d more)", nr - 5);
 
-		cs_debug_mask(D_TRACE, "loadbalancer: client %s for %04X&%06X/%04X:%02hX: n=%d valid readers: %s", 
-			username(er->client), er->caid, prid, er->srvid, er->l, nr, buf);
+		cs_debug_mask(D_TRACE, "loadbalancer: client %s for %04X&%06X/%04X:%04X/%02hX: n=%d valid readers: %s", 
+			username(er->client), er->caid, prid, er->srvid, er->chid, er->l, nr, buf);
 	}
 #endif	
+
+	for(ea = er->matching_rdr; ea; ea = ea->next) {
+		ea->status &= 0xFC;
+	}
 
 	for(ea = er->matching_rdr; ea && nreaders; ea = ea->next) {
 			rdr = ea->reader;
 			struct s_client *cl = rdr->client;
-			ea->status &= 0xFC;
 			reader_count++;
 	
 			int32_t weight = rdr->lb_weight <= 0?100:rdr->lb_weight;
 				
-			stat = get_stat(rdr, er->caid, prid, er->srvid, er->l);
+			stat = get_stat(rdr, er->caid, prid, er->srvid, er->chid, er->l);
 			if (!stat) {
 				cs_debug_mask(D_TRACE, "loadbalancer: starting statistics for reader %s", rdr->label);
 				add_stat(rdr, er, 1, -1);
@@ -844,7 +850,7 @@ int32_t get_best_reader(ECM_REQUEST *er)
 			
 			if (stat->ecm_count < 0||(stat->ecm_count > cfg.lb_max_ecmcount && stat->time_avg > retrylimit)) {
 				cs_debug_mask(D_TRACE, "loadbalancer: max ecms (%d) reached by reader %s, resetting statistics", cfg.lb_max_ecmcount, rdr->label);
-				reset_stat(er->caid, prid, er->srvid, er->l);
+				reset_stat(er->caid, prid, er->srvid, er->chid, er->l);
 				ea->status |= READER_ACTIVE; //max ecm reached, get new statistics
 				nreaders--;
 				continue;
@@ -931,7 +937,6 @@ int32_t get_best_reader(ECM_REQUEST *er)
 	while (nreaders) {
 		struct s_ecm_answer *best = NULL;
 
-		ll_iter_reset(&it);
 		for(ea = er->matching_rdr; ea; ea = ea->next) {
 			if (nlocal_readers && !(ea->status & READER_LOCAL))
 				continue;
@@ -982,7 +987,7 @@ int32_t get_best_reader(ECM_REQUEST *er)
 			cs_debug_mask(D_TRACE, "loadbalancer: NO MATCHING READER FOUND, reopen last valid:");	
 			for(ea = er->matching_rdr; ea; ea = ea->next) {
 				rdr = ea->reader;
-   	     			stat = get_stat(rdr, er->caid, prid, er->srvid, er->l);
+   	     			stat = get_stat(rdr, er->caid, prid, er->srvid, er->chid, er->l);
    		     		if (stat && stat->ecm_count>0 && stat->last_received+get_reopen_seconds(stat) < current_time) {
 	   	     			if (!ea->status && nreaders) {
    	     					ea->status |= READER_ACTIVE;
@@ -1006,7 +1011,7 @@ int32_t get_best_reader(ECM_REQUEST *er)
 #endif	
 			for(ea = er->matching_rdr; ea && nreaders; ea = ea->next) {
 				rdr = ea->reader;
-				stat = get_stat(rdr, er->caid, prid, er->srvid, er->l); 
+				stat = get_stat(rdr, er->caid, prid, er->srvid, er->chid, er->l);
 
 				if (stat && stat->rc != 0) { //retrylimit reached:
 					if (cfg.lb_reopen_mode || stat->last_received+get_reopen_seconds(stat) < current_time) { //Retrying reader every (900/conf) seconds
@@ -1051,8 +1056,8 @@ int32_t get_best_reader(ECM_REQUEST *er)
 		if (nr>5)
 			snprintf(rptr, 20, "...(%d more)", nr - 5);
 
-		cs_debug_mask(D_TRACE, "loadbalancer: client %s for %04X&%06X/%04X:%02hX: n=%d selected readers: %s", 
-			username(er->client), er->caid, prid, er->srvid, er->l, nr, buf);
+		cs_debug_mask(D_TRACE, "loadbalancer: client %s for %04X&%06X/%04X:%04X:%02hX: n=%d selected readers: %s",
+			username(er->client), er->caid, prid, er->srvid, er->chid, er->l, nr, buf);
 	}
 #endif
 	return 1;
@@ -1119,6 +1124,8 @@ static int compare_stat(READER_STAT **ps1, READER_STAT **ps2) {
 	res = s1->prid - s2->prid;
 	if (res) return res;
 	res = s1->srvid - s2->srvid;
+	if (res) return res;
+	res = s1->chid - s2->chid;
 	if (res) return res;
 	res = s1->ecmlen - s2->ecmlen;
 	if (res) return res;
