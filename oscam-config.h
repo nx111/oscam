@@ -159,9 +159,6 @@
 #define CS_LOGHISTORY
 #endif
 
-#ifdef OS_FREEBSD
-#  define NO_FTIME
-#endif
 
 #ifdef TUXBOX
 #  ifdef MIPSEL
@@ -170,7 +167,6 @@
 #    define CS_LOGFILE "/dev/tty"
 #  endif
 #  define CS_EMBEDDED
-#  define NO_FTIME
 #  if !defined(COOL) && !defined(SCI_DEV)
 #    define SCI_DEV 1
 #  endif
@@ -185,7 +181,6 @@
 
 #ifdef UCLIBC
 #  define CS_EMBEDDED
-#  define NO_FTIME
 #endif
 
 #ifdef OS_CYGWIN32
@@ -222,7 +217,6 @@
 
 #ifdef ARM
 #  define CS_EMBEDDED
-#  define NO_FTIME
 #endif
 
 //#ifdef ALIGNMENT
