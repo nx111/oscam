@@ -57,6 +57,9 @@ typedef enum cs_proto_type
 #ifdef MODULE_CCCAM
 	TAG_CCCAM,	// cccam
 #endif
+#ifdef MODULE_PANDORA
+	TAG_PANDORA,	// pandora
+#endif
 	TAG_CONSTCW,	// constcw
 	TAG_DVBAPI,	// dvbapi
 	TAG_WEBIF,	// webif
@@ -68,6 +71,9 @@ static const char *cctag[]={"global", "monitor", "camd33", "camd35", "newcamd", 
 		      "cs357x", "cs378x", "gbox",
 #ifdef MODULE_CCCAM
 		      "cccam",
+#endif
+#ifdef MODULE_PANDORA
+		      "pandora",
 #endif
 		      "constcw", "dvbapi", "webif", "anticasc",
 #ifdef LCDSUPPORT
@@ -1234,6 +1240,54 @@ void chk_t_cccam(char *token, char *value)
 }
 #endif
 
+#ifdef MODULE_PANDORA
+void chk_t_pandora(char *token, char *value)
+{
+	if (!strcmp(token, "pand_skip_send_dw")) {
+		cfg.pand_skip_send_dw = strToIntVal(value, 0);
+		return;
+	}
+
+	if (!strcmp(token, "pand_allowed")) {
+		if (strlen(value) == 0) {
+			clear_sip(&cfg.pand_allowed);
+			return;
+		} else {
+			chk_iprange(value, &cfg.pand_allowed);
+			return;
+		}
+	}
+
+	if (!strcmp(token, "pand_usr")) {
+		cs_strncpy(cfg.pand_usr, value, sizeof(cfg.pand_usr));
+		return;
+	}
+
+	if (!strcmp(token, "pand_pass")) {
+		cs_strncpy(cfg.pand_pass, value, sizeof(cfg.pand_pass));
+		return;
+	}
+
+	if (!strcmp(token, "pand_ecm")) {
+		cfg.pand_ecm = strToIntVal(value, 0);
+		return;
+	}
+
+	if (!strcmp(token, "pand_port")) {
+		cfg.pand_port = strToIntVal(value, 0);
+		return;
+	}
+
+	if(!strcmp(token, "pand_srvid")) {
+		cfg.pand_srvip = cs_inet_addr(token);
+		return;
+	}
+
+	if (token[0] != '#')
+		fprintf(stderr, "Warning: keyword '%s' in pandora section not recognized\n",token);
+}
+#endif
+
 void chk_t_radegast(char *token, char *value)
 {
 	if (!strcmp(token, "port")) {
@@ -1430,6 +1484,9 @@ static void chk_token(char *token, char *value, int32_t tag)
 		case TAG_CS378X  : chk_t_camd35_tcp(token, value); break;
 #ifdef MODULE_CCCAM
 		case TAG_CCCAM   : chk_t_cccam(token, value); break;
+#endif
+#ifdef MODULE_PANDORA
+		case TAG_PANDORA : chk_t_pandora(token, value); break;
 #endif
 		case TAG_GBOX    : chk_t_gbox(token, value); break;
 
@@ -2307,6 +2364,38 @@ int32_t write_config()
 	}
 #endif
 
+#ifdef MODULE_PANDORA
+	/*pandora*/
+	if ( cfg.pand_port > 0) {
+		fprintf(f,"[pandora]\n");
+
+		if (cfg.pand_skip_send_dw || cfg.http_full_cfg)
+			fprintf_conf(f, "pand_skip_send_dw", "%d\n", cfg.pand_skip_send_dw);
+
+		value = mk_t_iprange(cfg.pand_allowed);
+		if(strlen(value) > 0 || cfg.http_full_cfg)
+			fprintf_conf(f, "pand_allowed", "%s\n", value);
+		free_mk_t(value);
+
+		if (cfg.pand_usr[0] || cfg.http_full_cfg)
+			fprintf_conf(f, "pand_usr", "%s\n", cfg.pand_usr);
+
+		if (cfg.pand_pass[0] || cfg.http_full_cfg)
+			fprintf_conf(f, "pand_pass", "%s\n", cfg.pand_pass);
+
+		if (cfg.pand_ecm || cfg.http_full_cfg)
+			fprintf_conf(f, "pand_ecm", "%d\n", cfg.pand_ecm);
+
+		if (cfg.pand_port || cfg.http_full_cfg)
+			fprintf_conf(f, "pand_port", "%d\n", cfg.pand_port);
+
+		if (cfg.pand_srvip || cfg.http_full_cfg)
+			fprintf_conf(f, "pand_srvip", "%s\n", cs_inet_ntoa(cfg.pand_srvip));
+
+		fprintf(f,"\n");
+	}
+#endif
+
 #ifdef HAVE_DVBAPI
 	/*dvb-api*/
 	if (cfg.dvbapi_enabled > 0) {
@@ -2871,6 +2960,14 @@ int32_t write_server()
 				fprintf_conf(f, "ccchop", "%d\n", rdr->cc_hop);
 #endif
 
+#ifdef MODULE_PANDORA
+			if (rdr->typ == R_PANDORA)
+			{
+				if (rdr->pand_send_ecm || cfg.http_full_cfg)
+					fprintf_conf(f, "pand_send_ecm", "%d\n", rdr->pand_send_ecm);
+			}
+#endif
+
 			if ((rdr->deprecated || cfg.http_full_cfg) && isphysical)
 				fprintf_conf(f, "deprecated", "%d\n", rdr->deprecated);
 
@@ -3017,6 +3114,11 @@ void write_versionfile() {
 	  fprintf(fp, "CCcam:                      yes\n");
 #else
 	  fprintf(fp, "CCcam:                      no\n");
+#endif
+#ifdef MODULE_PANDORA
+	  fprintf(fp, "Pandora:                    yes\n");
+#else
+	  fprintf(fp, "Pandora:                    no\n");
 #endif
 #ifdef MODULE_GBOX
 	  fprintf(fp, "gbox:                       yes\n");
@@ -3569,7 +3671,7 @@ int32_t init_srvid()
 	if (nr > 0) {
 		cs_log("%d service-id's loaded in %dms", nr, time);
 		if (nr > 2000) {
-			cs_log("WARNING: You risk high CPU load and high ECM times with more than 2000 service-idŽs!");
+			cs_log("WARNING: You risk high CPU load and high ECM times with more than 2000 service-id�s!");
 			cs_log("HINT: --> use optimized lists from http://streamboard.gmc.to/wiki/index.php/Srvid");
 		}
 	} else {
@@ -4541,6 +4643,13 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 	}
 #endif
 
+#ifdef MODULE_PANDORA
+	if (!strcmp(token, "pand_send_ecm")) {
+		rdr->pand_send_ecm = strToIntVal(value, 0);
+		return;
+	}
+
+#endif
 	if (!strcmp(token, "deprecated")) {
 		rdr->deprecated  = strToIntVal(value, 0);
 		return;

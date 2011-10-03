@@ -1,15 +1,15 @@
 10
 
 dir
-5961
+5967
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-09-25T15:15:09.241518Z
-5961
-Admin
+2011-10-02T09:17:46.036907Z
+5967
+zetack
 has-props
 
 
@@ -127,10 +127,10 @@ file
 
 
 
-2011-08-24T00:34:05.169703Z
-0e355de154d453ab0a1a8b0903e8eb3f
-2011-08-22T15:32:21.414311Z
-5924
+2011-09-30T12:57:06.753124Z
+04893610fcbb54baf4b536229df3f291
+2011-09-29T20:28:55.505438Z
+5962
 lareq78
 
 
@@ -153,7 +153,7 @@ lareq78
 
 
 
-32735
+31397
 
 VERSION
 file
@@ -529,10 +529,10 @@ file
 
 
 
-31ea1e4694e4b58c241ce2be3178b77d
-2011-09-10T11:23:40.606774Z
-5951
-neoen
+c086e48e03970f8d7b5ed5af28973fb9
+2011-09-29T21:23:11.144819Z
+5964
+corsair
 
 reader-tongfang.c
 file
@@ -575,10 +575,10 @@ file
 
 
 
-b7aee445404e025d06885d5aa06eef98
-2011-09-05T08:04:48.443192Z
-5934
-neoen
+8248bc6616943658bd9d692a28657a83
+2011-09-29T21:23:11.144819Z
+5964
+corsair
 
 cscrypt
 dir
@@ -670,10 +670,10 @@ file
 
 
 
-97eea11ef49980d08934ae7fc758abff
-2011-09-10T10:14:50.279446Z
-5949
-Admin
+763c8ddc73969eac0acf35d1d4e4ad2c
+2011-09-29T21:23:11.144819Z
+5964
+corsair
 
 oscam-simples.c
 file
@@ -1030,6 +1030,40 @@ zetack
 csctapi
 dir
 
+module-pandora.c
+file
+
+
+
+
+2011-09-30T12:57:06.761124Z
+479d20da915467a70f7a5a2db5697689
+2011-09-29T21:23:11.144819Z
+5964
+corsair
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+7161
+
 reader-dre.c
 file
 
@@ -1310,9 +1344,9 @@ file
 
 
 
-3592cb96577682a9e9b05cfd203a631a
-2011-09-07T20:43:59.011302Z
-5944
+5f96fcf4c665611b39a87eb412739cf0
+2011-10-02T09:17:46.036907Z
+5967
 zetack
 
 module-constcw.c
@@ -1671,10 +1705,10 @@ file
 
 
 
-3d5bdab56c3b3b1f132df972e783537f
-2011-09-21T19:45:09.831964Z
-5958
-Admin
+078f2733c79150befd0dae29715fe143
+2011-10-02T09:17:46.036907Z
+5967
+zetack
 
 module-cccam.c
 file
@@ -1683,10 +1717,10 @@ file
 
 
 
-e622fb476cd8029af0a2101bc722721c
-2011-09-05T06:38:15.103701Z
-5933
-schlocke
+9c423c6b233ad43463962737927afa45
+2011-09-29T22:32:03.193840Z
+5965
+lareq78
 has-props
 
 module-datastruct-llist.h
