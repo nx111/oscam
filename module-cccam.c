@@ -493,8 +493,6 @@ int32_t cc_msg_recv(struct s_client *cl, uint8_t *buf, int32_t maxlen) {
 	}
 
 	len = recv(handle, buf, 4, MSG_WAITALL);
-	if (rdr)
-		rdr->last_g = time(NULL);
 
 	if (len != 4) { // invalid header length read
 		if (len <= 0)
@@ -519,7 +517,7 @@ int32_t cc_msg_recv(struct s_client *cl, uint8_t *buf, int32_t maxlen) {
 		}
 
 		len = recv(handle, buf + 4, size, MSG_WAITALL); // read rest of msg
-		if (rdr)
+		if (rdr && buf[1] == MSG_CW_ECM)
 			rdr->last_g = time(NULL);
 
 		if (len != size) {
@@ -581,7 +579,7 @@ int32_t cc_cmd_send(struct s_client *cl, uint8_t *buf, int32_t len, cc_msg_type_
 	cc_crypt(&cc->block[ENCRYPT], netbuf, len, ENCRYPT);
 
 	n = send(cl->udp_fd, netbuf, len, 0);
-	if (rdr)
+	if (rdr && cmd == MSG_CW_ECM)
 		rdr->last_s = time(NULL);
 
 	cs_writeunlock(&cc->lockcmd);
@@ -1091,7 +1089,7 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 
 			struct timeb timeout;
 			timeout = cc->ecm_time;
-			uint32_t tt = cfg.ctimeout+500;
+			uint32_t tt = 3*cfg.ctimeout+500;
 			timeout.time += tt / 1000;
 			timeout.millitm += tt % 1000;
             if (timeout.millitm >= 1000) {
@@ -1103,8 +1101,8 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 				return 0; //pending send...
 			} else {
 				cs_debug_mask(D_READER,
-						"%s unlocked-cycleconnection! timeout %ds",
-						getprefix(), tt / 1000);
+						"%s unlocked-cycleconnection! timeout %dms",
+						getprefix(), tt);
 				//cc_cycle_connection();
 				cc_cli_close(cl, TRUE);
 				return 0;
@@ -1631,18 +1629,32 @@ void cc_idle() {
 		
 	if (!rdr || !rdr->tcp_connected || !cl || !cc)
 		return;
+		
+	time_t now = time(NULL);
 	if (rdr->cc_keepalive) {
-		if (cc->answer_on_keepalive + 55 <= time(NULL)) {
+		if (cc->answer_on_keepalive + 55 <= now) {
 			cc_cmd_send(cl, NULL, 0, MSG_KEEPALIVE);
 			cs_debug_mask(D_READER, "cccam: keepalive");
-			cc->answer_on_keepalive = time(NULL);
+			cc->answer_on_keepalive = now;
+			return;
 		}
 	}
 	else
 	{
-		int32_t rto = abs(rdr->last_s - rdr->last_g);
-		if (rto >= (rdr->tcp_rto*60))
+		//check inactivity timeout:
+		if (abs(rdr->last_s - now) > rdr->tcp_ito*60) {
+			cs_debug_mask(D_READER, "%s inactive_timeout, close connection (fd=%d)", rdr->ph.desc, rdr->client->pfd);
 			network_tcp_connection_close(rdr);
+			return;
+		}
+			
+		//check read timeout:
+		int32_t rto = abs(rdr->last_s - rdr->last_g);
+		if (rto >= (rdr->tcp_rto*60)) {
+			cs_debug_mask(D_READER, "%s read timeout, close connection (fd=%d)", rdr->ph.desc, rdr->client->pfd);
+			network_tcp_connection_close(rdr);
+			return;
+		}
 	}
 }
 
@@ -3168,8 +3180,9 @@ int32_t cc_cli_init_int(struct s_client *cl) {
 	struct s_reader *rdr = cl->reader;
 	if (rdr->tcp_connected)
 		return 1;
-                	
-	rdr->tcp_ito = 1; //60sec...This now invokes ph_idle()
+                
+    if (rdr->tcp_ito < 1)	
+		rdr->tcp_ito = 30;
 	if (rdr->cc_maxhop < 0)
 		rdr->cc_maxhop = DEFAULT_CC_MAXHOP;
 

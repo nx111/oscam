@@ -516,8 +516,18 @@ static void cleanup_ecmtasks(struct s_client *cl)
 	for (i=0; i<n; i++) {
 		ecm = &cl->ecmtask[i];
 		ecm->matching_rdr=NULL;
+		ecm->client=NULL;
 	}
 	add_garbage(cl->ecmtask);
+	
+	//remove this clients ecm from queue. because of cache, just null the client:
+	cs_readlock(&ecmcache_lock);
+	for (ecm = ecmtask; ecm; ecm = ecm->next) {
+		if (ecm->client == cl) {
+			ecm->client = NULL;
+		}
+	}
+	cs_readunlock(&ecmcache_lock);
 }
 
 void cleanup_thread(void *var)
@@ -1706,6 +1716,7 @@ int32_t send_dcw(struct s_client * client, ECM_REQUEST *er)
 		else
 			snprintf(sby, sizeof(sby)-1, " by %s", er_reader->label);
 	}
+		
 	if (er->rc < E_NOTFOUND) er->rcEx=0;
 	if (er->rcEx)
 		snprintf(erEx, sizeof(erEx)-1, "rejected %s%s", stxtWh[er->rcEx>>4],
@@ -1933,6 +1944,7 @@ static void chk_dcw(struct s_client *cl, struct s_ecm_answer *ea)
 			break;
 		case E_TIMEOUT:
 			ert->rc = E_TIMEOUT;
+			ert->rcEx = 0;
 #ifdef WITH_LB
 			if (cfg.lb_mode) {
 				for(ea_list = ert->matching_rdr; ea_list; ea_list = ea_list->next)
@@ -2172,6 +2184,8 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 {
 	int32_t i, j, m;
 	time_t now = time((time_t*)0);
+	
+	er->client = client;
 
 	client->lastecm = now;
 
@@ -2757,16 +2771,16 @@ static void check_status(struct s_client *cl) {
 				break;
 			if (rdr->tcp_ito && (rdr->typ & R_IS_CASCADING)) {
 				int32_t time_diff;
-				time_diff = abs(time(NULL) - rdr->last_s);
+				time_diff = abs(time(NULL) - rdr->last_check);
 
-				if (time_diff>(rdr->tcp_ito*60)) {
+				if (time_diff>60) { //check 1x per minute
 					add_job(rdr->client, ACTION_READER_IDLE, NULL, 0);
-					rdr->last_s = time(NULL);
+					rdr->last_check = time(NULL);
 				}
 			}
-			if (!rdr->tcp_connected && ((time(NULL) - rdr->last_s) > 30) && rdr->typ == R_CCCAM) {
+			if (!rdr->tcp_connected && ((time(NULL) - rdr->last_check) > 30) && rdr->typ == R_CCCAM) {
 				add_job(rdr->client, ACTION_READER_IDLE, NULL, 0);
-				rdr->last_s = time(NULL);
+				rdr->last_check = time(NULL);
 			}
 			break;
 		default:
