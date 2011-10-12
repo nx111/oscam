@@ -2991,6 +2991,9 @@ int32_t write_server()
 				fprintf_conf(f, "cooldown", "%d,%d\n", rdr->cooldown[0], rdr->cooldown[1]);
 			}
 
+			if (rdr->autorestartseconds){
+				fprintf_conf(f, "autorestartseconds", "%d\n", rdr->autorestartseconds);
+			}
 			fprintf(f, "\n\n");
 		}
 	}
@@ -4688,6 +4691,11 @@ void chk_reader(char *token, char *value, struct s_reader *rdr)
 	}
 #endif
 
+	if (!strcmp(token, "autorestartseconds")) {
+		rdr->autorestartseconds=strToIntVal(value,0);
+		return;
+	}
+
 	//ratelimit
 	if (!strcmp(token, "ratelimitecm")) {
 		if (strlen(value) == 0) {
@@ -5058,7 +5066,7 @@ void * read_cccamcfg(int mode)
 					break;
 				}
 			}
-			cs_log("Read Line:%s",line);
+//			cs_log("Read Line:%s",line);
 			if(found)
 				continue;
 

@@ -14,9 +14,8 @@ curdir=`pwd`
 builddir=`dirname $0`
 [ "$builddir" = "." ] && svnroot=".."
 [ "$builddir" = "." ] || svnroot=`dirname $builddir`
-cd $svnroot/
-svnver=`svn info | sed -n "5p"| sed -e "s/ //g" | cut -f2 -d:`
-cd ${plat_dir}/image
+svnver=`svnversion  -c ${svnroot} | cut -f 2 -d: | sed -e "s/[^[:digit:]]//g"`
+cd ${svnroot}/${plat_dir}/image
 tar czf ../oscam-${plat}-svn${svnver}-nx111-`date +%Y%m%d`.tar.gz *
 cd ../ 
 rm -rf CMake* *.a Makefile cscrypt csctapi *.cmake algo image/usr/bin/oscam

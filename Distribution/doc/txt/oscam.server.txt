@@ -247,6 +247,9 @@ DESCRIPTIONS
 	   example: readnano = write.emm
 		    readnano = /var/oscam/write.emm
 
+       autorestartseconds = seconds
+          force restart reader after seconds,default 0 disabled.
+
        lb_weight = weight
 	  the higher the value the higher the probability for reader selection, default:100
 

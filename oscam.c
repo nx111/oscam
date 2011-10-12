@@ -3351,6 +3351,16 @@ void * reader_check(void) {
 		for (cl=first_client->next; cl ; cl=cl->next) {
 			if (!cl->thread_active)
 				check_status(cl);
+
+			// check if auto restart reader
+			struct s_reader *rdr = cl->reader;
+			if (rdr && rdr->autorestartseconds
+ 			        && rdr->autorestart_check <= cl->login
+			        && (cl->login + (time_t)rdr->autorestartseconds) < time(NULL)){
+					add_job(cl, ACTION_READER_RESTART, NULL, 0);
+					rdr->autorestart_check=time(NULL);
+
+			}
 		}
 		cs_sleepms(1000);
 	}

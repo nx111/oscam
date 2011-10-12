@@ -419,6 +419,8 @@ extern void cs_switch_led(int32_t led, int32_t action);
 #define REQUEST_SENT			0x10
 #define REQUEST_ANSWERED		0x20
 
+#define READER_BETATUNNEL		0x40
+
 /* ===========================
  *      Default Values
  * =========================== */
@@ -1125,6 +1127,8 @@ struct s_reader  									//contains device info, reader info and card info
 	int8_t			fix_9993;
 	uint8_t			ins7E[0x1A+1];
 
+	uint32_t		autorestartseconds;		// auto restart reader after login ,default 0  disable
+	time_t			autorestart_check;
 #ifdef MODULE_PANDORA
 	int8_t			pand_send_ecm;
 #endif
