@@ -3354,11 +3354,16 @@ void * reader_check(void) {
 
 			// check if auto restart reader
 			struct s_reader *rdr = cl->reader;
+			struct s_data data;
+			data.action = ACTION_READER_RESTART;
+			data.ptr = NULL;
+			data.cl = cl;
+			data.len = 0;
+
 			if (rdr && rdr->autorestartseconds
- 			        && rdr->autorestart_check <= cl->login
+ 			        && NULL==ll_contains_data(cl->joblist,&data,sizeof(data))
 			        && (cl->login + (time_t)rdr->autorestartseconds) < time(NULL)){
 					add_job(cl, ACTION_READER_RESTART, NULL, 0);
-					rdr->autorestart_check=time(NULL);
 
 			}
 		}
