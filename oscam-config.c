@@ -923,6 +923,10 @@ void chk_t_webif(char *token, char *value)
 		cs_strncpy(cfg.http_help_lang, value, sizeof(cfg.http_help_lang));
 		return;
 	}
+	if (!strcmp(token, "httputf8")) {
+		cs_http_use_utf8=atoi(value);
+		return;
+	}
 
 	if (!strcmp(token, "httpcert")) {
 		cs_strncpy(cfg.http_cert, value, sizeof(cfg.http_cert));

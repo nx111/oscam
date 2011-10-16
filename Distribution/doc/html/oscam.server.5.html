@@ -387,30 +387,30 @@ block all types of EMMs by lenght, maximum 10 values, default:none
 
 <P>
 
-<B>saveemm-u</B> = <B>file name</B>
+<B>saveemm-u</B> = <B>0</B>|<B>1</B>
 <DL COMPACT><DT><DD>
-save unique EMMs to file, default:none
+1 = save unique EMMs to log file, default:0
 </DL>
 
 <P>
 
-<B>saveemm-s</B> = <B>file name</B>
+<B>saveemm-s</B> = <B>0</B>|<B>1</B>
 <DL COMPACT><DT><DD>
-save shared EMMs to file, default:none
+1 = save shared EMMs to log file, default:0
 </DL>
 
 <P>
 
-<B>saveemm-g</B> = <B>file name</B>
+<B>saveemm-g</B> = <B>0</B>|<B>1</B>
 <DL COMPACT><DT><DD>
-save global EMMs to file, default:none
+1= save global EMMs to log file, default:0
 </DL>
 
 <P>
 
-<B>saveemm-unknown</B> = <B>file name</B>
+<B>saveemm-unknown</B> = <B>0</B>|<B>1</B>
 <DL COMPACT><DT><DD>
-save unknown types of EMMs to file, default:none
+1 = save unknown types of EMMs to log file, default:0
 </DL>
 
 <P>
@@ -421,13 +421,6 @@ list of EMM-nanos to save (in hex w/o 0x) or all EMM-nanos, only valid for physi
 <P>
 <BR>&nbsp;example:&nbsp;savenano&nbsp;=&nbsp;45,93,7a,ff
 <BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;savenano&nbsp;=&nbsp;all
-</DL>
-
-<P>
-
-<B>dropbadcws</B> = <B>0</B>|<B>1</B>
-<DL COMPACT><DT><DD>
-1 = reject bad CWs, default:0
 </DL>
 
 <P>
@@ -446,6 +439,13 @@ write file (usually a copy of a file saved by savenano) to your smartcard, if no
 force restart reader after seconds,default 0 disabled.
 </DL>
 <P>
+<B>dropbadcws</B> = <B>0</B>|<B>1</B>
+<DL COMPACT><DT><DD>
+1 = reject bad CWs, default:0
+</DL>
+
+<P>
+
 <B>lb_weight</B> = <B>weight</B>
 <DL COMPACT><DT><DD>
 the higher the value the higher the probability for reader selection, default:100
