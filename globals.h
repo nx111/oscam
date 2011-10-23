@@ -419,8 +419,6 @@ extern void cs_switch_led(int32_t led, int32_t action);
 #define REQUEST_SENT			0x10
 #define REQUEST_ANSWERED		0x20
 
-#define READER_BETATUNNEL		0x40
-
 /* ===========================
  *      Default Values
  * =========================== */
@@ -743,6 +741,13 @@ struct s_cwresponse {
 };
 #endif
 
+struct s_cascadeuser {
+	uint16_t		caid;
+	uint32_t		prid;
+	uint16_t		srvid;
+	time_t			time;
+};
+
 struct s_client {
 	uint32_t		tid;
 	int8_t			init_done;
@@ -872,6 +877,8 @@ struct s_client {
 	//failban value set bitwise - compared with BAN_
 	int32_t			failban;
 	int8_t			cleaned;
+
+	LLIST			*cascadeusers; //s_cascadeuser
 
 #ifdef MODULE_PANDORA
 	int 			pand_autodelay;
@@ -1120,6 +1127,8 @@ struct s_reader  									//contains device info, reader info and card info
 	//ratelimit
 	int32_t			ratelimitecm;
 	int32_t			ratelimitseconds;
+	int32_t			ecmsok;
+	int32_t			ecmsnok;
 	int32_t			cooldown[2];
 	int8_t			cooldownstate;
 	time_t			cooldowntime;

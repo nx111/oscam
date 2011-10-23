@@ -699,6 +699,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 			<TH TITLE=\"Valid EMM delivered\">EOK</TH>\n\
 			<TH TITLE=\"Invalid EMM delivered\">ENOK</TH>\n\
 			<TH>CW Rate</TH>\n\
+			<TH TITLE=\"Different services during last 60s\">CASC USERS</TH>\n\
 			<TH colspan=\"3\" class=\"centered\">Action</TH>\n\
 		</TR>\n\
 ##USERCONFIGS##\
@@ -707,6 +708,12 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 	Totals for the server:\n\
 	<TABLE cellpadding=\"10\">\n\
 		<TR>\n\
+			<TH TITLE=\"Total users\">Total</TH>\n\
+			<TH TITLE=\"Total disabled users\">Disabled</TH>\n\
+			<TH TITLE=\"Total expired users\">Expired</TH>\n\
+			<TH TITLE=\"Total active users\">Active</TH>\n\
+			<TH TITLE=\"Connected users\">Connected</TH>\n\
+			<TH TITLE=\"Online users requesting ecms\">Online</TH>\n\
 			<TH TITLE=\"Delivered ECM with status OK\">OK</TH>\n\
 			<TH TITLE=\"Delivered ECM with status not OK\">NOK</TH>\n\
 			<TH TITLE=\"Ignored ECM by filters, part of NOK\">IGN</TH>\n\
@@ -716,6 +723,12 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 			<TH>Action</TH>\n\
 		</TR>\n\
 		<TR>\n\
+			<TD class=\"centered\">##TOTAL_USERS##</TD>\n\
+			<TD class=\"centered\">##TOTAL_DISABLED##</TD>\n\
+			<TD class=\"centered\">##TOTAL_EXPIRED##</TD>\n\
+			<TD class=\"centered\">##TOTAL_ACTIVE##</TD>\n\
+			<TD class=\"centered\">##TOTAL_CONNECTED##</TD>\n\
+			<TD class=\"centered\">##TOTAL_ONLINE##</TD>\n\
 			<TD class=\"centered\">##TOTAL_CWOK##</TD>\n\
 			<TD class=\"centered\">##TOTAL_CWNOK##</TD>\n\
 			<TD class=\"centered\">##TOTAL_CWIGN##</TD>\n\
@@ -756,6 +769,7 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 			<TD class=\"centered\">##EMMOK##</TD>\n\
 			<TD class=\"centered\">##EMMNOK##</TD>\n\
 			<TD class=\"centered\">##CWRATE####CWRATE2##</TD>\n\
+			<TD class=\"centered\">##CASCUSERS##</TD>\n\
 			<TD class=\"centered\"><A HREF=\"user_edit.html?user=##USERENC##\" TITLE=\"edit this user\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICEDI\" BORDER=\"0\" ALT=\"Edit User\"></A></TD>\n\
 			<TD class=\"centered\"><A HREF=\"userconfig.html?user=##USERENC##&amp;action=resetstats\" TITLE=\"reset statistics for this user\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICRES\"BORDER=\"0\" ALT=\"Reset Stats\"></A></TD>\n\
 			<TD class=\"centered\"><A HREF=\"userconfig.html?user=##USERENC##&amp;action=delete\" TITLE=\"delete this user\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICDEL\"BORDER=\"0\" ALT=\"Delete User\"></A></TD>\n\
@@ -941,6 +955,8 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 				<TH>EMM written<br><span title=\"unknown EMM\"> UK </span>/<span title=\"global EMM\"> G </span>/<span title=\"shared EMM\"> S </span>/<span title=\"unique EMM\"> UQ </span></TH>\n\
 				<TH>EMM skipped<br><span title=\"unknown EMM\"> UK </span>/<span title=\"global EMM\"> G </span>/<span title=\"shared EMM\"> S </span>/<span title=\"unique EMM\"> UQ </span></TH>\n\
 				<TH>EMM blocked<br><span title=\"unknown EMM\"> UK </span>/<span title=\"global EMM\"> G </span>/<span title=\"shared EMM\"> S </span>/<span title=\"unique EMM\"> UQ </span></TH>\n\
+				<TH>ECMs OK</TH>\n\
+				<TH>ECMs NOK</TH>\n\
 				<TH COLSPAN=\"5\">Action</TH>\n\
 			</TR>\n\
 ##READERLIST##\n\
@@ -982,6 +998,8 @@ O0uYJpimxX62v2BbRMVWNfAHT997IDXV+VUAAAAASUVORK5CYII="
 				<TD class=\"centered\">##EMMWRITTENUK## / ##EMMWRITTENG## / ##EMMWRITTENS## / ##EMMWRITTENUQ##</TD>\n\
 				<TD class=\"centered\">##EMMSKIPPEDUK## / ##EMMSKIPPEDG## / ##EMMSKIPPEDS## / ##EMMSKIPPEDUQ##</TD>\n\
 				<TD class=\"centered\">##EMMBLOCKEDUK## / ##EMMBLOCKEDG## / ##EMMBLOCKEDS## / ##EMMBLOCKEDUQ##</TD>\n\
+				<TD>##ECMSOK##</TD>\n\
+				<TD>##ECMSNOK##</TD>\n\
 				<TD class=\"centered\"><A HREF=\"readerconfig.html?label=##READERNAMEENC##\" TITLE=\"Edit this Reader\"><IMG HEIGHT=\"16\" WIDTH=\"16\" SRC=\"image?i=ICEDI\" BORDER=\"0\" ALT=\"Edit Reader\"></A></TD>\n\
 				<TD class=\"centered\">##ENTITLEMENT##</TD>\n\
 				<TD class=\"centered\">##READERREFRESH##</TD>\n\
