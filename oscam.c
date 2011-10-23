@@ -1061,6 +1061,7 @@ static int32_t start_listener(struct s_module *ph, int32_t port_idx)
   int32_t ov=1, timeout, is_udp, i;
   char ptxt[2][32];
   struct   sockaddr_in sad;     /* structure to hold server's address */
+  cs_log("Starting listener %d", port_idx);
 
   ptxt[0][0]=ptxt[1][0]='\0';
   if (!ph->ptab->ports[port_idx].s_port)
@@ -1304,6 +1305,7 @@ int32_t restart_cardreader(struct s_reader *rdr, int32_t restart) {
 
 static void init_cardreader() {
 
+	cs_debug_mask(D_TRACE, "cardreader: Initializing");
 	cs_writelock(&system_lock);
 	struct s_reader *rdr;
 
@@ -1612,6 +1614,7 @@ int32_t write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er, int8_t rc, u
 		c=((ea->cw[i]+ea->cw[i+1]+ea->cw[i+2]) & 0xff);
 		if (ea->cw[i+3]!=c) {
 			if (reader->dropbadcws) {
+				cs_debug_mask(D_TRACE, "dropping wrong dcw");
 				ea->rc = E_NOTFOUND;
 				ea->rcEx = E2_WRONG_CHKSUM;
 	  			break;
@@ -1702,6 +1705,8 @@ static void add_cascade_data(struct s_client *client, ECM_REQUEST *er)
 	int8_t found=0;
 	while ((cu=ll_iter_next(&it))) {
 		if (er->caid==cu->caid && er->prid==cu->prid && er->srvid==cu->srvid) { //found it
+			if (cu->time < now)
+				cu->cwrate = now-cu->time;
 			cu->time = now;
 			found=1;
 		}
@@ -3283,10 +3288,16 @@ void * client_check(void) {
 					pfd[pfdcount++].events = POLLIN | POLLPRI | POLLHUP;
 				}
 			}
-			//reader (only connected tcp proxy reader)
+			//reader:
+			//TCP:
+			//	- TCP socket must be connected
+			//	- no active init thread
+			//UDP:
+			//	- connection status ignored
+			//	- no active init thread
 			rdr = cl->reader;
 			if (rdr && cl->typ=='p' && cl->init_done) {
-				if (cl->pfd && !cl->thread_active && rdr->tcp_connected) {
+				if (cl->pfd && !cl->thread_active && ((rdr->tcp_connected && rdr->ph.type==MOD_CONN_TCP)||(rdr->ph.type==MOD_CONN_UDP))) {
 					cl_list[pfdcount] = cl;
 					pfd[pfdcount].fd = cl->pfd;
 					pfd[pfdcount++].events = POLLIN | POLLPRI | POLLHUP;
