@@ -3864,10 +3864,11 @@ static int32_t readRequest(FILE *f, struct in6_addr in, char **result, int8_t fo
 static int32_t readRequest(FILE *f, struct in_addr in, char **result, int8_t forcePlain)
 #endif
 {
-	int32_t n, bufsize=0, errcount = 0, is_ssl = 0;
+	int32_t n, bufsize=0, errcount = 0;
 	char buf2[1024];
 	struct pollfd pfd2[1];
 #ifdef WITH_SSL
+	int32_t is_ssl = 0;
 	if (ssl_active && !forcePlain)
 		is_ssl = 1;
 #endif

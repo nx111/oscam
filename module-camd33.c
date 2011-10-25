@@ -96,6 +96,7 @@ static void camd33_auth_client(uchar *camdbug)
   }
 }
 
+#pragma GCC diagnostic ignored "-Wunused-parameter" 
 static void camd33_send_dcw(struct s_client *client, ECM_REQUEST *er)
 {
   uchar mbuf[1024];
