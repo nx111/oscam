@@ -6,7 +6,7 @@
 #include "module-cccam.h"
 #endif
 #if defined(AZBOX) && defined(HAVE_DVBAPI)
-#  include "openxcas/openxcas_api.h"
+#include "openxcas/openxcas_api.h"
 #endif
 #define CS_VERSION_X  CS_VERSION
 #ifdef COOL
@@ -542,6 +542,7 @@ void cleanup_thread(void *var)
 
 	// Remove client from client list. kill_thread also removes this client, so here just if client exits itself...
 	struct s_client *prev, *cl2;
+	cl->thread_active = 0;
 	cs_writelock(&clientlist_lock);
 	for (prev=first_client, cl2=first_client->next; prev->next != NULL; prev=prev->next, cl2=cl2->next)
 		if (cl == cl2)
@@ -562,6 +563,9 @@ void cleanup_thread(void *var)
 		cl->reader->client = NULL;
 		cl->reader = NULL;
 	}
+	if (!pthread_mutex_trylock(&cl->thread_lock))
+		pthread_mutex_unlock(&cl->thread_lock);
+	pthread_mutex_destroy(&cl->thread_lock);
 
 	// Clean client specific data
 	if(cl->typ == 'c'){
@@ -3174,8 +3178,8 @@ static void * check_thread(void) {
 					tbc = er->tps;
 					time_to_check = add_ms_to_timeb(&tbc, cfg.ctimeout);
 				} else {
-					cs_debug_mask(D_TRACE, "timeout for %s %04X&%06X/%04X", username(er->client), er->caid, er->prid, er->srvid);
 					if (er->client && is_valid_client(er->client)) {
+						cs_debug_mask(D_TRACE, "timeout for %s %04X&%06X/%04X", username(er->client), er->caid, er->prid, er->srvid);
 						write_ecm_answer(NULL, er, E_TIMEOUT, 0, NULL, NULL);
 #ifdef WITH_LB		
 						
@@ -3403,16 +3407,13 @@ void * reader_check(void) {
 			if (!cl->thread_active)
 				check_status(cl);
 
+			if (!cl->thread_active)
+				continue;
+
 			// check if auto restart reader
 			struct s_reader *rdr = cl->reader;
-			struct s_data data;
-			data.action = ACTION_READER_RESTART;
-			data.ptr = NULL;
-			data.cl = cl;
-			data.len = 0;
-
 			if (rdr && rdr->autorestartseconds
- 			        && NULL==ll_contains_data(cl->joblist,&data,sizeof(data))
+ 			        && NULL==ll_has_elements(cl->joblist)
 			        && (cl->login + (time_t)rdr->autorestartseconds) < time(NULL)){
 					add_job(cl, ACTION_READER_RESTART, NULL, 0);
 
