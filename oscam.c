@@ -1614,20 +1614,24 @@ int32_t write_ecm_answer(struct s_reader * reader, ECM_REQUEST *er, int8_t rc, u
 
 	ea->er = er;
 
-	for (i=0; i<16; i+=4) {
-		c=((ea->cw[i]+ea->cw[i+1]+ea->cw[i+2]) & 0xff);
-		if (ea->cw[i+3]!=c) {
-			if (reader->dropbadcws) {
-				cs_debug_mask(D_TRACE, "dropping wrong dcw");
-				ea->rc = E_NOTFOUND;
-				ea->rcEx = E2_WRONG_CHKSUM;
-	  			break;
-	  		} else {
-				cs_debug_mask(D_TRACE, "notice: changed dcw checksum byte cw[%i] from %02x to %02x", i+3, ea->cw[i+3],c);
-				ea->cw[i+3]=c;
-			}
-		}
-	}
+        if (reader->disablecrccws == 0) {
+           for (i=0; i<16; i+=4) {
+               c=((ea->cw[i]+ea->cw[i+1]+ea->cw[i+2]) & 0xff);
+               if (ea->cw[i+3]!=c) {
+                   if (reader->dropbadcws) {
+                      ea->rc = E_NOTFOUND;
+                      ea->rcEx = E2_WRONG_CHKSUM;
+                      break;
+                   } else {
+                      cs_debug_mask(D_TRACE, "notice: changed dcw checksum byte cw[%i] from %02x to %02x", i+3, ea->cw[i+3],c);
+                      ea->cw[i+3]=c;
+                   }
+               }
+          }
+        }
+        else {
+              cs_debug_mask(D_TRACE, "notice: CW checksum check disabled");
+        }
 
 	if (reader && ea->rc==E_FOUND) {
 		/* CWL logging only if cwlogdir is set in config */
@@ -3413,9 +3417,23 @@ void * reader_check(void) {
 			// check if auto restart reader
 			struct s_reader *rdr = cl->reader;
 			if (rdr && rdr->autorestartseconds
- 			        && NULL==ll_has_elements(cl->joblist)
-			        && (cl->login + (time_t)rdr->autorestartseconds) < time(NULL)){
-					add_job(cl, ACTION_READER_RESTART, NULL, 0);
+ 			        && (cl->login + (time_t)rdr->autorestartseconds) < time(NULL)){
+				       	LL_ITER it = ll_iter_create(cl->joblist);
+				  	struct s_data *data;
+					int canRestart=1;
+				 	while ((data=ll_iter_next(&it)) && canRestart) {
+						switch(data->action){
+					      		case ACTION_READER_RESET:
+							case ACTION_READER_INIT:
+							case ACTION_READER_RESTART:
+							case ACTION_CLIENT_KILL:
+							case ACTION_CLIENT_INIT:
+								canRestart=0;
+								break;
+							}
+					    	}
+					if (canRestart)
+						add_job(cl, ACTION_READER_RESTART, NULL, 0);
 
 			}
 		}

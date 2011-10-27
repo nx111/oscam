@@ -1,15 +1,15 @@
 10
 
 dir
-6003
+6005
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-10-24T20:23:02.250898Z
-6003
-corsair
+2011-10-26T19:23:32.312334Z
+6005
+docman
 has-props
 
 
@@ -529,10 +529,10 @@ file
 
 
 
-0aa11396fe4f51040d616d565cfc8f64
-2011-10-24T20:23:02.250898Z
-6003
-corsair
+7f67429d0ee0f9b1487942f3e35a7988
+2011-10-26T14:52:49.792266Z
+6004
+lightman33
 
 reader-tongfang.c
 file
@@ -575,10 +575,10 @@ file
 
 
 
-ac0f5cfe68a027b202854111b6ba7a90
-2011-10-03T20:21:33.680036Z
-5969
-corsair
+044fa0ac743283bf4b9c28ba325900c4
+2011-10-26T14:52:49.792266Z
+6004
+lightman33
 
 cscrypt
 dir
@@ -750,10 +750,10 @@ file
 
 
 
-a4340cad8bb4c4044a36e2298b432d8a
-2011-10-24T20:23:02.250898Z
-6003
-corsair
+5a0a4a336ffe6be2716bf08c3b6ee05d
+2011-10-26T14:52:49.792266Z
+6004
+lightman33
 
 oscam-http.h
 file
@@ -762,10 +762,10 @@ file
 
 
 
-0a0aa2f2e5175d4ad69e51f5000211b8
-2011-10-24T20:23:02.250898Z
-6003
-corsair
+b21e6ddd13c8ba9299693b1464b066a5
+2011-10-26T14:52:49.792266Z
+6004
+lightman33
 
 reader-irdeto.c
 file
@@ -1661,10 +1661,10 @@ file
 
 
 
-f25d082377129df5449992576ccc7bf0
-2011-10-24T20:23:02.250898Z
-6003
-corsair
+bd7e5b10aa2856afa145db324d8130a3
+2011-10-26T14:52:49.792266Z
+6004
+lightman33
 
 module-cccam.c
 file

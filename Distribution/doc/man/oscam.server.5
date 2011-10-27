@@ -340,6 +340,13 @@ force restart reader after seconds,default 0 disabled.
 1 = reject bad CWs, send "not found" instead of bad CWs, default:0
 .RE
 .PP
+\fBdisablecrccws\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = disable CRC for CW, default: 0
+
+\fIIn normal operation mode this parameter is not required. Parameter is incompatible with DVB standard.\fR
+.RE
+.PP
 \fBlb_weight\fP = \fBweight\fP
 .RS 3n
 the higher the value the higher the probability for reader selection, default:100

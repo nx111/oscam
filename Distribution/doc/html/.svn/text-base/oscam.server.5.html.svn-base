@@ -444,6 +444,15 @@ write file (usually a copy of a file saved by savenano) to your smartcard, if no
 
 <P>
 
+<B>disablecrccws</B> = <B>0</B>|<B>1</B>
+<DL COMPACT><DT><DD>
+1 = disable CRC for CW, default: 0
+<P>
+<I>In normal operation mode this parameter is not required. Parameter is incompatible with DVB standard.</I>
+</DL>
+
+<P>
+
 <B>lb_weight</B> = <B>weight</B>
 <DL COMPACT><DT><DD>
 the higher the value the higher the probability for reader selection, default:100
