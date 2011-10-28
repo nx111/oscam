@@ -191,7 +191,10 @@ DESCRIPTIONS
 	  number of different SIDs in ECMs allowed for an interval, default:0
 
        resetcycle = count
-	  number of ECMs until SC reset is performed, 0 = disabled, valid for physical readers only, default:0
+	  number of ECMs until reader reset is performed, 0 = disabled, default:0
+
+       restartforresetcycle = 0|1
+	  restart instead of reset for resetcycle, default:0
 
        ratelimitseconds = seconds
 	  interval for rate limit, default:0

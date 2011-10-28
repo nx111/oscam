@@ -1,15 +1,15 @@
 10
 
 dir
-6005
+6008
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-10-26T19:23:32.312334Z
-6005
-docman
+2011-10-27T14:47:39.560027Z
+6008
+corsair
 has-props
 
 
@@ -529,10 +529,10 @@ file
 
 
 
-7f67429d0ee0f9b1487942f3e35a7988
-2011-10-26T14:52:49.792266Z
-6004
-lightman33
+4fe49ccd0a343cae76a93341cc808998
+2011-10-27T14:47:39.560027Z
+6008
+corsair
 
 reader-tongfang.c
 file
@@ -1661,10 +1661,10 @@ file
 
 
 
-bd7e5b10aa2856afa145db324d8130a3
-2011-10-26T14:52:49.792266Z
-6004
-lightman33
+3c504e5451cd6a0c109dabb5a6ef2faf
+2011-10-27T14:47:39.560027Z
+6008
+corsair
 
 module-cccam.c
 file

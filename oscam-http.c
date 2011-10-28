@@ -1078,6 +1078,7 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 
 	// Reset Cycle
 	tpl_printf(vars, TPLADD, "RESETCYCLE", "%d", rdr->resetcycle);
+	tpl_printf(vars, TPLADD, "RESTARTFORRESETRECYCLE",(rdr->restart_for_resetcycle == 1) ? "checked" : "");
 
 	// Auto Restart after
 	tpl_printf(vars, TPLADD, "AUTORESTARTSECONDS", "%d", rdr->autorestartseconds);

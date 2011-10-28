@@ -673,6 +673,7 @@ typedef struct ecm_request_t {
 	struct s_ecm_answer	*matching_rdr;		//list of matching readers
 	const struct s_reader	*fallback;		//fallback is the first fallback reader in the list matching_rdr
 	struct s_client	*client;			//contains pointer to 'c' client while running in 'r' client
+	uint64_t        grp;	
 	int32_t			msgid;				// client pending table index
 	int32_t			stage;				// processing stage in server module
 	int32_t			level;				// send-level in client module
@@ -945,6 +946,7 @@ struct s_reader  									//contains device info, reader info and card info
 {
 	int32_t			resetcycle;						// ECM until reset
 	int32_t			resetcounter;					// actual count
+	int8_t			restart_for_resetcycle;				// restart for resetcycle
 	uint32_t		auprovid;						// AU only for this provid
 	int8_t			audisabled;						// exclude reader from auto AU
 	int8_t			smargopatch;
