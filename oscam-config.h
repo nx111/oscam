@@ -38,7 +38,7 @@
 #endif
 
 #ifndef CS_LED
-//#define CS_LED
+#define CS_LED
 #endif
 
 #ifndef CS_WITH_DOUBLECHECK
@@ -50,7 +50,7 @@
 #endif
 
 #ifndef LCDSUPPORT
-//#define LCDSUPPORT
+#define LCDSUPPORT
 #endif
 
 #ifndef IPV6SUPPORT
@@ -66,7 +66,7 @@
 #endif
 
 #ifndef MODULE_CAMD33
-//#define MODULE_CAMD33
+#define MODULE_CAMD33
 #endif
 
 #ifndef MODULE_CAMD35
@@ -173,6 +173,10 @@
 #  ifndef HAVE_DVBAPI
 #    define HAVE_DVBAPI
 #  endif
+#endif
+
+#if defined(WITH_SSLv3) && !defined(WITH_SSL)
+# define WITH_SSL
 #endif
 
 #if defined(WITH_SSL) && !defined(WITH_LIBCRYPTO)
