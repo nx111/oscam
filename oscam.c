@@ -3092,7 +3092,7 @@ void * work_thread(void *ptr) {
 void add_job(struct s_client *cl, int8_t action, void *ptr, int32_t len) {
 
 	if (!cl) {
-		cs_log("WARNING: add_job failed.");
+		cs_log("WARNING: add_job failed. (action=%d)",action);
 		return;
 	}
 
@@ -3421,30 +3421,19 @@ void * reader_check(void) {
 		for (cl=first_client->next; cl ; cl=cl->next) {
 			if (!cl->thread_active)
 				check_status(cl);
-
-			// check if auto restart reader
-			struct s_reader *rdr = cl->reader;
+			struct s_reader *rdr=cl->reader;
 			if (rdr && rdr->autorestartseconds
- 			        && (cl->login + (time_t)rdr->autorestartseconds) < time(NULL)){
-				       	LL_ITER it = ll_iter_create(cl->joblist);
-				  	struct s_data *data;
-					int canRestart=1;
-				 	while ((data=ll_iter_next(&it)) && canRestart) {
-						switch(data->action){
-					      		case ACTION_READER_RESET:
-							case ACTION_READER_INIT:
-							case ACTION_READER_RESTART:
-							case ACTION_CLIENT_KILL:
-							case ACTION_CLIENT_INIT:
-								canRestart=0;
-								break;
-							}
-					    	}
-					if (canRestart)
-						add_job(cl, ACTION_READER_RESTART, NULL, 0);
-
+ 			    && (cl->login + (time_t)rdr->autorestartseconds) < time(NULL)){
+				if(rdr->enable){
+					rdr->enable=0;
+					kill_thread(cl);
+					cs_sleepms(cfg.reader_restart_seconds * 1000);
+				}
+				rdr->enable=1;
+				restart_cardreader(rdr, 1);
 			}
 		}
+
 		cs_sleepms(1000);
 	}
 }

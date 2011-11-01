@@ -535,12 +535,12 @@ add_dependencies (${csoscam} svnversion-log)
 add_custom_target (
     svnversion
     ALL
-    touch ${CMAKE_CURRENT_SOURCE_DIR}/oscam.c
+#   touch ${CMAKE_CURRENT_SOURCE_DIR}/oscam.c
 )
 add_custom_target (
     svnversion-log
     ALL
-    touch ${CMAKE_CURRENT_SOURCE_DIR}/oscam-log.c
+#   touch ${CMAKE_CURRENT_SOURCE_DIR}/oscam-log.c
 )
 
 #if the svnversion program is absent, this will leave the SVN_REVISION string empty,
