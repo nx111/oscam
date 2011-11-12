@@ -1,4 +1,6 @@
 #!/bin/sh
+oscam_version=1.20-svn6019
+
 case "$1" in
 start)
 	exec start-stop-daemon -S -x /usr/bin/oscam -- -b
@@ -12,10 +14,10 @@ restart|reload)
 	$0 start
 	;;
 version)
-	echo "1.0"
+	echo ${oscam_version}
 	;;
 info)
-	echo "oscam 1.0"
+	echo "oscam ${oscam_version}"
 	;;
 *)
 	echo "Usage: $0 start|stop|restart"

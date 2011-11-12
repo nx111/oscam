@@ -1,0 +1,10 @@
+Package: oscam-nx111
+Version: 1.20-svn6019
+Description: Oscam, hacked by nx111
+Section: base
+Priority: optional
+Maintainer: OpenEmbedded Team <openembedded-devel@lists.openembedded.org>, NX111<gdzdz@163>
+Architecture: i386
+Depends: libc6 (>= 2.12), libssl1.0.0
+Replaces: oscam,oscam-bin,oscam-experimental,oscam-unstable,oscam-stable
+Conflicts: oscam,oscam-bin,oscam-experimental,oscam-unstable,oscam-stable

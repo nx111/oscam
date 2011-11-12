@@ -17,9 +17,12 @@ curdir=`pwd`
 builddir=`dirname $0`
 [ "$builddir" = "." ] && svnroot=".."
 [ "$builddir" = "." ] || svnroot=`dirname $builddir`
+csver=`grep "CS_VERSION" $svnroot/globals.h | sed -e "s/[^\"]*//" -e "s/\"//g" | cut -f1 -d-`
 svnver=`svnversion  -c ${svnroot} | cut -f 2 -d: | sed -e "s/[^[:digit:]]//g"`
 cd ${svnroot}/${plat_dir}/image
-tar czf ../oscam-${plat}-svn${svnver}-nx111-`date +%Y%m%d`.tar.gz *
+sed -i "s/Version:.*/Version: ${csver}-svn${svnver}/" DEBIAN/control
+tar czf ../oscam-${plat}-svn${svnver}-nx111-`date +%Y%m%d`.tar.gz var
 cd ../ 
+dpkg -b image oscam-${plat}-svn${svnver}-nx111-`date +%Y%m%d`.ipk
 rm -rf CMake* *.a Makefile cscrypt csctapi *.cmake algo image/var/bin/oscam
 cd $curdir

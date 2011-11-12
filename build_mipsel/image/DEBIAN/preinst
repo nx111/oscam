@@ -1,0 +1,2 @@
+[ -f /var/tuxbox/config/oscam.conf ] && mv /var/tuxbox/config/oscam.conf /var/tuxbox/config/oscam.conf.bak
+
