@@ -3,7 +3,7 @@
 plat=mipsel
 plat_dir=build_mipsel
 
-rm -f oscam oscam-nx111  oscam-$plat-svn*.tar.gz
+rm -f oscam oscam-nx111  oscam-$plat-svn*.tar.gz oscam-$plat-svn*.ipk
 export OLDPATH=$PATH
 export PATH=../../toolchains/mipsel-unknown-linux-gnu/bin:$OLDPATH     # 指定编译源码时要用的mipsel环境下的GCC和C++编译器路径
 make clean
