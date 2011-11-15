@@ -1,5 +1,5 @@
 #!/bin/sh
-oscam_version=1.20-svn6020
+oscam_version=1.20-svn6023
 
 case "$1" in
 start)
