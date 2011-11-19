@@ -1,7 +1,7 @@
 K 25
 svn:wc:ra_dav:version-url
 V 30
-/svn/oscam/!svn/ver/6023/trunk
+/svn/oscam/!svn/ver/6030/trunk
 END
 module-cccam.h
 K 25
@@ -49,7 +49,7 @@ module-pandora.c
 K 25
 svn:wc:ra_dav:version-url
 V 47
-/svn/oscam/!svn/ver/5964/trunk/module-pandora.c
+/svn/oscam/!svn/ver/6027/trunk/module-pandora.c
 END
 module-coolapi.c
 K 25
@@ -73,7 +73,7 @@ oscam-http-helpers.c
 K 25
 svn:wc:ra_dav:version-url
 V 51
-/svn/oscam/!svn/ver/6010/trunk/oscam-http-helpers.c
+/svn/oscam/!svn/ver/6027/trunk/oscam-http-helpers.c
 END
 reader-videoguard-common.c
 K 25
@@ -85,7 +85,7 @@ oscam-log.c
 K 25
 svn:wc:ra_dav:version-url
 V 42
-/svn/oscam/!svn/ver/5905/trunk/oscam-log.c
+/svn/oscam/!svn/ver/6027/trunk/oscam-log.c
 END
 LICENCE
 K 25
@@ -121,13 +121,7 @@ module-dvbapi.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/6012/trunk/module-dvbapi.c
-END
-Makefile
-K 25
-svn:wc:ra_dav:version-url
-V 39
-/svn/oscam/!svn/ver/5667/trunk/Makefile
+/svn/oscam/!svn/ver/6030/trunk/module-dvbapi.c
 END
 CMakeLists.txt
 K 25
@@ -135,11 +129,11 @@ svn:wc:ra_dav:version-url
 V 45
 /svn/oscam/!svn/ver/5927/trunk/CMakeLists.txt
 END
-config.sh
+Makefile
 K 25
 svn:wc:ra_dav:version-url
-V 40
-/svn/oscam/!svn/ver/6011/trunk/config.sh
+V 39
+/svn/oscam/!svn/ver/5667/trunk/Makefile
 END
 module-dvbapi.h
 K 25
@@ -147,11 +141,11 @@ svn:wc:ra_dav:version-url
 V 46
 /svn/oscam/!svn/ver/5667/trunk/module-dvbapi.h
 END
-module-stat.c
+config.sh
 K 25
 svn:wc:ra_dav:version-url
-V 44
-/svn/oscam/!svn/ver/6019/trunk/module-stat.c
+V 40
+/svn/oscam/!svn/ver/6011/trunk/config.sh
 END
 module-cccshare.c
 K 25
@@ -159,17 +153,11 @@ svn:wc:ra_dav:version-url
 V 48
 /svn/oscam/!svn/ver/5956/trunk/module-cccshare.c
 END
-oscam.c
+module-stat.c
 K 25
 svn:wc:ra_dav:version-url
-V 38
-/svn/oscam/!svn/ver/6023/trunk/oscam.c
-END
-oscam-reader.c
-K 25
-svn:wc:ra_dav:version-url
-V 45
-/svn/oscam/!svn/ver/5982/trunk/oscam-reader.c
+V 44
+/svn/oscam/!svn/ver/6019/trunk/module-stat.c
 END
 module-serial.c
 K 25
@@ -177,17 +165,29 @@ svn:wc:ra_dav:version-url
 V 46
 /svn/oscam/!svn/ver/6015/trunk/module-serial.c
 END
-module-constcw.c
+oscam-reader.c
 K 25
 svn:wc:ra_dav:version-url
-V 47
-/svn/oscam/!svn/ver/5808/trunk/module-constcw.c
+V 45
+/svn/oscam/!svn/ver/5982/trunk/oscam-reader.c
+END
+oscam.c
+K 25
+svn:wc:ra_dav:version-url
+V 38
+/svn/oscam/!svn/ver/6026/trunk/oscam.c
 END
 datastruct-llist.c
 K 25
 svn:wc:ra_dav:version-url
 V 49
 /svn/oscam/!svn/ver/3596/trunk/datastruct-llist.c
+END
+module-constcw.c
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/oscam/!svn/ver/5808/trunk/module-constcw.c
 END
 reader-tongfang.c
 K 25
@@ -259,7 +259,7 @@ global-functions.h
 K 25
 svn:wc:ra_dav:version-url
 V 49
-/svn/oscam/!svn/ver/5984/trunk/global-functions.h
+/svn/oscam/!svn/ver/6027/trunk/global-functions.h
 END
 README
 K 25
@@ -271,7 +271,7 @@ oscam-simples.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/5958/trunk/oscam-simples.c
+/svn/oscam/!svn/ver/6027/trunk/oscam-simples.c
 END
 module-radegast.c
 K 25
@@ -283,7 +283,7 @@ oscam-http.c
 K 25
 svn:wc:ra_dav:version-url
 V 43
-/svn/oscam/!svn/ver/6023/trunk/oscam-http.c
+/svn/oscam/!svn/ver/6027/trunk/oscam-http.c
 END
 .gitignore
 K 25
@@ -301,7 +301,7 @@ reader-irdeto.c
 K 25
 svn:wc:ra_dav:version-url
 V 46
-/svn/oscam/!svn/ver/6018/trunk/reader-irdeto.c
+/svn/oscam/!svn/ver/6028/trunk/reader-irdeto.c
 END
 module-datastruct-llist.c
 K 25
@@ -313,7 +313,7 @@ globals.h
 K 25
 svn:wc:ra_dav:version-url
 V 40
-/svn/oscam/!svn/ver/6021/trunk/globals.h
+/svn/oscam/!svn/ver/6027/trunk/globals.h
 END
 reader-common.c
 K 25
@@ -325,7 +325,7 @@ reader-nagra.c
 K 25
 svn:wc:ra_dav:version-url
 V 45
-/svn/oscam/!svn/ver/5917/trunk/reader-nagra.c
+/svn/oscam/!svn/ver/6028/trunk/reader-nagra.c
 END
 oscam-garbage.c
 K 25

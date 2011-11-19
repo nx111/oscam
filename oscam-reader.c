@@ -221,7 +221,7 @@ int32_t network_tcp_connection_open(struct s_reader *rdr)
 	client->udp_sa.sin_family = AF_INET;
 	client->udp_sa.sin_port = htons((uint16_t)client->reader->r_port);
 
-	cs_log("socket open for %s fd=%d", rdr->ph.desc, client->udp_fd);
+	cs_debug_mask(D_READER,"socket open for %s fd=%d", rdr->ph.desc, client->udp_fd);
 
 	if (client->is_udp) {
 		rdr->tcp_connected = 1;
@@ -250,7 +250,7 @@ int32_t network_tcp_connection_open(struct s_reader *rdr)
 			}
 		}
 		if (r != 0) {
-			cs_log("connect(fd=%d) failed: (errno=%d %s)", client->udp_fd, errno, strerror(errno));
+			cs_log("connect %s(fd=%d) failed: (errno=%d %s)", client->reader->device,client->udp_fd, errno, strerror(errno));
 			block_connect(rdr); //connect has failed. Block connect for a while
       			close(client->udp_fd);
 			client->udp_fd = 0;
@@ -283,7 +283,7 @@ void network_tcp_connection_close(struct s_reader *reader)
 	if(!cl) return;
 	int32_t fd = cl->udp_fd;
 
-	cs_log("tcp_conn_close(): fd=%d, cl->typ == '%c' is_udp %d label == '%s'", fd, cl->typ, cl->is_udp, reader->label);
+	cs_debug_mask(D_READER,"tcp_conn_close(): fd=%d, cl->typ == '%c' is_udp %d label == '%s'", fd, cl->typ, cl->is_udp, reader->label);
 	int32_t i;
 
 	if (fd) {

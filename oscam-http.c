@@ -585,19 +585,20 @@ static char *send_oscam_config_monitor(struct templatevars *vars, struct uripara
 	}
 
 	DIR *hdir;
-	struct dirent *entry;
-	hdir = opendir(cs_confdir);
-	do {
-		entry = readdir(hdir);
-		if ((entry) && (strstr(entry->d_name, ".css"))) {
-			if (strstr(cfg.http_css, entry->d_name)) {
-				tpl_printf(vars, TPLAPPEND, "CSSOPTIONS", "\t\t\t\t\t\t<option value=\"%s%s\" selected>%s%s</option>\n",cs_confdir,entry->d_name,cs_confdir,entry->d_name);
-			} else {
-				tpl_printf(vars, TPLAPPEND, "CSSOPTIONS", "\t\t\t\t\t\t<option value=\"%s%s\">%s%s</option>\n",cs_confdir,entry->d_name,cs_confdir,entry->d_name);
+	struct dirent entry;
+  struct dirent *result;
+	if((hdir = opendir(cs_confdir)) != NULL){
+		while(readdir_r(hdir, &entry, &result) == 0 && result != NULL){
+			if (strstr(entry.d_name, ".css")) {
+				if (strstr(cfg.http_css, entry.d_name)) {
+					tpl_printf(vars, TPLAPPEND, "CSSOPTIONS", "\t\t\t\t\t\t<option value=\"%s%s\" selected>%s%s</option>\n",cs_confdir,entry.d_name,cs_confdir,entry.d_name);
+				} else {
+					tpl_printf(vars, TPLAPPEND, "CSSOPTIONS", "\t\t\t\t\t\t<option value=\"%s%s\">%s%s</option>\n",cs_confdir,entry.d_name,cs_confdir,entry.d_name);
+				}
 			}
 		}
-	} while (entry);
-	closedir(hdir);
+		closedir(hdir);
+	}
 
 	if (cfg.http_help_lang[0])
 		tpl_addVar(vars, TPLADD, "HTTPHELPLANG", cfg.http_help_lang);
@@ -3881,7 +3882,7 @@ static int32_t readRequest(FILE *f, struct in_addr in, char **result, int8_t for
 	char buf2[1024];
 	struct pollfd pfd2[1];
 #ifdef WITH_SSL
-	int32_t is_ssl = 0;
+	int8_t is_ssl = 0;
 	if (ssl_active && !forcePlain)
 		is_ssl = 1;
 #endif

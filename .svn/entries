@@ -1,15 +1,15 @@
 10
 
 dir
-6023
+6030
 http://streamboard.gmc.to/svn/oscam/trunk
 http://streamboard.gmc.to/svn/oscam
 
 
 
-2011-11-15T08:50:51.357139Z
-6023
-corsair
+2011-11-18T15:01:10.453567Z
+6030
+zetack
 has-props
 
 
@@ -35,8 +35,17 @@ has-props
 
 ((conflict datastruct-llist.c file update deleted edited (version http://streamboard.gmc.to/svn/oscam 4 3599 trunk/datastruct-llist.c file) (version http://streamboard.gmc.to/svn/oscam 4 3640 trunk/datastruct-llist.c none)))
 
-Distribution
-dir
+Maketype
+file
+
+
+
+
+
+5c8d89f72d0ec7d2971c986275ee4f01
+2011-11-01T19:27:20.294673Z
+6014
+Admin
 
 module-cccam.h
 file
@@ -72,19 +81,7 @@ schlocke
 
 5898
 
-Maketype
-file
-
-
-
-
-
-5c8d89f72d0ec7d2971c986275ee4f01
-2011-11-01T19:27:20.294673Z
-6014
-Admin
-
-openxcas
+Distribution
 dir
 
 module-camd35.c
@@ -120,6 +117,9 @@ corsair
 
 
 18049
+
+openxcas
+dir
 
 reader-viaccess.c
 file
@@ -331,11 +331,11 @@ file
 
 
 
-2011-08-21T01:30:34.846578Z
-53a6de17579719314f7b5c17e048fa40
-2011-08-20T21:58:15.415569Z
-5905
-kpc
+2011-11-18T11:10:55.437577Z
+851fc578a7f5e4619fb06b2cfa3fe9a0
+2011-11-18T00:40:21.200727Z
+6027
+Admin
 
 
 
@@ -357,10 +357,7 @@ kpc
 
 
 
-13623
-
-toolchains
-dir
+13663
 
 module-gbox.c
 file
@@ -395,6 +392,9 @@ has-props
 
 
 30108
+
+toolchains
+dir
 
 reader-videoguard-common.h
 file
@@ -437,10 +437,10 @@ file
 
 
 
-3f31db7bcfb083bc0d4ac96465ff5221
-2011-10-29T15:51:17.589033Z
-6012
-lightman33
+d31b93302520cc4216df8ce2a326cf6a
+2011-11-18T15:01:10.453567Z
+6030
+zetack
 
 Makefile
 file
@@ -529,10 +529,10 @@ file
 
 
 
-30f240ea306a2bdbaead95d25e270a70
-2011-11-15T08:50:51.357139Z
-6023
-corsair
+3eb95b544004f142da409578f4248ba6
+2011-11-17T22:13:05.015097Z
+6026
+Admin
 
 reader-tongfang.c
 file
@@ -670,10 +670,10 @@ file
 
 
 
-b837b653efce8a6edc083f16ad5e2305
-2011-10-12T17:03:48.090159Z
-5984
-corsair
+30d6523d7d547553ad40d3d98bfdbcab
+2011-11-18T00:40:21.200727Z
+6027
+Admin
 
 oscam-simples.c
 file
@@ -681,10 +681,10 @@ file
 
 
 
-2011-09-29T08:55:34.260972Z
-4a33aa4a0acbfb6665caeec8ccc235ad
-2011-09-21T19:45:09.831964Z
-5958
+2011-11-18T11:10:55.437577Z
+4678a27794eb93cff1dfcddb290023a9
+2011-11-18T00:40:21.200727Z
+6027
 Admin
 
 
@@ -707,7 +707,7 @@ Admin
 
 
 
-35258
+36181
 
 module-radegast.c
 file
@@ -750,10 +750,10 @@ file
 
 
 
-eda14a5814037b75197e661f16896ed1
-2011-11-15T08:50:51.357139Z
-6023
-corsair
+049a1b9b3d1b444a0727ccbc56a35cad
+2011-11-18T00:40:21.200727Z
+6027
+Admin
 
 oscam-http.h
 file
@@ -773,10 +773,10 @@ file
 
 
 
-2011-11-06T04:30:18.817834Z
-8a5aceae178251757f4ddccb95fbce5c
-2011-11-04T19:10:27.442996Z
-6018
+2011-11-18T11:10:55.441575Z
+eddc72ebd4c2c31bed38c9f4fecdc16b
+2011-11-18T07:55:41.905546Z
+6028
 docman
 
 
@@ -799,75 +799,7 @@ docman
 
 
 
-30597
-
-reader-common.c
-file
-
-
-
-
-2011-09-09T01:35:20.132435Z
-94fa0185b7416e69e001b2119e47f548
-2011-09-05T08:09:39.515749Z
-5936
-neoen
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-11405
-
-reader-nagra.c
-file
-
-
-
-
-2011-08-22T13:47:12.726019Z
-d50ea395de356e88693df48321526cc8
-2011-08-21T13:14:52.487676Z
-5917
-lareq78
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-38224
+30576
 
 oscam-garbage.c
 file
@@ -902,6 +834,74 @@ corsair
 
 
 4097
+
+reader-nagra.c
+file
+
+
+
+
+2011-11-18T11:10:55.441575Z
+f270215b489be1b95930a790810225af
+2011-11-18T07:55:41.905546Z
+6028
+docman
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+38205
+
+reader-common.c
+file
+
+
+
+
+2011-09-09T01:35:20.132435Z
+94fa0185b7416e69e001b2119e47f548
+2011-09-05T08:09:39.515749Z
+5936
+neoen
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+11405
 
 reader-videoguard12.c
 file
@@ -992,33 +992,11 @@ file
 
 
 
-2011-09-30T12:57:06.761124Z
-479d20da915467a70f7a5a2db5697689
-2011-09-29T21:23:11.144819Z
-5964
-corsair
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-7161
+5f9dbbb3f65c08fa30b5ea7972164e37
+2011-11-18T00:40:21.200727Z
+6027
+Admin
 
 reader-dre.c
 file
@@ -1067,11 +1045,11 @@ file
 
 
 
-2011-10-30T11:28:09.921838Z
-8691a6225bfb21852c7c928b3a7039dc
-2011-10-28T18:17:05.613407Z
-6010
-corsair
+2011-11-18T11:10:55.441575Z
+57ebad16ccebc5f5350c11f43d70f748
+2011-11-18T00:40:21.200727Z
+6027
+Admin
 
 
 
@@ -1093,7 +1071,7 @@ corsair
 
 
 
-29066
+29117
 
 LICENCE
 file
@@ -1222,40 +1200,6 @@ b1b5b490bc2613891236359a781f701f
 Deas
 has-props
 
-module-cccshare.c
-file
-
-
-
-
-2011-09-19T07:32:09.133190Z
-6151ef036ff557438479a0f1e73aaeb7
-2011-09-18T11:39:52.589783Z
-5956
-schlocke
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-46429
-
 module-stat.c
 file
 
@@ -1290,6 +1234,40 @@ corsair
 
 31913
 
+module-cccshare.c
+file
+
+
+
+
+2011-09-19T07:32:09.133190Z
+6151ef036ff557438479a0f1e73aaeb7
+2011-09-18T11:39:52.589783Z
+5956
+schlocke
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+46429
+
 algo
 dir
 
@@ -1304,40 +1282,6 @@ file
 2011-10-08T08:10:45.741642Z
 5982
 lareq78
-
-module-cccshare.h
-file
-
-
-
-
-2011-08-17T12:19:56.055218Z
-3309968aafa20efffc5822db4ccd8e6e
-2011-08-14T16:30:38.359183Z
-5866
-Admin
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-1203
 
 module-constcw.c
 file
@@ -1372,6 +1316,40 @@ zetack
 
 
 4250
+
+module-cccshare.h
+file
+
+
+
+
+2011-08-17T12:19:56.055218Z
+3309968aafa20efffc5822db4ccd8e6e
+2011-08-14T16:30:38.359183Z
+5866
+Admin
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1203
 
 oscam-chk.c
 file
@@ -1475,40 +1453,6 @@ kpc
 
 22026
 
-reader-seca.c
-file
-
-
-
-
-2011-09-09T01:35:20.132435Z
-57e0f5b24f34c324c23ba90ec4fa9274
-2011-09-07T17:41:30.850708Z
-5941
-zetack
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-14389
-
 reader-videoguard2.c
 file
 
@@ -1542,6 +1486,40 @@ neoen
 
 
 26181
+
+reader-seca.c
+file
+
+
+
+
+2011-09-09T01:35:20.132435Z
+57e0f5b24f34c324c23ba90ec4fa9274
+2011-09-07T17:41:30.850708Z
+5941
+zetack
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+14389
 
 README
 file
@@ -1580,10 +1558,10 @@ Deas
 OSCam.xcodeproj
 dir
 
-cygwin
+utils
 dir
 
-utils
+cygwin
 dir
 
 .gitignore
@@ -1661,10 +1639,10 @@ file
 
 
 
-67ca98bceff69030d2b47ae4e303456d
-2011-11-15T08:07:28.192449Z
-6021
-corsair
+077566fc179ad8bfc91103cdd0f4be46
+2011-11-18T00:40:21.200727Z
+6027
+Admin
 
 module-cccam.c
 file

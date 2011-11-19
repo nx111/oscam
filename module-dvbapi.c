@@ -30,7 +30,6 @@ int32_t stapi_on	= 0;
 pthread_mutex_t filter_lock;
 struct STDEVICE dev_list[PTINUM];
 #endif
-
 int32_t priority_is_changed=0;
 
 int32_t dvbapi_set_filter(int32_t demux_id, int32_t api, uint16_t pid, uchar *filt, uchar *mask, int32_t timeout, int32_t pidindex, int32_t count, int32_t type) {
@@ -1454,7 +1453,7 @@ void event_handler(int32_t signal) {
 	struct stat pmt_info;
 	char dest[1024];
 	DIR *dirp;
-	struct dirent *dp;
+	struct dirent entry, *dp = NULL;
 	int32_t i, pmt_fd;
 	uchar mbuf[1024];
 
@@ -1510,7 +1509,9 @@ void event_handler(int32_t signal) {
 		return;
 	}
 
-	while ((dp = readdir(dirp))) {
+	while (!readdir_r(dirp, &entry, &dp)) {
+		if (!dp) break;
+
 		if (strlen(dp->d_name) < 7)
   			continue;
 		if (strncmp(dp->d_name, "pmt", 3)!=0 || strncmp(dp->d_name+strlen(dp->d_name)-4, ".tmp", 4)!=0)
@@ -2002,6 +2003,10 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 	return;
 #endif
 	int32_t i,j;
+	int offline=0;
+	
+	if(er->rc==E_TIMEOUT || er->rcEx==E2_GROUP || er->rcEx==E2_OFFLINE)
+		offline=1;
 
 	for (i=0;i<MAX_DEMUX;i++) {
 		if (demux[i].program_number==er->srvid) {
@@ -2052,7 +2057,7 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 						else
 							dvbapi_try_next_caid(i);
 					} else {
-						if (er->rc == E_TIMEOUT)	//timeout,maybe offline
+						if (offline)
 							demux[i].tries = -1;
 						dvbapi_try_next_caid(i);
 					}
@@ -2061,7 +2066,7 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 					struct s_dvbapi_priority *forceentry=dvbapi_check_prio_match(i, demux[i].curindex, 'p');
 					if (!forceentry && demux[i].tries>3) {
 						demux[i].tries = 0;
-						if (er->rc == E_TIMEOUT )
+						if (offline)
 							demux[i].tries = -1;
 						demux[i].curindex = 0;
 						demux[i].pidindex = -1;
@@ -2187,7 +2192,7 @@ static int32_t stapi_open() {
 	uint32_t ErrorCode;
 
 	DIR *dirp;
-	struct dirent *dp;
+	struct dirent entry, *dp = NULL;
 	struct stat buf;
 	int32_t i;
 	char pfad[80];
@@ -2220,7 +2225,9 @@ static int32_t stapi_open() {
 	oscam_stapi_CheckVersion();
 
 	i=0;
-	while ((dp = readdir(dirp))) {
+	while (!readdir_r(dirp, &entry, &dp)) {
+		if (!dp) break;
+
 		snprintf(pfad, sizeof(pfad), "%s%s", PROCDIR, dp->d_name);
 		if (stat(pfad,&buf) != 0)
 			continue;
