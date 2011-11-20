@@ -148,7 +148,7 @@ int32_t is_connect_blocked(struct s_reader *rdr) {
   cs_ftime(&cur_time);
   return (rdr->tcp_block_delay && comp_timeb(&cur_time, &rdr->tcp_block_connect_till) < 0);
 }
-                
+
 int32_t network_tcp_connection_open(struct s_reader *rdr)
 {
 	if (!rdr) return -1;

@@ -487,7 +487,7 @@ DESCRIPTIONS
 
        updateinterval = seconds
 	  interval  to	provide  share	list update to CCcam clients, values <= 10 are invalid and will be set to 30,
-	  default:240
+	  default:120
 
        keepconnected = 0|1
 	  set CCcam keepalive modus:
@@ -594,7 +594,7 @@ DESCRIPTIONS
 	  file for anti-cascading logging, default:none
 
        fakedelay = milli-seconds
-	  fake delay time, default:1000
+	  fake delay time, default:1000, min value is 100, max value is 3000
 
        denysamples = quantity
 	  how many samples should be penalized, default:8

@@ -347,7 +347,7 @@ int32_t cc_clear_reported_carddata(LLIST *reported_carddatas, LLIST *except,
 
                 if (!card2 && ll_iter_remove(&it)) { //check result of ll_iter_remove, because another thread could removed it
                         if (send_removed) {
-                        		cs_debug_mask(D_TRACE, "s-card removed: id %8X remoteid %8X caid %4X hop %d reshare %d originid %8X cardtype %d", 
+                        		cs_debug_mask(D_TRACE, "s-card removed: id %-8X remoteid %-8X caid %-4X hop %d reshare %d originid %-8X cardtype %d", 
 									card->id, card->remote_id, card->caid, card->hop, card->reshare, card->origin_id, card->card_type);
 
                         		send_remove_card_to_clients(card);
@@ -1177,7 +1177,7 @@ void share_updater()
 						if (cfg.cc_update_interval <= 10)
 								cfg.cc_update_interval = DEFAULT_UPDATEINTERVAL;
 						cs_debug_mask(D_TRACE, "share-updater mode=interval t=%ds", cfg.cc_update_interval);
-						cs_sleepms(cfg.cc_update_interval*1000);
+						cs_sleepms(cfg.cc_update_interval * 1000);
 				}
 				
 				uint32_t cur_check = 0;

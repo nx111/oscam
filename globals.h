@@ -358,7 +358,7 @@ extern char *RDR_CD_TXT[];
 #define DEFAULT_LB_STAT_CLEANUP 336
 #define DEFAULT_LB_USE_LOCKING 0
 #define DEFAULT_LB_REOPEN_MODE 0
-#define DEFAULT_UPDATEINTERVAL 240
+#define DEFAULT_UPDATEINTERVAL 120
 #define DEFAULT_LB_AUTO_BETATUNNEL 1
 
 enum {E1_GLOBAL=0, E1_USER, E1_READER, E1_SERVER, E1_LSERVER};
@@ -468,7 +468,7 @@ extern void cs_switch_led(int32_t led, int32_t action);
 #define DEFAULT_CC_RESHARE  -1 // Use global cfg
 #define DEFAULT_CC_IGNRSHR  -1 // Use global cfg
 #define DEFAULT_CC_STEALTH  -1 // Use global cfg
-#define DEFAULT_CC_KEEPALIVE 0
+#define DEFAULT_CC_KEEPALIVE 1
 #endif
 
 #ifdef CS_ANTICASC

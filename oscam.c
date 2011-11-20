@@ -2482,7 +2482,7 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		ac_chk(client, er, 0);
 #endif
 	}
-
+	cs_debug_mask(D_TRACE,"get_cw: er->rc=%d, er->rcEx=%d",er->rc, er->rcEx);
 	struct s_ecm_answer *ea, *prv = NULL;
 	if(er->rc >= E_99) {
 		er->reader_avail=0;

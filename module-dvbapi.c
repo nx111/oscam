@@ -2005,6 +2005,7 @@ static void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 	int32_t i,j;
 	int offline=0;
 	
+	cs_debug_mask(D_TRACE,"dvbapi_send_dcw: er->rc=%d, er->rcEx=%d",er->rc,er->rcEx);
 	if(er->rc==E_TIMEOUT || er->rcEx==E2_GROUP || er->rcEx==E2_OFFLINE)
 		offline=1;
 

@@ -685,7 +685,7 @@ mode how to provide CCcam servers to CCcam clients:
 .PP
 \fBupdateinterval\fP = \fBseconds\fP
 .RS 3n
-interval to provide share list update to CCcam clients, values <= 10 are invalid and will be set to 30, default:240
+interval to provide share list update to CCcam clients, values <= 10 are invalid and will be set to 30, default:120
 .RE
 .PP
 \fBkeepconnected\fP = \fB0\fP|\fB1\fP
@@ -835,7 +835,7 @@ file for anti-cascading logging, default:none
 .PP
 \fBfakedelay\fP = \fBmilli-seconds\fP
 .RS 3n
-fake delay time, default:1000
+fake delay time, default:1000, min value is 100, max value is 3000
 .RE
 .PP
 \fBdenysamples\fP = \fBquantity\fP
