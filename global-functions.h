@@ -403,6 +403,7 @@ extern int8_t check_fd_for_data(int32_t fd);
 
 extern void add_ms_to_timespec(struct timespec *timeout, int32_t msec);
 extern int32_t add_ms_to_timeb(struct timeb *tb, int32_t ms);
+extern int32_t cs_readdir(DIR *dirp,struct dirent *UNUSED(entry), struct dirent **result);
 
 /* ===========================
  *       module-cccshare

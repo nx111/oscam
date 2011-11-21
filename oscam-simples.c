@@ -1,3 +1,4 @@
+
 //FIXME Not checked on threadsafety yet; after checking please remove this line
 #include "globals.h"
 #include "module-cccam.h"
@@ -1339,4 +1340,13 @@ int32_t add_ms_to_timeb(struct timeb *tb, int32_t ms) {
 	cs_ftime(&tb_now);
 
 	return comp_timeb(tb, &tb_now);
+}
+
+int32_t cs_readdir(DIR *dirp,__attribute__((unused)) struct dirent *entry, struct dirent **result){
+#if defined(TUXBOX) && defined(PPC)
+	*result=readdir(dirp);
+	return *result != NULL;
+#else
+	return readdir_r(dirp,entry,result);
+#endif	
 }
