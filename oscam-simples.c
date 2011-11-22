@@ -1350,3 +1350,14 @@ int32_t cs_readdir(DIR *dirp,__attribute__((unused)) struct dirent *entry, struc
 	return readdir_r(dirp,entry,result);
 #endif	
 }
+
+struct tm *cs_gmtime(const time_t *clock, struct tm *result){
+#if defined(TUXBOX) && defined(PPC)
+	struct tm *tp0;
+	tp0 = gmtime(clock);
+  	memcpy(result, tp0, sizeof(*result));
+	return result;
+#else
+	return gmtime_r(clock,result);
+#endif
+}

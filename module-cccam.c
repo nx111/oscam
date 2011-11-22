@@ -3063,16 +3063,16 @@ int32_t cc_cli_connect(struct s_client *cl) {
 	// connect
 	handle = network_tcp_connection_open(rdr);
 	if (handle <= 0) {
-		block_connect(rdr);
+//		block_connect(rdr);
 		cs_log("%s network connect error!", rdr->label);
-		rdr->tcp_block_delay = 10*60*1000;	//5 minutes
-		block_connect(rdr);
+//		rdr->tcp_block_delay = 10*60*1000;	//5 minutes
+//		block_connect(rdr);
 		return -1;
 	}
 	if (errno == EISCONN) {
 		cc_cli_close(cl, FALSE);
 		
-		block_connect(rdr);
+//		block_connect(rdr);
 		return -1;
 	}
 

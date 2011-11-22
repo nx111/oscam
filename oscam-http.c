@@ -1765,7 +1765,7 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 
 	//Expirationdate
 	struct tm timeinfo;
-	gmtime_r (&account->expirationdate, &timeinfo);
+	cs_gmtime(&account->expirationdate, &timeinfo);
 	char buf [80];
 	strftime (buf,80,"%Y-%m-%d",&timeinfo);
 	if(strcmp(buf,"1970-01-01")) tpl_addVar(vars, TPLADD, "EXPDATE", buf);
@@ -2584,7 +2584,7 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 		char *cptr = getParam(params, "threadid");
 		struct s_client *cl = NULL;
 		if (strlen(cptr)>1)
-			sscanf(cptr, "%p", (void**)&cl);
+			sscanf(cptr, "%p", &cl);
 
 		if (cl && is_valid_client(cl)) {
 			kill_thread(cl);
@@ -2614,7 +2614,7 @@ static char *send_oscam_status(struct templatevars *vars, struct uriparams *para
 	char *hide = getParam(params, "hide");
 	if(strlen(hide) > 0) {
 		struct s_client *hideidx = NULL;
-		sscanf(hide, "%p", (void**)&hideidx);
+		sscanf(hide, "%p", &hideidx);
 
 		if(hideidx && is_valid_client(hideidx))
 			hideidx->wihidden = 1;

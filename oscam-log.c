@@ -104,7 +104,11 @@ int32_t cs_open_logfiles()
 			time(&t);
 			if (!cfg.disablelog){
 				char buf[28];
+#if defined(TUXBOX) && defined(PPC)
+				strncpy(buf,ctime(&t),28);
+#else			
 				ctime_r(&t, buf);
+#endif
 				fprintf(fp, "\n%s\n>> OSCam <<  cardserver %s at %s%s\n", line, starttext, buf, line);
 			}
 		}

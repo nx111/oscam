@@ -2836,7 +2836,7 @@ void cs_waitforcardinit()
 }
 
 static void check_status(struct s_client *cl) {
-	if (!cl || cl->kill || !cl->init_done)
+	if (!cl || cl->kill || !cl->init_done )
 		return;
 
 	struct s_reader *rdr = cl->reader;
@@ -2872,7 +2872,7 @@ static void check_status(struct s_client *cl) {
 					rdr->last_check = time(NULL);
 				}
 			}
-			if (!rdr->tcp_connected && ((time(NULL) - rdr->last_check) > 30) && rdr->typ == R_CCCAM) {
+			if (!rdr->tcp_connected && ((time(NULL) - rdr->last_check) > 30) && rdr->typ == R_IS_NETWORK) {
 				add_job(rdr->client, ACTION_READER_IDLE, NULL, 0);
 				rdr->last_check = time(NULL);
 			}
