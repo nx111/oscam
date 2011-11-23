@@ -206,7 +206,7 @@ int pandora_client_init(struct s_client *cl) {
 }
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
-static int pandora_send_ecm(__attribute__((unused)) struct s_client *cl, ECM_REQUEST *er, __attribute__((unused)) uchar *buf) {
+static int pandora_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *UNUSED(buf)) {
 	uchar msgbuf[CWS_NETMSGSIZE];
 	int ret, len;
 	uchar adel;
@@ -238,8 +238,8 @@ static int pandora_send_ecm(__attribute__((unused)) struct s_client *cl, ECM_REQ
 	return ((ret < len) ? (-1) : 0);
 }
 
-static int pandora_recv_chk(__attribute__((unused))struct s_client *cl, uchar *dcw, int *rc,
-		uchar *buf, __attribute__((unused)) int n) {
+static int pandora_recv_chk(struct s_client *UNUSED(cl), uchar *dcw, int *rc,
+		uchar *buf, int UNUSED(n)) {
 	if (buf[0] != 0x2)
 		return (-1);
 	*rc = 1;
