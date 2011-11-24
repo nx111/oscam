@@ -1,6 +1,11 @@
+#!/bin/sh
+
 if [ -f /var/tuxbox/config/oscam.conf.bak ]; then
 	mv /var/tuxbox/config/oscam.conf /var/tuxbox/config/oscam.conf.new
 	mv /var/tuxbox/config/oscam.conf.bak /var/tuxbox/config/oscam.conf
 fi
-killall oscam
+
+killall -9 oscam
 oscam -b
+
+exit 0
