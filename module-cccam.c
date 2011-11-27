@@ -1047,17 +1047,20 @@ struct cc_card *get_matching_card(struct s_client *cl, ECM_REQUEST *cur_er)
 
 	int32_t h = -1;
 
+	cs_debug_mask(D_TRACE,"[get_matching_card]:cur_caid=%06X cur_prid=%06X cur_srvid.sid=%04X cur_srvid.ecmlen=%d",cur_er->caid,cur_er->prid,cur_srvid.sid,cur_srvid.ecmlen);
 	LL_ITER it = ll_iter_create(cc->cards);
 	struct cc_card *card = NULL, *ncard, *xcard = NULL;
 	while ((ncard = ll_iter_next(&it))) {
 		if (ncard->caid == cur_er->caid) { // caid matches
+			cs_debug_mask(D_TRACE,"Check ncard:id=%08X providers_count=%d hop=%d h=%d",ncard->id,ll_count(ncard->providers),ncard->hop,h);
 			if (is_sid_blocked(ncard, &cur_srvid))
 				continue;
-
+			
 			if (!(rdr->cc_want_emu) && (ncard->caid>>8==0x18) && (!xcard || ncard->hop < xcard->hop))
 				xcard = ncard; //remember card (D+ / 1810 fix) if request has no provider, but card has
 
-			if (!cur_er->prid && !ll_count(ncard->providers)) { //card has no providers:
+			if (!ll_count(ncard->providers)) { //card has no providers:
+				cs_debug_mask(D_TRACE,"ncard:id=%08X has no providers",ncard->id);
 				if (h < 0 || ncard->hop < h || (ncard->hop == h
 						&& cc_UA_valid(ncard->hexserial))) {
 					// ncard is closer
@@ -1070,6 +1073,7 @@ struct cc_card *get_matching_card(struct s_client *cl, ECM_REQUEST *cur_er)
 				LL_ITER it2 = ll_iter_create(ncard->providers);
 				struct cc_provider *provider;
 				while ((provider = ll_iter_next(&it2))) {
+					cs_debug_mask(D_TRACE,"ncard:%08X cur_er->prid:%06X provier->prov:%06X",ncard->id,cur_er->prid,provider->prov);
 					if (!cur_er->prid || !provider->prov || provider->prov	== cur_er->prid) { // provid matches
 						if (h < 0 || ncard->hop < h || (ncard->hop == h
 								&& cc_UA_valid(ncard->hexserial))) {
@@ -1084,7 +1088,7 @@ struct cc_card *get_matching_card(struct s_client *cl, ECM_REQUEST *cur_er)
 	}
 	if (!card)
 			card = xcard; //18xx: if request has no provider and we have no card, we try this card
-
+	cs_debug_mask(D_TRACE,"[get_matching_card]card:id=%08X caid=%04X",card?card->id:0,card?card->caid:0);
 	return card;
 }
 
@@ -2042,7 +2046,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l) {
 				else if (card->reshare == 2) cc->num_reshare2++;
 				else cc->num_resharex++;
 				
-				cs_debug_mask(D_TRACE, "%s card added: id %8X remoteid %8X caid %4X hop %d reshare %d originid %8X cardtype %d",
+				cs_debug_mask(D_TRACE, "%s card added: id %08X remoteid %08X caid %04X hop %d reshare %d originid %08X cardtype %d",
 					getprefix(), card->id, card->remote_id, card->caid, card->hop, card->reshare, card->origin_id, card->card_type);
 			}
 		}

@@ -831,7 +831,7 @@ void report_card(struct cc_card *card, LLIST *new_reported_carddatas, LLIST *new
 {
     if (!find_reported_card(card)) { //Add new card:
     	
-    	cs_debug_mask(D_TRACE, "s-card added: id %8X remoteid %8X caid %4X hop %d reshare %d originid %8X cardtype %d", 
+    	cs_debug_mask(D_TRACE, "s-card added: id %08X remoteid %08X caid %04X hop %d reshare %d originid %08X cardtype %d", 
     		card->id, card->remote_id, card->caid, card->hop, card->reshare, card->origin_id, card->card_type);
     		
         ll_append(new_cards, card);
