@@ -50,6 +50,7 @@ CS_MUTEX_LOCK clientlist_lock;
 CS_MUTEX_LOCK readerlist_lock;
 CS_MUTEX_LOCK fakeuser_lock;
 CS_MUTEX_LOCK ecmcache_lock;
+CS_MUTEX_LOCK readdir_lock;
 pthread_key_t getclient;
 
 pthread_t timecheck_thread;
@@ -1025,6 +1026,7 @@ static void init_first_client()
   cs_lock_create(&readerlist_lock, 5, "readerlist_lock");
   cs_lock_create(&fakeuser_lock, 5, "fakeuser_lock");
   cs_lock_create(&ecmcache_lock, 5, "ecmcache_lock");
+  cs_lock_create(&readdir_lock, 5, "readdir_lock");
 
 #ifdef COOL
   coolapi_open_all();
@@ -1684,7 +1686,7 @@ ECM_REQUEST *get_ecmtask()
 #ifdef WITH_LB
 void send_reader_stat(struct s_reader *rdr, ECM_REQUEST *er, int32_t rc)
 {
-	if (!rdr || rc>=E_99)
+	if (!rdr || rc>=E_99 || rdr->cacheex)
 		return;
 	struct timeb tpe;
 	cs_ftime(&tpe);
@@ -1922,21 +1924,21 @@ int32_t send_dcw(struct s_client * client, ECM_REQUEST *er)
  * sends the ecm request to the readers
  * ECM_REQUEST er : the ecm
  * er->stage: 0 = no reader asked yet
- *            1 = ask only local reader (skipped without preferlocalcards)
- *            2 = ask any non fallback reader
- *            3 = ask fallback reader
+ *            2 = ask only local reader (skipped without preferlocalcards)
+ *            3 = ask any non fallback reader
+ *            4 = ask fallback reader
  **/
 static void request_cw(ECM_REQUEST *er)
 {
 	struct s_ecm_answer *ea;
 	int8_t sent = 0;
 
-	if (er->stage >= 3) return;
+	if (er->stage >= 4) return;
 
 	while (1) {
 		er->stage++;
 
-		if (er->stage == 1 && !cfg.preferlocalcards)
+		if (er->stage == 2 && !cfg.preferlocalcards)
 			er->stage++;
 
 		for(ea = er->matching_rdr; ea; ea = ea->next) {
@@ -1944,11 +1946,16 @@ static void request_cw(ECM_REQUEST *er)
 				continue;
 
 			if (er->stage == 1) {
+				// Cache-Echange
+				if ((ea->status & REQUEST_SENT) ||
+						(ea->status & (READER_CACHEEX|READER_ACTIVE)) != (READER_CACHEEX|READER_ACTIVE))
+					continue;
+			} else if (er->stage == 2) {
 				// only local reader
 				if ((ea->status & REQUEST_SENT) || 
 						(ea->status & (READER_ACTIVE|READER_FALLBACK|READER_LOCAL)) != (READER_ACTIVE|READER_LOCAL))
 					continue;
-			} else if (er->stage == 2) {
+			} else if (er->stage == 3) {
 				// any non fallback reader not asked yet
 				if ((ea->status & REQUEST_SENT) || 
 						(ea->status & (READER_ACTIVE|READER_FALLBACK)) != READER_ACTIVE)
@@ -1965,7 +1972,7 @@ static void request_cw(ECM_REQUEST *er)
 			ea->status |= REQUEST_SENT;
 			sent = 1;
 		}
-		if (sent || er->stage >= 3)
+		if (sent || er->stage >= 4)
 			break;
 	}
 }
@@ -2022,7 +2029,7 @@ static void chk_dcw(struct s_client *cl, struct s_ecm_answer *ea)
 		return; // already done
 	}
 
-	int32_t reader_left = 0, local_left = 0;
+	int32_t reader_left = 0, local_left = 0, cacheex_left = 0;
 
 	switch (ea->rc) {
 		case E_FOUND:
@@ -2042,14 +2049,22 @@ static void chk_dcw(struct s_client *cl, struct s_ecm_answer *ea)
 			ert->rcEx=ea->rcEx;
 			cs_strncpy(ert->msglog, ea->msglog, sizeof(ert->msglog));
 			ert->selected_reader=ea->reader;
-
+			uchar has_cacheex = 0;
 			for(ea_list = ert->matching_rdr; ea_list; ea_list = ea_list->next) {
+				if (((ea_list->status & READER_CACHEEX)) == READER_CACHEEX)
+					has_cacheex = 1;
+				if (((ea_list->status & (REQUEST_SENT|REQUEST_ANSWERED|READER_CACHEEX|READER_ACTIVE)) == (REQUEST_SENT|READER_CACHEEX|READER_ACTIVE)))
+					cacheex_left++;
 				if (((ea_list->status & (REQUEST_SENT|REQUEST_ANSWERED|READER_LOCAL|READER_ACTIVE)) == (REQUEST_SENT|READER_LOCAL|READER_ACTIVE)))
 					local_left++;
 				if (((ea_list->status & (REQUEST_ANSWERED|READER_ACTIVE)) == (READER_ACTIVE)))
 					reader_left++;
 			}
-			if (cfg.preferlocalcards && !local_left && !ert->locals_done) {
+			
+			if (has_cacheex && !cacheex_left && !ert->cacheex_done) {
+				ert->cacheex_done = 1;
+				request_cw(ert);
+			} else if (cfg.preferlocalcards && !local_left && !ert->locals_done) {
 				ert->locals_done = 1;
 				request_cw(ert);
 			}
@@ -2485,10 +2500,11 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 				prv = ea;
 
 				ea->status = READER_ACTIVE;
-				if (!(ea->reader->typ & R_IS_NETWORK))
+				if (!(rdr->typ & R_IS_NETWORK))
 					ea->status |= READER_LOCAL;
-
-				if (rdr->fallback)
+				else if (rdr->cacheex)
+					ea->status |= READER_CACHEEX;
+				else if (rdr->fallback)
 					ea->status |= READER_FALLBACK;
 
 #ifdef WITH_LB
@@ -2545,17 +2561,21 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 			er->rc = E_UNHANDLED;
 	}
 
-	if (er->rc >= E_99) {
-		cs_writelock(&ecmcache_lock);
-		er->next = ecmtask;
-		ecmtask = er;
-		cs_writeunlock(&ecmcache_lock);
+	int8_t cacheex = client->account && client->account->cacheex;
 
-		if (er->rc == E_UNHANDLED) {
-			ecm = check_cwcache(er, client->grp);
-			if (ecm && ecm != er) {
-				er->rc = E_99;
-				er->ecmcacheptr = ecm;
+	if (er->rc >= E_99) {
+		if (!cacheex || er->rc == E_99) { //Cacheex should not add to the ecmcache:
+			cs_writelock(&ecmcache_lock);
+			er->next = ecmtask;
+			ecmtask = er;
+			cs_writeunlock(&ecmcache_lock);
+
+			if (er->rc == E_UNHANDLED) {
+				ecm = check_cwcache(er, client->grp);
+				if (ecm && ecm != er) {
+					er->rc = E_99;
+					er->ecmcacheptr = ecm;
+				}
 			}
 		}
 	}
@@ -2571,18 +2591,28 @@ void get_cw(struct s_client * client, ECM_REQUEST *er)
 		er->checksum^=*lp;
 
 	if (er->rc < E_99) {
-		if (cfg.delay)
+		if (cfg.delay && !cacheex) //No delay on cacheexchange!
 			cs_sleepms(cfg.delay);
 
 		send_dcw(client, er);
 		free_ecm(er);
-		return;
+		return; //ECM found/not found/error/invalid
 	}
 
 	if (er->rc == E_99) {
-		er->stage=3;
+		er->stage=4;
 		pthread_kill(timecheck_thread, OSCAM_SIGNAL_WAKEUP);
 		return; //ECM already requested / found in ECM cache
+	}
+
+	//er->rc == E_UNHANDLED
+	//Cache Exchange never request cws from readers!
+	if (cacheex) {
+		er->rc = E_NOTFOUND;
+		er->rcEx = E2_OFFLINE;
+		send_dcw(client, er);
+		free_ecm(er);
+		return;
 	}
 
 	er->rcEx = 0;
@@ -3199,10 +3229,10 @@ static void * check_thread(void) {
 				continue;
 
 			tbc = er->tps;
-			time_to_check = add_ms_to_timeb(&tbc, (er->stage < 3) ? cfg.ftimeout : cfg.ctimeout);
+			time_to_check = add_ms_to_timeb(&tbc, (er->stage < 4) ? cfg.ftimeout : cfg.ctimeout);
 
 			if (comp_timeb(&t_now, &tbc) >= 0) {
-				if (er->stage < 3) {
+				if (er->stage < 4) {
 					cs_debug_mask(D_TRACE, "fallback for %s %04X&%06X/%04X", username(er->client), er->caid, er->prid, er->srvid);
 					if (er->rc >= E_UNHANDLED) //do not request rc=99
 						request_cw(er);

@@ -3,7 +3,7 @@
 plat=i686-pc-cygwin
 plat_dir=build_cygwin
 
-rm -f oscam oscam-nx111  
+rm -rf oscam  CMake* *.a Makefile cscrypt csctapi *.cmake algo 
 export OLDPATH=$PATH
 export PATH=../../toolchains/i686-pc-cygwin/bin:$OLDPATH     # 指定编译源码时要用的mipsel环境下的GCC和C++编译器路径
 make clean

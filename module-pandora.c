@@ -153,7 +153,6 @@ int pandora_client_init(struct s_client *cl) {
 		cs_log("invalid port %d for server %s", rdr->r_port, rdr->device);
 		return (1);
 	}
-
 	p_proto = IPPROTO_UDP;
 
 	cl->ip = 0;

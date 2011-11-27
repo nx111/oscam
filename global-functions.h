@@ -342,7 +342,10 @@ extern uchar *i2b_buf(int32_t n, uint32_t i, uchar *b);
 extern uint32_t a2i(char *, int32_t);
 extern int32_t boundary(int32_t, int32_t);
 extern time_t cs_timegm(struct tm *tm);
+extern struct tm *cs_gmtime_r(const time_t *timep, struct tm *r);
+extern char *cs_ctime_r(const time_t *timep, char* buf);
 extern void cs_ftime(struct timeb *);
+extern int32_t cs_readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
 extern void cs_sleepms(uint32_t);
 extern void cs_sleepus(uint32_t);
 extern void cs_setpriority(int32_t);
@@ -403,8 +406,6 @@ extern int8_t check_fd_for_data(int32_t fd);
 
 extern void add_ms_to_timespec(struct timespec *timeout, int32_t msec);
 extern int32_t add_ms_to_timeb(struct timeb *tb, int32_t ms);
-extern int32_t cs_readdir(DIR *dirp,struct dirent *UNUSED(entry), struct dirent **result);
-extern struct tm *cs_gmtime(const time_t *clock, struct tm *result);
 /* ===========================
  *       module-cccshare
  * =========================== */

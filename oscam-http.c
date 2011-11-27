@@ -588,7 +588,7 @@ static char *send_oscam_config_monitor(struct templatevars *vars, struct uripara
 	struct dirent entry;
   struct dirent *result;
 	if((hdir = opendir(cs_confdir)) != NULL){
-		while(readdir_r(hdir, &entry, &result) == 0 && result != NULL){
+		while(cs_readdir_r(hdir, &entry, &result) == 0 && result != NULL){
 			if (strstr(entry.d_name, ".css")) {
 				if (strstr(cfg.http_css, entry.d_name)) {
 					tpl_printf(vars, TPLAPPEND, "CSSOPTIONS", "\t\t\t\t\t\t<option value=\"%s%s\" selected>%s%s</option>\n",cs_confdir,entry.d_name,cs_confdir,entry.d_name);
@@ -1101,6 +1101,13 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		tpl_addVar(vars, TPLADD, "FALLBACKCHECKED", (rdr->fallback == 1) ? "checked" : "");
 	} else {
 		tpl_addVar(vars, TPLADD, "FALLBACKVALUE", (rdr->fallback == 1) ? "1" : "0");
+	}
+
+	// Cacheex
+	if(!apicall) {
+		tpl_addVar(vars, TPLADD, "CACHEEXCHECKED", (rdr->cacheex == 1) ? "checked" : "");
+	} else {
+		tpl_addVar(vars, TPLADD, "CACHEEXVALUE", (rdr->cacheex == 1) ? "1" : "0");
 	}
 
 	// Logport
@@ -1765,7 +1772,7 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 
 	//Expirationdate
 	struct tm timeinfo;
-	cs_gmtime(&account->expirationdate, &timeinfo);
+	cs_gmtime_r (&account->expirationdate, &timeinfo);
 	char buf [80];
 	strftime (buf,80,"%Y-%m-%d",&timeinfo);
 	if(strcmp(buf,"1970-01-01")) tpl_addVar(vars, TPLADD, "EXPDATE", buf);
@@ -1879,6 +1886,13 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 
 	//Sleepsend
 	tpl_printf(vars, TPLADD, "SLEEPSEND", "%u", account->c35_sleepsend);
+
+	// Cacheex
+	if(!apicall) {
+		tpl_addVar(vars, TPLADD, "CACHEEXCHECKED", (account->cacheex == 1) ? "checked" : "");
+	} else {
+		tpl_addVar(vars, TPLADD, "CACHEEXVALUE", (account->cacheex == 1) ? "1" : "0");
+	}
 
 	//Keepalive
 	if(!apicall){

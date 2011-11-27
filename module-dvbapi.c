@@ -1509,7 +1509,7 @@ void event_handler(int32_t signal) {
 		return;
 	}
 
-	while (!cs_readdir(dirp, &entry, &dp)) {
+	while (!cs_readdir_r(dirp, &entry, &dp)) {
 		if (!dp) break;
 
 		if (strlen(dp->d_name) < 7)

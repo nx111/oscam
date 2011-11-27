@@ -1070,7 +1070,7 @@ struct cc_card *get_matching_card(struct s_client *cl, ECM_REQUEST *cur_er)
 				LL_ITER it2 = ll_iter_create(ncard->providers);
 				struct cc_provider *provider;
 				while ((provider = ll_iter_next(&it2))) {
-					if (provider->prov	== cur_er->prid) { // provid matches
+					if (!cur_er->prid || !provider->prov || provider->prov	== cur_er->prid) { // provid matches
 						if (h < 0 || ncard->hop < h || (ncard->hop == h
 								&& cc_UA_valid(ncard->hexserial))) {
 							// ncard is closer
