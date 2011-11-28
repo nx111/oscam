@@ -1036,7 +1036,7 @@ int32_t same_card(struct cc_card *card1, struct cc_card *card2) {
 		same_first_node(card1, card2));
 }
 
-struct cc_card *get_matching_card(struct s_client *cl, ECM_REQUEST *cur_er)
+struct cc_card *get_matching_card(struct s_client *cl, ECM_REQUEST *cur_er, int8_t chk_only)
 {
 	struct cc_data *cc = cl->cc;
 	struct s_reader *rdr = cl->reader;
@@ -1051,7 +1051,9 @@ struct cc_card *get_matching_card(struct s_client *cl, ECM_REQUEST *cur_er)
 	LL_ITER it = ll_iter_create(cc->cards);
 	struct cc_card *card = NULL, *ncard, *xcard = NULL;
 	while ((ncard = ll_iter_next(&it))) {
-		if (ncard->caid == cur_er->caid) { // caid matches
+		if (ncard->caid == cur_er->caid || // caid matches
+				(chk_only && cfg.lb_mode && cfg.lb_auto_betatunnel && cur_er->caid>>8==0x18 && ncard->caid>>8==0x17)) { //accept beta card when beta-tunnel is on
+				
 			cs_debug_mask(D_TRACE,"Check ncard:id=%08X providers_count=%d hop=%d h=%d",ncard->id,ll_count(ncard->providers),ncard->hop,h);
 			if (is_sid_blocked(ncard, &cur_srvid))
 				continue;
@@ -1233,7 +1235,7 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er, uchar *buf) {
 	}
 	
 	if (!card)
-		card = get_matching_card(cl, cur_er);
+		card = get_matching_card(cl, cur_er, 0);
 
 	if (card) {
 		uint8_t *ecmbuf = cs_malloc(&ecmbuf, cur_er->l+13, 0);
@@ -3266,7 +3268,7 @@ int32_t cc_available(struct s_reader *rdr, int32_t checktype, ECM_REQUEST *er) {
 	struct s_client *cl = rdr->client;
 	if(!cl) return 0;
 	if (er && cl->cc) {
-		struct cc_card *card  = get_matching_card(cl, er);
+		struct cc_card *card  = get_matching_card(cl, er, 1);
 		if (!card)
 			return 0;
 	}
