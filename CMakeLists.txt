@@ -731,12 +731,12 @@ add_dependencies (${csoscam} svnversion-log)
 add_custom_target (
     svnversion
     ALL
-    touch ${CMAKE_CURRENT_SOURCE_DIR}/oscam.c
+#   touch ${CMAKE_CURRENT_SOURCE_DIR}/oscam.c
 )
 add_custom_target (
     svnversion-log
     ALL
-    touch ${CMAKE_CURRENT_SOURCE_DIR}/oscam-log.c
+#   touch ${CMAKE_CURRENT_SOURCE_DIR}/oscam-log.c
 )
 
 execute_process (COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/config.sh --oscam-revision COMMAND tr -d '\n' OUTPUT_VARIABLE CS_SVN_VERSION)
