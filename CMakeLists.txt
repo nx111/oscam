@@ -57,6 +57,11 @@ if (CMAKE_CROSSCOMPILING)
         set (OSCamOperatingSystem "Padre")
     elseif (OSCAM_SYSTEM_NAME MATCHES "FriendlyARM")
         set (OSCamOperatingSystem "FriendlyARM")
+    elseif (${CYGWIN})
+        set (OSCamOperatingSystem "Windows/Cygwin")
+        set (CS_OS_HW "pc")
+        set (CS_OS_SYS "cygwin")
+        set (CMAKE_SYSTEM_PROCESSOR "i386")
     else (OSCAM_SYSTEM_NAME MATCHES "Tuxbox")
         message (STATUS "Unknown cross system name: <${CMAKE_SYSTEM_NAME}>")
         set (OSCamOperatingSystem "Unknown")
@@ -109,6 +114,7 @@ include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/extapi/cygwin
     /usr/include/w32api
     ${OPTIONAL_INCLUDE_DIR}
+    ${OPTIONAL_INCLUDE_DIR}/w32api
     )
 else (OSCamOperatingSystem MATCHES "Windows/Cygwin")
 include_directories (
@@ -696,7 +702,7 @@ elseif (OSCamOperatingSystem MATCHES "Amino")
 elseif (OSCamOperatingSystem MATCHES "QboxHD")
 elseif (OSCamOperatingSystem MATCHES "Windows/Cygwin")
     message (STATUS "Windows system PCSC : winscard.dll")
-    target_link_libraries (${exe_name} winscard)
+    target_link_libraries (${exe_name} -Wl,--enable-stdcall-fixup winscard)
     target_link_libraries (${exe_name} setupapi )
     target_link_libraries (${exe_name} ole32)
     target_link_libraries (${exe_name} shell32)
