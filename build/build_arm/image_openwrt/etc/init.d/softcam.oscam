@@ -1,0 +1,25 @@
+#!/bin/sh
+case "$1" in
+start)
+	exec start-stop-daemon -S -x /usr/bin/oscam -c /etc/oscam -b
+	;;
+stop)
+	exec start-stop-daemon -K -R 2 -x /usr/bin/oscam
+	;;
+restart|reload)
+	$0 stop
+	sleep 1
+	$0 start
+	;;
+version)
+	echo "1.0"
+	;;
+info)
+	echo "oscam 1.0"
+	;;
+*)
+	echo "Usage: $0 start|stop|restart"
+	exit 1
+	;;
+esac
+exit 0

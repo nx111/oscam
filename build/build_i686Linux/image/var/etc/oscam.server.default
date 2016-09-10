@@ -1,0 +1,7 @@
+[reader]
+label = remote
+protocol = cccam
+device = host,port
+account = name,pass
+group = 1
+cccversion = 2.1.4
