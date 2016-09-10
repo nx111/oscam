@@ -346,6 +346,10 @@ struct cc_srvid_block *is_sid_blocked(struct cc_card *card, struct cc_srvid *srv
 		{
 			break;
 		}
+		else if(srvid->ecmlen && ((struct cc_srvid_block *)srvid)->blocked_till > time(NULL))
+		{
+			ll_iter_remove_data(&it);
+		}
 	}
 	return srvid;
 }
