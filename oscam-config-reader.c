@@ -1043,6 +1043,12 @@ int32_t init_readerdb(void)
 	if(!cs_malloc(&token, MAXLINESIZE))
 		{ return 1; }
 
+	if(!configured_readers)
+		configured_readers = ll_create("configured_readers");
+
+	if(cfg.cc_cfgfile)
+		read_cccamcfg(CCCAMCFGREADER);
+
 	struct s_reader *rdr;
 	if(!cs_malloc(&rdr, sizeof(struct s_reader)))
 	{

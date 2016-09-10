@@ -703,6 +703,9 @@ DESCRIPTIONS
 	    0 = disconnect client when maximum idle time is reached
 	    1 = keep client connected (default)
 
+       cccamcfgfile = filename
+	  enable to read reader from CCcam Config File filename,default to NULL string.
+
        recv_timeout = milli-seconds
 	  set network timeout for receiving data, default:2000
 

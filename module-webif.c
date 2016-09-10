@@ -1157,6 +1157,7 @@ static char *send_oscam_config_cccam(struct templatevars *vars, struct uriparams
 
 	tpl_addVar(vars, TPLADD, "STEALTH", (cfg.cc_stealth == 1) ? "checked" : "");
 
+	tpl_printf(vars,TPLADD, "CCCFGFILE","%s",cfg.cc_cfgfile);
 	tpl_printf(vars, TPLADD, "NODEID", "%02X%02X%02X%02X%02X%02X%02X%02X",
 			   cfg.cc_fixed_nodeid[0], cfg.cc_fixed_nodeid[1], cfg.cc_fixed_nodeid[2], cfg.cc_fixed_nodeid[3],
 			   cfg.cc_fixed_nodeid[4], cfg.cc_fixed_nodeid[5], cfg.cc_fixed_nodeid[6], cfg.cc_fixed_nodeid[7]);
