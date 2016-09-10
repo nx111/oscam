@@ -41,6 +41,11 @@
 #include "reader-common.h"
 #include "module-gbox.h"
 
+#ifdef WITH_EMU
+	void add_emu_reader(void);
+	void stop_stream_server(void);
+#endif
+
 #ifdef WITH_SSL
 #include <openssl/crypto.h>
 #include <openssl/ssl.h>
@@ -408,6 +413,7 @@ static void write_versionfile(bool use_stdout)
 	write_conf(CW_CYCLE_CHECK, "CW Cycle Check support");
 	write_conf(LCDSUPPORT, "LCD support");
 	write_conf(LEDSUPPORT, "LED support");
+	write_conf(WITH_EMU, "Emulator support");
 	switch (cs_getclocktype()) {
 		case CLOCK_TYPE_UNKNOWN  : write_conf(CLOCKFIX, "Clockfix with UNKNOWN clock"); break;
 		case CLOCK_TYPE_REALTIME : write_conf(CLOCKFIX, "Clockfix with realtime clock"); break;
@@ -1626,6 +1632,9 @@ const struct s_cardreader *cardreaders[] =
 #ifdef CARDREADER_STINGER
 	&cardreader_stinger,
 #endif
+#ifdef WITH_EMU
+	&cardreader_emu,
+#endif
 	NULL
 };
 
@@ -1797,6 +1806,9 @@ int32_t main(int32_t argc, char *argv[])
 
 	init_sidtab();
 	init_readerdb();
+#ifdef WITH_EMU
+	add_emu_reader();
+#endif
 	cfg.account = init_userdb();
 	init_signal();
 	init_provid();
@@ -1880,6 +1892,9 @@ int32_t main(int32_t argc, char *argv[])
 	SAFE_COND_SIGNAL(&reader_check_sleep_cond); // Stop reader_check thread
 
 	// Cleanup
+#ifdef WITH_EMU
+	stop_stream_server();
+#endif
 #ifdef MODULE_GBOX	
 	stop_sms_sender();
 #endif

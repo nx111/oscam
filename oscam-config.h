@@ -22,6 +22,7 @@ void    free_reader(struct s_reader *rdr);
 int32_t free_readerdb(void);
 int32_t write_server(void);
 void    reload_readerdb(void);
+void reader_fixups_fn(void *var);
 
 void    chk_sidtab(char *token, char *value, struct s_sidtab *sidtab);
 int32_t init_sidtab(void);
@@ -60,7 +61,8 @@ enum ftab_fn
 	FTAB_PROVID  = 0x04,
 	FTAB_CHID    = 0x08,
 	FTAB_FBPCAID = 0x10,
-	FTAB_LOCALCARDS = 0x20
+	FTAB_LOCALCARDS = 0x20,
+	FTAB_EMUAU  = 0x40
 };
 
 void ftab_fn(const char *token, char *value, void *setting, long ftab_type, FILE *f);

@@ -101,6 +101,7 @@ include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/csctapi
     ${CMAKE_CURRENT_SOURCE_DIR}/cscrypt
     ${CMAKE_CURRENT_SOURCE_DIR}/minilzo
+    ${CMAKE_CURRENT_SOURCE_DIR}/ffdecsa
     ${CMAKE_CURRENT_SOURCE_DIR}/extapi/cygwin
     /usr/include/w32api
     ${OPTIONAL_INCLUDE_DIR}
@@ -110,6 +111,7 @@ include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/csctapi
     ${CMAKE_CURRENT_SOURCE_DIR}/cscrypt
     ${CMAKE_CURRENT_SOURCE_DIR}/minilzo
+    ${CMAKE_CURRENT_SOURCE_DIR}/ffdecsa
     ${OPTIONAL_INCLUDE_DIR}
     )
 endif (OSCamOperatingSystem MATCHES "Windows/Cygwin")
@@ -420,6 +422,13 @@ endif (HAVE_PCSC)
 # Manage config.h based on command line parameters
 # Manipulate config file based on given parameters and read unset parameters
 
+execute_process (COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/config.sh --enabled WITH_EMU OUTPUT_VARIABLE CONFIG_WITH_EMU OUTPUT_STRIP_TRAILING_WHITESPACE)
+if (CONFIG_WITH_EMU MATCHES "Y" AND NOT WITH_EMU EQUAL 1)
+	add_definitions ("-DWITH_EMU")
+	set (WITH_EMU "1")
+	message(STATUS "  EMU is added by config compiling with EMU")
+endif(CONFIG_WITH_EMU MATCHES "Y" AND NOT WITH_EMU EQUAL 1)
+
 execute_process (COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/config.sh --show-valid OUTPUT_VARIABLE config_vars_string OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(REGEX MATCHALL "[A-Z0-9_]+" config_vars ${config_vars_string})
 
@@ -449,6 +458,7 @@ execute_process (COMMAND make --no-print-directory --quiet -C ${CMAKE_CURRENT_SO
 add_subdirectory (csctapi)
 add_subdirectory (minilzo)
 add_subdirectory (cscrypt)
+add_subdirectory (ffdecsa)
 
 #----------------------- file groups ------------------------------
 execute_process (COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/config.sh --enabled MODULE_CAMD33 OUTPUT_VARIABLE CAMD33 OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -498,7 +508,7 @@ add_library (${csoscam} STATIC ${csoscam_srcs} ${csoscam_hdrs})
 
 set (exe_name "oscam")
 add_executable (${exe_name} ${exe_srcs} ${exe_hdrs})
-target_link_libraries (${exe_name} ${csoscam} ${csmodules} ${csreaders} csctapi cscrypt minilzo)
+target_link_libraries (${exe_name} ${csoscam} ${csmodules} ${csreaders} csctapi cscrypt minilzo ffdecsa)
 if(HAVE_LIBRT AND HAVE_LIBUSB)
    if (LIBUSBDIR)
 	set (libusb_link "imp_libusb")
@@ -731,6 +741,23 @@ endif( HAVE_LIBRT OR HAVE_LIBRT_STATIC)
 
 #--------------------------------------------------------------------------------
 
+if (NOT OSCamOperatingSystem MATCHES "Mac OS X")
+if (NOT DEFINED ENV{ANDROID_NDK})
+if (NOT DEFINED ENV{ANDROID_STANDALONE_TOOLCHAIN})
+  if(WITH_EMU)
+	if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/SoftCam.Key)
+		execute_process(COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/SoftCam.Key ${CMAKE_CURRENT_BINARY_DIR}/SoftCam.Key)
+	else(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/SoftCam.Key)
+		execute_process(COMMAND touch ${CMAKE_CURRENT_BINARY_DIR}/SoftCam.Key)
+	endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/SoftCam.Key)
+	#execute_process(COMMAND mkdir ${CMAKE_CURRENT_BINARY_DIR}/utils)
+	#execute_process(COMMAND touch ${CMAKE_CURRENT_BINARY_DIR}/utils/SoftCam.Key)
+	set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default" ) 
+ endif(WITH_EMU)
+endif (NOT DEFINED ENV{ANDROID_STANDALONE_TOOLCHAIN})
+endif (NOT DEFINED ENV{ANDROID_NDK})
+endif (NOT OSCamOperatingSystem MATCHES "Mac OS X")
+
 #----------------------- installation -----------------------------
 
 file (GLOB config_files "${CMAKE_CURRENT_SOURCE_DIR}/Distribution/oscam.*")
@@ -818,5 +845,9 @@ endif(STATIC_LIBUSB EQUAL 1)
    endif(LIBUSBDIR AND STATIC_LIBUSB EQUAL 0)
  endif(STATICLIBUSB AND NOT LIBUSBDIR)
 endif (HAVE_LIBUSB)
+
+if (WITH_EMU)
+	message(STATUS "  Compile with EMU support")
+endif (WITH_EMU)
 
 message (STATUS "")

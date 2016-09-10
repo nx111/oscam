@@ -356,7 +356,7 @@ static void desRound(unsigned char left[], unsigned char right[], unsigned char 
 	swap(data - 4, data);
 }
 
-static void nc_des(unsigned char key[], unsigned char mode, unsigned char data[])
+void nc_des(unsigned char key[], unsigned char mode, unsigned char data[])
 {
 	unsigned char i;
 	unsigned char left[8];
