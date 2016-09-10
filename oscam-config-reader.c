@@ -225,6 +225,22 @@ static void boxid_fn(const char *token, char *value, void *setting, FILE *f)
 		{ fprintf_conf(f, token, "\n"); }
 }
 
+#ifdef READER_TONGFANG
+static void tongfang3_calibsn_fn(const char *token, char *value, void *setting, FILE *f)
+{
+	struct s_reader *rdr = setting;
+	if(value)
+	{
+		rdr->tongfang3_calibsn = strlen(value) ? a2i(value, 4) : 0;
+		return;
+	}
+	if(rdr->tongfang3_calibsn)
+		fprintf_conf(f, token, "%08X\n", rdr->tongfang3_calibsn);
+	else if(cfg.http_full_cfg)
+		{ fprintf_conf(f, token, "\n"); }
+}
+#endif
+
 static void rsakey_fn(const char *token, char *value, void *setting, FILE *f)
 {
 	struct s_reader *rdr = setting;
@@ -834,6 +850,9 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_FUNC("caid"                 , OFS(ctab),                    reader_caid_fn),
 	DEF_OPT_FUNC("atr"                  , 0,                            atr_fn),
 	DEF_OPT_FUNC("boxid"                , 0,                            boxid_fn),
+#ifdef  READER_TONGFANG
+	DEF_OPT_FUNC("tongfang3_calibsn"    , 0,                            tongfang3_calibsn_fn),
+#endif
 	DEF_OPT_FUNC("boxkey"               , 0,                            boxkey_fn),
 	DEF_OPT_FUNC("rsakey"               , 0,                            rsakey_fn),
 	DEF_OPT_FUNC("deskey"               , 0,                            deskey_fn),
