@@ -811,6 +811,8 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_INT32("reconnecttimeout"    , OFS(tcp_rto),                 DEFAULT_TCP_RECONNECT_TIMEOUT),
 	DEF_OPT_INT32("reconnectdelay"		, OFS(tcp_reconnect_delay),		60000),
 	DEF_OPT_INT32("resetcycle"          , OFS(resetcycle),              0),
+	DEF_OPT_INT32("autorestartseconds"  , OFS(autorestartseconds),      0),
+	DEF_OPT_INT8("restartforresetcycle" , OFS(restartforresetcycle),    0),
 	DEF_OPT_INT8("disableserverfilter"  , OFS(ncd_disable_server_filt), 0),
 	DEF_OPT_INT8("connectoninit"        , OFS(ncd_connect_on_init),     0),
 	DEF_OPT_UINT8("keepalive"           , OFS(keepalive),               0),

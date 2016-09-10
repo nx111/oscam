@@ -477,7 +477,12 @@ number of ECMs with "not found" answer until the reader will be restarted, 0 = n
 .PP
 \fBresetcycle\fP = \fBcount\fP
 .RS 3n
-number of ECMs until SC reset is performed, 0 = disabled, valid for physical readers only, default:0
+number of ECMs until reader reset is performed, 0 = disabled, default:0
+.RE
+.PP
+\fBrestartforresetcycle\fP = \fB0|1\fP
+.RS 3n
+restart instead of reset for resetcycle, default:0
 .RE
 .PP
 \fBratelimitseconds\fP = \fBseconds\fP

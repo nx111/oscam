@@ -358,7 +358,10 @@ DESCRIPTIONS
 	  number of ECMs with "not found" answer until the reader will be restarted, 0 = no limit, default:0
 
        resetcycle = count
-	  number of ECMs until SC reset is performed, 0 = disabled, valid for physical readers only, default:0
+	  number of ECMs until reader reset is performed, 0 = disabled, default:0
+
+       restartforresetcycle = 0|1
+	  restart instead of reset for resetcycle, default:0
 
        ratelimitseconds = seconds
 	  interval for rate limit, default:0
@@ -431,6 +434,9 @@ DESCRIPTIONS
 
 	   example: readnano = write.emm
 		    readnano = /var/oscam/write.emm
+
+       autorestartseconds = seconds
+          force restart reader after seconds,default 0 disabled.
 
        dropbadcws = 0|1
 	  1 = reject bad CWs, send "not found" instead of bad CWs, default:0

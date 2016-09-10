@@ -1369,6 +1369,17 @@ static void *reader_check(void)
 		{
 			if(!cl->thread_active)
 				{ client_check_status(cl); }
+			rdr=cl->reader;
+			if (rdr && rdr->autorestartseconds
+			    && (cl->login + (time_t)rdr->autorestartseconds) < time(NULL)){
+				if(rdr->enable){
+					rdr->enable=0;
+					kill_thread(cl);
+					cs_sleepms(cfg.reader_restart_seconds * 1000);
+				}
+				rdr->enable=1;
+				restart_cardreader(rdr, 1);
+			}
 		}
 		cs_readlock(__func__, &readerlist_lock);
 		for(rdr = first_active_reader; rdr; rdr = rdr->next)

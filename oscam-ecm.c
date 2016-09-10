@@ -1755,8 +1755,12 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 			{
 				reader->resetcounter = 0;
 				rdr_log(reader, "Resetting reader, resetcyle of %d ecms reached", reader->resetcycle);
-				reader->card_status = CARD_NEED_INIT;
-				cardreader_reset(cl);
+				if(reader->restartforresetcycle == 0){
+					reader->card_status = CARD_NEED_INIT;
+					cardreader_reset(cl);
+				}else{
+					add_job(cl, ACTION_READER_RESTART, NULL, 0);
+				}
 			}
 		}
 	}
