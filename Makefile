@@ -65,6 +65,13 @@ STRIP = $(CROSS_DIR)$(CROSS)strip
 
 LDFLAGS = -Wl,--gc-sections
 
+TARGETHELP := $(shell $(CC) --target-help)
+ifneq (,$(findstring sse2,$(TARGETHELP)))
+override CFLAGS += -fexpensive-optimizations -mmmx -msse -msse2 -msse3
+else
+override CFLAGS += -fexpensive-optimizations
+endif
+
 # The linker for powerpc have bug that prevents --gc-sections from working
 # Check for the linker version and if it matches disable --gc-sections
 # For more information about the bug see:
