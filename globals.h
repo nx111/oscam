@@ -2034,6 +2034,7 @@ struct s_config
 #endif
 	int8_t          http_full_cfg;
 	int8_t          http_overwrite_bak_file;
+	int32_t         http_utf8;
 	int32_t         failbantime;
 	int32_t         failbancount;
 	LLIST           *v_list;                        // Failban list

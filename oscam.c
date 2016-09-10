@@ -334,7 +334,7 @@ static void parse_cmdline_params(int argc, char **argv)
 			if(config_enabled(WEBIF))
 			{
 				cs_http_use_utf8 = 1;
-				printf("WARNING: Web interface UTF-8 mode enabled. Carefully read documentation as bugs may arise.\n");
+//				printf("WARNING: Web interface UTF-8 mode enabled. Carefully read documentation as bugs may arise.\n");
 			}
 			break;
 		case 'V': // --build-info

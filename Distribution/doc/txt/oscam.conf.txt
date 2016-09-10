@@ -369,6 +369,9 @@ DESCRIPTIONS
        httprefresh = seconds
 	  status refresh in seconds, default:none
 
+       httputf8 = 0|1
+	  1 = webif http use utf8 charset,default:0
+
        httphideidleclients = 0|1
 	  1 = enables hiding clients after idle time set in parameter hideclient_to, default:0
 

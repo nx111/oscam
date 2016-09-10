@@ -16,6 +16,7 @@
 #define DEFAULT_HTTP_PORT   8888
 #define DEFAULT_HTTP_ALLOW  "127.0.0.1,192.168.0.0-192.168.255.255,10.0.0.0-10.255.255.255,::1"
 
+extern uint8_t cs_http_use_utf8;
 static void disablelog_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
 {
 	if(value)
@@ -503,6 +504,17 @@ static void http_dyndns_fn(const char *token, char *value, void *UNUSED(setting)
 	}
 }
 
+static void http_utf8_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
+{
+	if(value)
+	{
+		cfg.http_utf8 = strtoul(value, NULL, 10);
+		cs_http_use_utf8 = cfg.http_utf8;
+		return;
+	}
+	fprintf(f, token, "%d\n",cfg.http_utf8);
+}
+
 static bool webif_should_save_fn(void *UNUSED(var))
 {
 	return cfg.http_port;
@@ -548,6 +560,7 @@ static const struct config_list webif_opts[] =
 	DEF_OPT_INT32("httpemmuclean"           , OFS(http_emmu_clean),         256),
 	DEF_OPT_INT32("httpemmsclean"           , OFS(http_emms_clean),         -1),
 	DEF_OPT_INT32("httpemmgclean"           , OFS(http_emmg_clean),         -1),
+	DEF_OPT_FUNC("httputf8"                 , OFS(http_utf8),                http_utf8_fn),
 #ifdef WEBIF_LIVELOG
  	DEF_OPT_INT8("http_status_log"          , OFS(http_status_log),         0),
 #else
