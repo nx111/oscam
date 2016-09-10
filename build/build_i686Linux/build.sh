@@ -49,7 +49,7 @@ rm -rf $ROOT/build/.tmp/*
 [ "${TOOLCHAIN_STAGE}" = "" ] && TOOLCHAIN_STAGE=$(dirname $ROOT)/toolchains
 if [ ! -f ${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/bin/$TOOLCHAIN-gcc ]; then
 	echo "Not found $TOOLCHAIN-gcc..."
-	exit -1
+	exit
 fi
 ##################################################################
 cd $ROOT/build/.tmp
@@ -67,7 +67,11 @@ if [ "$base" != "1" ]; then
 	  -DLIBUSBDIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN/sysroot/usr \
 	  -DLIBRTDIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN/sysroot/usr \
 	  -DLIBPCSCDIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN/sysroot/usr \
+	  -DLIBSSLDIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN/sysroot/usr \
+	  -DLIBCRYPTODIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN/sysroot/usr \
 	  -DWITH_SSL=1\
+	  -DSTATIC_LIBCRYPTO=1\
+	  -DSTATIC_LIBSSL=1\
 	  -DSTATIC_LIBUSB=1\
 	  --clean-first\
 	  -DWEBIF=1 $ROOT
