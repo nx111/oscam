@@ -696,7 +696,12 @@ do
 		break
 	;;
 	'-r'|'--oscam-revision')
-		(svnversion -n . 2>/dev/null || printf 0) | sed 's/.*://; s/[^0-9]*$//; s/^$/0/'
+		revision=`(svnversion -n . 2>/dev/null || printf 0) | sed 's/.*://; s/[^0-9]*$//; s/^$/0/'`
+		if [ "$revision" = "" -o "$revision" = "0" ]; then
+			git log  | grep git-svn-id | sed -n 1p | cut -d@ -f2 | cut -d' ' -f1
+		else
+			echo $revision
+		fi
 		break
 	;;
 	'-O'|'--detect-osx-sdk-version')
