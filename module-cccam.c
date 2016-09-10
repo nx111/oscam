@@ -1394,7 +1394,7 @@ struct cc_card *get_matching_card(struct s_client *cl, ECM_REQUEST *cur_er, int8
 				struct cc_provider *provider;
 				while((provider = ll_iter_next(&it2)))
 				{
-					if(!cur_er->prid || (provider->prov == cur_er->prid))    // provid matches
+					if(!cur_er->prid || !provider->prov || (provider->prov == cur_er->prid))    // provid matches
 					{
 						if(rating  > best_rating)
 						{
