@@ -706,6 +706,9 @@ DESCRIPTIONS
        cccamcfgfile = filename
 	  enable to read reader from CCcam Config File filename,default to NULL string.
 
+       autosidblock = value
+          enable to add sevice to block list when service is not ok,default to 1.
+
        recv_timeout = milli-seconds
 	  set network timeout for receiving data, default:2000
 

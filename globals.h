@@ -2084,6 +2084,7 @@ struct s_config
 	int8_t          cc_reshare_services;
 	int8_t          cc_forward_origin_card;
 	uint8_t         cc_fixed_nodeid[8];
+	int8_t		cc_autosidblock;
 	char		*cc_cfgfile;	//cccam.cfg file path
 	uint32_t        cc_recv_timeout;                // The poll() timeout parameter in ms. Default: DEFAULT_CC_RECV_TIMEOUT (2000 ms).
 #endif
