@@ -64,7 +64,8 @@ static void azbox_openxcas_ecm_callback(int32_t stream_id, uint32_t UNUSED(seq),
 	tp.time += 500;
 }
 
-
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic ignored "-Wunused-function"
 static void azbox_openxcas_ex_callback(int32_t stream_id, uint32_t seq, int32_t idx, uint32_t pid, unsigned char *ecm_data, int32_t l)
 {
 	cs_log_dbg(D_DVBAPI, "ex callback received");
@@ -110,6 +111,7 @@ static void azbox_openxcas_ex_callback(int32_t stream_id, uint32_t seq, int32_t 
 	else
 		{ cs_log_dbg(D_DVBAPI, "ex filter started, pid = %x", openxcas_ecm_pid); }
 }
+#pragma GCC diagnostic push
 
 static void *azbox_main_thread(void *cli)
 {
