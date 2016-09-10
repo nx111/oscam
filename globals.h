@@ -626,7 +626,7 @@ enum {E2_GLOBAL = 0, E2_GROUP, E2_CAID, E2_IDENT, E2_CLASS, E2_CHID, E2_QUEUE, E
 // Return MPEG section length
 #define SCT_LEN(sct) (3+((sct[1]&0x0f)<<8)+sct[2])
 // Used by readers
-#define MAX_LEN      256
+#define MAX_LEN      (512+3)
 
 #define NO_CAID_VALUE  0xfffe
 #define NO_PROVID_VALUE  0xfffffe
