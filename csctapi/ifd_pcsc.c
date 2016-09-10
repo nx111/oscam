@@ -59,7 +59,10 @@ static int32_t pcsc_init(struct s_reader *pcsc_reader)
 	if(rv == SCARD_S_SUCCESS)
 	{
 		if(!cs_malloc(&pcsc_reader->crdr_data, sizeof(struct pcsc_data)))
-			{ return ERROR; }
+		{
+			SCardReleaseContext(hContext);
+			return ERROR;
+		}
 		struct pcsc_data *crdr_data = pcsc_reader->crdr_data;
 		crdr_data->hContext = hContext;
 
@@ -70,15 +73,20 @@ static int32_t pcsc_init(struct s_reader *pcsc_reader)
 		if(rv != SCARD_S_SUCCESS)
 		{
 			rdr_log_dbg(pcsc_reader, D_DEVICE, "PCSC failed listing readers [1] : (%lx)", (unsigned long)rv);
+			SCardReleaseContext(hContext);
 			return ERROR;
 		}
 		if(!cs_malloc(&mszReaders, dwReaders))
-			{ return ERROR; }
+		{
+			SCardReleaseContext(hContext);
+			return ERROR;
+		}
 		rv = SCardListReaders(crdr_data->hContext, NULL, mszReaders, &dwReaders);
 		if(rv != SCARD_S_SUCCESS)
 		{
 			rdr_log_dbg(pcsc_reader, D_DEVICE, "PCSC failed listing readers [2]: (%lx)", (unsigned long)rv);
 			NULLFREE(mszReaders);
+			SCardReleaseContext(hContext);
 			return ERROR;
 		}
 		/* Extract readers from the null separated string and get the total
@@ -96,12 +104,14 @@ static int32_t pcsc_init(struct s_reader *pcsc_reader)
 		{
 			rdr_log(pcsc_reader, "PCSC : no pcsc_reader found");
 			NULLFREE(mszReaders);
+			SCardReleaseContext(hContext);
 			return ERROR;
 		}
 
 		if(!cs_malloc(&readers, nbReaders * sizeof(char *)))
 		{
 			NULLFREE(mszReaders);
+			SCardReleaseContext(hContext);
 			return ERROR;
 		}
 
@@ -134,13 +144,14 @@ static int32_t pcsc_init(struct s_reader *pcsc_reader)
 			NULLFREE(mszReaders);
 			NULLFREE(readers);
 			NULLFREE(device_line);
+			SCardReleaseContext(hContext);
 			return ERROR;
 		}
 
 		if (readers)
 		{
-		snprintf(crdr_data->pcsc_name, sizeof(crdr_data->pcsc_name), "%s", readers[reader_nb]);
-		NULLFREE(readers);
+			snprintf(crdr_data->pcsc_name, sizeof(crdr_data->pcsc_name), "%s", readers[reader_nb]);
+			NULLFREE(readers);
 		}
 		NULLFREE(mszReaders);
 		NULLFREE(device_line);
@@ -354,6 +365,9 @@ static int32_t pcsc_get_status(struct s_reader *reader, int32_t *in)
 static int32_t pcsc_close(struct s_reader *pcsc_reader)
 {
 	struct pcsc_data *crdr_data = pcsc_reader->crdr_data;
+	if(crdr_data == NULL){
+		return OK;
+	}
 	rdr_log_dbg(pcsc_reader, D_IFD, "PCSC : Closing device %s", pcsc_reader->device);
 	SCardDisconnect(crdr_data->hCard, SCARD_LEAVE_CARD);
 	SCardReleaseContext(crdr_data->hContext);
