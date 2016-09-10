@@ -37,6 +37,9 @@ extern int32_t exit_oscam;
 #define DN_MULTISHOT 0
 #endif
 
+int32_t priority_is_changed=0;
+extern char cs_confdir[];
+
 const char *streamtxt_00_to_1B[] = {
 								"Reserved",			 																		// 00
 								"Videostream (MPEG-1)",																		// 01
@@ -126,7 +129,6 @@ const char *get_streamtxt(uint8_t id)
 		return "Reserved";
 	}
 }
-
 
 void flush_read_fd(int32_t demux_index, int32_t num, int fd)
 {
@@ -2151,6 +2153,7 @@ int32_t dvbapi_start_descrambling(int32_t demux_id, int32_t pid, int8_t checked)
 		dvbapi_edit_channel_cache(demux_id, pid, 0); // remove this pid from channelcache
 	}
 	if(!fake_ecm) { NULLFREE(er); }
+	dvbapi_adjust_prioritytab(demux_id);
 	return started;
 }
 
@@ -2348,8 +2351,9 @@ void dvbapi_read_priority(void)
 			return;
 		}
 
-		entry->type = type;
-		entry->next = NULL;
+		entry->type=type;
+		entry->last=NULL;
+		entry->next=NULL;
 
 		count++;
 
@@ -2495,6 +2499,129 @@ void dvbapi_read_priority(void)
 	if(ret < 0) { cs_log("ERROR: Could not close oscam.dvbapi fd (errno=%d %s)", errno, strerror(errno)); }
 	return;
 }
+
+void dvbapi_write_prio(void) {
+	FILE *fp;
+	char token[128];
+
+	const char *cs_prio="oscam.dvbapi";
+
+	if(!priority_is_changed || !dvbapi_priority )return;
+
+	snprintf(token, 127, "%s%s", cs_confdir, cs_prio);
+	fp=fopen(token, "w");
+
+	if (!fp) {
+		cs_log("can't open priority file %s to write", token);
+		return;
+	}
+	struct s_dvbapi_priority *p;
+	for (p=dvbapi_priority; p != NULL;p=p->next) {
+#ifdef WITH_STAPI
+		if(p->type == 's'){
+			fprintf(fp,"%c: %s";p->type,p->devname);
+			if(p->pmtfile[0])
+				fprintf(fp," %s",p->pmtfile);
+			if(p->disablefilter)
+				fprintf(fp," %d",p->disablefilter);
+			fprintf(fp,"\n");
+			continue;
+		}
+#endif
+
+		fprintf(fp,"%c: %04X",p->type,p->caid);
+		int loop=0;
+		for(loop=0;loop<1;loop++){
+			if(p->provid == 0xFFFFFF)continue;
+			fprintf(fp,":%06X",p->provid);
+			if(p->ecmpid==0)continue;
+			fprintf(fp,":%04X",p->ecmpid);
+			if(p->srvid == 0)continue;
+			fprintf(fp,":%04X",p->srvid);
+			if(p->chid)
+				fprintf(fp,":%04X",p->chid);
+		}
+
+		switch (p->type) {
+			case 'd':
+				if(p->delay)
+					fprintf(fp," %4x",p->delay);
+				break;
+			case 'l':
+				if(p->delay)
+					fprintf(fp, " %4d", p->delay);
+				break;
+			case 'p':
+				if(p->force)
+					fprintf(fp, " %1d:%1d", p->force,p->pidx - 1);
+				break;
+			case 'm':
+				if(p->mapcaid || p->mapprovid)
+					fprintf(fp, " %04X:%06X", p->mapcaid, p->mapprovid);
+				break;
+		}
+		fprintf(fp,"\n");
+	}
+	fclose(fp);
+}
+
+void dvbapi_cleanup(struct s_client* UNUSED(cl)){
+	dvbapi_write_prio();
+}
+
+void dvbapi_adjust_prioritytab(int32_t demux_index){
+	int32_t n;
+	int8_t k,idx;
+	bool skip_this_entry;
+	struct s_dvbapi_priority *p;
+
+	if (demux[demux_index].ECMpidcount <= 1)
+		return;
+
+	for (n=0;n<demux[demux_index].ECMpidcount;n++){
+		p=dvbapi_check_prio_match(demux_index,n,'p');
+
+		skip_this_entry=true;
+		for(k = 0; k < demux[demux_index].STREAMpidcount; k++)
+		{
+			idx = demux[demux_index].ECMpids[n].useMultipleIndices ? demux[demux_index].ECMpids[n].index[k] : demux[demux_index].ECMpids[n].index[0];
+			if (idx > 0){
+				skip_this_entry = false;
+				break;
+			}
+		}
+
+		if(skip_this_entry && p != NULL){
+			if(p->last)
+				p->last->next=p->next;
+			if(p->next)
+				p->next->last=p->last;
+			free(p);
+			priority_is_changed = 1;
+		}
+		else if(!skip_this_entry && p == NULL){
+			struct s_dvbapi_priority *entry = malloc(sizeof(struct s_dvbapi_priority));
+			memset(entry, 0, sizeof(struct s_dvbapi_priority));
+			entry->type='p';
+			entry->caid=demux[demux_index].ECMpids[n].CAID;
+			entry->provid=demux[demux_index].ECMpids[n].PROVID;
+
+			entry->last=NULL;
+			entry->next=NULL;
+			if (!dvbapi_priority) {
+				dvbapi_priority=entry;
+			} else {
+				for (p = dvbapi_priority; p->next != NULL; p = p->next);
+				entry->last=p;
+				p->next = entry;
+			}
+
+			priority_is_changed = 1;
+		}
+	}
+
+}
+
 
 void dvbapi_resort_ecmpids(int32_t demux_index)
 {
@@ -7357,6 +7484,7 @@ void module_dvbapi(struct s_module *ph)
 	ph->desc = "dvbapi";
 	ph->type = MOD_CONN_SERIAL;
 	ph->listenertype = LIS_DVBAPI;
+	ph->cleanup = dvbapi_cleanup;
 #if defined(WITH_AZBOX)
 	ph->s_handler = azbox_handler;
 	ph->send_dcw = azbox_send_dcw;
