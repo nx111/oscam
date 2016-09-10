@@ -1715,7 +1715,7 @@ void dvbapi_parse_cat(int32_t demux_id, uchar *buf, int32_t len)
 			case 0x27:
 			case 0x4A:
 				
-				if(caid_is_bulcrypt(caid))
+				if(caid_is_bulcrypt(caid) || caid_is_streamguard(caid))
 				{
 					dvbapi_add_emmpid(demux_id, caid, emm_pid, 0, 0, EMM_UNIQUE | EMM_SHARED | EMM_GLOBAL);
 					break;
@@ -6597,7 +6597,7 @@ int32_t dvbapi_set_section_filter(int32_t demux_index, ECM_REQUEST *er, int32_t 
 			offset = 11;
 			break; // videoguard
 		case 0x4A:  // DRE-Crypt, Bulcrypt,Tongang and others?
-			if(!caid_is_bulcrypt(er->caid))
+			if(!caid_is_bulcrypt(er->caid) && !caid_is_streamguard(er->caid))
 				{ offset = 6; }
 			break;
 		}

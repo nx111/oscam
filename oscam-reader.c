@@ -534,7 +534,7 @@ bool hexserialset(struct s_reader *rdr)
 
 void hexserial_to_newcamd(uchar *source, uchar *dest, uint16_t caid)
 {
-	if(caid_is_bulcrypt(caid))
+	if(caid_is_bulcrypt(caid) || caid_is_streamguard(caid))
 	{
 		dest[0] = 0x00;
 		dest[1] = 0x00;
@@ -566,7 +566,7 @@ void hexserial_to_newcamd(uchar *source, uchar *dest, uint16_t caid)
 
 void newcamd_to_hexserial(uchar *source, uchar *dest, uint16_t caid)
 {
-	if(caid_is_bulcrypt(caid))
+	if(caid_is_bulcrypt(caid) || caid_is_streamguard(caid))
 	{
 		memcpy(dest, source + 2, 4);
 		dest[4] = 0x00;
