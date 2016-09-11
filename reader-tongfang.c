@@ -454,16 +454,28 @@ static int32_t tongfang_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 static int32_t tongfang_card_info(struct s_reader *reader)
 {
 	static const uchar get_provider_cmd[] = {0x80, 0x44, 0x00, 0x00, 0x08};
+	static const uchar get_agegrade_cmd[] = {0x80, 0x46, 0x00, 0x00, 0x04, 0x03, 0x00, 0x00, 0x09};
 	def_resp;
 	int32_t i;
+	uchar data[256];
+	uint16_t status = 0;
 
 	write_cmd(get_provider_cmd, NULL);
 	if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)) { return ERROR; }
 
 	for(i = 0; i < 4; i++)
 	{
-		rdr_log(reader, "Provider:%02x%02x", cta_res[i * 2], cta_res[i * 2 + 1]);
+		if((cta_res[i*2]!=0)||(cta_res[i*2+1]!=0))
+			rdr_log(reader, "Provider:%02x%02x", cta_res[i * 2], cta_res[i * 2 + 1]);
 	}
+	write_cmd(get_agegrade_cmd, get_agegrade_cmd + 5);
+	if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)) { return OK; }
+
+	tongfang_read_data(reader, cta_res[cta_lr - 1], data, &status);
+	if(status != 0x9000) { return OK; }
+
+	rdr_log(reader, "AgeGrade:%d", (data[0] + 3));
+
 	return OK;
 }
 
