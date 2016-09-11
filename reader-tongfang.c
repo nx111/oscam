@@ -1,19 +1,11 @@
 #include "globals.h"
 #ifdef READER_TONGFANG
 #include "reader-common.h"
-
-void tongfang3_transfer(uchar* lpSrc, uchar* lpDest, uchar* lpTable);
-void tongfang3_keygenerate(uchar* lpKeyIn, uchar* lpKeySub, int nCount);
-void tongfang3_dtob(uchar Data, uchar* lpResult);
-void tongfang3_circle(uchar* lpBuf, int nLength);	// to complete left circel shift 1 bit per time
-void tongfang3_des_algo(uchar* lpSrc, uchar* lpDest, uchar* lpKey, bool bEncrypt);
-void tongfang3_s_change(uchar* lpBuf);
-void tongfang3_str_xor(uchar* lpSrc, uchar* lpDest, int nLen);
-uint32_t tongfang3_get_true_calibsn(uint32_t value);
-
+#include "cscrypt/des.h"
 
 static const uint32_t  tongfang3_calibsn=2991124752UL;	//B248F110<=;
 
+#if 0
 static uchar tongfang3_keyblock[96] =
 {
 	0xed,0x44,0x1d,0x92,0xef,0x17,0x2f,0xee,
@@ -30,69 +22,6 @@ static uchar tongfang3_keyblock[96] =
 	0x54,0x4c,0x74,0x54,0xcb,0x27,0xd2,0x52,
 };
 
-void tongfang3_transfer(uchar* lpSrc, uchar* lpDest, uchar* lpTable)
-{
-	int nTableLength, i;
-
-	nTableLength = 0;
-	while( lpTable[ nTableLength ] != 255 )
-		nTableLength++;
-
-	for( i = 0; i < nTableLength; i++ )
-	{
-		lpDest[ i ] = lpSrc[ lpTable[ i ] ];
-	}
-}
-
-void tongfang3_keygenerate(uchar* lpKeyIn, uchar* lpKeySub, int nCount)
-{
-	uchar Buffer[ 56 ];
-	uchar C0[ 28 ];
-	uchar D0[ 28 ];
-	int i;
-
-	uchar shift[] = {
-		1,  2,  4,  6,  8, 10, 12, 14, 15, 17, 19, 21, 23, 25, 27, 28
-	};
-
-	uchar PC_1[] = {
-		56, 48, 40, 32, 24, 16,  8,  0, 57, 49, 41, 33, 25, 17,
-		 9,  1, 58, 50, 42, 34, 26, 18, 10,  2, 59, 51, 43, 35,
-		62, 54, 46, 38, 30, 22, 14,  6, 61, 53, 45, 37, 29, 21,
-		13,  5, 60, 52, 44, 36, 28, 20, 12,  4, 27, 19, 11,  3,
-	       255
-	};
-
-	uchar PC_2[] = {
-		13, 16, 10, 23,  0,  4,  2, 27, 14,  5, 20,  9, 22, 18, 11,  3,
-		25,  7, 15,  6, 26, 19, 12,  1, 40, 51, 30, 36, 46, 54, 29, 39,
-		50, 44, 32, 47, 43, 48, 38, 55, 33, 52, 45, 41, 49, 35, 28, 31,
-		255
-	};
-
-	tongfang3_transfer( lpKeyIn, Buffer, PC_1 );
-
-	for( i = 0; i < 28; i++ )
-	{
-		C0[ i ] = Buffer[ i ];
-		D0[ i ] = Buffer[ i + 28 ];
-	}
-
-	for( i = 0; i < shift[ nCount ]; i++ )
-	{
-		tongfang3_circle( C0, 28 );
-		tongfang3_circle( D0, 28 );
-	}
-
-	for ( i = 0; i < 28; i++ )
-	{
-		Buffer[ i ] = C0[ i ];
-		Buffer[ i + 28 ] = D0[ i ];
-	}
-
-	tongfang3_transfer( Buffer, lpKeySub, PC_2 );
-}
-
 void tongfang3_keygenerate_ex(uchar* KeyBlock, uchar* lpKeySub, int nCount)
 {
 	int i = 0;
@@ -103,338 +32,6 @@ void tongfang3_keygenerate_ex(uchar* KeyBlock, uchar* lpKeySub, int nCount)
 	}
 }
 
-
-void tongfang3_dtob(uchar Data, uchar* lpResult)
-{
-	int i;
-
-	for( i = 0; i < 8; i++ )
-	{
-		lpResult[ i ] = 0;
-		if( Data & 0x80 )
-		  lpResult[ i ] = 1;
-		Data = Data << 1;
-	}
-}
-
-void tongfang3_circle(uchar* lpBuf, int nLength)	// to complete left circel shift 1 bit per time
-{
-	uchar tmp;
-	int i;
-
-	tmp = lpBuf[ 0 ];
-	for( i = 0; i < nLength - 1; i++ )
-		lpBuf[ i ] = lpBuf[ i + 1 ];
-	lpBuf[ nLength - 1 ] = tmp;
-}
-
-void tongfang3_des_algo(uchar* lpSrc, uchar* lpDest, uchar* lpKey, bool bEncrypt)
-{
-	uchar SubKey[ 48 ];
-	uchar Tmp[ 32 ];
-	uchar Buffer[ 48 ];
-	uchar Left[ 32 ];
-	uchar Right[ 32 ];
-	int i;
-	uchar IP[] = {
-		57, 49, 41, 33, 25, 17,  9,  1, 59, 51, 43, 35, 27, 19, 11,  3,
-		61, 53, 45, 37, 29, 21, 13,  5, 63, 55, 47, 39, 31, 23, 15,  7,
-		56, 48, 40, 32, 24, 16,  8,  0, 58, 50, 42, 34, 26, 18, 10,  2,
-		60, 52, 44, 36, 28, 20, 12,  4, 62, 54, 46, 38, 30, 22, 14,  6,
-		255
-	};
-
-	uchar IP_1[] = {
-		39,  7, 47, 15, 55, 23, 63, 31, 38,  6, 46, 14, 54, 22, 62, 30,
-		37,  5, 45, 13, 53, 21, 61, 29, 36,  4, 44, 12, 52, 20, 60, 28,
-		35,  3, 43, 11, 51, 19, 59, 27, 34,  2, 42, 10, 50, 18, 58, 26,
-		33,  1, 41,  9, 49, 17, 57, 25, 32,  0, 40,  8, 48, 16, 56, 24,
-		255
-	};
-
-	uchar E[] = {
-		31,  0,  1,  2,  3,  4,  3,  4,  5,  6,  7,  8,  7,  8,  9, 10,
-		11, 12,	11, 12, 13, 14, 15, 16, 15, 16, 17, 18, 19, 20, 19, 20,
-		21, 22, 23, 24,	23, 24, 25, 26, 27, 28, 27, 28, 29, 30, 31,  0,
-		255
-	};
-
-	uchar P[] = {
-		15,  6, 19, 20, 28, 11, 27, 16,  0, 14, 22, 25,  4, 17, 30,  9,
-		 1,  7, 23, 13, 31, 26,  2,  8, 18, 12, 29,  5, 21, 10,  3, 24,
-		255
-	};
-
-	tongfang3_transfer( lpSrc, lpDest, IP );
-
-	for( i = 0; i < 32; i++ )
-	{
-		Left[ i ] = lpDest[ i ];
-		Right[ i ] = lpDest[ i + 32 ];
-	}
-
-	for( i = 0; i < 16; i++ )
-	{
-		if( bEncrypt )
-		  tongfang3_keygenerate( lpKey, SubKey, i );
-		else
-		  tongfang3_keygenerate( lpKey, SubKey, 15 - i );
-		memcpy( Tmp,Right,32 );
-
-		tongfang3_transfer( Right, Buffer, E );
-		tongfang3_str_xor( SubKey, Buffer, 48 );
-		tongfang3_s_change( Buffer );
-		tongfang3_transfer( Buffer, Right, P );
-
-		tongfang3_str_xor( Left, Right, 32 );
-		memcpy( Left, Tmp, 32 );
-	}
-
-	for( i = 0; i < 32; i++ )
-	{
-		lpSrc[ i ] = Right[ i ];
-		lpSrc[ 32 + i ] = Left[ i ];
-	}
-
-	tongfang3_transfer( lpSrc, lpDest, IP_1 );
-}
-
-
-
-void tongfang3_des_algo_ex(uchar* lpSrc, uchar* lpDest, uchar* KeyBlock, int bEncrypt)
-{
-	uchar SubKey[ 48 ];
-	uchar Tmp[ 32 ];
-	uchar Buffer[ 48 ];
-	uchar Left[ 32 ];
-	uchar Right[ 32 ];
-	int i;
-	uchar IP[] = {
-		57, 49, 41, 33, 25, 17,  9,  1, 59, 51, 43, 35, 27, 19, 11,  3,
-		61, 53, 45, 37, 29, 21, 13,  5, 63, 55, 47, 39, 31, 23, 15,  7,
-		56, 48, 40, 32, 24, 16,  8,  0, 58, 50, 42, 34, 26, 18, 10,  2,
-		60, 52, 44, 36, 28, 20, 12,  4, 62, 54, 46, 38, 30, 22, 14,  6,
-		255
-	};
-
-	uchar IP_1[] = {
-		39,  7, 47, 15, 55, 23, 63, 31, 38,  6, 46, 14, 54, 22, 62, 30,
-		37,  5, 45, 13, 53, 21, 61, 29, 36,  4, 44, 12, 52, 20, 60, 28,
-		35,  3, 43, 11, 51, 19, 59, 27, 34,  2, 42, 10, 50, 18, 58, 26,
-		33,  1, 41,  9, 49, 17, 57, 25, 32,  0, 40,  8, 48, 16, 56, 24,
-		255
-	};
-
-	uchar E[] = {
-		31,  0,  1,  2,  3,  4,  3,  4,  5,  6,  7,  8,  7,  8,  9, 10,
-		11, 12,	11, 12, 13, 14, 15, 16, 15, 16, 17, 18, 19, 20, 19, 20,
-		21, 22, 23, 24,	23, 24, 25, 26, 27, 28, 27, 28, 29, 30, 31,  0,
-		255
-	};
-
-	uchar P[] = {
-		15,  6, 19, 20, 28, 11, 27, 16,  0, 14, 22, 25,  4, 17, 30,  9,
-		 1,  7, 23, 13, 31, 26,  2,  8, 18, 12, 29,  5, 21, 10,  3, 24,
-		255
-	};
-
-	tongfang3_transfer( lpSrc, lpDest, IP );
-
-	for( i = 0; i < 32; i++ )
-	{
-		Left[ i ] = lpDest[ i ];
-		Right[ i ] = lpDest[ i + 32 ];
-	}
-
-	for( i = 0; i < 16; i++ )
-	{
-		if( bEncrypt )
-			tongfang3_keygenerate_ex( KeyBlock, SubKey, i );
-		else
-			tongfang3_keygenerate_ex( KeyBlock, SubKey, 15 - i );
-
-		memcpy( Tmp, Right, 32 );
-		tongfang3_transfer( Right, Buffer, E );//lpSrc
-		tongfang3_str_xor( SubKey, Buffer, 48 );//lpSrc
-		tongfang3_s_change( Buffer );//lpSrc
-		tongfang3_transfer( Buffer, Right, P );//lpSrc
-		tongfang3_str_xor( Left, Right, 32 );
-		memcpy( Left, Tmp, 32 );
-
-	}
-
-	for( i = 0; i < 32; i++ )
-	{
-		lpSrc[ i ] = Right[ i ];
-		lpSrc[ 32 + i ] = Left[ i ];
-	}
-
-	tongfang3_transfer( lpSrc, lpDest, IP_1 );
-}
-
-
-void tongfang3_s_change(uchar* lpBuf)
-{
-	uchar Src[ 8 ][ 6 ];
-	uchar Dest[ 8 ][ 4 ];
-	int	 i, j;
-	int nAdr;
-
-	uchar S[ 8 ][ 64 ] = {
-		{14,  4, 13,  1,  2, 15, 11,  8,  3, 10,  6, 12,  5,  9,  0,  7,
-		  0, 15,  7,  4, 14,  2, 13,  1, 10,  6, 12, 11,  9,  5,  3,  8,
-		  4,  1, 14,  8, 13,  6,  2, 11, 15, 12,  9,  7,  3, 10,  5,  0,
-		 15, 12,  8,  2,  4,  9,  1,  7,  5, 11,  3, 14, 10,  0,  6, 13
-		},
-
-		{15,  1,  8, 14,  6, 11,  3,  4,  9,  7,  2, 13, 12,  0,  5, 10,
-		  3, 13,  4,  7, 15,  2,  8, 14, 12,  0,  1, 10,  6,  9, 11,  5,
-		  0, 14,  7, 11, 10,  4, 13,  1,  5,  8, 12,  6,  9,  3,  2, 15,
-		 13,  8, 10,  1,  3, 15,  4,  2, 11,  6,  7, 12,  0,  5, 14,  9
-		},
-
-		{10,  0,  9, 14,  6,  3, 15,  5,  1, 13, 12,  7, 11,  4,  2,  8,
-		 13,  7,  0,  9,  3,  4,  6, 10,  2,  8,  5, 14, 12, 11, 15,  1,
-		 13,  6,  4,  9,  8, 15,  3,  0, 11,  1,  2, 12,  5, 10, 14,  7,
-		  1, 10, 13,  0,  6,  9,  8,  7,  4, 15, 14,  3, 11,  5,  2, 12
-		},
-
-		{ 7, 13, 14,  3,  0,  6,  9, 10,  1,  2,  8,  5, 11, 12,  4, 15,
-		 13,  8, 11,  5,  6, 15,  0,  3,  4,  7,  2, 12,  1, 10, 14,  9,
-		 10,  6,  9,  0, 12, 11,  7, 13, 15,  1,  3, 14,  5,  2,  8,  4,
-		  3, 15,  0,  6, 10,  1, 13,  8,  9,  4,  5, 11, 12,  7,  2, 14
-		},
-
-		{ 2, 12,  4,  1,  7, 10, 11,  6,  8,  5,  3, 15, 13,  0, 14,  9,
-		 14, 11,  2, 12,  4,  7, 13,  1,  5,  0, 15, 10,  3,  9,  8,  6,
-		 4,  2,  1, 11, 10, 13,  7,  8, 15,  9, 12,  5,  6,  3,  0, 14,
-		 11,  8, 12,  7,  1, 14,  2, 13,  6, 15,  0,  9, 10,  4,  5,  3
-		},
-
-		{12,  1, 10, 15,  9,  2,  6,  8,  0, 13,  3,  4, 14,  7,  5, 11,
-		 10, 15,  4,  2,  7, 12,  9,  5,  6,  1, 13, 14,  0, 11,  3,  8,
-		  9, 14, 15,  5,  2,  8, 12,  3,  7,  0,  4, 10,  1, 13, 11,  6,
-		  4,  3,  2, 12,  9,  5, 15, 10, 11, 14,  1,  7,  6,  0,  8, 13
-		},
-
-		{ 4, 11,  2, 14, 15,  0,  8, 13,  3, 12,  9,  7,  5, 10,  6,  1,
-		 13,  0, 11,  7,  4,  9,  1, 10, 14,  3,  5, 12,  2, 15,  8,  6,
-		  1,  4, 11, 13, 12,  3,  7, 14, 10, 15,  6,  8,  0,  5,  9,  2,
-		  6, 11, 13,  8,  1,  4, 10,  7,  9,  5,  0, 15, 14,  2,  3, 12
-		},
-
-		{13,  2,  8,  4,  6, 15, 11,  1, 10,  9,  3, 14,  5,  0, 12,  7,
-		  1, 15, 13,  8, 10,  3,  7,  4, 12,  5,  6, 11,  0, 14,  9,  2,
-		  7, 11,  4,  1,  9, 12, 14,  2,  0,  6, 10, 13, 15,  3,  5,  8,
-		  2,  1, 14,  7,  4, 10,  8, 13, 15, 12,  9,  0,  3,  5,  6, 11
-		}
-	};
-
-	for( i = 0; i < 8; i++ )
-		for( j = 0; j < 6; j++ )
-		  Src[ i ][ j ] = lpBuf[ i * 6 + j ];
-
-	for( i = 0; i < 8; i++ )
-	{
-		j = Src[ i ][ 1 ] * 8 + Src[ i ][ 2 ] * 4 + Src[ i ][ 3 ] * 2 + Src[ i ][ 4 ];
-		nAdr = ( Src[ i ][ 0 ] * 2 + Src[ i ][ 5 ] ) * 16 + j;
-		j = S[ i ][ nAdr ];
-		Dest[ i ][ 0 ] = j / 8;
-		j %= 8;
-		Dest[ i ][ 1 ] = j / 4;
-		j %= 4;
-		Dest[ i ][ 2 ] = j / 2;
-		Dest[ i ][ 3 ] = j % 2;
-	}
-
-	for( i = 0; i < 8; i++ )
-		for( j = 0; j < 4; j++ )
-		  lpBuf[ i * 4 + j ] = Dest[ i ][ j ];
-}
-
-void tongfang3_str_xor(uchar* lpSrc, uchar* lpDest, int nLen)
-{
-	int i;
-	for( i = 0; i < nLen; i++ )
-		lpDest[ i ] = ( lpSrc[ i ] + lpDest[ i ] ) % 2;
-}
-
-void tongfang3_des0(bool bEncrypt, uchar* lpSrc, uchar* lpKey, uchar* lpResult)
-{
-	uchar Src[ 64 ];
-	uchar Dest[ 64 ];
-	uchar KeyMain[ 64 ];
-	int  i, j;
-
-	for( i = 0; i < 8; i++ )
-	{
-		tongfang3_dtob( lpSrc[ i ], Src + i * 8 );
-		tongfang3_dtob( lpKey[ i ], KeyMain + i * 8 );
-	}
-
-	tongfang3_des_algo( Src, Dest, KeyMain, bEncrypt );
-
-	for( i = 0; i < 8; i++ )
-	{
-		lpResult[ i ] = 0;
-		for( j = 0; j < 8; j++ )
-		  lpResult[ i ] |= ( 1 << ( 7 - j ) ) * Dest[ 8 * i + j ];
-	}
-
-}
-
-void tongfang3_des0_ex(int bEncrypt, uchar* lpSrc, uchar* KeyBlock, uchar* lpResult)
-{
-	uchar Src[ 64 ];
-	uchar Dest[ 64 ];
-	int  i, j;
-
-	for( i = 0; i < 8; i++ )
-	{
-		tongfang3_dtob( lpSrc[ i ], Src + i * 8 );
-
-	}
-
-	tongfang3_des_algo_ex( Src, Dest, KeyBlock, bEncrypt );
-
-	for( i = 0; i < 8; i++ )
-	{
-		lpResult[ i ] = 0;
-		for( j = 0; j < 8; j++ )
-			lpResult[ i ] |= ( 1 << ( 7 - j ) ) * Dest[ 8 * i + j ];
-	}
-}
-
-void tongfang3_trides0(bool bEncrypt, uchar* lpSrc, uchar* lpKey, uchar* lpResult)
-{
-	uchar Src0[ 8 ];
-	uchar Key0[ 8 ];
-	int i;
-
-	for( i = 0; i < 8; i++ )
-	{
-		Src0[ i ] = lpSrc[ i ];
-		Key0[ i ] = lpKey[ i ];
-	}
-
-	tongfang3_des0( bEncrypt, Src0, Key0, lpResult );
-
-	bEncrypt = !bEncrypt;
-	for( i = 0; i < 8; i++ )
-	{
-		Src0[ i ] = lpResult[ i ];
-		Key0[ i ] = lpKey[ i + 8 ];
-	}
-	tongfang3_des0( bEncrypt, Src0, Key0, lpResult );
-
-	bEncrypt = !bEncrypt;
-	for( i = 0; i < 8; i++ )
-	{
-		Src0[ i ] = lpResult[ i ];
-		Key0[ i ] = lpKey[ i ];
-	}
-	tongfang3_des0( bEncrypt, Src0, Key0, lpResult );
-}
 
 void tongfang3_KeyBlockToKey(uchar* keyBlock, uchar* key)
 {
@@ -490,6 +87,7 @@ void tongfang3_KeyBlockToKey(uchar* keyBlock, uchar* key)
 		  }
 		}
 }
+#endif
 
 //=======main functions===========
 
@@ -540,13 +138,14 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	uchar confirm_commkey_cmd[21] = {0x80, 0x4c, 0x00, 0x00, 0x10};
 	uchar pairing_cmd[200] = {0x80, 0x4c, 0x00, 0x00, 0x04, 0xFF, 0xFF, 0xFF, 0xFF};
 
+	const uchar des_key[8] = {0x24,0x76,0x92,0xec,0x7c,0x02,0xba,0x30};
+
 	uchar data[257];
 	uchar card_id[20];
 	uint16_t status = 0;
 	uchar boxID[] = {0xFF, 0xFF, 0xFF, 0xFF};
-	uchar stbid[16] = {0x01,0x00,0x12,0x34,0x00,0x00,0x00,0x00};
-	uchar zero[16] =  {0};
-	uchar	tongfang3_seed[8];
+	uchar stbid[8] = {0x01,0x00,0x12,0x34,0x00,0x00,0x00,0x00};
+	uchar zero[8] =  {0};
 	int32_t i;
 	uint32_t calibsn=0;
 	int8_t readsize=0;
@@ -585,7 +184,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		//rdr_log(reader, "card serial got.");
 
 		memset(reader->hexserial, 0, 8);
-		memcpy(reader->hexserial + 2, data, 4); // might be incorrect offset
+		memcpy(reader->hexserial + 2, data, 4);
 
 		memset(card_id, 0, sizeof(card_id));
 		memcpy(card_id,data + 4, (readsize-4) > ((int32_t)sizeof(card_id) - 1) ? (int32_t)sizeof(card_id) - 1 : readsize - 5);
@@ -598,7 +197,9 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		rdr_log(reader, "Tongfang3 card detected");
 
 		// get commkey
-		tongfang3_des0_ex(1, zero, tongfang3_keyblock, data);
+		/* tongfang3_KeyBlockToKey(tongfang3_keyblock,des_key); */
+		memcpy(data, zero, sizeof(zero));
+		des_ecb_encrypt(data, des_key, 8);
 		memcpy(get_commkey_cmd+5, data, 8);
 		if(reader->tongfang3_calibsn)
 			calibsn=reader->tongfang3_calibsn;
@@ -619,8 +220,9 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 			return ERROR;
 		}
 		//rdr_log(reader, "card seed got.");
-		memcpy(tongfang3_seed,data,8);
-		tongfang3_des0_ex(1, tongfang3_seed, tongfang3_keyblock, reader->tongfang3_commkey);
+		memcpy(reader->tongfang3_commkey, data, 8);
+		des_ecb_encrypt(reader->tongfang3_commkey,des_key,8);
+
 		rdr_log(reader, "card commkey got(%02X%02X%02X%02X%02X%02X%02X%02X)",reader->tongfang3_commkey[0],
 			reader->tongfang3_commkey[1],reader->tongfang3_commkey[2],reader->tongfang3_commkey[3],
 			reader->tongfang3_commkey[4],reader->tongfang3_commkey[5],reader->tongfang3_commkey[6],
@@ -647,9 +249,13 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		card_id[sizeof(card_id) - 1] = '\0';
 
 		//confirm commkey
+		memcpy(data, stbid, sizeof(stbid));
+		des_ecb_encrypt(data, reader->tongfang3_commkey, 8);
+
 		memcpy(zero + 2, reader->hexserial + 2, 4);
-		tongfang3_des0(1, stbid, reader->tongfang3_commkey, data);
-		tongfang3_des0(1, zero, reader->tongfang3_commkey, data+8);
+		memcpy(data + 8, zero, 8);
+		des_ecb_encrypt(data + 8, reader->tongfang3_commkey, 8);
+
 		memcpy(confirm_commkey_cmd + 5, data, 16);
 		write_cmd(confirm_commkey_cmd, confirm_commkey_cmd + 5);
 
@@ -816,10 +422,8 @@ static int32_t tongfang_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, s
 	}
 
 	if(reader->tongfang_version >=3 ){
-		uchar cw[16];
-		tongfang3_des0(1, ea->cw, reader->tongfang3_commkey, cw);
-		tongfang3_des0(1, ea->cw+8, reader->tongfang3_commkey, cw+8);
-		memcpy(ea->cw,cw,16);
+		des_ecb_encrypt(ea->cw, reader->tongfang3_commkey, 8);
+		des_ecb_encrypt(ea->cw + 8, reader->tongfang3_commkey, 8);
 	}
 
 	return OK;
