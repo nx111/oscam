@@ -1,0 +1,12 @@
+Package: oscam
+Version: 
+Depends: libc, libopenssl, libusb-1.0, kmod-usb-serial, kmod-usb-serial-ch341, kmod-usb-serial-ftdi, kmod-usb-serial-pl2303, libpcsclite, pcscd, ccid
+Source: package/oscam-nx111
+License: GPL-3.0
+LicenseFiles: COPYING
+Section: net
+Maintainer: OSCam developers
+Architecture: 
+Installed-Size: 
+Description:  OSCam is an Open Source Conditional Access Module software,
+ based on the very good MpCS version 0.9d created by ​dukat.
