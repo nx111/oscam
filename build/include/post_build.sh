@@ -27,8 +27,8 @@ if [ -f ${builddir}/image${machine}/${OSCAM_TARGET} ]; then
 	[ "$libc" = "" ] || libc=-$libc
 	if [ -f ${builddir}/image${machine}/CONTROL/control -a -x $(dirname ${builddir})/include/ipkg-build ]; then
 		revision=$($ROOT/config.sh --oscam-revision)
-		total_size=$(du -bsc $builddir/image$machine | sed -n 1p | cut -d$'\t' -f1)
-		control_size=$(du -bsc $builddir/image$machine/CONTROL | sed -n 1p | cut -d$'\t' -f1)
+		total_size=$(du -bsc $builddir/image$machine | sed -n 1p | cut  -f1)
+		control_size=$(du -bsc $builddir/image$machine/CONTROL | sed -n 1p | cut  -f1)
 		target_size=$(( total_size - control_size ))
 		sed -e "s/^\([[:space:]]*Version:\).*/\1 ${revision}/" -e "s/^\([[:space:]]*Installed-Size:\).*/\1 ${target_size}/" \
 		    -e "s/^\([[:space:]]*Architecture:\).*/\1 ${plat}/" -i ${builddir}/image${machine}/CONTROL/control

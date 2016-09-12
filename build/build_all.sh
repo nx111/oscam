@@ -17,7 +17,6 @@ fi
 
 find $builddir -name "build*.sh" ! -path $builddir/$(basename $0)  | while read f; do
 	OSCAM_SRC=$ROOT $f $*
-	sleep 3
 done
 
 cd $curdir
