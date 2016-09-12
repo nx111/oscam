@@ -2,6 +2,8 @@
 [ "$curdir" = "" ] && curdir=`pwd`
 [ "$builddir" = "" ] && builddir=`cd $(dirname $0);pwd`
 
+ERROR=0
+
 [ -f $curdir/oscam.c -a -f $curdir/module-dvbapi.c ] && OSCAM_SRC=$curdir
 
 if [ "${OSCAM_SRC}" != "" -a -f ${OSCAM_SRC}/oscam.c ]; then
@@ -11,7 +13,7 @@ elif [ -f $(dirname $(dirname $builddir))/oscam.c ]; then
 else
 	echo "Not found oscam source directory! Please set OSCAM_SRC environment value..."
 	cd $curdir
-	exit
+	ERROR=1
 fi
 
 ###### guesst target execute binary #######
@@ -28,6 +30,14 @@ if [ "${OSCAM_TARGET}" = "" ]; then
 	fi
 fi
 OSCAM_TARGET=$(echo ${OSCAM_TARGET}| sed -e "s/^\///")
+
+#---- clean building dir ---------
+rm -f $builddir/*.ipk
+rm -f ${builddir}/image${machine}/${OSCAM_TARGET}
+rm -f ${builddir}/image${machine}/$(dirname ${OSCAM_TARGET})/*.upx
+rm -rf $ROOT/build/.tmp/*
+
+[ $ERROR -eq 1 ] && exit
 
 ######### parse option #######################
 for op in "$@"; do

@@ -3,7 +3,7 @@
 [ -f $ROOT/config.h.orig ] && mv $ROOT/config.h.orig $ROOT/config.h
 [ -f $ROOT/toolchains/${TOOCHAINFILE}.orig ] && mv $ROOT/toolchains/${TOOCHAINFILE}.orig $ROOT/toolchains/${TOOCHAINFILE}
 [ -d ${builddir}/image${machine}/$(dirname ${OSCAM_TARGET}) ] || mkdir -p ${builddir}/image${machine}/$(dirname ${OSCAM_TARGET})
-rm -f ${builddir}/image${machine}/${OSCAM_TARGET}
+
 if [ -f $ROOT/build/.tmp/$(basename ${OSCAM_TARGET}) ]; then
 	cp $ROOT/build/.tmp/$(basename ${OSCAM_TARGET}) ${builddir}/image${machine}/$(dirname ${OSCAM_TARGET})/
 	if [ -x $TOOLCHAIN_STAGE/upx ]; then
