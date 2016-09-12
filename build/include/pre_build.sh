@@ -38,14 +38,19 @@ done
 # fix config.sh for subverison changed to git
 if [ -f $ROOT/config.sh ]; then
 	cp $ROOT/config.sh $ROOT/config.sh.orig
-	sed -e "s/^[[:space:]]*(svnversion .*/\
-		revision=\`(svnversion -n . 2>\/dev\/null || printf 0) | sed \'s\/.*:\/\/; s\/[^0-9]*$\/\/; s\/^$\/0\/'\`\n\
+	sed -e "s/^[[:space:]]*\((svnversion .*\)/\
+		revision=\$(\1)\n\
 \n\
 		if [ \"\$revision\" = \"\" -o \"\$revision\" = \"0\" ]; then\n\
-			git log  | grep git-svn-id | sed -n 1p | cut -d@ -f2 | cut -d' ' -f1\n\
-		else\n\
-			echo \$revision\n\
+			svnrevision=\$(git log  | grep git-svn-id | sed -n 1p | cut -d\@ -f2 | cut -d\' \' -f1)\n\
+			gitrevision=\$(git log | sed -n 1p|cut -d\' \' -f2 | cut -c1-5 )\n\
+			revision=\${svnrevision}_\${gitrevision}\n\
+			if [ \"\$revision\" = \"\" -o \"\$revision\" = \"0\" ]; then\n\
+				[ -f .revision ] \&\& revision=\$(cat .revision)\n\
+			fi\n\
 		fi\n\
+		echo \$revision > .revision\n\
+		echo \$revision\n\
 /" -i $ROOT/config.sh
 
 fi
