@@ -511,6 +511,9 @@ DESCRIPTIONS
        use_ssl = 0|1
 	  1 = use SSL for ghttp protocol, default:0
 
+       tongfang3_calibsn = tongfang3 calibsn number
+           this value must be 4 hexadecimal bytes
+
 OVERCLOCKING
        ·  Dreambox and other internal readers
 
