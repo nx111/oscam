@@ -1,8 +1,9 @@
 #!/bin/sh
-
 curdir=`pwd`
 builddir=`cd $(dirname $0);pwd`
-
+if [ -x $(dirname $builddir)/$(basename $0) ]; then
+	builddir=$(dirname $builddir)
+fi
 [ -f $curdir/oscam.c -a -f $curdir/module-dvbapi.c ] && OSCAM_SRC=$curdir
 
 if [ "${OSCAM_SRC}" != "" -a -f ${OSCAM_SRC}/oscam.c ]; then
@@ -15,7 +16,7 @@ else
 	exit
 fi
 
-find $builddir -name "build*.sh" ! -path $builddir/$(basename $0)  | while read f; do
+find $builddir -name "build*.sh" ! -path $builddir/$(basename $0) ! -path $builddir/$(basename $(dirname $0))/$(basename $0) | while read f; do
 	OSCAM_SRC=$ROOT $f $*
 done
 
