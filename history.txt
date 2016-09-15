@@ -1,0 +1,100 @@
+92b2f tongfang3: add tongfang3_calibsn manual text.
+ae6e7 update config.sh
+f6f66 update build scripts.
+db4d0 pcsc: if not found pcsc shared library,disable pcsc function.
+4e314 build scripts: fix cut warning when calculating package size in dash.                and, no waiting after building.
+41a50 build scripts: build ipkg packages for openwrt.
+a9a17 update build scripts: support build ipkg packages.
+b8379 update build scripts: clean old files before making.
+9180a support set revision from file .revision, if not svn and git respository.
+4417f tongfang: skip empty prov,read agegrade.
+6ce1b update building scripts.
+96b6f tongfang: use des crypto function from cscrypt.
+d5b03 link static libssl and libcryto for i686 linux.
+ea404 enable link static libssl just when linking static libcrypto.
+2c49b fix some ecm data too long,increase the buffer size.
+f3e88 add cross auto compile scripts.
+e3e18 pcsc: fix probable segment faults.
+b892a add update logs from nx111, in chinese
+e3be8 add or update toolchain cmake files.
+4aca3 not touch oscam.c and oscam-log.c
+4eda0 fix for windows/cygwin.
+f7db7 add support MT7620 and AR71xx for OpenWRT.
+85724 fix winsmcrd header name.
+72c8a support cross compile by i686-pc-cygwin-pcsc.
+908d4 add Document of OpenXCAS_API.pdf
+caa38 support link static libssl/libpcsclite/libcrypto/libusb/librt.
+65520 upgrade reader tongfang to support version 3(NTIC2).
+e51ab fix get svnversion in config.sh for git repository.
+fa743 add reader streamguard
+c6fcc cccam: fix card matching for prov is 0.
+832e9 dvbapi: adjust and save caid priority
+1d7d6 cccam: drop expired bad srvid.
+526b8 dvbapi: fix playing program break out for streamguard(CAID: 0x4AD2).
+998ae cccam: friendly output debug message.
+7e327 fix some compile warnning.
+26cf2 enable sse2 on x86
+b84eb support auto restart reader after some time,and extend resetcycle for network reader.
+fae1a add a switch for auto block sid in cccam.
+9d2c4 change cccam keepalive to default on.
+26755 support init reader and user from cccam.cfg.
+a281a change update interval to 120 seconds.
+93eaf webif: config http as utf-8.
+f28b0 Merged Conditional Access Module Emulator from github.com/oscam-emu
+81f35 - Add hop info to ecmformat like its already in use for gbox protocol idea and testing by speedy1245
+6206c Revert: lowered CS_SERVICENAME_SIZE from 64 to 32; the increased memory usage causes troubles on sone systems
+63e75 CACHEX: fix big/little endianess bug; i2b_buf() and b2i() already take care of endianess, also using htonl() broke it; we cannot simply remove the htonl() calls, because this would break compatibility with older oscam versions, for this reason we now use CSP_HASH_SWAP() to always swap the bytes; type of csp_hash changed from int32_t to unint32_t
+3f7c6 [gbx] remove ecm rebroadcasting. Causes trouble on some systems.
+653ca DVBAPI: revert prio changes from r11246; this fixes problems with irdeto cards
+7caf1 tryfix: possible stackoverflow?
+c6c64 WEBIF: ssl: now only requiring TLS >=1.1 if at least TLS 1.1 is available; fallback to TLS 1.0 if not;
+767a7 WEBIF: added error message if OpenSSL Lib does not support TLS >= 1.1
+58560 DRECAS: fixed a warning
+4dc47 WEBIF: some changes to openssl calls to make it work on more toolchains (security level does not change)
+adc19 WEBIF: update for newer OpenSSL libs
+18959 Fixes for bulcrypt au introduced with r11246
+da4ef Fixed a bug
+4b980 Videoguard: added new ATR from #4403
+05463 CCCAM: Applied fix from #4394
+6dc8a Fixed last commit
+93286 WEBIF SSL: removed "http_force_sslv3" setting; added "https_force_secure_mode" setting (enabled by default); now using TLS
+9e23a Added fixes for OpenBSD
+d1eb6 icc_async.c: added a missing debug log
+e7462 CCCAM: default to newest version; if this creates problems, please revert
+a60be Added reader setting "detect_seca_nagra_tunneled_card" (enabled by default) to fix problems with seca cards when card-reset fails (set it to 0 in this case).
+b8191 Applied #4466 : Match PCSC reader by name
+08714 Videoguard: Added ATR from #4468
+5582f DVBAPI: now setting CA_SET_DESCR_MODE before CA_SET_DESCR; if this breaks something, please revert
+5c4bb Added SIGHUP actions patch by Nimloth
+aa17a DRE: fixed dre readers
+207b8 Fix for last commit
+40b25 DRE: Updated drecrypt reader support
+924d3 *fixed: localStorage exception on older Firefox versions; vg emm info bug on older Firefox versions
+1de18 *updated: vg emm info: fixed colors when usuing non-default webif skin
+992ff *fixed: vg emm info: emms by cccam
+46393 *fixed: vg emm info endless loop
+66bb7 *updated: vg emm info: emm type names
+97998 *updated: vg emm info: fixed some colors
+cb441 *fixed: vg emm info: lower case emms
+8dea1 *updated: vg emm info (webif)
+bf34c *updated: vg emm info: added checksum check
+991bd *updated: ecmfmt: display full payload by default
+4f757 *added advanced vg emm view (webif)
+d1e31 fix typo
+78941 - Commit solution for whitelist services as proposed in #4459 by TheTroll
+bb7eb [gbx] -add patch proposed by @chimpie23 -patch prevents that the log is flooded with messages in case you have disabled gsms
+13a67 [gbx] -add msg_goodbye as an indication that ecm failed, like orig. gbox -add optional parameter 'log_hello' to avoid spamming hellos in standard log -clean up and cosmetics
+e47d3 picon fix by savan
+408da fixed atr length
+744f8 picon patch by savan
+4f196 fixed missing byte in atr
+95dd7 updated atr table
+e9802 small update fix for userconfiglist.xml
+1ed4d fix stats for readers
+c4cbd detect multics connection
+5b6fb This parameter exist but is forgotten so far in the Webif.
+6fd11 limit max gbox cards to 1024
+b1811 revert html renaming
+d6dfb fix lbstats for reader
+b540b fix for loadbalancer timeout
+cf058 fix for last commit
