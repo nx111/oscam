@@ -1,0 +1,11 @@
+Package: oscam
+Version: 
+Depends: libopenssl, libusb-1.0, libpcsclite, pcscd, ccid
+Source: package/oscam-nx111
+License: GPL-3.0
+LicenseFiles: COPYING
+Section: net
+Maintainer: OSCam developers
+Architecture: 
+Installed-Size: 
+Description:  OScam Open Source Softcam.

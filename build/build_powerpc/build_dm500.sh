@@ -15,7 +15,7 @@ builddir=`cd $(dirname $0);pwd`
 
 ##############################################
 
-if [ "$base" != "1" ]; then
+if  [ "$buildtype" = "inline" ]; then
    PATH=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/bin:$PATH \
    cmake  -DCMAKE_TOOLCHAIN_FILE=$ROOT/toolchains/${TOOCHAINFILE}\
 	  -DOPTIONAL_INCLUDE_DIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN/include\
@@ -31,17 +31,24 @@ if [ "$base" != "1" ]; then
 	  -DSTATIC_LIBPCSC=1\
 	  --clean-first\
 	  -DWEBIF=1 $ROOT
-   feature=-pcsc-ssl
+   feature=-pcsc-inline
 else
    PATH=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/bin:$PATH \
    cmake  -DCMAKE_TOOLCHAIN_FILE=$ROOT/toolchains/${TOOCHAINFILE}\
-	  -DLIBRTDIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN \
+	  -DOPTIONAL_INCLUDE_DIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN/include\
+	  -DOPENSSL_INCLUDE_DIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN/include\
+	  -DOPENSSL_LIBRARIES=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN/lib\
+	  -DOPENSSL_ROOT_DIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN \
 	  -DLIBUSBDIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN \
-	  --clean-first\
-	  -DSTATIC_LIBUSB=1\
+	  -DLIBRTDIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN \
+	  -DLIBPCSCDIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/$TOOLCHAIN \
 	  -DWITH_SSL=0 \
-	  -DHAVE_PCSC=0 \
+	  -DUSE_LIBCRYPTO=0\
+	  -DSTATIC_LIBUSB=1\
+	  -DSTATIC_LIBPCSC=0\
+	  --clean-first\
 	  -DWEBIF=1 $ROOT
+   feature=-pcsc
 fi
 
 make STAGING_DIR=${TOOLCHAIN_STAGE}

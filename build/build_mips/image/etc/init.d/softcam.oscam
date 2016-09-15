@@ -1,10 +1,10 @@
 #!/bin/sh
 case "$1" in
 start)
-	exec start-stop-daemon -S -x /usr/bin/oscam -c /var/tuxbox/config -b
+	/usr/bin/oscam --config-dir /etc/oscam --daemon --pidfile /tmp/oscam.pid --restart 2 --utf8
 	;;
 stop)
-	exec start-stop-daemon -K -R 2 -x /usr/bin/oscam
+	kill `cat /tmp/oscam.pid` 2> /dev/null
 	;;
 restart|reload)
 	$0 stop
@@ -12,10 +12,10 @@ restart|reload)
 	$0 start
 	;;
 version)
-	echo "1.0"
+	echo "1.2"
 	;;
 info)
-	echo "oscam 1.0"
+	echo "oscam 1.2"
 	;;
 *)
 	echo "Usage: $0 start|stop|restart"

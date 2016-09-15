@@ -80,7 +80,7 @@ remove_tmp () {
 case "$1" in
   start)
   remove_tmp
-  /var/bin/$CAMD_BIN -c /var/tuxbox/config -b
+  /var/bin/$CAMD_BIN -c /var/tuxbox/config/oscam -b
   ;;
   stop)
   killall $CAMD_BIN 2>/dev/null

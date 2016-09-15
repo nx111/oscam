@@ -40,26 +40,31 @@ rm -rf $ROOT/build/.tmp/*
 [ $ERROR -eq 1 ] && exit
 
 ######### parse option #######################
+buildtype="default"
 for op in "$@"; do
    [ "$op" = "-debug" ] && debug=1
-   [ "$op" = "-base" ] && base=1
+   [ "$op" = "-inline" ] && buildtype="inline"
 done
 
 # fix config.sh for subverison changed to git
 if [ -f $ROOT/config.sh ]; then
 	cp $ROOT/config.sh $ROOT/config.sh.orig
 	sed -e "s/^[[:space:]]*\((svnversion .*\)/\
-		revision=\$(\1)\n\
+		revision=\`\1\`\n\
 \n\
 		if [ \"\$revision\" = \"\" -o \"\$revision\" = \"0\" ]; then\n\
-			svnrevision=\$(git log  | grep git-svn-id | sed -n 1p | cut -d\@ -f2 | cut -d\' \' -f1)\n\
-			gitrevision=\$(git log | sed -n 1p|cut -d\' \' -f2 | cut -c1-5 )\n\
-			revision=\${svnrevision}_\${gitrevision}\n\
-			if [ \"\$revision\" = \"\" -o \"\$revision\" = \"0\" ]; then\n\
-				[ -f .revision ] \&\& revision=\$(cat .revision)\n\
+			svnrevision=\$(git log 2>\/dev\/null | grep git-svn-id | sed -n 1p | cut -d\@ -f2 | cut -d\' \' -f1)\n\
+			gitrevision=\$(git log 2>\/dev\/null | sed -n 1p|cut -d\' \' -f2 | cut -c1-5 )\n\
+			if [ \"\$svnrevision\" = \"\" -o \"\$gitrevision\" = \"0\" ]; then\n\
+				[ -f history.txt ] \&\& gitrevision=\$(cat history.txt | sed -n 1p | cut -d\' \' -f1)\n\
+				[ -f .svnrevision ] \&\& svnrevision=\$(cat .svnrevision)\n\
+			else\n\
+				git log --pretty=oneline -n 100 | sed -e \"s\/^\\\([[:print:]]\\\{5,5\\\}\\\)[^[:space:]]\*\\\( .\*\\\)\/\\\1\\\2\/\" > history.txt\n\
+				echo \$svnrevision > .svnrevision\n\
 			fi\n\
+			[ \"\$svnrevision\" = \"0\" ] \|\| revision=\$svnrevision\n\
+			[ \"\$gitrevision\" = \"0\" ] \|\| revision=\${revision}_\${gitrevision}\n\
 		fi\n\
-		echo \$revision > .revision\n\
 		echo \$revision\n\
 /" -i $ROOT/config.sh
 
