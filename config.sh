@@ -697,16 +697,22 @@ do
 	;;
 	'-r'|'--oscam-revision')
 		revision=`(svnversion -n . 2>/dev/null || printf 0) | sed 's/.*://; s/[^0-9]*$//; s/^$/0/'`
+
 		if [ "$revision" = "" -o "$revision" = "0" ]; then
-			svnrevision=$(git log  | grep git-svn-id | sed -n 1p | cut -d@ -f2 | cut -d' ' -f1)
-			gitrevision=$(git log | sed -n 1p|cut -d' ' -f2 | cut -c1-5 )
-			revision=${svnrevision}_${gitrevision}
-			if [ "$gitrevision" = "" -o "$gitrevision" = "0" ]; then
-				[ -f .revision ] && revision=$(cat .revision)
+			svnrevision=$(git log 2>/dev/null | grep git-svn-id | sed -n 1p | cut -d@ -f2 | cut -d' ' -f1)
+			gitrevision=$(git log 2>/dev/null | sed -n 1p|cut -d' ' -f2 | cut -c1-5 )
+			if [ "$svnrevision" = "" -o "$gitrevision" = "0" ]; then
+				[ -f history.txt ] && gitrevision=$(cat history.txt | sed -n 1p | cut -d' ' -f1)
+				[ -f .svnrevision ] && svnrevision=$(cat .svnrevision)
+			else
+				git log --pretty=oneline -n 100 | sed -e "s/^\([[:print:]]\{5,5\}\)[^[:space:]]*\( .*\)/\1\2/" > history.txt
+				echo $svnrevision > .svnrevision
 			fi
+			[ "$svnrevision" = "0" ] || revision=$svnrevision
+			[ "$gitrevision" = "0" ] || revision=${revision}_${gitrevision}
 		fi
-		echo $revision > .revision
 		echo $revision
+
 		break
 	;;
 	'-O'|'--detect-osx-sdk-version')
