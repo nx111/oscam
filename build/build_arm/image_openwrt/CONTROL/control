@@ -1,6 +1,6 @@
 Package: oscam
 Version: 
-Depends: libc
+Depends: 
 Source: package/oscam-nx111
 License: GPL-3.0
 LicenseFiles: COPYING
