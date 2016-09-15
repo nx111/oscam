@@ -1,6 +1,7 @@
 #!/bin/sh
 plat=ar71xx
 plat_dir=build_mips
+Architecture=ar71xx
 libc=uClibc
 machine=openwrt
 TOOLCHAIN=mips-openwrt-linux

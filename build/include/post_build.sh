@@ -37,8 +37,14 @@ if [ -f $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} ]; then
 		total_size=$(du -bsc $ROOT/build/.tmp/image${machine} | sed -n 1p | cut  -f1)
 		control_size=$(du -bsc $ROOT/build/.tmp/image${machine}/CONTROL | sed -n 1p | cut  -f1)
 		target_size=$(( total_size - control_size ))
-		sed -e "s/^\([[:space:]]*Version:\).*/\1 ${revision}/" -e "s/^\([[:space:]]*Installed-Size:\).*/\1 ${target_size}/" \
-		    -e "s/^\([[:space:]]*Architecture:\).*/\1 ${plat}/" -i ${builddir}/image${machine}/CONTROL/control
+		Architecture=${Architecture=$plat}
+		sed -e "s/^\([[:space:]]*Version:\).*/\1 ${revision}/" \
+		    -e "s/^\([[:space:]]*Installed-Size:\).*/\1 ${target_size}/" -i $ROOT/build/.tmp/image${machine}/CONTROL/control
+		if grep -q "Architecture:" $ROOT/build/.tmp/image${machine}/CONTROL/control; then
+			sed  -e "s/^\([[:space:]]*Architecture:\).*/\1 ${Architecture}/" -i $ROOT/build/.tmp/image${machine}/CONTROL/control
+		else
+			sed  -e "/^[[:space:]]*Installed-Size:.*/iArchitecture: ${Architecture}" -i $ROOT/build/.tmp/image${machine}/CONTROL/control
+		fi
 		config_file=$(find  "$ROOT/build/.tmp/image${machine}" -name "oscam.conf*" -type f | \
 			             sed -n 1p | sed -e "s:$ROOT/build/.tmp/image${machine}/::")
 		if [ "${config_file}" != "" ]; then
@@ -60,6 +66,9 @@ if [ -f $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} ]; then
 	echo "Building oscam-${plat}${libc}-r${svnver}${feature}-nx111-${compile_time}.tar.gz successed!"
 fi
 echo
+
+#for debug
+#cp $ROOT/build/.tmp/$(basename ${OSCAM_TARGET}) $builddir/../
 
 rm -rf $ROOT/build/.tmp/*
 cd $curdir

@@ -1,6 +1,7 @@
 #!/bin/sh
 plat=dm800
 plat_dir=build_mips
+Architecture=
 machine=tuxbox
 TOOLCHAIN=mipsel-linux-gnu
 TOOLCHAIN_ROOT=boardcom-stbgcc-4.8-1.5

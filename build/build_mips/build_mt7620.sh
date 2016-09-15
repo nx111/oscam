@@ -1,6 +1,7 @@
 #!/bin/sh
 plat=mt7620
 plat_dir=build_mips
+Architecture=ramips_24kec
 libc=uClibc
 machine=openwrt
 TOOLCHAIN=mipsel-openwrt-linux-uclibc
