@@ -1,6 +1,6 @@
 Package: oscam
 Version: 
-Depends: libc, libopenssl, libusb-1.0, kmod-usb-serial, kmod-usb-serial-ch341, kmod-usb-serial-ftdi, kmod-usb-serial-pl2303, libpcsclite, pcscd, ccid
+Depends: libc
 Source: package/oscam-nx111
 License: GPL-3.0
 LicenseFiles: COPYING

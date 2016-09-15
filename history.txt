@@ -1,3 +1,6 @@
+dfe43 build scripts: not set ipk Architecture when set Architecture value empty.
+53dae build scripts: fix sed error.
+e9148 build scripts: not update history.txt everytime.
 be37d build scripts: run build_all.sh in correct directory.
 0a06b build scripts: add config for cygwin.
 33381 build scripts: create image directory when it not exists.
@@ -95,6 +98,3 @@ e47d3 picon fix by savan
 95dd7 updated atr table
 e9802 small update fix for userconfiglist.xml
 1ed4d fix stats for readers
-c4cbd detect multics connection
-5b6fb This parameter exist but is forgotten so far in the Webif.
-6fd11 limit max gbox cards to 1024

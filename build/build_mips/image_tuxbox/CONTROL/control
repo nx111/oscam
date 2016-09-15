@@ -1,6 +1,6 @@
 Package: oscam
 Version: 
-Depends: libopenssl, libusb-1.0, libpcsclite, pcscd, ccid
+Depends: libc
 Source: package/oscam-nx111
 License: GPL-3.0
 LicenseFiles: COPYING
