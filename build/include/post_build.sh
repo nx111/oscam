@@ -2,6 +2,7 @@
 [ "${machine}" != "" ] && machine="_${machine}"
 [ -f $ROOT/config.h.orig ] && mv $ROOT/config.h.orig $ROOT/config.h
 [ -f $ROOT/toolchains/${TOOCHAINFILE}.orig ] && mv $ROOT/toolchains/${TOOCHAINFILE}.orig $ROOT/toolchains/${TOOCHAINFILE}
+[ -f $ROOT/history.txt.orig ] && mv $ROOT/history.txt.orig $ROOT/history.txt
 rm -rf $ROOT/build/.tmp/image${machine}
 if [ -d ${builddir}/image${machine} ]; then
 	cp -r ${builddir}/image${machine} $ROOT/build/.tmp/image${machine}

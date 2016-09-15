@@ -1,3 +1,7 @@
+be37d build scripts: run build_all.sh in correct directory.
+0a06b build scripts: add config for cygwin.
+33381 build scripts: create image directory when it not exists.
+863a4 add history.txt for change histories in git.
 92b2f tongfang3: add tongfang3_calibsn manual text.
 ae6e7 update config.sh
 f6f66 update build scripts.
@@ -94,7 +98,3 @@ e9802 small update fix for userconfiglist.xml
 c4cbd detect multics connection
 5b6fb This parameter exist but is forgotten so far in the Webif.
 6fd11 limit max gbox cards to 1024
-b1811 revert html renaming
-d6dfb fix lbstats for reader
-b540b fix for loadbalancer timeout
-cf058 fix for last commit

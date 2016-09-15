@@ -82,5 +82,6 @@ fi
 cd $ROOT/build/.tmp
 [ -f $ROOT/config.h ] && cp $ROOT/config.h $ROOT/config.h.orig
 cp $ROOT/toolchains/${TOOCHAINFILE} $ROOT/toolchains/${TOOCHAINFILE}.orig
+[ -f $ROOT/history.txt ] && cp $ROOT/history.txt $ROOT/history.txt.orig
 eval "sed -e \"s/\(.*CMAKE_C_COMPILER \).*)/\1${TOOLCHAIN}-gcc)/\" -i $ROOT/toolchains/${TOOCHAINFILE}"
 
