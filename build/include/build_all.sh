@@ -15,8 +15,9 @@ else
 	cd $curdir
 	exit
 fi
-
-find $builddir -name "build*.sh" ! -path $builddir/$(basename $0) ! -path $builddir/$(basename $(dirname $0))/$(basename $0) | while read f; do
+echo "curdir:$curdir"
+find $builddir -name "build*.sh" ! -path $builddir/$(basename $0) ! -path $builddir/$(basename $(dirname $0))/$(basename $0) \
+       ! -path $builddir/include/$(basename $0) | while read f; do
 	OSCAM_SRC=$ROOT $f $*
 done
 

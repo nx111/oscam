@@ -1,3 +1,4 @@
+aa2b0 build scripts: remove depends to libc
 c1dbb buildscripts: remove some depends.
 dfe43 build scripts: not set ipk Architecture when set Architecture value empty.
 53dae build scripts: fix sed error.
@@ -97,4 +98,3 @@ e47d3 picon fix by savan
 744f8 picon patch by savan
 4f196 fixed missing byte in atr
 95dd7 updated atr table
-e9802 small update fix for userconfiglist.xml
