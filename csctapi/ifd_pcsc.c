@@ -46,6 +46,12 @@ struct pcsc_data
 };
 
 #if defined(WITH_DL)
+
+#include <setjmp.h>
+#define try if(!setjmp(Jump_Buffer))
+#define catch else
+#define throw longjmp(Jump_Buffer,1)
+
 #define CS_SCardEstablishContext(...)	(*pSCardEstablishContext)(__VA_ARGS__)
 #define CS_SCardReleaseContext(...)	(*pSCardReleaseContext)(__VA_ARGS__)
 #define CS_SCardListReaders(...)	(*pSCardListReaders)(__VA_ARGS__)
@@ -75,6 +81,8 @@ struct pcsc_data
 #define STATUS_NOSHARELIB -1
 #define STATUS_NOTINITED 0
 #define STATUS_INITED 1
+
+jmp_buf Jump_Buffer;
 
 static PCSC_API LONG (*pSCardEstablishContext)(DWORD dwScope,
 		/*@null@*/ LPCVOID pvReserved1, /*@null@*/ LPCVOID pvReserved2,
@@ -123,30 +131,36 @@ static int32_t pcsc_init(struct s_reader *pcsc_reader)
 	int32_t reader_nb;
 #if defined(WITH_DL)
 	if(pcsc_status == STATUS_NOTINITED){
-		if(NULL == (pcsc_handle = dlopen(PCSC_SHARED_LIBRARY,RTLD_LAZY))){
-			pcsc_status = STATUS_NOSHARELIB;
-			rdr_log(pcsc_reader, "not found pcsc shared library, pcsc function is disabled.");
-			return ERROR;
-		}
-		pSCardEstablishContext = dlsym(pcsc_handle, "SCardEstablishContext");
-		pSCardReleaseContext = dlsym(pcsc_handle, "SCardReleaseContext");
-		pSCardListReaders = dlsym(pcsc_handle, "SCardListReaders");
-		pSCardTransmit = dlsym(pcsc_handle, "SCardTransmit");
-		pSCardStatus = dlsym(pcsc_handle, "SCardStatus");
-		pSCardConnect = dlsym(pcsc_handle, "SCardConnect");
-		pSCardReconnect = dlsym(pcsc_handle, "SCardReconnect");
-		pSCardDisconnect = dlsym(pcsc_handle, "SCardDisconnect");
-		p_rgSCardT0Pci = dlsym(pcsc_handle, "g_rgSCardT0Pci");
-		p_rgSCardT1Pci = dlsym(pcsc_handle, "g_rgSCardT1Pci");
+		try{
+			if(NULL == (pcsc_handle = dlopen(PCSC_SHARED_LIBRARY,RTLD_LAZY))){
+				pcsc_status = STATUS_NOSHARELIB;
+				rdr_log(pcsc_reader, "not found pcsc shared library, pcsc function is disabled.");
+				return ERROR;
+			}
+			pSCardEstablishContext = dlsym(pcsc_handle, "SCardEstablishContext");
+			pSCardReleaseContext = dlsym(pcsc_handle, "SCardReleaseContext");
+			pSCardListReaders = dlsym(pcsc_handle, "SCardListReaders");
+			pSCardTransmit = dlsym(pcsc_handle, "SCardTransmit");
+			pSCardStatus = dlsym(pcsc_handle, "SCardStatus");
+			pSCardConnect = dlsym(pcsc_handle, "SCardConnect");
+			pSCardReconnect = dlsym(pcsc_handle, "SCardReconnect");
+			pSCardDisconnect = dlsym(pcsc_handle, "SCardDisconnect");
+			p_rgSCardT0Pci = dlsym(pcsc_handle, "g_rgSCardT0Pci");
+			p_rgSCardT1Pci = dlsym(pcsc_handle, "g_rgSCardT1Pci");
 
-		if( pSCardEstablishContext == NULL || pSCardReleaseContext == NULL || pSCardListReaders == NULL ||
-		    pSCardTransmit == NULL || pSCardStatus == NULL || pSCardConnect == NULL ||
-		    pSCardDisconnect == NULL || p_rgSCardT0Pci == NULL || p_rgSCardT1Pci == NULL ){
-			rdr_log(pcsc_reader, "PCSC shared library is illegel.");
+			if( pSCardEstablishContext == NULL || pSCardReleaseContext == NULL || pSCardListReaders == NULL ||
+			    pSCardTransmit == NULL || pSCardStatus == NULL || pSCardConnect == NULL ||
+			    pSCardDisconnect == NULL || p_rgSCardT0Pci == NULL || p_rgSCardT1Pci == NULL ){
+				rdr_log(pcsc_reader, "PCSC shared library is illegel.");
+				pcsc_status = STATUS_NOSHARELIB;
+				return ERROR;
+			}
+			pcsc_status = STATUS_INITED;
+		}catch{
+			rdr_log(pcsc_reader, "PCSC shared library load failed, pcsc function is disabled .");
 			pcsc_status = STATUS_NOSHARELIB;
 			return ERROR;
 		}
-		pcsc_status = STATUS_INITED;
 	}
 #endif
 	rdr_log_dbg(pcsc_reader, D_DEVICE, "PCSC establish context for PCSC pcsc_reader %s", device);
