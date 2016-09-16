@@ -162,7 +162,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	memset(reader->prid, 0x00, sizeof(reader->prid));
 
 	if(hist_size < 5 || hist[4] == '0' || hist[4] == '1'){	//tongfang 1-2
-		reader->tongfang_version=2;
+		reader->cas_version=2;
 		write_cmd(begin_cmdv2, begin_cmdv2 + 5);
 		if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)) { return ERROR; }
 		rdr_log(reader, "Tongfang 1/2 card detected");
@@ -191,7 +191,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		card_id[sizeof(card_id) - 1] = '\0';
 	}
 	else if(hist_size >= 5 && hist[4] == '2' ){	//tongfang 3
-		reader->tongfang_version=3;
+		reader->cas_version=3;
 		write_cmd(begin_cmdv3, begin_cmdv3 + 5);
 		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) { return ERROR; }
 		rdr_log(reader, "Tongfang3 card detected");
@@ -284,7 +284,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	}
 	else if((cta_res[cta_lr - 2] == 0x94) && (cta_res[cta_lr - 1] == 0xB2))
 	{
-		if(reader->tongfang_version >= 3){
+		if(reader->cas_version >= 3){
 			memcpy(pairing_cmd + 5, reader->hexserial + 2, 4);
 			write_cmd(pairing_cmd, pairing_cmd + 5);
 
@@ -421,7 +421,7 @@ static int32_t tongfang_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, s
 		return ERROR;
 	}
 
-	if(reader->tongfang_version >=3 ){
+	if(reader->cas_version >=3 ){
 		des_ecb_encrypt(ea->cw, reader->tongfang3_commkey, 8);
 		des_ecb_encrypt(ea->cw + 8, reader->tongfang3_commkey, 8);
 	}
