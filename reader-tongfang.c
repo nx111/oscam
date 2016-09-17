@@ -359,7 +359,7 @@ static int32_t tongfang_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, s
 			break;
 	}
 	if(i == ecm_len){
-		rdr_log(reader, "error: not valid ecm data...");
+		rdr_log(reader, "error: invalid ecm data...");
 		return ERROR;
 	}
 
@@ -421,7 +421,7 @@ static int32_t tongfang_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, s
 
 	// All zeroes is no valid CW, can be a result of wrong boxid
 	if(!cw_is_valid(ea->cw) || !cw_is_valid(ea->cw + 8)) {
-		rdr_log(reader,"error: cw is unvalid.");
+		rdr_log(reader,"error: cw is invalid.");
 		return ERROR;
 	}
 
