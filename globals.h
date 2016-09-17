@@ -392,9 +392,11 @@ typedef unsigned char uchar;
 #if defined(READER_DRE) || defined(READER_DRECAS)
 #define MAX_ECM_SIZE 1024
 #define MAX_EMM_SIZE 1024
+#define MAX_SCT_SIZE 1024	// smaller or equal to the minial one of MAX_ECM_SIZE and MAX_EMM_SIZE 
 #else
 #define MAX_ECM_SIZE 1024
 #define MAX_EMM_SIZE 1024
+#define MAX_SCT_SIZE 1024	// smaller or equal to the minial one of MAX_ECM_SIZE and MAX_EMM_SIZE 
 #endif
 
 #define CS_EMMCACHESIZE  1024 //nr of EMMs that each reader will cache
@@ -626,7 +628,7 @@ enum {E2_GLOBAL = 0, E2_GROUP, E2_CAID, E2_IDENT, E2_CLASS, E2_CHID, E2_QUEUE, E
 // Return MPEG section length
 #define SCT_LEN(sct) (3+((sct[1]&0x0f)<<8)+sct[2])
 // Used by readers
-#define MAX_LEN      (512+3)
+#define MAX_LEN      256
 
 #define NO_CAID_VALUE  0xfffe
 #define NO_PROVID_VALUE  0xfffffe
