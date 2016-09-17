@@ -161,6 +161,12 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	reader->nprov = 1;
 	memset(reader->prid, 0x00, sizeof(reader->prid));
 
+	if (reader->boxid > 0 ){
+		for(i = 0; (size_t)i < sizeof(boxID); i++){
+			boxID[i] = (reader->boxid >> (8 * (3 - i))) % 0x100;
+		}
+	}
+
 	if(hist_size < 5 || hist[4] == '0' || hist[4] == '1'){	//tongfang 1-2
 		reader->cas_version=2;
 		write_cmd(begin_cmdv2, begin_cmdv2 + 5);
@@ -249,6 +255,8 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		card_id[sizeof(card_id) - 1] = '\0';
 
 		//confirm commkey
+		if (reader->boxid > 0 )
+			memcpy(stbid + 4, boxID, 4);
 		memcpy(data, stbid, sizeof(stbid));
 		des_ecb_encrypt(data, reader->tongfang3_commkey, 8);
 
@@ -272,12 +280,8 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 
 	//pairing box and card
 	/* the boxid is specified in the config */
-	if (reader->boxid > 0){
-		for(i = 0; (size_t)i < sizeof(boxID); i++){
-			boxID[i] = (reader->boxid >> (8 * (3 - i))) % 0x100;
-		}
-		memcpy(pairing_cmd + 5, boxID, sizeof(boxID));
-	}
+	if (reader->boxid > 0)
+		memcpy(pairing_cmd + 5, boxID, 4);
 	write_cmd(pairing_cmd, pairing_cmd + 5);
 	if((cta_res[cta_lr - 2] == 0x94) && (cta_res[cta_lr - 1] == 0xB1) ) {
 		rdr_log(reader, "This card is not binding to any box,continue...");
