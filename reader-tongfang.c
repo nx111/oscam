@@ -347,8 +347,8 @@ static int32_t tongfang_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, s
 		rdr_log_dbg(reader, D_IFD, "ECM: %s", cs_hexdump(1, er->ecm, er->ecmlen, tmp, er->ecmlen * 3 + 1));
 		NULLFREE(tmp);
 	}
-	if((ecm_len = check_sct_len(er->ecm, 3)) < 0) {
-		rdr_log(reader, "error: check_sct_len failed, smartcard section too long %d > %d", SCT_LEN(er->ecm), MAX_LEN - 3);
+	if((ecm_len = check_sct_len(er->ecm, 3, sizeof(er->ecm))) < 0) {
+		rdr_log(reader, "error: check_sct_len failed, smartcard section too long %d > %d", SCT_LEN(er->ecm), sizeof(er->ecm) - 3);
 		return ERROR;
 	}
 
