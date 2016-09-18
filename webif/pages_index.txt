@@ -198,6 +198,7 @@ READERCONFIGSMARGO            readerconfig/readerconfig_hwreader_smargo.html    
 READERCONFIGVIACCESS          readerconfig/readerconfig_hwreader_viaccess.html            READER_VIACCESS
 READERCONFIGDRE               readerconfig/readerconfig_hwreader_dre.html                 READER_DRE
 READERCONFIGVIDEOGUARD        readerconfig/readerconfig_hwreader_videoguard.html          READER_VIDEOGUARD
+READERCONFIGTONGFANG          readerconfig/readerconfig_hwreader_tongfang.html            READER_TONGFANG
 READERCONFIGLBWEIGHT          readerconfig/readerconfig_lbweight.html                     WITH_LB
 READERCONFIGNCD525BIT         readerconfig/readerconfig_ncd525bit.html                    MODULE_NEWCAMD
 READERCONFIGNCD524BIT         readerconfig/readerconfig_ncd524bit.html                    MODULE_NEWCAMD

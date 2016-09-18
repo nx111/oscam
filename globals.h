@@ -1490,6 +1490,11 @@ struct s_reader                                     //contains device info, read
 	int32_t         l_port;
 	CAIDTAB         ctab;
 	uint32_t        boxid;
+#ifdef READER_TONGFANG
+	uint32_t	 tongfang3_calibsn;
+	uchar            tongfang3_commkey[8];
+#endif
+	uint32_t        cas_version;
 	int8_t          nagra_read;                     // read nagra ncmed records: 0 Disabled (default), 1 read all records, 2 read valid records only
 	int8_t          detect_seca_nagra_tunneled_card;
 	int8_t          force_irdeto;
