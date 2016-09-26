@@ -68,7 +68,7 @@ fi
 echo
 
 #for debug
-#cp $ROOT/build/.tmp/$(basename ${OSCAM_TARGET}) $builddir/../
+#cp $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} $builddir/../
 
 rm -rf $ROOT/build/.tmp/*
 cd $curdir
