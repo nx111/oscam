@@ -2,7 +2,6 @@
 [ "${machine}" != "" ] && machine="_${machine}"
 [ -f $ROOT/config.h.orig ] && mv $ROOT/config.h.orig $ROOT/config.h
 [ -f $ROOT/toolchains/${TOOCHAINFILE}.orig ] && mv $ROOT/toolchains/${TOOCHAINFILE}.orig $ROOT/toolchains/${TOOCHAINFILE}
-[ -f $ROOT/history.txt.orig ] && mv $ROOT/history.txt.orig $ROOT/history.txt
 rm -rf $ROOT/build/.tmp/image${machine}
 if [ -d ${builddir}/image${machine} ]; then
 	cp -r ${builddir}/image${machine} $ROOT/build/.tmp/image${machine}
@@ -65,6 +64,7 @@ if [ -f $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} ]; then
 	tar czf $(dirname $builddir)/oscam-${plat}${libc}-r${svnver}${feature}-nx111-${compile_time}.tar.gz * --exclude=CONTROL
 	echo "Building oscam-${plat}${libc}-r${svnver}${feature}-nx111-${compile_time}.tar.gz successed!"
 fi
+[ -f $ROOT/history.txt.orig ] && mv $ROOT/history.txt.orig $ROOT/history.txt
 echo
 
 #for debug
