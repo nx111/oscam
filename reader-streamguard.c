@@ -416,6 +416,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 
 		memcpy(key1, md5_key, 8);
 		memcpy(key2, md5_key + 8, 8);
+		memcpy(reader->des_key,randkey,sizeof(reader->des_key));
 		if(reader->cas_version > 2){
 			des_ecb_encrypt(randkey, key1, 16);  //encrypt
 			des_ecb_decrypt(randkey, key2, 16);  //decrypt
@@ -443,12 +444,11 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 			return ERROR;
 		}
 
-		//3des decrypt
+/*		//3des decrypt
 		des_ecb_decrypt(randkey, key1, sizeof(randkey));  //decrypt
 		des_ecb_encrypt(randkey, key2, sizeof(randkey));  //crypt
 		des_ecb_decrypt(randkey, key1, sizeof(randkey));  //decrypt
-
-		memcpy(reader->des_key,randkey,sizeof(reader->des_key));
+*/
 
 		if(reader->boxid){
 			memcpy(confirm_pairing_cmd + 5, boxID, 4);
@@ -566,13 +566,16 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 		memcpy(ea->cw + 12, data + i + 6 + 4 + 1, 4);
 	}
 
+	if(reader->cas_version == 1)
+		return OK;
+
 	if(((uint16_t)(ea->cw[0]) + (uint16_t)(ea->cw[1]) + (uint16_t)(ea->cw[2])) == (uint16_t)(ea->cw[3])
 	   && ((uint16_t)(ea->cw[4]) + (uint16_t)(ea->cw[5]) + (uint16_t)(ea->cw[6])) == (uint16_t)(ea->cw[7])
 	   && ((uint16_t)(ea->cw[8]) + (uint16_t)(ea->cw[9]) + (uint16_t)(ea->cw[10])) == (uint16_t)(ea->cw[11])
 	   && ((uint16_t)(ea->cw[12]) + (uint16_t)(ea->cw[13]) + (uint16_t)(ea->cw[14])) == (uint16_t)(ea->cw[15]))
 		return OK;
 
-	if(((data[i + 5] & 0x10) != 0) && is_valid(reader->des_key,sizeof(reader->des_key))){
+	if((data[i + 5] & 0x10) != 0){
 		//3des decrypt
 		uchar key1[8], key2[8];
 		memcpy(key1, reader->des_key, 8);
