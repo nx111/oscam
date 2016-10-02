@@ -488,7 +488,6 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 	uchar ecm_cmd[256] = {0x80,0x32,0x00,0x00,0x3C};
 	uchar data[256];
 	int32_t ecm_len;
-	uchar* pbuf;
 	int32_t i = 0;
 	int32_t write_len = 0;
 	def_resp;
@@ -530,24 +529,23 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 	data_len = streamguard_read_data(reader, read_size, data, &status);
 
 	if(data_len <= 18){
-		rdr_log(reader, "error: card return cw data failed,request data len=%d, return data len=%d.",read_size, data_len);
+		rdr_log(reader, "error: card return cw data failed,request data len must > 18, return data len=%d.", data_len);
 		return ERROR;
 	}
 	uint16_t cid=0;
-	for(i = 0, pbuf=data; i < (data_len - 1); i++)
+	for(i = 0; i < (data_len - 1); i++)
 	{
-		if (reader->cas_version == 3 && pbuf[0] == 0xB4 && pbuf[1] == 0x04)
-			cid = b2i(2, pbuf + 4);
+		if (reader->cas_version == 3 && data[i] == 0xB4 && data[i + 1] == 0x04)
+			cid = b2i(2, data + i + 4);
 ;
-		if (pbuf[0] == 0x83 && pbuf[1] == 0x16)
+		if (data[i] == 0x83 && data[i + 1] == 0x16)
 		{
-			if(reader->cas_version <= 2 || pbuf[2] != 0 || pbuf[3] != 1)
+			if(reader->cas_version <= 2 || data[i + 2] != 0 || data[i + 3] != 1)
 				break;
 		}
-		pbuf++;
 	}
 
-	if (i >= data_len || (!is_valid(pbuf, 8)) || (!is_valid(pbuf + 8, 8))  )
+	if (i >= data_len || (!is_valid(data + i, 8)) || (!is_valid(data + i + 8, 8))  )
 	{
 		rdr_log(reader, "error: not valid cw data...");
 		return ERROR;
@@ -555,17 +553,17 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 
 	if((er->ecm[0] == 0x80))
 	{
-		memcpy(ea->cw +  0, pbuf + 6, 4);
-		memcpy(ea->cw +  4, pbuf + 6 + 4 + 1, 4);
-		memcpy(ea->cw +  8, pbuf + 6 + 8 + 1, 4);
-		memcpy(ea->cw + 12, pbuf + 6 + 8 + 4 + 1 + 1, 4);
+		memcpy(ea->cw +  0, data + i + 6, 4);
+		memcpy(ea->cw +  4, data + i + 6 + 4 + 1, 4);
+		memcpy(ea->cw +  8, data + i + 6 + 8 + 1, 4);
+		memcpy(ea->cw + 12, data + i + 6 + 8 + 4 + 1 + 1, 4);
 	}
 	else
 	{
-		memcpy(ea->cw +  0, pbuf + 6 + 8 + 1, 4);
-		memcpy(ea->cw +  4, pbuf + 6 + 8 + 4 + 1 + 1, 4);
-		memcpy(ea->cw +  8, pbuf + 6, 4);
-		memcpy(ea->cw + 12, pbuf + 6 + 4 + 1, 4);
+		memcpy(ea->cw +  0, data + i + 6 + 8 + 1, 4);
+		memcpy(ea->cw +  4, data + i + 6 + 8 + 4 + 1 + 1, 4);
+		memcpy(ea->cw +  8, data + i + 6, 4);
+		memcpy(ea->cw + 12, data + i + 6 + 4 + 1, 4);
 	}
 
 	if(((uint16_t)(ea->cw[0]) + (uint16_t)(ea->cw[1]) + (uint16_t)(ea->cw[2])) == (uint16_t)(ea->cw[3])
@@ -574,7 +572,7 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 	   && ((uint16_t)(ea->cw[12]) + (uint16_t)(ea->cw[13]) + (uint16_t)(ea->cw[14])) == (uint16_t)(ea->cw[15]))
 		return OK;
 
-	if(((pbuf[5] & 0x10) != 0) && is_valid(reader->des_key,sizeof(reader->des_key))){
+	if(((data[i + 5] & 0x10) != 0) && is_valid(reader->des_key,sizeof(reader->des_key))){
 		//3des decrypt
 		uchar key1[8], key2[8];
 		memcpy(key1, reader->des_key, 8);
@@ -586,7 +584,7 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 
 	if(cid == 0x120 || cid == 0x100 || cid == 0x10A || cid == 0x101 || cid == 0x47){
 		int32_t ikey1=b2i(2, data);
-		int32_t ikey2=b2i(2, pbuf + 2);
+		int32_t ikey2=b2i(2, data + i + 2);
 		decrypt_cw_ex(cid, ikey1, ikey2, cid, ea->cw);
 	}
 	return OK;
