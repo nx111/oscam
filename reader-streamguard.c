@@ -245,7 +245,7 @@ static int32_t is_valid(uchar *buf, size_t len)
 	return ERROR;
 }
 
-static void  decrypt_cw_ex(int32_t cid, int32_t ikey1, int32_t ikey2, int32_t ikey3, uchar *buf)
+static void  decrypt_cw_ex(int32_t tag, int32_t a, int32_t b, int32_t c, uchar *data)
 {
         uchar key1[16] = {0xB5, 0xD5, 0xE8, 0x8A, 0x09, 0x98, 0x5E, 0xD0, 0xDA, 0xEE, 0x3E, 0xC3, 0x30, 0xB9, 0xCA, 0x37};
         uchar key2[16] = {0x5F, 0xE2, 0x76, 0xF8, 0x04, 0xCB, 0x5A, 0x24, 0x79, 0xF9, 0xC9, 0x7F, 0x23, 0x21, 0x45, 0x87};
@@ -255,34 +255,35 @@ static void  decrypt_cw_ex(int32_t cid, int32_t ikey1, int32_t ikey2, int32_t ik
 	uchar md5tmp[20];
 	uchar deskey1[8], deskey2[8];
 
-	if(cid == 0x120 || cid == 0x100 || cid == 0x10A || cid == 0x101 || cid == 0x47)
+	if(tag == 0x120 || tag == 0x100 || tag == 0x10A || tag == 0x101 || tag == 0x47)
 		return;
 
-	if(cid == 0x100)
+	if(tag == 0x100)
 		memcpy(keybuf,key1,sizeof(key1));
-	else if(cid == 0x101)
+	else if(tag == 0x101)
 		memcpy(keybuf,key2,sizeof(key2));
-	else if(cid == 0x47)
+	else if(tag == 0x47)
 		memcpy(keybuf,key3,sizeof(key3));
-	keybuf[16] = (ikey3 >> 24) & 0xFF;
-	keybuf[17] = (ikey1 >> 8) & 0xFF;
-	keybuf[18] = (ikey3 >> 16) & 0xFF;
-	keybuf[19] = (ikey3 >> 8) & 0xFF;
-	keybuf[20] = ikey3 & 0xFF;
-	keybuf[21] = ikey1 & 0xFF;
+	keybuf[16] = (c >> 24) & 0xFF;
+	keybuf[17] = (a >> 8) & 0xFF;
+	keybuf[18] = (c >> 16) & 0xFF;
+	keybuf[19] = (c >> 8) & 0xFF;
+	keybuf[20] = c & 0xFF;
+	keybuf[21] = a & 0xFF;
 	md5(keybuf,22,md5tmp);
-	md5tmp[16] = (ikey2 >> 8)& 0xFF;
-	md5tmp[17] = ikey2 & 0xFF;
-	md5tmp[18] = (ikey1 >> 8) & 0xFF;
-	md5tmp[19] = ikey1 & 0xff;
+
+	md5tmp[16] = (b >> 8)& 0xFF;
+	md5tmp[17] = b & 0xFF;
+	md5tmp[18] = (a >> 8) & 0xFF;
+	md5tmp[19] = a & 0xff;
 	md5(md5tmp,20,md5key);
 
 	//3des decrypt
 	memcpy(deskey1, md5key, 8);
 	memcpy(deskey2, md5key + 8, 8);
-	des_ecb_decrypt(buf, deskey1, 16);  //decrypt
-	des_ecb_encrypt(buf, deskey2, 16);  //crypt
-	des_ecb_decrypt(buf, deskey1, 16);  //decrypt
+	des_ecb_decrypt(data, deskey1, 16);  //decrypt
+	des_ecb_encrypt(data, deskey2, 16);  //crypt
+	des_ecb_decrypt(data, deskey1, 16);  //decrypt
 }
 
 static int32_t streamguard_read_data(struct s_reader *reader, uchar size, uchar *cta_res, uint16_t *status)
@@ -532,11 +533,11 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 		rdr_log(reader, "error: card return cw data failed,request data len must > 18, return data len=%d.", data_len);
 		return ERROR;
 	}
-	uint16_t cid=0;
+	uint16_t tag=0;
 	for(i = 0; i < (data_len - 1); i++)
 	{
 		if (reader->cas_version == 3 && data[i] == 0xB4 && data[i + 1] == 0x04)
-			cid = b2i(2, data + i + 4);
+			tag = b2i(2, data + i + 4);
 ;
 		if (data[i] == 0x83 && data[i + 1] == 0x16)
 		{
@@ -585,10 +586,10 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 		des_ecb_decrypt(ea->cw, key1, sizeof(ea->cw));  //decrypt
 	}
 
-	if(cid == 0x120 || cid == 0x100 || cid == 0x10A || cid == 0x101 || cid == 0x47){
-		int32_t ikey1=b2i(2, data);
-		int32_t ikey2=b2i(2, data + i + 2);
-		decrypt_cw_ex(cid, ikey1, ikey2, cid, ea->cw);
+	if(tag == 0x120 || tag == 0x100 || tag == 0x10A || tag == 0x101 || tag == 0x47){
+		int32_t a=b2i(2, data);
+		int32_t b=b2i(2, data + i + 2);
+		decrypt_cw_ex(tag, a, b, tag, ea->cw);
 	}
 	return OK;
 }
