@@ -3,8 +3,8 @@ plat=dm800
 plat_dir=build_mips
 Architecture=
 machine=tuxbox
-TOOLCHAIN=mipsel-linux-gnu
-TOOLCHAIN_ROOT=boardcom-stbgcc-4.8-1.5
+TOOLCHAIN=mipsel-unknown-linux-gnu
+TOOLCHAIN_ROOT=mipsel-unknown-linux-gnu
 TOOCHAINFILE=toolchain-mipsel-tuxbox.cmake
 #TOOLCHAIN_STAGE=/work/dreambox/toolchains
 
