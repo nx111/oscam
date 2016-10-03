@@ -473,7 +473,7 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 			rdr_log(reader, "Provider:%02x%02x", cta_res[i * 2], cta_res[i * 2 + 1]);
 	}
 	write_cmd(get_agegrade_cmd, get_agegrade_cmd + 5);
-	if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)) { return OK; }
+	if((cta_res[cta_lr - 2] & 0xF0) != 0x60) { return OK; }
 
 	tongfang_read_data(reader, cta_res[cta_lr - 1], data, &status);
 	if(status != 0x9000) { return OK; }
