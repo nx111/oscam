@@ -512,7 +512,7 @@ static void http_utf8_fn(const char *token, char *value, void *UNUSED(setting), 
 		cs_http_use_utf8 = cfg.http_utf8;
 		return;
 	}
-	fprintf(f, token, "%d\n",cfg.http_utf8);
+	fprintf_conf(f, token, "%d\n",cfg.http_utf8);
 }
 
 static bool webif_should_save_fn(void *UNUSED(var))
