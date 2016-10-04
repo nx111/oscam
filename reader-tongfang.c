@@ -263,7 +263,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	// check pairing
 	write_cmd(pairing_cmd, pairing_cmd + 5);
 	if((cta_res[cta_lr - 2] == 0x94) && (cta_res[cta_lr - 1] == 0xB1) ) {
-		rdr_log_dbg(reader, D_IFD, "the card is not bound to any box,continue...");
+		rdr_log_dbg(reader, D_IFD, "the card is not pairing with any box,continue...");
 	}
 	else if((cta_res[cta_lr - 2] == 0x94) && (cta_res[cta_lr - 1] == 0xB2))
 	{
@@ -272,7 +272,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 			write_cmd(pairing_cmd, pairing_cmd + 5);
 
 			if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00) ) {
-				rdr_log(reader, "error: this card is not bound to the box!");
+				rdr_log(reader, "error: this card is not pairing with the box!");
 				return ERROR;
 			}
 		}
@@ -283,7 +283,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	}
 	else
 	{
-		rdr_log_dbg(reader, D_IFD, "the card is not bound to any box,continue...");
+		rdr_log_dbg(reader, D_IFD, "the card is not pairing with any box,continue...");
 	}
 
 	// for version >=3 ,confirm commkey
@@ -300,7 +300,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		write_cmd(confirm_commkey_cmd, confirm_commkey_cmd + 5);
 
 		if(cta_res[cta_lr - 2] == 0x90 && cta_res[cta_lr - 2] == 0x00){
-			rdr_log_dbg(reader, D_IFD, "the card is not bound to any box,continue...");
+			rdr_log_dbg(reader, D_IFD, "the card is not pairing with any box,continue...");
 		}
 		else{
 			readsize=cta_res[cta_lr -1];
@@ -309,7 +309,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 				return ERROR;
 			}
 			if(data[0] == 0x94 && data[1] == 0xB2){
-				rdr_log(reader, "error: this card is bound to some box!");
+				rdr_log(reader, "error: this card is pairing with some box!");
 				return ERROR;
 			}
 		}
