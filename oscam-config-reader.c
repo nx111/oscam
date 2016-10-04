@@ -853,7 +853,7 @@ static const struct config_list reader_opts[] =
 #ifdef  READER_TONGFANG
 	DEF_OPT_FUNC("tongfang3_calibsn"    , 0,                            tongfang3_calibsn_fn),
 #endif
-	DEF_OPT_UINT32("cas_version"        ,OFS(cas_version),              2),
+	DEF_OPT_UINT32("cas_version"        ,OFS(cas_version),              0),
 	DEF_OPT_FUNC("boxkey"               , 0,                            boxkey_fn),
 	DEF_OPT_FUNC("rsakey"               , 0,                            rsakey_fn),
 	DEF_OPT_FUNC("deskey"               , 0,                            deskey_fn),
