@@ -130,8 +130,8 @@ static int32_t tongfang_read_data(struct s_reader *reader, uchar size, uchar *ct
 
 static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 {
-	const uchar begin_cmdv2[] = {0x00, 0xa4, 0x04, 0x00, 0x05, 0xf9, 0x5a, 0x54, 0x00, 0x06};
-	const uchar begin_cmdv3[] = {0x80, 0x46, 0x00, 0x00, 0x04, 0x07, 0x00, 0x00, 0x08};
+	const uchar get_ppua_cmdv2[] = {0x00, 0xa4, 0x04, 0x00, 0x05, 0xf9, 0x5a, 0x54, 0x00, 0x06};
+	const uchar get_ppua_cmdv3[] = {0x80, 0x46, 0x00, 0x00, 0x04, 0x07, 0x00, 0x00, 0x08};
 	uchar get_serial_cmdv2[] = {0x80, 0x46, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x04};
 	uchar get_serial_cmdv3[] = {0x80, 0x46, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x14};
 	uchar get_commkey_cmd[17] = {0x80, 0x56, 0x00, 0x00, 0x0c};
@@ -169,7 +169,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 
 	if(hist_size < 5 || hist[4] == '0' || hist[4] == '1'){	//tongfang 1-2
 		reader->cas_version=2;
-		write_cmd(begin_cmdv2, begin_cmdv2 + 5);
+		write_cmd(get_ppua_cmdv2, get_ppua_cmdv2 + 5);
 		if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)) { return ERROR; }
 		rdr_log(reader, "Tongfang 1/2 card detected");
 
@@ -198,7 +198,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	}
 	else if(hist_size >= 5 && hist[4] == '2' ){	//tongfang 3
 		reader->cas_version=3;
-		write_cmd(begin_cmdv3, begin_cmdv3 + 5);
+		write_cmd(get_ppua_cmdv3, get_ppua_cmdv3 + 5);
 		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) { return ERROR; }
 		rdr_log(reader, "Tongfang3 card detected");
 
