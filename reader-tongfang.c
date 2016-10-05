@@ -193,8 +193,8 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		memcpy(reader->hexserial + 2, data, 4);
 
 		memset(card_id, 0, sizeof(card_id));
-		memcpy(card_id,data + 4, (readsize-4) > ((int32_t)sizeof(card_id) - 1) ? (int32_t)sizeof(card_id) - 1 : readsize - 5);
-		card_id[sizeof(card_id) - 1] = '\0';
+		memcpy(card_id,data + 11, 8);
+		card_id[8] = '\0';
 
 		// check pairing
 		write_cmd(pairing_cmd, pairing_cmd + 5);
@@ -277,8 +277,8 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		memcpy(reader->hexserial + 2, data, 4); // might be incorrect offset
 
 		memset(card_id, 0, sizeof(card_id));
-		memcpy(card_id, data + 4, (readsize - 4) > ((int32_t)sizeof(card_id) - 1) ? (int32_t)sizeof(card_id) - 1 : readsize - 5);
-		card_id[sizeof(card_id) - 1] = '\0';
+		memcpy(card_id,data + 11, 8);
+		card_id[8] = '\0';
 
 		//confirm commkey and pairing
 		memcpy(data, stbid, sizeof(stbid));
