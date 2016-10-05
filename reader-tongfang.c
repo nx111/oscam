@@ -195,6 +195,32 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		memset(card_id, 0, sizeof(card_id));
 		memcpy(card_id,data + 4, (readsize-4) > ((int32_t)sizeof(card_id) - 1) ? (int32_t)sizeof(card_id) - 1 : readsize - 5);
 		card_id[sizeof(card_id) - 1] = '\0';
+
+		// check pairing
+		write_cmd(pairing_cmd, pairing_cmd + 5);
+		if((cta_res[cta_lr - 2] == 0x94) && (cta_res[cta_lr - 1] == 0xB1) ) {
+			rdr_log_dbg(reader, D_IFD, "the card needlessly pairing with any box.");
+		}
+		else if((cta_res[cta_lr - 2] == 0x94) && (cta_res[cta_lr - 1] == 0xB2))
+		{
+			if(reader->boxid > 0){
+				memcpy(pairing_cmd + 5, boxID, 4);
+				write_cmd(pairing_cmd, pairing_cmd + 5);
+
+				if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00) ) {
+					rdr_log(reader, "error: this card pairing failed with the box,please check your boxid setting.");
+					return ERROR;
+				}
+			}
+			else{
+				rdr_log(reader, "warning: pairing card and box failed! need pairing code (boxid).");
+				return ERROR;
+			}
+		}
+		else{
+			rdr_log(reader, "error: this card pairing failed with the box(return code:0x%02X%02X).",cta_res[cta_lr -2],cta_res[cta_lr - 1]);
+		}
+
 	}
 	else if(hist_size >= 5 && hist[4] == '2' ){	//tongfang 3
 		reader->cas_version=3;
@@ -229,7 +255,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		memcpy(reader->tongfang3_commkey, data, 8);
 		des_ecb_encrypt(reader->tongfang3_commkey,des_key,8);
 
-		rdr_log(reader, "card commkey got(%02X%02X%02X%02X%02X%02X%02X%02X)",reader->tongfang3_commkey[0],
+		rdr_log_dbg(reader, D_IFD, "card commkey got(%02X%02X%02X%02X%02X%02X%02X%02X)",reader->tongfang3_commkey[0],
 			reader->tongfang3_commkey[1],reader->tongfang3_commkey[2],reader->tongfang3_commkey[3],
 			reader->tongfang3_commkey[4],reader->tongfang3_commkey[5],reader->tongfang3_commkey[6],
 			reader->tongfang3_commkey[7]);
@@ -254,40 +280,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		memcpy(card_id, data + 4, (readsize - 4) > ((int32_t)sizeof(card_id) - 1) ? (int32_t)sizeof(card_id) - 1 : readsize - 5);
 		card_id[sizeof(card_id) - 1] = '\0';
 
-	}
-	else {
-		rdr_log(reader, "error: NTIC%c card not support yet!",hist[4]);
-		return ERROR;
-	}
-
-	// check pairing
-	write_cmd(pairing_cmd, pairing_cmd + 5);
-	if((cta_res[cta_lr - 2] == 0x94) && (cta_res[cta_lr - 1] == 0xB1) ) {
-		rdr_log_dbg(reader, D_IFD, "the card is not pairing with any box,continue...");
-	}
-	else if((cta_res[cta_lr - 2] == 0x94) && (cta_res[cta_lr - 1] == 0xB2))
-	{
-		if(reader->boxid > 0){
-			memcpy(pairing_cmd + 5, boxID, 4);
-			write_cmd(pairing_cmd, pairing_cmd + 5);
-
-			if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00) ) {
-				rdr_log(reader, "error: this card is not pairing with the box!");
-				return ERROR;
-			}
-		}
-		else{
-			rdr_log(reader, "warning: pairing card and box failed! need pairing code (boxid).");
-			return ERROR;
-		}
-	}
-	else
-	{
-		rdr_log_dbg(reader, D_IFD, "the card is not pairing with any box,continue...");
-	}
-
-	// for version >=3 ,confirm commkey
-	if(reader->cas_version > 2){
+		//confirm commkey and pairing
 		memcpy(data, stbid, sizeof(stbid));
 		des_ecb_encrypt(data, reader->tongfang3_commkey, 8);
 
@@ -305,14 +298,23 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		else{
 			readsize=cta_res[cta_lr -1];
 			if(readsize != tongfang_read_data(reader, readsize, data, &status) || status != 0x9000){
-				rdr_log(reader, "error: confirm commkey failed.(read response data failed)");
+				rdr_log(reader, "error: confirm commkey failed(read response data failed).");
 				return ERROR;
 			}
-			if(data[0] == 0x94 && data[1] == 0xB2){
-				rdr_log(reader, "error: this card is pairing with some box!");
+			if(data[0] == 0x90 && data[1] == 0x00)
+				rdr_log_dbg(reader, D_IFD, "the card pairing with any box succeed.");
+			else if(data[0] == 0x94 && data[1] == 0xB1)
+				rdr_log_dbg(reader, D_IFD, "the card needlessly pairing with any box");
+			else if(data[0] == 0x94 && data[1] == 0xB2){
+				rdr_log(reader, "error: confirm commkey failed(the card pairing with some other box),please check your boxid setting.");
 				return ERROR;
 			}
 		}
+
+	}
+	else {
+		rdr_log(reader, "error: NTIC%c card not support yet!",hist[4]);
+		return ERROR;
 	}
 
 	rdr_log_sensitive(reader, "type: Tongfang, caid: %04X, serial: {%llu}, hex serial: {%02x%02x%02x%02x},"\
