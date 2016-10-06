@@ -37,6 +37,7 @@ if [ -f $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} ]; then
 		control_size=$(du -bsc $ROOT/build/.tmp/image${machine}/CONTROL | sed -n 1p | cut  -f1)
 		target_size=$(( total_size - control_size ))
 		Architecture=${Architecture=$plat}
+		[ -z "$Architecture" ] && Architecture=all
 		sed -e "s/^\([[:space:]]*Version:\).*/\1 ${revision}/" \
 		    -e "s/^\([[:space:]]*Installed-Size:\).*/\1 ${target_size}/" -i $ROOT/build/.tmp/image${machine}/CONTROL/control
 		if grep -q "Architecture:" $ROOT/build/.tmp/image${machine}/CONTROL/control; then

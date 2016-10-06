@@ -42,8 +42,8 @@ rm -rf $ROOT/build/.tmp/*
 ######### parse option #######################
 buildtype="default"
 for op in "$@"; do
-   [ "$op" = "-debug" ] && debug=1
-   [ "$op" = "-inline" ] && buildtype="inline"
+   [ "$op" = "-debug" -o "$op" = "debug" ] && debug=1
+   [ "$op" = "-inline" -o "$op" = "inline" ] && buildtype="inline"
 done
 
 # fix config.sh for subverison changed to git
