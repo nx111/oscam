@@ -466,7 +466,9 @@ static int32_t tongfang_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 static int32_t tongfang_card_info(struct s_reader *reader)
 {
 	static const uchar get_provider_cmd[] = {0x80, 0x44, 0x00, 0x00, 0x08};
+	uchar get_subscription_cmd[] = {0x80,0x48,0x00,0x01,0x04,0x01,0x00,0x00,0x13};
 	static const uchar get_agegrade_cmd[] = {0x80, 0x46, 0x00, 0x00, 0x04, 0x03, 0x00, 0x00, 0x09};
+
 	def_resp;
 	int32_t i;
 	uchar data[256];
@@ -477,8 +479,36 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 
 	for(i = 0; i < 4; i++)
 	{
-		if((cta_res[i*2]!=0)||(cta_res[i*2+1]!=0))
+		if(((cta_res[i*2] != 0) || (cta_res[i*2 + 1] != 0)) && ((cta_res[i*2] != 0xFF) || (cta_res[i*2 + 1] != 0xFF))){
+			memcpy(&reader->prid[i][0],cta_res + i * 2, 2);
 			rdr_log(reader, "Provider:%02x%02x", cta_res[i * 2], cta_res[i * 2 + 1]);
+			reader->nprov = i + 1;
+
+		}
+	}
+
+	cs_clear_entitlement(reader);
+	for(i = 0; i < reader->nprov; i++)
+	{
+			get_subscription_cmd[2] = reader->prid[i][0] ;
+			get_subscription_cmd[3] = reader->prid[i][1];
+			write_cmd(get_subscription_cmd, get_subscription_cmd + 5);
+			if((cta_res[cta_lr - 2] & 0xF0) != 0x60)
+				continue;
+			if((3 > tongfang_read_data(reader, cta_res[cta_lr - 1], data, &status)) || (status != 0x9000))
+				continue;
+			uint16_t count = data[2];
+			int j;
+			for(j = 0; j < count; j++){
+				if(!data[j * 13 + 4]) continue;
+				time_t start_t,end_t;
+				//946656000L = 2000-01-01 00:00:00
+				start_t = 946656000L + b2i(2, data + j * 13 + 8) - 1;
+				end_t = 946656000L + b2i(2, data + j * 13 + 12) - 1;
+
+				cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][0]), 0, 0, start_t, end_t, 0, 1);
+			}
+
 	}
 	write_cmd(get_agegrade_cmd, get_agegrade_cmd + 5);
 	if((cta_res[cta_lr - 2] & 0xF0) != 0x60) { return OK; }
