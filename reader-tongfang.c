@@ -506,8 +506,9 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 				//946656000L = 2000-01-01 00:00:00
 				start_t = 946656000L + (b2i(2, data + j * 13 + 8) - 1) * 24 * 3600L;
 				end_t = 946656000L + (b2i(2, data + j * 13 + 12) - 1) * 24 * 3600L;
+				uint64_t product_id=b2i(2, data + j * 13 + 5);
 
-				cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][0]), 0, 0, start_t, end_t, 0, 1);
+				cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][0]), product_id, 0, start_t, end_t, 0, 1);
 			}
 
 	}
