@@ -5,6 +5,7 @@ start)
 	;;
 stop)
 	kill `cat /tmp/oscam.pid` 2> /dev/null
+	rm -f /tmp/oscam.pid
 	;;
 restart|reload)
 	$0 stop
