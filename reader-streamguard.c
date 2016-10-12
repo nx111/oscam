@@ -196,7 +196,7 @@ static void md5_update(md5_CTX *ctx, const uint8_t *buf, uint32_t len)
 		return;
 	}
 	memcpy((uint8_t*)ctx->in + t, buf, len);
-	byteReverse((uint8_t*)ctx->in, 16);
+	byteReverse((uint8_t*)ctx->in, t + len);
 }
 
 static void md5_final(unsigned char *digest, md5_CTX *ctx)
@@ -215,8 +215,8 @@ static void md5_final(unsigned char *digest, md5_CTX *ctx)
 		count = 120 - count;
 	md5_update(ctx, padding, count);
 	md5_update(ctx, temp, 8);
-	memcpy(digest,(unsigned char*)ctx->buf, 4);
-	byteReverse((unsigned char*)ctx->buf, 4);
+	memcpy(digest,(unsigned char*)ctx->buf, 16);
+	byteReverse((unsigned char*)ctx->buf, 16);
 }
 
 unsigned char *md5(const unsigned char *input, unsigned long len, unsigned char *output)
