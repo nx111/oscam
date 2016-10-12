@@ -267,7 +267,7 @@ static void  decrypt_cw_ex(int32_t tag, int32_t a, int32_t b, int32_t c, uchar *
 		memcpy(keybuf,key2,sizeof(key2));
 	}
 	else if(tag == 0x47){
-		key3[15] = 0xD1;
+		key3[15] = 0xB3;
 		memcpy(keybuf,key3,sizeof(key3));
 	}
 	keybuf[16] = (c >> 24) & 0xFF;
@@ -450,12 +450,6 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 			rdr_log(reader, "error: init read data failed for pairing.");
 			return ERROR;
 		}
-
-/*		//3des decrypt
-		des_ecb_decrypt(randkey, key1, sizeof(randkey));  //decrypt
-		des_ecb_encrypt(randkey, key2, sizeof(randkey));  //crypt
-		des_ecb_decrypt(randkey, key1, sizeof(randkey));  //decrypt
-*/
 
 		if(reader->boxid){
 			memcpy(confirm_pairing_cmd + 5, boxID, 4);
