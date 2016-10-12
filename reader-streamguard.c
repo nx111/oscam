@@ -697,7 +697,19 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 			rdr_log(reader, "error: read data failed for get subscription.");
 			break;
 		}
-		//streamguard_set_subscription(i,data);  //WIP
+
+		uint16_t count = data[1];
+		int j;
+		for(j = 0; j < count; j++){
+			if(data[j * 19 + 3] == 0 && data[j * 19 + 4] == 0) continue;
+
+			time_t start_t,end_t;
+			start_t = b2i(4, data + j * 19 + 12) * 24 * 3600L;
+			end_t = b2i(2, data + j * 19 + 16) * 24 * 3600L;
+			uint64_t product_id=b2i(2, data + j * 19 + 5);
+
+			cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][0]), product_id, 0, start_t, end_t, 0, 1);
+		}
 		bankid = data[0];
 	}
 
