@@ -339,7 +339,6 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 
 	memset(reader->des_key, 0, sizeof(reader->des_key));
 
-	// For now, only one provider, 0000
 	reader->nprov = 1;
 	memset(reader->prid, 0x00, sizeof(reader->prid));
 
@@ -663,14 +662,25 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 		return ERROR;
 	}
 
+	reader->nprov = 0;
 	int count = ((nextReadSize - 3) / 46) < 4 ? (nextReadSize - 3) / 46 : 4;
 	int i;
 	for(i = 0; i < count; i++){
-		if(data[i * 46 + 3] != 0xFF && reader->nprov < CS_MAXPROV){
-			reader->prid[reader->nprov][0] = data[i * 46 + 4];
-			reader->prid[reader->nprov][1] = data[i * 46 + 3];
-			reader->nprov++;
-			if(i>0 && data[i * 46 + 3] == 0x09 && data[i * 46 + 4] == 0x88){
+		if(data[i * 46 + 3] != 0xFF || data[i * 46 + 4] != 0xFF ){
+			int j;
+			int found = 0;
+			for(j = 0; j < reader->nprov; j++){
+				if(reader->nprov > 0 && reader->prid[j][2] == data[i * 46 + 3] && reader->prid[j][3] == data[i * 46 + 4]){
+					found = 1;
+					break;
+				}
+			}
+			if(found == 1) continue;
+
+			memcpy(&reader->prid[reader->nprov][2], data + i * 46 + 3, 2);
+			rdr_log(reader, "Provider:%02x%02x", data[i * 46 + 3], data[i * 46 + 4]);
+			reader->nprov ++;
+			if(data[i * 46 + 3] == 0x09 && data[i * 46 + 4] == 0x88){
 				reader->caid = 0x4AD3;
 				break;
 			}
@@ -679,8 +689,8 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 	int bankid=0;
 	for(i = 0; i < reader->nprov; i++){
 		get_subscription_cmd[5] = bankid;
-		get_subscription_cmd[10] = reader->prid[i][1];
-		get_subscription_cmd[11] = reader->prid[i][0];
+		get_subscription_cmd[10] = reader->prid[i][2];
+		get_subscription_cmd[11] = reader->prid[i][3];
 		write_cmd(get_subscription_cmd, get_subscription_cmd + 5);
 		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
 			rdr_log(reader, "error:  get subscription failed.");
@@ -699,10 +709,10 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 
 			time_t start_t,end_t;
 			start_t = b2i(4, data + j * 19 + 12) * 24 * 3600L;
-			end_t = b2i(2, data + j * 19 + 16) * 24 * 3600L;
+			end_t = b2i(4, data + j * 19 + 16) * 24 * 3600L;
 			uint64_t product_id=b2i(2, data + j * 19 + 5);
 
-			cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][0]), product_id, 0, start_t, end_t, 0, 1);
+			cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][2]), product_id, 0, start_t, end_t, 0, 1);
 		}
 		bankid = data[0];
 	}
