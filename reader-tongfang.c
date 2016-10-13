@@ -157,7 +157,6 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	//rdr_log(reader, "Tongfang module (%s)",__TIMESTAMP__);
 
 	reader->caid = 0x4A02;
-	// For now, only one provider, 0000
 	reader->nprov = 1;
 	memset(reader->prid, 0x00, sizeof(reader->prid));
 
@@ -477,12 +476,25 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 	write_cmd(get_provider_cmd, NULL);
 	if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)) { return ERROR; }
 
+	reader->nprov = 0;
+	memset(reader->prid, 0x00, sizeof(reader->prid));
 	for(i = 0; i < 4; i++)
 	{
-		if(((cta_res[i*2] != 0) || (cta_res[i*2 + 1] != 0)) && ((cta_res[i*2] != 0xFF) || (cta_res[i*2 + 1] != 0xFF))){
-			memcpy(&reader->prid[i][0],cta_res + i * 2, 2);
+		if((cta_res[i*2] != 0xFF) || (cta_res[i*2 + 1] != 0xFF)){
+			int j;
+			int found = 0;
+			for(j=0; j < reader->nprov; j++){
+				if(reader->nprov > 0 && reader->prid[j][2] == cta_res[i * 2] && reader->prid[j][3] == cta_res[i *2 + 1]){
+					found = 1;
+					break;
+				}
+			}
+
+			if(found == 1)
+				continue;
+			memcpy(&reader->prid[reader->nprov][2],cta_res + i * 2, 2);
 			rdr_log(reader, "Provider:%02x%02x", cta_res[i * 2], cta_res[i * 2 + 1]);
-			reader->nprov = i + 1;
+			reader->nprov ++;
 
 		}
 	}
@@ -490,8 +502,8 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 	cs_clear_entitlement(reader);
 	for(i = 0; i < reader->nprov; i++)
 	{
-			get_subscription_cmd[2] = reader->prid[i][0] ;
-			get_subscription_cmd[3] = reader->prid[i][1];
+			get_subscription_cmd[2] = reader->prid[i][2] ;
+			get_subscription_cmd[3] = reader->prid[i][3];
 			write_cmd(get_subscription_cmd, get_subscription_cmd + 5);
 			if((cta_res[cta_lr - 2] & 0xF0) != 0x60)
 				continue;
@@ -508,7 +520,7 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 				end_t = 946656000L + (b2i(2, data + j * 13 + 12) - 1) * 24 * 3600L;
 				uint64_t product_id=b2i(2, data + j * 13 + 5);
 
-				cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][0]), product_id, 0, start_t, end_t, 0, 1);
+				cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][2]), product_id, 0, start_t, end_t, 0, 1);
 			}
 
 	}
