@@ -208,12 +208,12 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 
 				if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00) ) {
 					rdr_log(reader, "error: this card pairing failed with the box,please check your boxid setting.");
-					return ERROR;
+					//return ERROR;
 				}
 			}
 			else{
-				rdr_log(reader, "warning: pairing card and box failed! need pairing code (boxid).");
-				return ERROR;
+				rdr_log(reader, "warning: the card pairing with some box.");
+				//return ERROR;
 			}
 		}
 		else{
@@ -298,15 +298,15 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 			readsize=cta_res[cta_lr -1];
 			if(readsize != tongfang_read_data(reader, readsize, data, &status) || status != 0x9000){
 				rdr_log(reader, "error: confirm commkey failed(read response data failed).");
-				return ERROR;
+				//return ERROR;
 			}
 			if(data[0] == 0x90 && data[1] == 0x00)
 				rdr_log_dbg(reader, D_IFD, "the card pairing with any box succeed.");
 			else if(data[0] == 0x94 && data[1] == 0xB1)
 				rdr_log_dbg(reader, D_IFD, "the card needlessly pairing with any box");
 			else if(data[0] == 0x94 && data[1] == 0xB2){
-				rdr_log(reader, "error: confirm commkey failed(the card pairing with some other box),please check your boxid setting.");
-				return ERROR;
+				rdr_log(reader, "warning: the card pairing with some box.");
+				//return ERROR;
 			}
 		}
 
