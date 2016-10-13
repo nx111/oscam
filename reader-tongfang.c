@@ -173,9 +173,9 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		rdr_log(reader, "Tongfang 1/2 card detected");
 
 		//get card serial
-		write_cmd(get_serial_cmdv2, get_serial_cmdv2 + 5);
+		write_cmd(get_serial_cmdv3, get_serial_cmdv3 + 5);
 		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
-			write_cmd(get_serial_cmdv3, get_serial_cmdv3 + 5);
+			write_cmd(get_serial_cmdv2, get_serial_cmdv2 + 5);
 			if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
 				rdr_log(reader, "error: get card serial failed.");
 				return ERROR;
