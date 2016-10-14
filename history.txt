@@ -1,3 +1,5 @@
+2e496 not dynamically load pcsc library when linked static library.
+d3c9d update history.txt
 a1e42 tongfang: when check pairing failed, just warning and continue init work.
 0a76f tongfang: for version 1/2, try use get serial command of version 3 at first.
 d4353 Revert "tongfang: just use 8 bytes for card id decimal string"
@@ -96,5 +98,3 @@ f28b0 Merged Conditional Access Module Emulator from github.com/oscam-emu
 3f7c6 [gbx] remove ecm rebroadcasting. Causes trouble on some systems.
 653ca DVBAPI: revert prio changes from r11246; this fixes problems with irdeto cards
 7caf1 tryfix: possible stackoverflow?
-c6c64 WEBIF: ssl: now only requiring TLS >=1.1 if at least TLS 1.1 is available; fallback to TLS 1.0 if not;
-767a7 WEBIF: added error message if OpenSSL Lib does not support TLS >= 1.1

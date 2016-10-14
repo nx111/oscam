@@ -45,7 +45,7 @@ struct pcsc_data
 	DWORD        dwActiveProtocol;
 };
 
-#if defined(WITH_DL)
+#if defined(WITH_DL) && (!defined(STATIC_LIBPCSC))
 
 #include <setjmp.h>
 #define try if(!setjmp(Jump_Buffer))
@@ -75,7 +75,7 @@ struct pcsc_data
 #define CS_SCARD_PCI_T1 SCARD_PCI_T1
 #endif
 
-#if defined(WITH_DL)
+#if defined(WITH_DL) && (!defined(STATIC_LIBPCSC))
 #include <dlfcn.h>
 
 #define STATUS_NOSHARELIB -1
@@ -129,7 +129,7 @@ static int32_t pcsc_init(struct s_reader *pcsc_reader)
 	char *device = pcsc_reader->device;
 	int32_t nbReaders;
 	int32_t reader_nb;
-#if defined(WITH_DL)
+#if defined(WITH_DL) && (!defined(STATIC_LIBPCSC))
 	if(pcsc_status == STATUS_NOTINITED){
 		try{
 			if(NULL == (pcsc_handle = dlopen(PCSC_SHARED_LIBRARY,RTLD_LAZY))){
@@ -280,7 +280,7 @@ static int32_t pcsc_do_api(struct s_reader *pcsc_reader, const uchar *buf, uchar
 	LONG rv;
 	DWORD dwSendLength, dwRecvLength;
 
-#if defined(WITH_DL)
+#if defined(WITH_DL) && (!defined(STATIC_LIBPCSC))
 	if(pcsc_status != STATUS_INITED)
 		return ERROR;
 #endif
@@ -348,7 +348,7 @@ static int32_t pcsc_activate_card(struct s_reader *pcsc_reader, uchar *atr, uint
 	unsigned char pbAtr[ATR_MAX_SIZE];
 	char tmp[sizeof(pbAtr) * 3 + 1];
 
-#if defined(WITH_DL)
+#if defined(WITH_DL) && (!defined(STATIC_LIBPCSC))
 	if(pcsc_status != STATUS_INITED)
 		return ERROR;
 #endif
@@ -395,7 +395,7 @@ static int32_t pcsc_activate(struct s_reader *reader, struct s_ATR *atr)
 	unsigned char atrarr[ATR_MAX_SIZE];
 	uint16_t atr_size = 0;
 
-#if defined(WITH_DL)
+#if defined(WITH_DL) && (!defined(STATIC_LIBPCSC))
 	if(pcsc_status != STATUS_INITED)
 		return ERROR;
 #endif
@@ -418,7 +418,7 @@ static int32_t pcsc_check_card_inserted(struct s_reader *pcsc_reader)
 	unsigned char pbAtr[64];
 	SCARDHANDLE rv;
 
-#if defined(WITH_DL)
+#if defined(WITH_DL) && (!defined(STATIC_LIBPCSC))
 	if(pcsc_status != STATUS_INITED)
 		return ERROR;
 #endif
@@ -501,7 +501,7 @@ static int32_t pcsc_close(struct s_reader *pcsc_reader)
 		CS_SCardDisconnect(crdr_data->hCard, SCARD_LEAVE_CARD);
 		CS_SCardReleaseContext(crdr_data->hContext);
 	}
-#if defined(WITH_DL)
+#if defined(WITH_DL) && (!defined(STATIC_LIBPCSC))
 	dlclose(pcsc_handle);
 	pcsc_status = STATUS_NOTINITED;
 #endif
