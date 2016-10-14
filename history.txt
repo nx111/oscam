@@ -1,3 +1,43 @@
+a1e42 tongfang: when check pairing failed, just warning and continue init work.
+0a76f tongfang: for version 1/2, try use get serial command of version 3 at first.
+d4353 Revert "tongfang: just use 8 bytes for card id decimal string"
+ffeef tongfang: improve parsing provider and entitlements.
+d6327 streamguard: improve parsing provider and entitlements.
+9f5c3 streamguard: fix decrypt_cw_ex for tag 0x47. remove unused comment.
+418e7 streamguard: fix custom md5
+057bb streamguard: add entitlement
+21002 streamguard: support for encrypt tag 0x92 and 0xDE.
+e3c59 update init scripts for openwrt.
+df49b tongfang: add product id for entitlements.
+7424f tongfang: fix subscription time calculation.
+4d6a0 fix dependence of des lib for tongfang and streamguard.
+73638 tongfang: parse subscription.
+7dccb update build scripts,clean unused OPENSSL_LIBRARIES and OPENSSL_ROOT_DIR.
+951c0 tongfang: just use 8 bytes for card id decimal string
+37c7b tongfang: needlessly separate pairing for versino 3.
+81424 tongfang: rename begin_cmd to get_ppua_cmd
+54eb8 tongfang: change some message.
+e243e tongfang: check pairing before confirm commkey.
+d9e4c tongfang: fix for pairing when box and card bound.
+7ef01 streamguard: rename some varible name.
+7dfd7 streamguard: no check des_key be zero all.
+f1048 streamguard: remove local varible pbuf.
+e162a streamguard: use custom md5 functions, upgrade to newer version.
+ea38f set cas_version default to 0
+b5c0a md5: skip byte reverse for all little endian platform.
+cb908 fix saving httputf8 config.
+b1fd9 build scripts: use toolchain from dm800 for dm800.
+1cf1d tongfang: fix for agegrade status.
+aff8a when debug, copy compressed binary.
+3e0b6 fix build script restore history.txt.
+2c650 better fix check_sec_len for some large ecm data.
+f1509 tongfang: correct some message words.
+b924b tongfang: try pairing with boxid.
+8bb98 Revert "fix some ecm data too long,increase the buffer size.", and check to MAX_SCT_SIZE.
+d7be0 pcsc: catch exception for dlopen and dlsym.
+4577c streamguard: upgrade to support newer version cas.
+6c51f tongfang: use cas_version instead of tongfang3_version.
+b2ac1 build scripts: build all ignore include/build_all.sh
 aa2b0 build scripts: remove depends to libc
 c1dbb buildscripts: remove some depends.
 dfe43 build scripts: not set ipk Architecture when set Architecture value empty.
@@ -58,43 +98,3 @@ f28b0 Merged Conditional Access Module Emulator from github.com/oscam-emu
 7caf1 tryfix: possible stackoverflow?
 c6c64 WEBIF: ssl: now only requiring TLS >=1.1 if at least TLS 1.1 is available; fallback to TLS 1.0 if not;
 767a7 WEBIF: added error message if OpenSSL Lib does not support TLS >= 1.1
-58560 DRECAS: fixed a warning
-4dc47 WEBIF: some changes to openssl calls to make it work on more toolchains (security level does not change)
-adc19 WEBIF: update for newer OpenSSL libs
-18959 Fixes for bulcrypt au introduced with r11246
-da4ef Fixed a bug
-4b980 Videoguard: added new ATR from #4403
-05463 CCCAM: Applied fix from #4394
-6dc8a Fixed last commit
-93286 WEBIF SSL: removed "http_force_sslv3" setting; added "https_force_secure_mode" setting (enabled by default); now using TLS
-9e23a Added fixes for OpenBSD
-d1eb6 icc_async.c: added a missing debug log
-e7462 CCCAM: default to newest version; if this creates problems, please revert
-a60be Added reader setting "detect_seca_nagra_tunneled_card" (enabled by default) to fix problems with seca cards when card-reset fails (set it to 0 in this case).
-b8191 Applied #4466 : Match PCSC reader by name
-08714 Videoguard: Added ATR from #4468
-5582f DVBAPI: now setting CA_SET_DESCR_MODE before CA_SET_DESCR; if this breaks something, please revert
-5c4bb Added SIGHUP actions patch by Nimloth
-aa17a DRE: fixed dre readers
-207b8 Fix for last commit
-40b25 DRE: Updated drecrypt reader support
-924d3 *fixed: localStorage exception on older Firefox versions; vg emm info bug on older Firefox versions
-1de18 *updated: vg emm info: fixed colors when usuing non-default webif skin
-992ff *fixed: vg emm info: emms by cccam
-46393 *fixed: vg emm info endless loop
-66bb7 *updated: vg emm info: emm type names
-97998 *updated: vg emm info: fixed some colors
-cb441 *fixed: vg emm info: lower case emms
-8dea1 *updated: vg emm info (webif)
-bf34c *updated: vg emm info: added checksum check
-991bd *updated: ecmfmt: display full payload by default
-4f757 *added advanced vg emm view (webif)
-d1e31 fix typo
-78941 - Commit solution for whitelist services as proposed in #4459 by TheTroll
-bb7eb [gbx] -add patch proposed by @chimpie23 -patch prevents that the log is flooded with messages in case you have disabled gsms
-13a67 [gbx] -add msg_goodbye as an indication that ecm failed, like orig. gbox -add optional parameter 'log_hello' to avoid spamming hellos in standard log -clean up and cosmetics
-e47d3 picon fix by savan
-408da fixed atr length
-744f8 picon patch by savan
-4f196 fixed missing byte in atr
-95dd7 updated atr table
