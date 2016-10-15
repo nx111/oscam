@@ -305,8 +305,11 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 			else if(data[0] == 0x94 && data[1] == 0xB1)
 				rdr_log_dbg(reader, D_IFD, "the card needlessly pairing with any box");
 			else if(data[0] == 0x94 && data[1] == 0xB2){
-				rdr_log(reader, "warning: the card pairing with some box.");
-				//return ERROR;
+				write_cmd(pairing_cmd, pairing_cmd + 5);
+				if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00) ) {
+					rdr_log(reader, "warning: the card pairing with some box.");
+					//return ERROR;
+				}
 			}
 		}
 
