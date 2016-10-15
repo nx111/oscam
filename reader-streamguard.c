@@ -678,7 +678,7 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 			if(found == 1) continue;
 
 			memcpy(&reader->prid[reader->nprov][2], data + i * 46 + 3, 2);
-			rdr_log(reader, "Provider:%02x%02x", data[i * 46 + 3], data[i * 46 + 4]);
+			rdr_log(reader, "Provider:%06X", b2i(2, data + i * 46 + 3));
 			reader->nprov ++;
 			if(data[i * 46 + 3] == 0x09 && data[i * 46 + 4] == 0x88){
 				reader->caid = 0x4AD3;

@@ -493,7 +493,7 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 			if(found == 1)
 				continue;
 			memcpy(&reader->prid[reader->nprov][2],cta_res + i * 2, 2);
-			rdr_log(reader, "Provider:%02x%02x", cta_res[i * 2], cta_res[i * 2 + 1]);
+			rdr_log(reader, "Provider:%06X", b2i(2,cta_res + i * 2));
 			reader->nprov ++;
 
 		}
