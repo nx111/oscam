@@ -2,6 +2,7 @@
 #ifdef READER_STREAMGUARD
 #include "reader-common.h"
 #include "cscrypt/des.h"
+#include <time.h>
 
 /************* custom md5 functions begin *************/
 typedef struct md5Context {
@@ -329,7 +330,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 	def_resp;
 	get_atr;
 
-	rdr_log(reader, "[reader-streamguard] StreamGuard atr_size:%d, atr[0]:%02x, atr[1]:%02x", atr_size, atr[0], atr[1]);
+	//rdr_log(reader, "[reader-streamguard] StreamGuard atr_size:%d, atr[0]:%02x, atr[1]:%02x", atr_size, atr[0], atr[1]);
 
 	if ((atr_size != 4) || (atr[0] != 0x3b) || (atr[1] != 0x02)) return ERROR;
 
@@ -702,6 +703,8 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 			break;
 		}
 
+		rdr_log(reader, "entitlements for provider: %d (%04X:%06X)", i, reader->caid, b2i(2, &reader->prid[i][2]));
+
 		uint16_t count = data[1];
 		int j;
 		for(j = 0; j < count; j++){
@@ -711,6 +714,15 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 			start_t = b2i(4, data + j * 19 + 12) * 24 * 3600L;
 			end_t = b2i(4, data + j * 19 + 16) * 24 * 3600L;
 			uint64_t product_id=b2i(2, data + j * 19 + 5);
+
+			struct tm  tm_start, tm_end;
+			char start_day[11], end_day[11];
+
+			localtime_r(&start_t, &tm_start);
+			localtime_r(&end_t, &tm_end);
+			strftime(start_day, sizeof(start_day), "%Y/%m/%d", &tm_start);
+			strftime(end_day, sizeof(end_day), "%Y/%m/%d", &tm_end);
+			rdr_log(reader, "chid: %04llX  date: %s - %s", product_id, start_day, end_day);
 
 			cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][2]), product_id, 0, start_t, end_t, 0, 1);
 		}

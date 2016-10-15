@@ -2,6 +2,7 @@
 #ifdef READER_TONGFANG
 #include "reader-common.h"
 #include "cscrypt/des.h"
+#include <time.h>
 
 static const uint32_t  tongfang3_calibsn=2991124752UL;	//B248F110<=;
 
@@ -154,7 +155,6 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	get_hist;
 
 	if((hist_size < 4) || (memcmp(hist, "NTIC", 4))) { return ERROR; }
-	//rdr_log(reader, "Tongfang module (%s)",__TIMESTAMP__);
 
 	reader->caid = 0x4A02;
 	reader->nprov = 1;
@@ -509,6 +509,9 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 				continue;
 			if((3 > tongfang_read_data(reader, cta_res[cta_lr - 1], data, &status)) || (status != 0x9000))
 				continue;
+
+			rdr_log(reader, "entitlements for provider: %d (%04X:%06X)", i, reader->caid, b2i(2, &reader->prid[i][2]));
+
 			uint16_t count = data[2];
 			int j;
 			for(j = 0; j < count; j++){
@@ -520,6 +523,15 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 				end_t = 946656000L + (b2i(2, data + j * 13 + 12) - 1) * 24 * 3600L;
 				uint64_t product_id=b2i(2, data + j * 13 + 5);
 
+				struct tm  tm_start, tm_end;
+				char start_day[11], end_day[11];
+
+				localtime_r(&start_t, &tm_start);
+				localtime_r(&end_t, &tm_end);
+				strftime(start_day, sizeof(start_day), "%Y/%m/%d", &tm_start);
+				strftime(end_day, sizeof(end_day), "%Y/%m/%d", &tm_end);
+				rdr_log(reader, "chid: %04llX  date: %s - %s", product_id, start_day, end_day);
+				
 				cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][2]), product_id, 0, start_t, end_t, 0, 1);
 			}
 
