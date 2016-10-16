@@ -451,6 +451,7 @@ static void write_versionfile(bool use_stdout)
 		write_readerconf(READER_DRE, "DRE Crypt");
 		write_readerconf(READER_TONGFANG, "TONGFANG");
 		write_readerconf(READER_STREAMGUARD, "StreamGuard");
+		write_readerconf(READER_JET, "Jet");
 		write_readerconf(READER_BULCRYPT, "Bulcrypt");
 		write_readerconf(READER_GRIFFIN, "Griffin");
 		write_readerconf(READER_DGCRYPT, "DGCrypt");
@@ -512,6 +513,7 @@ static void do_report_emm_support(void)
 		report_emm_support(READER_DRE, "DRE Crypt");
 		report_emm_support(READER_TONGFANG, "TONGFANG");
 		report_emm_support(READER_STREAMGUARD, "STREAMGUARD");
+		report_emm_support(READER_JET, "JET");
 		report_emm_support(READER_BULCRYPT, "Bulcrypt");
 		report_emm_support(READER_GRIFFIN, "Griffin");
 		report_emm_support(READER_DGCRYPT, "DGCrypt");
@@ -1594,6 +1596,9 @@ const struct s_cardsystem *cardsystems[] =
 #endif
 #ifdef READER_STREAMGUARD
 	&reader_streamguard,
+#endif
+#ifdef READER_JET
+	&reader_jet,
 #endif
 #ifdef READER_BULCRYPT
 	&reader_bulcrypt,

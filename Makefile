@@ -336,6 +336,7 @@ SRC-$(CONFIG_READER_NAGRA) += reader-nagra.c
 SRC-$(CONFIG_READER_SECA) += reader-seca.c
 SRC-$(CONFIG_READER_TONGFANG) += reader-tongfang.c
 SRC-$(CONFIG_READER_STREAMGUARD) += reader-streamguard.c
+SRC-$(CONFIG_READER_JET) += reader-jet.c
 SRC-$(CONFIG_READER_VIACCESS) += reader-viaccess.c
 SRC-$(CONFIG_READER_VIDEOGUARD) += reader-videoguard-common.c
 SRC-$(CONFIG_READER_VIDEOGUARD) += reader-videoguard1.c
