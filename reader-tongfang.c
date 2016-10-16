@@ -513,12 +513,10 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 			if((3 > tongfang_read_data(reader, cta_res[cta_lr - 1], data, &status)) || (status != 0x9000))
 				continue;
 
-			rdr_log(reader, "entitlements for provider: %d (%04X:%06X)", i, reader->caid, b2i(2, &reader->prid[i][2]));
-
 			uint16_t count = data[2];
 			int j;
 			for(j = 0; j < count; j++){
-				if(!data[j * 13 + 4]) continue;
+				//if(!data[j * 13 + 4]) continue;
 
 				time_t start_t,end_t;
 				//946656000L = 2000-01-01 00:00:00
@@ -533,7 +531,10 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 				localtime_r(&end_t, &tm_end);
 				strftime(start_day, sizeof(start_day), "%Y/%m/%d", &tm_start);
 				strftime(end_day, sizeof(end_day), "%Y/%m/%d", &tm_end);
-				rdr_log(reader, "chid: %04llX  date: %s - %s", product_id, start_day, end_day);
+
+				if (!j)
+					rdr_log(reader, "entitlements for provider: %d (%04X:%06X)", i, reader->caid, b2i(2, &reader->prid[i][2]));
+				rdr_log(reader, "    chid: %04llX  date: %s - %s", product_id, start_day, end_day);
 				
 				cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][2]), product_id, 0, start_t, end_t, 0, 1);
 			}
