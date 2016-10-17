@@ -1,3 +1,5 @@
+#define MODULE_LOG_PREFIX "emu"
+
 #include "globals.h"
 #include "ffdecsa/ffdecsa.h"
 #include "cscrypt/bn.h"
@@ -131,7 +133,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyNa
 
 	pDir = opendir(path);
 	if (pDir == NULL) {
-		cs_log("[Emu] cannot open key file path: %s", path);
+		cs_log("cannot open key file path: %s", path);
 		free(path);
 		return;
 	}
@@ -157,7 +159,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyNa
 	snprintf(filepath, pathLength, "%s/%s", path, filename);
 	free(path);
 
-	cs_log("[Emu] writing key file: %s", filepath);
+	cs_log("writing key file: %s", filepath);
 
 	file = fopen(filepath, "a");
 	free(filepath);
@@ -185,7 +187,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyNa
 		snprintf(line, sizeof(line), "\n%c %.4X %s %s ; added by OSEmu %s\n", identifier, provider, keyName, keyValue, dateText);
 	}
 	
-	cs_log("[Emu] Key written: %c %.4X %s %s", identifier, provider, keyName, keyValue);
+	cs_log("Key written: %c %.4X %s %s", identifier, provider, keyName, keyValue);
 	
 	free(keyValue);
 
@@ -427,7 +429,7 @@ int32_t FindKey(char identifier, uint32_t provider, uint32_t providerIgnoreMask,
 	}
 
 	if(isCriticalKey) {
-		cs_log("[Emu] Key not found: %c %X %s", identifier, provider, keyName);
+		cs_log("Key not found: %c %X %s", identifier, provider, keyName);
 	}
 	return 0;
 }
@@ -520,7 +522,7 @@ uint8_t read_emu_keyfile(const char *opath)
 
 	pDir = opendir(path);
 	if (pDir == NULL) {
-		cs_log("[Emu] cannot open key file path: %s", path);
+		cs_log("cannot open key file path: %s", path);
 		free(path);
 		return 0;
 	}
@@ -534,7 +536,7 @@ uint8_t read_emu_keyfile(const char *opath)
 	closedir(pDir);
 
 	if(pDirent == NULL) {
-		cs_log("[Emu] key file not found in: %s", path);
+		cs_log("key file not found in: %s", path);
 		free(path);
 		return 0;
 	}
@@ -548,7 +550,7 @@ uint8_t read_emu_keyfile(const char *opath)
 	snprintf(filepath, pathLength, "%s/%s", path, filename);
 	free(path);
 
-	cs_log("[Emu] reading key file: %s", filepath);
+	cs_log("reading key file: %s", filepath);
 
 	file = fopen(filepath, "r");
 	free(filepath);
@@ -2893,7 +2895,7 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 				{
 					if(!GetPowervuKey(ecmKey, channelId, '0', keyIndex, 7, 0, keyRef2++))
 					{
-						cs_log("[Emu] Key not found: P %04X 0%X", ecmSrvid, keyIndex);
+						cs_log("Key not found: P %04X 0%X", ecmSrvid, keyIndex);
 						return 2;
 					}
 				}
@@ -3214,7 +3216,7 @@ void DrecryptSetEmuExtee(ReaderInstanceData* idata)
 		}
 		fclose(file);
 	}
-	//else cs_log("[Emu] cannot open key file: %s", idata->extee36);
+	//else cs_log("cannot open key file: %s", idata->extee36);
 	
 	if((file = fopen(idata->extee56,"rb")) != NULL)
 	{
@@ -3224,7 +3226,7 @@ void DrecryptSetEmuExtee(ReaderInstanceData* idata)
 		}
 		fclose(file);
 	}
-	//else cs_log("[Emu] cannot open key file: %s", idata->extee56);
+	//else cs_log("cannot open key file: %s", idata->extee56);
 }
 
 static void DREover(const uint8_t *ECMdata, uint8_t *DW)
@@ -3347,7 +3349,7 @@ static int8_t Drecrypt2ECM(ReaderInstanceData* idata, uint16_t caid, uint32_t pr
 	
 	uint16_t ecmLen = GetEcmLen(ecm);
 	
-	cs_log_dbg(D_READER, "[EMU] CAID %04X IDENT %06X", caid, provId);
+	cs_log_dbg(D_READER, "CAID %04X IDENT %06X", caid, provId);
 	
 	if(ecmLen < 30 || caid != 0x4AE1)
 	{
@@ -3373,7 +3375,7 @@ static int8_t Drecrypt2ECM(ReaderInstanceData* idata, uint16_t caid, uint32_t pr
 	if(memcmp(dummy[0], key, 32) == 0 || memcmp(dummy[1], key, 32) == 0) 
 	{
 		DrecryptSetEmuExtee(idata);
-		cs_log("[Emu] error: ee%s.bin keys missing", ((provId & 0xFF) == 0x11) ? "36" : "56");
+		cs_log("error: ee%s.bin keys missing", ((provId & 0xFF) == 0x11) ? "36" : "56");
 		return 2;
 	}
 	
@@ -3459,7 +3461,7 @@ static int8_t TandbergECM(uint8_t *ecm, uint8_t *dw)
 			{
 				if(nanoLength != 0x16)
 				{
-					cs_log("[Emu] warning: ECM_TAG_CW_DESCRIPTOR length (%d) != %d", nanoLength, 0x16);
+					cs_log("warning: ECM_TAG_CW_DESCRIPTOR length (%d) != %d", nanoLength, 0x16);
 					break;
 				}
 				
@@ -3601,7 +3603,7 @@ int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const ui
 	}
 
 	if(result != 0) {
-		cs_log("[Emu] ECM failed: %s", GetProcessECMErrorReason(result));
+		cs_log("ECM failed: %s", GetProcessECMErrorReason(result));
 	}
 
 	return result;
@@ -3802,7 +3804,7 @@ static int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 					
 					(*keysAdded)++;
 					cs_hexdump(0, ecmKeys[j], 16, keyValue, sizeof(keyValue));
-					cs_log("[Emu] Key found in EMM: V %06X %s %s", ecmProvider, keyName, keyValue);
+					cs_log("Key found in EMM: V %06X %s %s", ecmProvider, keyName, keyValue);
 				}
 			}
 			break;
@@ -3866,7 +3868,7 @@ static int8_t Irdeto2DoEMMTypeOP(uint32_t ident, uint8_t *emm, uint8_t *keySeed,
 					
 					(*keysAdded)++;
 					cs_hexdump(0, &emm[i+3], 16, keyValue, sizeof(keyValue));
-					cs_log("[Emu] Key found in EMM: I %06X %s %s", ident, keyName, keyValue);
+					cs_log("Key found in EMM: I %06X %s %s", ident, keyName, keyValue);
 				}
 			}
 			i+=l;
@@ -3932,7 +3934,7 @@ static int8_t Irdeto2DoEMMTypePMK(uint32_t ident, uint8_t *emm, uint8_t *keySeed
 						
 						(*keysAdded)++;
 						cs_hexdump(0, &emm[i+3+j*16], 16, keyValue, sizeof(keyValue));
-						cs_log("[Emu] Key found in EMM: I %06X %s %s", ident, keyName, keyValue);
+						cs_log("Key found in EMM: I %06X %s %s", ident, keyName, keyValue);
 					}
 				}
 			}
@@ -4116,7 +4118,7 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 	{
 		if(!GetPowervuEmmKey(emmKey, 0, keyName, 7, 0, keyRef++, &groupId))
 		{
-			cs_log_dbg(D_EMM,"[Emu] EMM error: AU key for UA %s is missing", keyName);
+			cs_log_dbg(D_EMM,"EMM error: AU key for UA %s is missing", keyName);
 			return 2;
 		}
 
@@ -4159,7 +4161,7 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 			if(emm[i+3] == 0 && emm[i+4] == 0)
 			{
 				cs_hexdump(0, &emm[i+3], 7, keyValue, sizeof(keyValue));
-				cs_log("[Emu] Key found in EMM: P %08X %s %s -> REJECTED (looks invalid) UA: %X", groupId, keyName, keyValue, uniqueAddress);
+				cs_log("Key found in EMM: P %08X %s %s -> REJECTED (looks invalid) UA: %X", groupId, keyName, keyValue, uniqueAddress);
 				continue;	
 			}
 			
@@ -4170,7 +4172,7 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 			
 			(*keysAdded)++;
 			cs_hexdump(0, &emm[i+3], 7, keyValue, sizeof(keyValue));
-			cs_log("[Emu] Key found in EMM: P %08X %s %s ; UA: %X", groupId, keyName, keyValue, uniqueAddress);
+			cs_log("Key found in EMM: P %08X %s %s ; UA: %X", groupId, keyName, keyValue, uniqueAddress);
 		}
 		
 	} while(!decryptOk);
@@ -4360,11 +4362,11 @@ static int8_t DrecryptProcessEMM(uint16_t caid, uint32_t provId, uint8_t *emm, R
 		memcpy(emm[keyidx] == 0x3b ? curECMkey3B : curECMkey56, &emm[key1offset], 32);
 		(*keysAdded)++;
 		cs_hexdump(0, &emm[key1offset], 32, keyValue, sizeof(keyValue));
-		cs_log("[Emu] Key found in EMM: D %.6X %s %s class %02X", keyIdent, newKeyName, keyValue, emm[keyclass]);
+		cs_log("Key found in EMM: D %.6X %s %s class %02X", keyIdent, newKeyName, keyValue, emm[keyclass]);
 	}
 	else
 	{
-		cs_log("[Emu] Key %.6X %s alredy exist", keyIdent, newKeyName);
+		cs_log("Key %.6X %s alredy exist", keyIdent, newKeyName);
 	}
 
 	//key #2
@@ -4375,11 +4377,11 @@ static int8_t DrecryptProcessEMM(uint16_t caid, uint32_t provId, uint8_t *emm, R
 		memcpy(emm[keyidx] == 0x3b ? curECMkey56 : curECMkey3B, &emm[key2offset], 32);
 		(*keysAdded)++;
 		cs_hexdump(0, &emm[key2offset], 32, keyValue, sizeof(keyValue));
-		cs_log("[Emu] Key found in EMM: D %.6X %s %s class %02X", keyIdent, newKeyName, keyValue, emm[keyclass]);
+		cs_log("Key found in EMM: D %.6X %s %s class %02X", keyIdent, newKeyName, keyValue, emm[keyclass]);
 	}
 	else
 	{
-		cs_log("[Emu] Key %.6X %s alredy exist", keyIdent, newKeyName);
+		cs_log("Key %.6X %s alredy exist", keyIdent, newKeyName);
 	}
 	
 	if(*keysAdded > 0) DrecryptWriteEEToFile(idata, (provId & 0xFF));
@@ -4501,7 +4503,7 @@ static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t k
 		{	
 			if(tagLength != 0x82)
 			{
-				cs_log("[Emu] warning: EMM_TAG_SECURITY_TABLE_DESCRIPTOR length (%d) != %d", tagLength, 0x82);
+				cs_log("warning: EMM_TAG_SECURITY_TABLE_DESCRIPTOR length (%d) != %d", tagLength, 0x82);
 				break;
 			}
 			
@@ -4531,7 +4533,7 @@ static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t k
 		{
 			if(tagLength != 0x12)
 			{
-				cs_log("[Emu] warning: EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR length (%d) != %d", tagLength, 0x12);
+				cs_log("warning: EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR length (%d) != %d", tagLength, 0x12);
 				break;
 			}
 			
@@ -4549,7 +4551,7 @@ static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t k
 			{
 				(*keysAdded)++;
 				cs_hexdump(0, tagData + 4 + 5, 8, keyValue, sizeof(keyValue));
-				cs_log("[Emu] Key found in EMM: T %.8X 01 %s", entitlementId, keyValue);
+				cs_log("Key found in EMM: T %.8X 01 %s", entitlementId, keyValue);
 			}
 			
 			break;
@@ -4625,7 +4627,7 @@ static int8_t TandbergEMM(uint8_t *emm, uint32_t *keysAdded)
 			}
 			
 			default:
-				cs_log("[Emu] error: unknown permissionDataType %X (pos: %d)", permissionDataType, pos);
+				cs_log("error: unknown permissionDataType %X (pos: %d)", permissionDataType, pos);
 				return 1;
 		}
 		
@@ -4700,7 +4702,7 @@ int8_t ProcessEMM(uint16_t caid, uint32_t provider, const uint8_t *emm, ReaderIn
 	}
 	
 	if(result != 0) {
-		cs_log_dbg(D_EMM,"[Emu] EMM failed: %s", GetProcessEMMErrorReason(result));
+		cs_log_dbg(D_EMM,"EMM failed: %s", GetProcessEMMErrorReason(result));
 	}
 
 	return result;

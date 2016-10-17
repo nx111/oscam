@@ -1,3 +1,5 @@
+#define MODULE_LOG_PREFIX "emu"
+
 #include "globals.h"
 #include "cscrypt/des.h"
 
@@ -182,7 +184,7 @@ static void ParsePATData(emu_stream_client_data *cdata)
 		if(cdata->srvid == srvid)
 		{
 			cdata->pmt_pid = b2i(2, data+i+2) & 0x1FFF;
-			cs_log_dbg(D_READER, "[Emu] stream %i found pmt pid : 0x%04X (%i)",cdata->connid, cdata->pmt_pid, cdata->pmt_pid);
+			cs_log_dbg(D_READER, "stream %i found pmt pid : 0x%04X (%i)",cdata->connid, cdata->pmt_pid, cdata->pmt_pid);
 			break;
 		}
 	}
@@ -202,7 +204,7 @@ static void ParsePMTData(emu_stream_client_data *cdata)
 	cdata->pcr_pid = b2i(2, data+8) &0x1FFF;
 	if(cdata->pcr_pid != 0x1FFF)
 	{
-		cs_log_dbg(D_READER, "[Emu] stream %i found pcr pid : 0x%04X (%i)",cdata->connid, cdata->pcr_pid, cdata->pcr_pid);
+		cs_log_dbg(D_READER, "stream %i found pcr pid : 0x%04X (%i)",cdata->connid, cdata->pcr_pid, cdata->pcr_pid);
 	}
 	
 	program_info_length = b2i(2, data+10) &0xFFF;
@@ -228,7 +230,7 @@ static void ParsePMTData(emu_stream_client_data *cdata)
 			if(caid>>8 == 0x0E)
 			{
 		    	cdata->ecm_pid = b2i(2, data+i+4) &0x1FFF;
-		    	cs_log_dbg(D_READER, "[Emu] stream %i found ecm  pid : 0x%04X (%i)", cdata->connid, cdata->ecm_pid, cdata->ecm_pid);
+			cs_log_dbg(D_READER, "stream %i found ecm  pid : 0x%04X (%i)", cdata->connid, cdata->ecm_pid, cdata->ecm_pid);
 		    	break;
 		    }
 		}
@@ -245,7 +247,7 @@ static void ParsePMTData(emu_stream_client_data *cdata)
 			|| stream_type == 0xEA)
 		{ 
 			cdata->video_pid = stream_pid;
-			cs_log_dbg(D_READER, "[Emu] stream %i found video pid: 0x%04X (%i)",cdata->connid, stream_pid, stream_pid);
+			cs_log_dbg(D_READER, "stream %i found video pid: 0x%04X (%i)",cdata->connid, stream_pid, stream_pid);
 		}
 		
 		else if(stream_type == 0x03 || stream_type == 0x04 || stream_type == 0x05 || stream_type == 0x06 ||
@@ -256,7 +258,7 @@ static void ParsePMTData(emu_stream_client_data *cdata)
 			
 			cdata->audio_pids[cdata->audio_pid_count] = stream_pid;
 			cdata->audio_pid_count++;
-			cs_log_dbg(D_READER, "[Emu] stream %i found audio pid: 0x%04X (%i)", cdata->connid, stream_pid, stream_pid);
+			cs_log_dbg(D_READER, "stream %i found audio pid: 0x%04X (%i)", cdata->connid, stream_pid, stream_pid);
 		}
 	}
 }
@@ -276,7 +278,7 @@ static void ParseCATData(emu_stream_client_data *cdata)
 		if(caid>>8 == 0x0E)
 		{
 		   cdata->emm_pid = emm_pid;
-		   cs_log_dbg(D_READER, "[Emu] stream %i found audio pid: 0x%04X (%i)", cdata->connid, emm_pid, emm_pid);
+		   cs_log_dbg(D_READER, "stream %i found audio pid: 0x%04X (%i)", cdata->connid, emm_pid, emm_pid);
 		   break;
 		}
 	}
@@ -291,7 +293,7 @@ static void ParseEMMData(emu_stream_client_data *cdata)
 	
 	if(keysAdded) 
 	{
-		cs_log("[Emu] stream %i found %i keys.", cdata->connid, keysAdded);
+		cs_log("stream %i found %i keys.", cdata->connid, keysAdded);
 	}
 }
 
@@ -590,7 +592,7 @@ static int32_t connect_to_stream(char *http_buf, int32_t http_buf_len, char *str
 	tv.tv_usec = 0; 
 	if (setsockopt(streamfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof tv)) 
 	{ 
-		cs_log("[Emu] error: setsockopt() failed for SO_RCVTIMEO"); 
+		cs_log("error: setsockopt() failed for SO_RCVTIMEO");
 		return -1; 
 	}
 
@@ -651,7 +653,7 @@ static void stream_client_disconnect(emu_stream_client_conn_data *conndata)
 	shutdown(conndata->connfd, 2);
 	close(conndata->connfd);
 	
-	cs_log("[Emu] stream client %i disconnected",conndata->connid);
+	cs_log("stream client %i disconnected",conndata->connid);
 	
 	NULLFREE(conndata);
 }
@@ -682,7 +684,7 @@ static void *stream_client_handler(void *arg)
 	char http_version[4];
 	int32_t http_status_code = 0;	
 
-	cs_log("[Emu] stream client %i connected", conndata->connid);
+	cs_log("stream client %i connected", conndata->connid);
 	
 	if(!cs_malloc(&http_buf, 1024))
 	{
@@ -763,7 +765,7 @@ static void *stream_client_handler(void *arg)
 	SAFE_MUTEX_UNLOCK(&emu_fixed_key_srvid_mutex);
 #endif
 
-	cs_log("[Emu] stream client %i request %s", conndata->connid, stream_path);
+	cs_log("stream client %i request %s", conndata->connid, stream_path);
 
 	snprintf(http_buf, 1024, "HTTP/1.0 200 OK\nConnection: Close\nContent-Type: video/mpeg\nServer: stream_enigma2\n\n");
 	clientStatus = send(conndata->connfd, http_buf, strlen(http_buf), 0);
@@ -775,7 +777,7 @@ static void *stream_client_handler(void *arg)
 		streamfd = connect_to_stream(http_buf, 1024, stream_path);
 		if(streamfd == -1)
 		{
-			cs_log("[Emu] warning: stream client %i cannot connect to stream source", conndata->connid);
+			cs_log("warning: stream client %i cannot connect to stream source", conndata->connid);
 			streamConnectErrorCount++;
 			cs_sleepms(500);
 			continue;	
@@ -800,7 +802,7 @@ static void *stream_client_handler(void *arg)
 			streamStatus = recv(streamfd, stream_buf+bytesRead, cur_dvb_buffer_size-bytesRead, MSG_WAITALL);
 			if(streamStatus == 0) // socket closed
 			{
-				cs_log("[Emu] warning: stream client %i - stream source closed connection", conndata->connid);
+				cs_log("warning: stream client %i - stream source closed connection", conndata->connid);
 				streamConnectErrorCount++;
 				cs_sleepms(100);
 				break;
@@ -809,13 +811,13 @@ static void *stream_client_handler(void *arg)
 			if(streamStatus < 0) // error
 			{
 				if ((errno == EWOULDBLOCK) | (errno == EAGAIN)) {
-					cs_log("[Emu] warning: stream client %i no data from stream source", conndata->connid);
+					cs_log("warning: stream client %i no data from stream source", conndata->connid);
 					streamDataErrorCount++; // 2 sec timeout * 15 = 30 seconds no data -> close
 					cs_sleepms(100);
 					continue;
 				}
 				
-				cs_log("[Emu] warning: stream client %i error receiving data from stream source", conndata->connid);
+				cs_log("warning: stream client %i error receiving data from stream source", conndata->connid);
 				streamConnectErrorCount++;
 				cs_sleepms(100);
 				break;
@@ -827,14 +829,14 @@ static void *stream_client_handler(void *arg)
 					sscanf((const char*)stream_buf, "HTTP/%3s %d ", http_version , &http_status_code) == 2 &&
 					http_status_code != 200)
 				{
-					cs_log("[Emu] error: stream client %i got %d response from stream source", conndata->connid, http_status_code);
+					cs_log("error: stream client %i got %d response from stream source", conndata->connid, http_status_code);
 					streamConnectErrorCount++;  
 					cs_sleepms(100);
 					break;
 				}
 				else
 				{
-					cs_log_dbg(0, "[Emu] warning: stream client %i non-full buffer from stream source", conndata->connid);
+					cs_log_dbg(0, "warning: stream client %i non-full buffer from stream source", conndata->connid);
 					streamDataErrorCount++;
 					cs_sleepms(100);
 				}
@@ -904,7 +906,7 @@ void *stream_server(void *UNUSED(a))
 	emu_stream_client_conn_data *conndata;
 
 	cluster_size = get_internal_parallelism();
-	cs_log("[Emu] info: FFDecsa parallel mode = %d", cluster_size);
+	cs_log("info: FFDecsa parallel mode = %d", cluster_size);
 
 	if(!emu_stream_server_mutex_init)
 	{
@@ -930,7 +932,7 @@ void *stream_server(void *UNUSED(a))
 	glistenfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(glistenfd == -1)
 	{
-		cs_log("[Emu] error: cannot create stream server socket");
+		cs_log("error: cannot create stream server socket");
 		return NULL;
 	}
 
@@ -942,14 +944,14 @@ void *stream_server(void *UNUSED(a))
 	
 	if(bind(glistenfd,(struct sockaddr *)&servaddr, sizeof(servaddr)) == -1)
 	{
-		cs_log("[Emu] error: cannot bind to stream server socket");
+		cs_log("error: cannot bind to stream server socket");
 		close(glistenfd);
 		return NULL;
 	}
 	
 	if(listen(glistenfd, 3) == -1)
 	{
-		cs_log("[Emu] error: cannot listen to stream server socket");
+		cs_log("error: cannot listen to stream server socket");
 		close(glistenfd);
 		return NULL;
 	}
@@ -961,7 +963,7 @@ void *stream_server(void *UNUSED(a))
 
 		if(connfd == -1)
 		{
-			cs_log("[Emu] error: accept() failed");
+			cs_log("error: accept() failed");
 			break;
 		}
 		
@@ -995,7 +997,7 @@ void *stream_server(void *UNUSED(a))
 			int on = 1;
 			if (setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on))<0) 
 			{ 
-				cs_log("[Emu] error: stream client %i setsockopt() failed for TCP_NODELAY", conndata->connid); 
+				cs_log("error: stream client %i setsockopt() failed for TCP_NODELAY", conndata->connid); 
 			}
 
 			start_thread("emu stream client", stream_client_handler, (void*)conndata, NULL, 1, 0);		
@@ -1004,7 +1006,7 @@ void *stream_server(void *UNUSED(a))
 		{
 			shutdown(connfd, 2);
 			close(connfd);
-			cs_log("[Emu] error: stream server client dropped because of too many connections (%i)", EMU_STREAM_SERVER_MAX_CONNECTIONS);
+			cs_log("error: stream server client dropped because of too many connections (%i)", EMU_STREAM_SERVER_MAX_CONNECTIONS);
 		}
 		
 		cs_sleepms(20);

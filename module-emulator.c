@@ -1,3 +1,5 @@
+#define MODULE_LOG_PREFIX "emu"
+
 #include "globals.h"
 #include "oscam-string.h"
 #include "oscam-config.h"
@@ -840,5 +842,5 @@ void add_emu_reader(void)
 	}
 #endif
 
-	cs_log("[Emu] oscam-emu version %d", GetOSemuVersion());
+	cs_log("oscam-emu version %d", GetOSemuVersion());
 }
