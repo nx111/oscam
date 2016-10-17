@@ -737,7 +737,7 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 const struct s_cardsystem reader_streamguard =
 {
 	.desc         = "streamguard",
-	.caids        = (uint16_t[]){ 0x4A, 0 },
+	.caids        = (uint16_t[]){ 0x4AD2, 0x4AD3, 0 },
 	.do_emm       = streamguard_do_emm,
 	.do_ecm       = streamguard_do_ecm,
 	.card_info    = streamguard_card_info,

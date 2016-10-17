@@ -554,7 +554,7 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 const struct s_cardsystem reader_tongfang =
 {
 	.desc         = "tongfang",
-	.caids        = (uint16_t[]){ 0x4B, 0 },
+	.caids        = (uint16_t[]){ 0x4A02, 0 },
 	.do_emm       = tongfang_do_emm,
 	.do_ecm       = tongfang_do_ecm,
 	.card_info    = tongfang_card_info,
