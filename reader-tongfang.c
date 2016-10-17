@@ -131,8 +131,9 @@ static int32_t tongfang_read_data(struct s_reader *reader, uchar size, uchar *ct
 
 static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 {
-	const uchar get_ppua_cmdv2[] = {0x00, 0xa4, 0x04, 0x00, 0x05, 0xf9, 0x5a, 0x54, 0x00, 0x06};
+	const uchar get_ppua_cmdv1[] = {0x00, 0xa4, 0x04, 0x00, 0x05, 0xf9, 0x5a, 0x54, 0x00, 0x06};
 	const uchar get_ppua_cmdv3[] = {0x80, 0x46, 0x00, 0x00, 0x04, 0x07, 0x00, 0x00, 0x08};
+	uchar get_serial_cmdv1[] = {0x80, 0x32, 0x00, 0x00, 0x58};
 	uchar get_serial_cmdv2[] = {0x80, 0x46, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x04};
 	uchar get_serial_cmdv3[] = {0x80, 0x46, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x14};
 	uchar get_commkey_cmd[17] = {0x80, 0x56, 0x00, 0x00, 0x0c};
@@ -151,14 +152,23 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	uint32_t calibsn=0;
 	int8_t readsize=0;
 
+	get_atr;
 	def_resp;
-	get_hist;
 
-	if((hist_size < 4) || (memcmp(hist, "NTIC", 4))) { return ERROR; }
+	if(atr_size == 8 && atr[0] == 0x3B && atr[1] == 0x64)
+		reader->cas_version = 1;
+	else if (atr_size > 9 && atr[0] == 0x3B && (atr[1] & 0xF0) == 0x60 && 0 == memcmp(atr + 4, "NTIC", 4))
+		reader->cas_version = atr[8] - 0x30 + 1;
+	else if((atr_size == ((uint32_t)(atr[1] & 0x0F) + 4)) && (atr[0] == 0x3B) && ((atr[1] & 0xF0) == 0x60) && (atr[2] == 0x00) && ((atr[3] & 0xF0) == 0x00))
+		reader->cas_version = 2;
+	else
+		return ERROR;	//not yxsb/yxtf
 
 	reader->caid = 0x4A02;
 	reader->nprov = 1;
 	memset(reader->prid, 0x00, sizeof(reader->prid));
+	memset(card_id, 0, sizeof(card_id));
+	memset(reader->hexserial, 0, 8);
 
 	if (reader->boxid > 0 ){
 		for(i = 0; (size_t)i < sizeof(boxID); i++){
@@ -166,31 +176,33 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		}
 	}
 
-	if(hist_size < 5 || hist[4] == '0' || hist[4] == '1'){	//tongfang 1-2
-		reader->cas_version=2;
-		write_cmd(get_ppua_cmdv2, get_ppua_cmdv2 + 5);
+	if(reader->cas_version <= 2){	//tongfang 1-2
+		write_cmd(get_ppua_cmdv1, get_ppua_cmdv1 + 5);
 		if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)) { return ERROR; }
-		rdr_log(reader, "Tongfang 1/2 card detected");
+		rdr_log(reader, "Tongfang %d card detected", reader->cas_version);
 
 		//get card serial
-		write_cmd(get_serial_cmdv2, get_serial_cmdv2 + 5);
-		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
-			rdr_log(reader, "error: get card serial failed.");
-			return ERROR;
+		if(atr[8] == 0x31){	//degrade card from version 3
+			write_cmd(get_serial_cmdv2, get_serial_cmdv2 + 5);
+			if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
+				rdr_log(reader, "error: get card serial failed.");
+				return ERROR;
+			}
+			readsize=cta_res[cta_lr -1];
+			if(readsize != tongfang_read_data(reader, readsize,data,&status) || status != 0x9000){
+				rdr_log(reader, "error: card get serial data failed.");
+				return ERROR;
+			}
+			memcpy(reader->hexserial + 2, data, 4);
 		}
-		readsize=cta_res[cta_lr -1];
-		if(readsize != tongfang_read_data(reader, readsize,data,&status) || status != 0x9000){
-			rdr_log(reader, "error: card get serial data failed.");
-			return ERROR;
+		else{
+			write_cmd(get_serial_cmdv1, get_serial_cmdv1 + 5);
+			if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
+				rdr_log(reader, "error: get card serial failed.");
+				return ERROR;
+			}
+			memcpy(reader->hexserial + 2, cta_res, 4);
 		}
-		//rdr_log(reader, "card serial got.");
-
-		memset(reader->hexserial, 0, 8);
-		memcpy(reader->hexserial + 2, data, 4);
-
-		memset(card_id, 0, sizeof(card_id));
-		memcpy(card_id,data + 4, (readsize-4) > ((int32_t)sizeof(card_id) - 1) ? (int32_t)sizeof(card_id) - 1 : readsize - 5);
-		card_id[sizeof(card_id) - 1] = '\0';
 
 		// check pairing
 		write_cmd(pairing_cmd, pairing_cmd + 5);
@@ -218,8 +230,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		}
 
 	}
-	else if(hist_size >= 5 && hist[4] == '2' ){	//tongfang 3
-		reader->cas_version=3;
+	else if(reader->cas_version == 3){	//tongfang 3
 		write_cmd(get_ppua_cmdv3, get_ppua_cmdv3 + 5);
 		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) { return ERROR; }
 		rdr_log(reader, "Tongfang3 card detected");
@@ -269,7 +280,6 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		memset(reader->hexserial, 0, 8);
 		memcpy(reader->hexserial + 2, data, 4); // might be incorrect offset
 
-		memset(card_id, 0, sizeof(card_id));
 		memcpy(card_id, data + 4, (readsize - 4) > ((int32_t)sizeof(card_id) - 1) ? (int32_t)sizeof(card_id) - 1 : readsize - 5);
 		card_id[sizeof(card_id) - 1] = '\0';
 
@@ -309,15 +319,12 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 
 	}
 	else {
-		rdr_log(reader, "error: NTIC%c card not support yet!",hist[4]);
+		rdr_log(reader, "error: NTIC%c card not support yet!",atr[8]);
 		return ERROR;
 	}
 
-	rdr_log_sensitive(reader, "type: Tongfang, caid: %04X, serial: {%llu}, hex serial: {%02x%02x%02x%02x},"\
-			"Card ID: {%s}, BoxID: {%02X%02X%02X%02X}",
-			reader->caid, (uint64_t) b2ll(6, reader->hexserial), (uint64_t) b2ll(4, reader->hexserial+2), card_id,
-			boxID[0], boxID[1], boxID[2], boxID[3]);
-
+	rdr_log_sensitive(reader, "type: Tongfang, caid: %04X, serial: {%llu}, hex serial: {%llX}, Card ID: {%s}, BoxID: {%08X}",
+			reader->caid, (uint64_t) b2ll(6, reader->hexserial), (uint64_t) b2ll(4, reader->hexserial+2), card_id, b2i(4, boxID));
 	return OK;
 }
 
