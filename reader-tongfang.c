@@ -173,17 +173,14 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		rdr_log(reader, "Tongfang 1/2 card detected");
 
 		//get card serial
-		write_cmd(get_serial_cmdv3, get_serial_cmdv3 + 5);
+		write_cmd(get_serial_cmdv2, get_serial_cmdv2 + 5);
 		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
-			write_cmd(get_serial_cmdv2, get_serial_cmdv2 + 5);
-			if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
-				rdr_log(reader, "error: get card serial failed.");
-				return ERROR;
-			}
+			rdr_log(reader, "error: get card serial failed.");
+			return ERROR;
 		}
 		readsize=cta_res[cta_lr -1];
 		if(readsize != tongfang_read_data(reader, readsize,data,&status) || status != 0x9000){
-			rdr_log(reader, "error: card get serial failed.");
+			rdr_log(reader, "error: card get serial data failed.");
 			return ERROR;
 		}
 		//rdr_log(reader, "card serial got.");
@@ -254,10 +251,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		memcpy(reader->tongfang3_commkey, data, 8);
 		des_ecb_encrypt(reader->tongfang3_commkey,des_key,8);
 
-		rdr_log_dbg(reader, D_IFD, "card commkey got(%02X%02X%02X%02X%02X%02X%02X%02X)",reader->tongfang3_commkey[0],
-			reader->tongfang3_commkey[1],reader->tongfang3_commkey[2],reader->tongfang3_commkey[3],
-			reader->tongfang3_commkey[4],reader->tongfang3_commkey[5],reader->tongfang3_commkey[6],
-			reader->tongfang3_commkey[7]);
+		rdr_log_dbg(reader, D_IFD, "card commkey got(%llX)",(uint64_t)b2ll(8,reader->tongfang3_commkey));
 
 		//get card serial
 		write_cmd(get_serial_cmdv3, get_serial_cmdv3 + 5);
@@ -321,8 +315,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 
 	rdr_log_sensitive(reader, "type: Tongfang, caid: %04X, serial: {%llu}, hex serial: {%02x%02x%02x%02x},"\
 			"Card ID: {%s}, BoxID: {%02X%02X%02X%02X}",
-			reader->caid, (unsigned long long) b2ll(6, reader->hexserial), reader->hexserial[2],
-			reader->hexserial[3], reader->hexserial[4], reader->hexserial[5], card_id,
+			reader->caid, (uint64_t) b2ll(6, reader->hexserial), (uint64_t) b2ll(4, reader->hexserial+2), card_id,
 			boxID[0], boxID[1], boxID[2], boxID[3]);
 
 	return OK;
