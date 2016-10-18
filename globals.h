@@ -1513,6 +1513,12 @@ struct s_reader                                     //contains device info, read
 	uint32_t	 tongfang3_calibsn;
 	uchar            tongfang3_commkey[8];
 #endif
+#ifdef READER_JET
+	uint8_t         jet_root_key[8];
+	uint8_t         jet_derive_key[56];
+	uint8_t         jet_auth_key[10];
+	uint8_t         jet_service_key[8];
+#endif
 	uint32_t        cas_version;
 	int8_t          nagra_read;                     // read nagra ncmed records: 0 Disabled (default), 1 read all records, 2 read valid records only
 	int8_t          detect_seca_nagra_tunneled_card;
