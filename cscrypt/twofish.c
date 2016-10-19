@@ -10,16 +10,6 @@
 #define LR(x, n) ((x) << (n) | (x) >> (32 - (n)))
 #define RR(x, n) ((x) >> (n) | (x) << (32 - (n)))
 
-typedef struct TWOFISH {
-    uint32_t K[40];
-    uint32_t S[4];
-    int ksize;
-    uint32_t MDS1[256];
-    uint32_t MDS2[256];
-    uint32_t MDS3[256];
-    uint32_t MDS4[256];
-} TWOFISH;
-
 static const uint8_t MD1[256] = {
     0x00, 0x5b, 0xb6, 0xed, 0x05, 0x5e, 0xb3, 0xe8, 0x0a, 0x51, 0xbc, 0xe7, 0x0f, 0x54, 0xb9, 0xe2,
     0x14, 0x4f, 0xa2, 0xf9, 0x11, 0x4a, 0xa7, 0xfc, 0x1e, 0x45, 0xa8, 0xf3, 0x1b, 0x40, 0xad, 0xf6,
@@ -252,7 +242,7 @@ int twofish_init(TWOFISH *cs, const uint8_t *key, int key_bits)
     uint32_t Key[8], Me[4], Mo[4], A, B;
     const uint32_t rho = 0x01010101;
     if (key_bits < 0)
-        return ERROR(EINVAL);
+        return EINVAL;
     if (key_bits <= 128) {
         cs->ksize = 2;
     } else if (key_bits <= 192) {

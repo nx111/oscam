@@ -13,10 +13,30 @@
 #include <string.h>
 #include <errno.h>
 
+#   define RL32(x)                                   \
+    (((uint32_t)((const uint8_t*)(x))[3] << 24) |    \
+               (((const uint8_t*)(x))[2] << 16) |    \
+               (((const uint8_t*)(x))[1] <<  8) |    \
+                ((const uint8_t*)(x))[0])
 
-extern const int twofish_size;
+#   define WL32(p, darg) do {                \
+        unsigned d = (darg);                 \
+        ((uint8_t*)(p))[0] = (d);            \
+        ((uint8_t*)(p))[1] = (d)>>8;         \
+        ((uint8_t*)(p))[2] = (d)>>16;        \
+        ((uint8_t*)(p))[3] = (d)>>24;        \
+    } while(0)
 
-struct TWOFISH;
+
+typedef struct TWOFISH {
+    uint32_t K[40];
+    uint32_t S[4];
+    int ksize;
+    uint32_t MDS1[256];
+    uint32_t MDS2[256];
+    uint32_t MDS3[256];
+    uint32_t MDS4[256];
+} TWOFISH;
 
 /**
   * Allocate an TWOFISH context
