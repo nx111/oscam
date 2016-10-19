@@ -18,7 +18,8 @@
 #if !defined(__APPLE__)
 #include <PCSC/reader.h>
 #endif
-#define  PCSC_SHARED_LIBRARY "libpcsclite.so.1"
+#define  PCSC_SHARED_LIBRARY		"libpcsclite.so"
+#define  PCSC_SHARED_LIBRARY_ALTERNATE	"libpcsclite.so.1"
 #endif
 
 #ifndef ERR_INVALID
@@ -135,9 +136,15 @@ static int32_t pcsc_init(struct s_reader *pcsc_reader)
 	if(pcsc_status == STATUS_NOTINITED){
 		try{
 			if(NULL == (pcsc_handle = dlopen(PCSC_SHARED_LIBRARY,RTLD_LAZY))){
+#ifdef PCSC_SHARED_LIBRARY_ALTERNATE
+			    if(NULL == (pcsc_handle = dlopen(PCSC_SHARED_LIBRARY_ALTERNATE,RTLD_LAZY))){
+#endif
 				pcsc_status = STATUS_NOSHARELIB;
 				rdr_log(pcsc_reader, "not found pcsc shared library, pcsc function is disabled.");
 				return ERROR;
+#ifdef PCSC_SHARED_LIBRARY_ALTERNATE
+			    }
+#endif
 			}
 			pSCardEstablishContext = dlsym(pcsc_handle, "SCardEstablishContext");
 			pSCardReleaseContext = dlsym(pcsc_handle, "SCardReleaseContext");
