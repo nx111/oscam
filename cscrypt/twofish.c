@@ -96,11 +96,6 @@ static const uint8_t q1[256] = {
     0xd7, 0x61, 0x1e, 0xb4, 0x50, 0x04, 0xf6, 0xc2, 0x16, 0x25, 0x86, 0x56, 0x55, 0x09, 0xbe, 0x91
 };
 
-struct TWOFISH *twofish_alloc(void)
-{
-    return mallocz(sizeof(struct TWOFISH));
-}
-
 const int twofish_size = sizeof(TWOFISH);
 
 static uint8_t gfmul(uint8_t a, uint8_t b)
@@ -250,7 +245,7 @@ static void twofish_decrypt(TWOFISH *cs, uint8_t *dst, const uint8_t *src, uint8
     WL32(dst + 12, P[1]);
 }
 
-cold int twofish_init(TWOFISH *cs, const uint8_t *key, int key_bits)
+int twofish_init(TWOFISH *cs, const uint8_t *key, int key_bits)
 {
     int i;
     uint8_t keypad[32];

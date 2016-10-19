@@ -10,7 +10,8 @@
 #define TWOFISH_H
 
 #include <stdint.h>
-
+#include <string.h>
+#include <errno.h>
 
 
 extern const int twofish_size;
@@ -21,7 +22,7 @@ struct TWOFISH;
   * Allocate an TWOFISH context
   * To free the struct: free(ptr)
   */
-struct TWOFISH *twofish_alloc(void);
+//struct TWOFISH *twofish_alloc(void);
 
 /**
   * Initialize an TWOFISH context.
