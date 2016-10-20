@@ -7,7 +7,7 @@
 
 #define CRC16 0x8005
 static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03, 0x28, 0x60, 0x80, 0x94, 0xD6, 0xC4, 0x3A, 0x48, 
-                                   0x43, 0x71, 0x28, 0x94, 0xF4, 0xE3, 0xAB, 0xC7, 0x36, 0x59, 0x17, 0x8E, 0xCC, 0x6D, 0xA0, 0x9B};
+                                         0x43, 0x71, 0x28, 0x94, 0xF4, 0xE3, 0xAB, 0xC7, 0x36, 0x59, 0x17, 0x8E, 0xCC, 0x6D, 0xA0, 0x9B};
 
 #define jet_write_cmd(reader, cmd, len, encrypt_tag, title) \
  do { \
@@ -116,6 +116,21 @@ static size_t jet_encrypt(struct s_reader * reader, uint8_t tag, uint8_t *data, 
 }
 
 /*================================================================*/
+
+static int32_t cw_is_valid(unsigned char *cw) //returns 1 if cw_is_valid, returns 0 if cw is all zeros
+{
+	int32_t i;
+
+	for(i = 0; i < 16; i++)
+	{
+		if(cw[i] != 0)  //test if cw = 00
+		{
+			return OK;
+		}
+	}
+	return ERROR;
+}
+
 static int generate_derivekey(struct s_reader *reader, uint8_t * out, int len)
 {
 	uint8_t mask_key[32] = {0x16,0x23,0x6A,0x8A,0xF5,0xC2,0x8E,0x6,0x14,0x53,0xCF,0x6E,0x12,0xA1,0x2E,0xC5,
@@ -306,8 +321,9 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	memcpy(confirm_box_cmd + 47, reader->jet_derive_key + 47, 8);
 	jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm_box_cmd02");
 
-	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX",
-			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial));
+	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX, boxkey: %s",
+			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial),
+			cs_hexdump(0, reader->boxkey, 32, (char*)buf, sizeof(buf)));
 
 	return OK;
 }
@@ -315,6 +331,85 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 
 static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct s_ecm_answer *ea)
 {
+	uint8_t cmd[256] = {0x00, 0xB2, 0x00, 0x00};
+	uint8_t temp[256] = {0};
+	uint8_t ecm[512] = {0};
+
+	int i, off, len;
+	uint16_t crc;
+	int ecm_len;
+	char * tmp;
+
+	def_resp;
+
+	if(cs_malloc(&tmp, er->ecmlen * 3 + 1))
+	{
+		rdr_log_dbg(reader, D_IFD, "ECM: %s", cs_hexdump(1, er->ecm, er->ecmlen, tmp, er->ecmlen * 3 + 1));
+		NULLFREE(tmp);
+	}
+	if((ecm_len = check_sct_len(er->ecm, 3, sizeof(er->ecm))) < 0) {
+		rdr_log(reader, "error: check_sct_len failed, smartcard section too long %d > %d", SCT_LEN(er->ecm), sizeof(er->ecm) - 3);
+		return ERROR;
+	}
+
+	memcpy(ecm, er->ecm, ecm_len);
+	len = ((ecm[1] & 0x0F) << 8) + ecm[2];
+	if(len < 0x8A){
+		rdr_log(reader, "error: invalid ecm data...");
+		return ERROR;
+	}
+
+	i = 0;
+	if(ecm[2] == 0x8B)
+		i = -2;
+	off = len + 3 - (i + 12) - 4;
+	if(ecm[2] == 0x9E){
+		ecm[23] = ecm[23] ^ ecm[80] ^ ecm[90] ^ ecm[140];
+		ecm[29] = ecm[29] ^ 0x59;
+		ecm[41] = ecm[41] ^ 0xEA;
+		off = 0x80;
+	}
+	len = off + 0x36;
+
+	if(ecm[i + 8] == 4)
+		cmd[0] = 0x1F;
+	else if(ecm[i + 8] == 3)
+		cmd[0] = 0x1E;
+	else
+		cmd[0] = ((ecm[i + 8] & 0x7F) == 4 && ecm[2] == 0x9E) ? 0x1F : 0x1B;
+	memcpy(cmd + 4, ecm + i + 12, off);
+	memcpy(cmd + 4 + off, reader->boxkey, 32);
+	cmd[off + 36] = ecm[i + 10] ^ ecm[i + 138];
+	cmd[off + 37] = ecm[i + 11] ^ ecm[i + 139];
+	memcpy(cmd + off + 38, reader->jet_service_key, 8);
+	crc = calc_crc16(cmd, (size_t)len);
+	cmd[len] = crc >> 8;
+	cmd[len + 1] = crc & 0xFF;
+	if(!jet_encrypt(reader, 0x16, cmd, len + 2, temp, sizeof(temp))){
+		rdr_log(reader, "error: encrypt cmd data failed...");
+		return ERROR;
+	}
+	temp[4] += 2;
+	write_cmd(temp, temp + 5);
+	if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00 || cta_lr < 29){
+			rdr_log(reader, "error: get cw failed...");
+			return ERROR;
+	}
+
+	memset(temp, 0, sizeof(temp));
+	memcpy(temp, cta_res, cta_res[4] + 5);
+	for(i = 0; i < (cta_res[4] / 8); i++)
+		des_ecb_encrypt(temp + 5 + 8 * i, reader->jet_vendor_key + (i % 4) * 8, 8);
+	if(temp[9] == 0xFF){
+		rdr_log(reader, "error: invalid cw data... (cw[9]=0xFF)");
+		return ERROR;
+	}
+	memcpy(ea->cw, temp + 11, 16);
+	if(ERROR == cw_is_valid(ea->cw)){
+		rdr_log(reader, "error: invalid cw data... (all zero)");
+		return ERROR;
+	}
+
 	return OK;
 }
 
