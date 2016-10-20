@@ -1524,7 +1524,7 @@ struct s_reader                                     //contains device info, read
 	int8_t          nagra_read;                     // read nagra ncmed records: 0 Disabled (default), 1 read all records, 2 read valid records only
 	int8_t          detect_seca_nagra_tunneled_card;
 	int8_t          force_irdeto;
-	uint8_t         boxkey[16];                     // n3 boxkey 8 bytes, seca sessionkey 16 bytes, viaccess camid 4 bytes
+	uint8_t         boxkey[32];                     // n3 boxkey 8 bytes, seca sessionkey 16 bytes, viaccess camid 4 bytes, jet boxkey 32 bytes
 	uint8_t         boxkey_length;
 	uint8_t         rsa_mod[120];                   // rsa modulus for nagra cards.
 	uint8_t         rsa_mod_length;

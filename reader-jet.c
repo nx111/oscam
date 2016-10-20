@@ -166,13 +166,16 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	uint8_t get_authkey_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
 	uint8_t confirm_auth_cmd[48] = {0x15, 0x2C, 0x00, 0x00};
 	uint8_t change_vendorkey_cmd[12] = {0x12, 0x08, 0x00, 0x00};
+	uint8_t pairing_cmd01[38] = {0x20, 0x22, 0x00, 0x00};
+	uint8_t pairing_cmd02[53] = {0x37, 0x31, 0x00, 0x00};
+
 	get_atr;
 	def_resp;
 	uint8_t cmd_buf[256];
 	uint8_t temp[256];
 	uint8_t buf[256];
-	uint8_t boxID[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	struct TWOFISH ctx;
+	int i;
 
 	if((atr_size != 20) || atr[0] != 0x3B || atr[1] != 0x7F) { return ERROR; }
 	if(atr[17] > 0x34 && atr[18] > 0x32)
@@ -233,8 +236,29 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	if(((cta_res[4] + 15)/ 16 * 16) == 48 && buf[0] == 0x42 && buf[1] == 0x20)
 		memcpy(reader->jet_vendor_key, buf + 4, 32);
 
-	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX, BoxID: %08X",
-			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial), (uint32_t)b2i(4, boxID));
+	//pairing step1
+	if(reader->boxkey_length)
+		memcpy(pairing_cmd01 + 4, reader->boxkey, 32);
+	pairing_cmd01[37] = 0x01;
+	jet_write_cmd_hold(reader, pairing_cmd01, sizeof(pairing_cmd01), 0x15, "pairing_cmd01");
+	memset(temp, 0, sizeof(temp));
+	memcpy(temp, cta_res + 5, cta_res[4]);
+	twofish_init(&ctx, reader->jet_vendor_key, 256);
+	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
+	if(buf[0] != 0x41)
+		rdr_log(reader, "error: pairing step 1 failed! continue ...");
+
+	//pairing step 2
+	if(reader->boxkey_length)
+		memcpy(pairing_cmd02 + 4, reader->boxkey, 32);
+	pairing_cmd02[36] = 0x01;
+	for(i = 37;i < 45; i++)
+		pairing_cmd02[i] = 0x30;
+	memcpy(pairing_cmd02 + 45, reader->jet_derive_key + 45, 8);
+	jet_write_cmd_hold(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing_cmd02");
+
+	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX",
+			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial));
 
 	return OK;
 }
