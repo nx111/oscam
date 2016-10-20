@@ -199,8 +199,15 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	else
 		reader->cas_version=1;
 
+	rdr_log(reader, "Jet card detect");
 	reader->caid = 0x4A30;
 	reader->nprov = 1;
+
+	if(reader->cas_version != 5){
+		rdr_log(reader, "Only support jet version 5 !");
+		return ERROR;
+	}
+
 	memset(reader->prid, 0x00, sizeof(reader->prid));
 	memcpy(reader->jet_vendor_key, vendor_key, sizeof(vendor_key));
 
