@@ -161,16 +161,14 @@ static int generate_derivekey(struct s_reader *reader, uint8_t * out, int len)
 
 static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 {
-	uint8_t get_serial_cmd01[37] = {0x21, 0x21, 0x00, 0x00, 0x00};
-	uint8_t get_rootkey_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
-	uint8_t get_authkey_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
-	uint8_t confirm_auth_cmd[48] = {0x15, 0x2C, 0x00, 0x00};
+	uint8_t get_serial_cmd[37] = {0x21, 0x21, 0x00, 0x00, 0x00};
+	uint8_t get_key_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
+	uint8_t register_key_cmd[48] = {0x15, 0x2C, 0x00, 0x00};
 	uint8_t change_vendorkey_cmd[12] = {0x12, 0x08, 0x00, 0x00};
 	uint8_t pairing_cmd01[38] = {0x20, 0x22, 0x00, 0x00};
 	uint8_t pairing_cmd02[53] = {0x37, 0x31, 0x00, 0x00};
-	uint8_t get_sk_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
-	uint8_t register_sk_cmd[48] = {0x15, 0x2C, 0x00, 0x00};
-	uint8_t confirm_box_cmd[55] = {0x92, 0x33, 0x00, 0x00, 0x00, 0x00};
+	uint8_t confirm_box_cmd[55] = {0x93, 0x33, 0x00, 0x00, 0x00, 0x00};
+	uint8_t unknow_cmd1[39] = {0x71, 0x23, 0x00, 0x00, 0x04, 0x00};
 
 	get_atr;
 	def_resp;
@@ -192,11 +190,11 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	memcpy(reader->jet_vendor_key, vendor_key, sizeof(vendor_key));
 
 	// get serial step1
-	jet_write_cmd(reader, get_serial_cmd01, sizeof(get_serial_cmd01), 0xAA, "get_serial_cmd01");
+	jet_write_cmd(reader, get_serial_cmd, sizeof(get_serial_cmd), 0xAA, "get_serial_cmd01");
 	memcpy(reader->hexserial, cta_res + 9, 8);
 
 	//get root key
-	jet_write_cmd(reader, get_rootkey_cmd, sizeof(get_rootkey_cmd), 0xAA, "get_rootkey_cmd");
+	jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get_rootkey_cmd");
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	memset(temp + cta_res[4], 0, sizeof(temp) - cta_res[4]);
 	twofish_init(&ctx, reader->jet_vendor_key, 256);
@@ -216,9 +214,9 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 
 	//get auth key
 	memset(cmd_buf, 0, sizeof(cmd_buf));
-	memcpy(cmd_buf, get_authkey_cmd, sizeof(get_authkey_cmd));
+	memcpy(cmd_buf, get_key_cmd, sizeof(get_key_cmd));
 	memcpy(cmd_buf + 4, reader->jet_root_key, 2);
-	jet_write_cmd(reader, cmd_buf, sizeof(get_authkey_cmd), 0xAA, "get_auth_cmd");
+	jet_write_cmd(reader, cmd_buf, sizeof(get_key_cmd), 0xAA, "get_auth_cmd");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res, cta_res[4]);
 	twofish_init(&ctx, reader->jet_vendor_key, 256);
@@ -226,9 +224,9 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	memcpy(reader->jet_auth_key, buf, 10);
 
 	//confirm auth key
-	memcpy(confirm_auth_cmd + 36, reader->jet_auth_key, 8);
-	memcpy(confirm_auth_cmd + 44, reader->jet_derive_key, 4); 
-	jet_write_cmd(reader, confirm_auth_cmd, sizeof(confirm_auth_cmd), 0x15, "confirm_auth_cmd");
+	memcpy(register_key_cmd + 36, reader->jet_auth_key, 8);
+	memcpy(register_key_cmd + 44, reader->jet_derive_key, 4);
+	jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "confirm_auth_cmd");
 
 	//change vendor key
 	jet_write_cmd(reader, change_vendorkey_cmd, sizeof(change_vendorkey_cmd), 0x15, "change_vendorkey_cmd");
@@ -262,8 +260,8 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 
 	//get service key
 	if(reader->boxkey_length)
-		memcpy(get_sk_cmd + 4, reader->boxkey, 2);
-	jet_write_cmd(reader, get_sk_cmd, sizeof(get_sk_cmd), 0xAA, "get_sk_cmd");
+		memcpy(get_key_cmd + 4, reader->boxkey, 2);
+	jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get_sk_cmd");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	twofish_init(&ctx, reader->jet_vendor_key, 256);
@@ -273,20 +271,40 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 
 	//register service key
 	if(reader->boxkey_length)
-		memcpy(register_sk_cmd + 4, reader->boxkey, 32);
-	memcpy(register_sk_cmd + 36, reader->jet_service_key, 8);
-	memcpy(register_sk_cmd + 44, reader->jet_derive_key + 44, 4);
-	register_sk_cmd[44] = 0x30;
-	jet_write_cmd(reader, register_sk_cmd, sizeof(register_sk_cmd), 0x15, "register_sk_cmd");
+		memcpy(register_key_cmd + 4, reader->boxkey, 32);
+	memcpy(register_key_cmd + 36, reader->jet_service_key, 8);
+	memcpy(register_key_cmd + 44, reader->jet_derive_key + 44, 4);
+	register_key_cmd[44] = 0x30;
+	jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "register_sk_cmd");
 
-	//confirm box
+	//confirm box 1
 	if(reader->boxkey_length)
 		memcpy(confirm_box_cmd + 6, reader->boxkey, 32);
 	confirm_box_cmd[38] = 0x01;
 	for(i = 39;i < 47; i++)
 		confirm_box_cmd[i] = 0x30;
 	memcpy(confirm_box_cmd + 47, reader->jet_derive_key + 47, 8);
-	jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm_box_cmd");
+	jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm_box_cmd01");
+
+	//unknow cmd 1
+	if(reader->boxkey_length)
+		memcpy(unknow_cmd1 + 7, reader->boxkey, 32);
+	jet_write_cmd_hold(reader, unknow_cmd1, sizeof(unknow_cmd1), 0x15, "unknow_cmd1");
+
+	//get serial step2
+	get_serial_cmd[4] = 0x01;
+	jet_write_cmd(reader, get_serial_cmd, sizeof(get_serial_cmd), 0xAA, "get_serial_cmd02");
+	memcpy(reader->hexserial, cta_res + 5, 8);
+
+	//confirm box 2
+	confirm_box_cmd[4] = 0x10;
+	if(reader->boxkey_length)
+		memcpy(confirm_box_cmd + 6, reader->boxkey, 32);
+	confirm_box_cmd[38] = 0x01;
+	for(i = 39;i < 47; i++)
+		confirm_box_cmd[i] = 0x30;
+	memcpy(confirm_box_cmd + 47, reader->jet_derive_key + 47, 8);
+	jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm_box_cmd02");
 
 	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX",
 			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial));
