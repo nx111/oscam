@@ -19,13 +19,13 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 	cmd_buf[len] = crc >> 8;\
 	cmd_buf[len + 1] = crc & 0xFF;\
 	if(!jet_encrypt(reader, encrypt_tag, cmd_buf, len + 2, cmd_tmp, sizeof(cmd_tmp))){\
-		rdr_log(reader, "error: encrypt %s failed.", title);\
+		rdr_log(reader, "error: %s failed... (encrypt cmd failed.)", title);\
 		return ERROR;\
 	}\
 	cmd_tmp[4] += 2;\
 	write_cmd(cmd_tmp, cmd_tmp + 5);\
 	if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00){\
-		rdr_log(reader, "error: exec %s failed!", title);\
+		rdr_log(reader, "error: %s failed... ", title);\
 		return ERROR;\
 	}\
   } while (0)
@@ -43,11 +43,11 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 		cmd_tmp[4] += 2;\
 		write_cmd(cmd_tmp, cmd_tmp + 5);\
 		if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00){\
-			rdr_log(reader, "error: exec %s failed!", title);\
+			rdr_log(reader, "error: %s failed... ", title);\
 		}\
 	}\
 	else \
-		rdr_log(reader, "error: encrypt %s failed.", title);\
+		rdr_log(reader, "error: %s failed... (encrypt cmd failed.)", title);\
   } while (0)
 
 static uint16_t calc_crc16( const uint8_t *data, size_t size)
@@ -205,11 +205,11 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	memcpy(reader->jet_vendor_key, vendor_key, sizeof(vendor_key));
 
 	// get serial step1
-	jet_write_cmd(reader, get_serial_cmd, sizeof(get_serial_cmd), 0xAA, "get_serial_cmd01");
+	jet_write_cmd(reader, get_serial_cmd, sizeof(get_serial_cmd), 0xAA, "get serial step1");
 	memcpy(reader->hexserial, cta_res + 9, 8);
 
 	//get root key
-	jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get_rootkey_cmd");
+	jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get rootkey");
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	memset(temp + cta_res[4], 0, sizeof(temp) - cta_res[4]);
 	twofish_init(&ctx, reader->jet_vendor_key, 256);
@@ -224,14 +224,14 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		return ERROR;
 	}
 	//generate_derivekey has filled crc16. so call jet_write_cmd with len - 2.
-	jet_write_cmd(reader, cmd_buf, sizeof(reader->jet_derive_key) - 2, 0xAA, "get derivekey cmd");
+	jet_write_cmd(reader, cmd_buf, sizeof(reader->jet_derive_key) - 2, 0xAA, "get derivekey");
 	memcpy(reader->jet_derive_key, cmd_buf, sizeof(reader->jet_derive_key));
 
 	//get auth key
 	memset(cmd_buf, 0, sizeof(cmd_buf));
 	memcpy(cmd_buf, get_key_cmd, sizeof(get_key_cmd));
 	memcpy(cmd_buf + 4, reader->jet_root_key, 2);
-	jet_write_cmd(reader, cmd_buf, sizeof(get_key_cmd), 0xAA, "get_auth_cmd");
+	jet_write_cmd(reader, cmd_buf, sizeof(get_key_cmd), 0xAA, "get authkey");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res, cta_res[4]);
 	twofish_init(&ctx, reader->jet_vendor_key, 256);
@@ -241,10 +241,10 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	//confirm auth key
 	memcpy(register_key_cmd + 36, reader->jet_auth_key, 8);
 	memcpy(register_key_cmd + 44, reader->jet_derive_key, 4);
-	jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "confirm_auth_cmd");
+	jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "confirm auth");
 
 	//change vendor key
-	jet_write_cmd(reader, change_vendorkey_cmd, sizeof(change_vendorkey_cmd), 0x15, "change_vendorkey_cmd");
+	jet_write_cmd(reader, change_vendorkey_cmd, sizeof(change_vendorkey_cmd), 0x15, "change vendorkey");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	twofish_init(&ctx, reader->jet_vendor_key, 256);
@@ -256,13 +256,13 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	if(reader->boxkey_length)
 		memcpy(pairing_cmd01 + 4, reader->boxkey, 32);
 	pairing_cmd01[37] = 0x01;
-	jet_write_cmd_hold(reader, pairing_cmd01, sizeof(pairing_cmd01), 0x15, "pairing_cmd01");
+	jet_write_cmd_hold(reader, pairing_cmd01, sizeof(pairing_cmd01), 0x15, "pairing step 1");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	twofish_init(&ctx, reader->jet_vendor_key, 256);
 	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
 	if(buf[0] != 0x41)
-		rdr_log(reader, "error: pairing step 1 failed! continue ...");
+		rdr_log(reader, "error: pairing step 1 failed(invalid data)! continue ...");
 
 	//pairing step 2
 	if(reader->boxkey_length)
@@ -271,12 +271,12 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	for(i = 37;i < 45; i++)
 		pairing_cmd02[i] = 0x30;
 	memcpy(pairing_cmd02 + 45, reader->jet_derive_key + 45, 8);
-	jet_write_cmd_hold(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing_cmd02");
+	jet_write_cmd_hold(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing step 2");
 
 	//get service key
 	if(reader->boxkey_length)
 		memcpy(get_key_cmd + 4, reader->boxkey, 2);
-	jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get_sk_cmd");
+	jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get service key");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	twofish_init(&ctx, reader->jet_vendor_key, 256);
@@ -290,7 +290,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	memcpy(register_key_cmd + 36, reader->jet_service_key, 8);
 	memcpy(register_key_cmd + 44, reader->jet_derive_key + 44, 4);
 	register_key_cmd[44] = 0x30;
-	jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "register_sk_cmd");
+	jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "register service key");
 
 	//confirm box 1
 	if(reader->boxkey_length)
@@ -299,7 +299,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	for(i = 39;i < 47; i++)
 		confirm_box_cmd[i] = 0x30;
 	memcpy(confirm_box_cmd + 47, reader->jet_derive_key + 47, 8);
-	jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm_box_cmd01");
+	jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm box step 1");
 
 	//unknow cmd 1
 	if(reader->boxkey_length)
@@ -308,7 +308,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 
 	//get serial step2
 	get_serial_cmd[4] = 0x01;
-	jet_write_cmd(reader, get_serial_cmd, sizeof(get_serial_cmd), 0xAA, "get_serial_cmd02");
+	jet_write_cmd(reader, get_serial_cmd, sizeof(get_serial_cmd), 0xAA, "get serial step 2");
 	memcpy(reader->hexserial, cta_res + 5, 8);
 
 	//confirm box 2
@@ -319,7 +319,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	for(i = 39;i < 47; i++)
 		confirm_box_cmd[i] = 0x30;
 	memcpy(confirm_box_cmd + 47, reader->jet_derive_key + 47, 8);
-	jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm_box_cmd02");
+	jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm box step 2");
 
 	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX, boxkey: %s",
 			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial),
@@ -336,7 +336,6 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 	uint8_t ecm[512] = {0};
 
 	int i, off, len;
-	uint16_t crc;
 	int ecm_len;
 	char * tmp;
 
@@ -382,17 +381,9 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 	cmd[off + 36] = ecm[i + 10] ^ ecm[i + 138];
 	cmd[off + 37] = ecm[i + 11] ^ ecm[i + 139];
 	memcpy(cmd + off + 38, reader->jet_service_key, 8);
-	crc = calc_crc16(cmd, (size_t)len);
-	cmd[len] = crc >> 8;
-	cmd[len + 1] = crc & 0xFF;
-	if(!jet_encrypt(reader, 0x16, cmd, len + 2, temp, sizeof(temp))){
-		rdr_log(reader, "error: encrypt cmd data failed...");
-		return ERROR;
-	}
-	temp[4] += 2;
-	write_cmd(temp, temp + 5);
-	if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00 || cta_lr < 29){
-			rdr_log(reader, "error: get cw failed...");
+	jet_write_cmd(reader, cmd, len, 0x16, "parse ecm");
+	if(cta_lr < 29){
+			rdr_log(reader, "error: get cw failed...(response data too short.)");
 			return ERROR;
 	}
 
@@ -425,7 +416,7 @@ static int32_t jet_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 	return OK;
 }
 
-static int32_t jet_card_info(struct s_reader *reader)
+static int32_t jet_card_info(struct s_reader *UNUSED(reader))
 {
 
 	return OK;
