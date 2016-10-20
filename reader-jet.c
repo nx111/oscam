@@ -6,7 +6,7 @@
 #include <time.h>
 
 #define CRC16 0x8005
-static uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03, 0x28, 0x60, 0x80, 0x94, 0xD6, 0xC4, 0x3A, 0x48, 
+static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03, 0x28, 0x60, 0x80, 0x94, 0xD6, 0xC4, 0x3A, 0x48, 
                                    0x43, 0x71, 0x28, 0x94, 0xF4, 0xE3, 0xAB, 0xC7, 0x36, 0x59, 0x17, 0x8E, 0xCC, 0x6D, 0xA0, 0x9B};
 
 #define jet_write_cmd(reader, cmd, len, encrypt_tag, title) \
@@ -18,7 +18,7 @@ static uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03,
 	uint16_t crc=calc_crc16(cmd_buf, len);\
 	cmd_buf[len] = crc >> 8;\
 	cmd_buf[len + 1] = crc & 0xFF;\
-	if(!jet_encrypt(encrypt_tag, cmd_buf, len + 2, cmd_tmp, sizeof(cmd_tmp))){\
+	if(!jet_encrypt(reader, encrypt_tag, cmd_buf, len + 2, cmd_tmp, sizeof(cmd_tmp))){\
 		rdr_log(reader, "error: encrypt %s failed.", title);\
 		return ERROR;\
 	}\
@@ -39,7 +39,7 @@ static uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03,
 	uint16_t crc=calc_crc16(cmd_buf, len);\
 	cmd_buf[len] = crc >> 8;\
 	cmd_buf[len + 1] = crc & 0xFF;\
-	if(jet_encrypt(encrypt_tag, cmd_buf, len + 2, cmd_tmp, sizeof(cmd_tmp))){\
+	if(jet_encrypt(reader, encrypt_tag, cmd_buf, len + 2, cmd_tmp, sizeof(cmd_tmp))){\
 		cmd_tmp[4] += 2;\
 		write_cmd(cmd_tmp, cmd_tmp + 5);\
 		if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00){\
@@ -84,7 +84,7 @@ static uint16_t calc_crc16( const uint8_t *data, size_t size)
 	return out;
 }
 
-static size_t jet_encrypt(uint8_t tag, uint8_t *data, size_t len, uint8_t *out, size_t maxlen)
+static size_t jet_encrypt(struct s_reader * reader, uint8_t tag, uint8_t *data, size_t len, uint8_t *out, size_t maxlen)
 {
 	uint8_t buf[256];
 	size_t i;
@@ -101,12 +101,12 @@ static size_t jet_encrypt(uint8_t tag, uint8_t *data, size_t len, uint8_t *out, 
 	memcpy(buf, data, len);
 	if(tag == 0x15){
 		struct TWOFISH ctx;
-		twofish_init(&ctx, vendor_key, 256);
+		twofish_init(&ctx, reader->jet_vendor_key, 256);
 		twofish_crypt(&ctx, out + 5, buf, aligned_len / 16, NULL, 0);
 	}
 	else if(tag == 0x16){
 		for(i = 0; i < (aligned_len / 8); i++)
-			des_ecb_encrypt(buf + 8 * i, vendor_key + (i % 4) * 8, 8);
+			des_ecb_encrypt(buf + 8 * i, reader->jet_vendor_key + (i % 4) * 8, 8);
 		memcpy(out + 5, buf, aligned_len);
 	}
 	out[aligned_len + 5] = 0x90;
@@ -164,7 +164,8 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	uint8_t get_serial_cmd01[37] = {0x21, 0x21, 0x00, 0x00, 0x00};
 	uint8_t get_rootkey_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
 	uint8_t get_authkey_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
-	uint8_t confirm_auth_cmd[48] = {0x15,0x2C,0x00,0x00};
+	uint8_t confirm_auth_cmd[48] = {0x15, 0x2C, 0x00, 0x00};
+	uint8_t change_vendorkey_cmd[12] = {0x12, 0x08, 0x00, 0x00};
 	get_atr;
 	def_resp;
 	uint8_t cmd_buf[256];
@@ -182,6 +183,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	reader->caid = 0x4A30;
 	reader->nprov = 1;
 	memset(reader->prid, 0x00, sizeof(reader->prid));
+	memcpy(reader->jet_vendor_key, vendor_key, sizeof(vendor_key));
 
 	// get serial step1
 	jet_write_cmd(reader, get_serial_cmd01, sizeof(get_serial_cmd01), 0xAA, "get_serial_cmd01");
@@ -191,7 +193,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd(reader, get_rootkey_cmd, sizeof(get_rootkey_cmd), 0xAA, "get_rootkey_cmd");
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	memset(temp + cta_res[4], 0, sizeof(temp) - cta_res[4]);
-	twofish_init(&ctx, vendor_key, 256);
+	twofish_init(&ctx, reader->jet_vendor_key, 256);
 	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
 	memset(reader->jet_root_key, 0 ,sizeof(reader->jet_root_key));
 	memcpy(reader->jet_root_key, buf + 4, (cta_res[4] < sizeof(reader->jet_root_key)) ? cta_res[4] : sizeof(reader->jet_root_key));
@@ -213,7 +215,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd(reader, cmd_buf, sizeof(get_authkey_cmd), 0xAA, "get_auth_cmd");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res, cta_res[4]);
-	twofish_init(&ctx, vendor_key, 256);
+	twofish_init(&ctx, reader->jet_vendor_key, 256);
 	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
 	memcpy(reader->jet_auth_key, buf, 10);
 
@@ -222,6 +224,14 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	memcpy(confirm_auth_cmd + 44, reader->jet_derive_key, 4); 
 	jet_write_cmd(reader, confirm_auth_cmd, sizeof(confirm_auth_cmd), 0x15, "confirm_auth_cmd");
 
+	//change vendor key
+	jet_write_cmd(reader, change_vendorkey_cmd, sizeof(change_vendorkey_cmd), 0x15, "change_vendorkey_cmd");
+	memset(temp, 0, sizeof(temp));
+	memcpy(temp, cta_res + 5, cta_res[4]);
+	twofish_init(&ctx, reader->jet_vendor_key, 256);
+	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
+	if(((cta_res[4] + 15)/ 16 * 16) == 48 && buf[0] == 0x42 && buf[1] == 0x20)
+		memcpy(reader->jet_vendor_key, buf + 4, 32);
 
 	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX, BoxID: %08X",
 			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial), (uint32_t)b2i(4, boxID));

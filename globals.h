@@ -1514,6 +1514,7 @@ struct s_reader                                     //contains device info, read
 	uchar            tongfang3_commkey[8];
 #endif
 #ifdef READER_JET
+	uint8_t         jet_vendor_key[32];
 	uint8_t         jet_root_key[8];
 	uint8_t         jet_derive_key[56];
 	uint8_t         jet_auth_key[10];
