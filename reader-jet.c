@@ -412,6 +412,33 @@ static int32_t jet_get_emm_type(EMM_PACKET *ep, struct s_reader *UNUSED(reader))
 
 static int32_t jet_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 {
+	uint8_t cmd[256] = { 0x1A, 0xB2, 0x00, 0x00};
+
+	int i, len;
+	def_resp;
+
+	len = ((ep->emm[1] & 0x0F) << 8) + ep->emm[2];
+	if(len < 148){
+		rdr_log(reader, "error: emm data too short,(%d) < 148 ...", len);
+		return ERROR;
+	}
+
+	if(ep->emm[10] != reader->hexserial[7]){
+		rdr_log(reader, "error: do emm failed, card not match...");
+		return ERROR;
+	}
+
+	len -= 4;
+	i = len + 54;
+	memcpy(cmd + 4, ep->emm + 17, len);
+	memcpy(cmd + 4 + len, reader->boxkey, 32);
+	memcpy(cmd + len + 40,ep->emm + 13, 4);
+	cmd[len + 44] = 0x14;
+	cmd[len + 46] = 0x01;
+	cmd[len + 47] = 0x01;
+	cmd[len + 52] = ep->emm[17] ^ ep->emm[145];
+	cmd[len + 53] = ep->emm[144] ^ ep->emm[146];
+	jet_write_cmd(reader, cmd, len + 54, 0x15, "parse emm");
 
 	return OK;
 }
