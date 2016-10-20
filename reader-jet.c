@@ -169,6 +169,8 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	uint8_t pairing_cmd01[38] = {0x20, 0x22, 0x00, 0x00};
 	uint8_t pairing_cmd02[53] = {0x37, 0x31, 0x00, 0x00};
 	uint8_t get_sk_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
+	uint8_t register_sk_cmd[48] = {0x15, 0x2C, 0x00, 0x00};
+	uint8_t confirm_box_cmd[55] = {0x92, 0x33, 0x00, 0x00, 0x00, 0x00};
 
 	get_atr;
 	def_resp;
@@ -268,6 +270,23 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
 	memcpy(reader->jet_service_key, buf + 4, 8);
 	reader->jet_service_key[3] += reader->jet_service_key[1];
+
+	//register service key
+	if(reader->boxkey_length)
+		memcpy(register_sk_cmd + 4, reader->boxkey, 32);
+	memcpy(register_sk_cmd + 36, reader->jet_service_key, 8);
+	memcpy(register_sk_cmd + 44, reader->jet_derive_key + 44, 4);
+	register_sk_cmd[44] = 0x30;
+	jet_write_cmd(reader, register_sk_cmd, sizeof(register_sk_cmd), 0x15, "register_sk_cmd");
+
+	//confirm box
+	if(reader->boxkey_length)
+		memcpy(confirm_box_cmd + 6, reader->boxkey, 32);
+	confirm_box_cmd[38] = 0x01;
+	for(i = 39;i < 47; i++)
+		confirm_box_cmd[i] = 0x30;
+	memcpy(confirm_box_cmd + 47, reader->jet_derive_key + 47, 8);
+	jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm_box_cmd");
 
 	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX",
 			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial));
