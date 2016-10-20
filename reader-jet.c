@@ -168,6 +168,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	uint8_t change_vendorkey_cmd[12] = {0x12, 0x08, 0x00, 0x00};
 	uint8_t pairing_cmd01[38] = {0x20, 0x22, 0x00, 0x00};
 	uint8_t pairing_cmd02[53] = {0x37, 0x31, 0x00, 0x00};
+	uint8_t get_sk_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
 
 	get_atr;
 	def_resp;
@@ -256,6 +257,17 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		pairing_cmd02[i] = 0x30;
 	memcpy(pairing_cmd02 + 45, reader->jet_derive_key + 45, 8);
 	jet_write_cmd_hold(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing_cmd02");
+
+	//get service key
+	if(reader->boxkey_length)
+		memcpy(get_sk_cmd + 4, reader->boxkey, 2);
+	jet_write_cmd(reader, get_sk_cmd, sizeof(get_sk_cmd), 0xAA, "get_sk_cmd");
+	memset(temp, 0, sizeof(temp));
+	memcpy(temp, cta_res + 5, cta_res[4]);
+	twofish_init(&ctx, reader->jet_vendor_key, 256);
+	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
+	memcpy(reader->jet_service_key, buf + 4, 8);
+	reader->jet_service_key[3] += reader->jet_service_key[1];
 
 	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX",
 			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial));
