@@ -164,6 +164,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	uint8_t get_serial_cmd01[37] = {0x21, 0x21, 0x00, 0x00, 0x00};
 	uint8_t get_rootkey_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
 	uint8_t get_authkey_cmd[6] = {0x58, 0x02, 0x00, 0x00, 0x00, 0x00};
+	uint8_t confirm_auth_cmd[48] = {0x15,0x2C,0x00,0x00};
 	get_atr;
 	def_resp;
 	uint8_t cmd_buf[256];
@@ -216,10 +217,14 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
 	memcpy(reader->jet_auth_key, buf, 10);
 
-	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX,"\
-			"BoxID: %02X%02X%02X%02X",
-			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial),
-			boxID[0], boxID[1], boxID[2], boxID[3]);
+	//confirm auth key
+	memcpy(confirm_auth_cmd + 36, reader->jet_auth_key, 8);
+	memcpy(confirm_auth_cmd + 44, reader->jet_derive_key, 4); 
+	jet_write_cmd(reader, confirm_auth_cmd, sizeof(confirm_auth_cmd), 0x15, "confirm_auth_cmd");
+
+
+	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX, BoxID: %08X",
+			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial), (uint32_t)b2i(4, boxID));
 
 	return OK;
 }
