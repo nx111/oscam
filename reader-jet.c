@@ -110,7 +110,7 @@ static size_t jet_encrypt(struct s_reader* reader,uint8_t tag, uint8_t *data, si
 	size_t aligned_len = (len + 15) / 16 * 16;
 	if((aligned_len + 7) > maxlen || (aligned_len + 7) > 256)
 		return 0;
-	memset(buf, 0, aligned_len + 7);
+	memset(buf, 0xFF, aligned_len + 7);
 
 	out[0] = 0x84;
 	out[1] = tag;
