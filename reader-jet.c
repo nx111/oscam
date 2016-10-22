@@ -11,19 +11,19 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 
 #define jet_write_cmd(reader, cmd, len, encrypt_tag, title) \
  do { \
-	uint8_t cmd_buf[256];\
-	uint8_t cmd_tmp[256];\
-	memset(cmd_buf, 0, sizeof(cmd_buf));\
-	memcpy(cmd_buf, cmd, len);\
-	uint16_t crc=calc_crc16(cmd_buf, len);\
-	cmd_buf[len] = crc >> 8;\
-	cmd_buf[len + 1] = crc & 0xFF;\
-	if(!jet_encrypt(reader, encrypt_tag, cmd_buf, len + 2, cmd_tmp, sizeof(cmd_tmp))){\
+	uint8_t __cmd_buf[256];\
+	uint8_t __cmd_tmp[256];\
+	memset(__cmd_buf, 0, sizeof(__cmd_buf));\
+	memcpy(__cmd_buf, cmd, len);\
+	uint16_t crc=calc_crc16(__cmd_buf, len);\
+	__cmd_buf[len] = crc >> 8;\
+	__cmd_buf[len + 1] = crc & 0xFF;\
+	if(!jet_encrypt(reader, encrypt_tag, __cmd_buf, len + 2, __cmd_tmp, sizeof(__cmd_tmp))){\
 		rdr_log(reader, "error: %s failed... (encrypt cmd failed.)", title);\
 		return ERROR;\
 	}\
-	cmd_tmp[4] += 2;\
-	write_cmd(cmd_tmp, cmd_tmp + 5);\
+	__cmd_tmp[4] += 2;\
+	write_cmd(__cmd_tmp, __cmd_tmp + 5);\
 	if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00){\
 		rdr_log(reader, "error: %s failed... ", title);\
 		return ERROR;\
@@ -32,16 +32,16 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 
 #define jet_write_cmd_hold(reader, cmd, len, encrypt_tag, title) \
  do { \
-	uint8_t cmd_buf[256];\
-	uint8_t cmd_tmp[256];\
-	memset(cmd_buf, 0, sizeof(cmd_buf));\
-	memcpy(cmd_buf, cmd, len);\
-	uint16_t crc=calc_crc16(cmd_buf, len);\
-	cmd_buf[len] = crc >> 8;\
-	cmd_buf[len + 1] = crc & 0xFF;\
-	if(jet_encrypt(reader, encrypt_tag, cmd_buf, len + 2, cmd_tmp, sizeof(cmd_tmp))){\
-		cmd_tmp[4] += 2;\
-		write_cmd(cmd_tmp, cmd_tmp + 5);\
+	uint8_t __cmd_buf[256];\
+	uint8_t __cmd_tmp[256];\
+	memset(__cmd_buf, 0, sizeof(__cmd_buf));\
+	memcpy(__cmd_buf, cmd, len);\
+	uint16_t crc=calc_crc16(__cmd_buf, len);\
+	__cmd_buf[len] = crc >> 8;\
+	__cmd_buf[len + 1] = crc & 0xFF;\
+	if(jet_encrypt(reader, encrypt_tag, __cmd_buf, len + 2, __cmd_tmp, sizeof(__cmd_tmp))){\
+		__cmd_tmp[4] += 2;\
+		write_cmd(__cmd_tmp, __cmd_tmp + 5);\
 		if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00){\
 			rdr_log(reader, "error: %s failed... ", title);\
 		}\
