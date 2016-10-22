@@ -460,7 +460,7 @@ static int32_t jet_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 {
 	uint8_t cmd[256] = { 0x1A, 0xB2, 0x00, 0x00};
 
-	int i, len;
+	int len;
 	def_resp;
 
 	len = ((ep->emm[1] & 0x0F) << 8) + ep->emm[2];
@@ -475,7 +475,6 @@ static int32_t jet_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 	}
 
 	len -= 4;
-	i = len + 54;
 	memcpy(cmd + 4, ep->emm + 17, len);
 	memcpy(cmd + 4 + len, reader->boxkey, 32);
 	memcpy(cmd + len + 40,ep->emm + 13, 4);
