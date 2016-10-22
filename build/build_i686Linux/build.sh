@@ -28,6 +28,7 @@ if  [ "$buildtype" = "inline" ]; then
 	  -DSTATIC_LIBCRYPTO=1\
 	  -DSTATIC_LIBSSL=1\
 	  -DSTATIC_LIBUSB=1\
+	  -DSTATIC_LIBPCSC=1\
 	  --clean-first\
 	  -DWEBIF=1 $ROOT
    feature=-pcsc-ssl-inline
@@ -45,6 +46,7 @@ else
 	  -DSTATIC_LIBSSL=0\
 	  -DSTATIC_LIBUSB=1\
 	  --clean-first\
+	  --no-warn-unused-cli\
 	  -DWEBIF=1 $ROOT
    feature=-pcsc-ssl
 fi
