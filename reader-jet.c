@@ -2,7 +2,7 @@
 #ifdef READER_JET
 #include "reader-common.h"
 #include "cscrypt/des.h"
-#include "cscrypt/twofish.h"
+#include "cscrypt/jet_twofish.h"
 #include <time.h>
 
 #define CRC16 0x8005
@@ -84,7 +84,7 @@ static uint16_t calc_crc16( const uint8_t *data, size_t size)
 	return out;
 }
 
-static size_t jet_encrypt(struct s_reader * reader, uint8_t tag, uint8_t *data, size_t len, uint8_t *out, size_t maxlen)
+static size_t jet_encrypt(struct s_reader* reader,uint8_t tag, uint8_t *data, size_t len, uint8_t *out, size_t maxlen)
 {
 	uint8_t buf[256];
 	size_t i;
@@ -100,9 +100,7 @@ static size_t jet_encrypt(struct s_reader * reader, uint8_t tag, uint8_t *data, 
 	out[4] = aligned_len & 0xFF;
 	memcpy(buf, data, len);
 	if(tag == 0x15){
-		struct TWOFISH ctx;
-		twofish_init(&ctx, reader->jet_vendor_key, 256);
-		twofish_crypt(&ctx, out + 5, buf, aligned_len / 16, NULL, 0);
+		twofish(buf,len, out + 5,maxlen,reader->jet_vendor_key,sizeof(vendor_key),0);
 	}
 	else if(tag == 0x16){
 		for(i = 0; i < (aligned_len / 8); i++)
@@ -114,6 +112,32 @@ static size_t jet_encrypt(struct s_reader * reader, uint8_t tag, uint8_t *data, 
 
 	return (aligned_len + 7);
 }
+#if 0
+static size_t jet_decrypt(struct s_reader* reader, uint8_t *data,  uint8_t *out, size_t maxlen)
+{
+	uint8_t buf[256];
+	size_t i;
+	uint8_t tag;
+	int len = data[4];
+
+	memset(buf, 0, sizeof(buf));
+	memset(out, 0, maxlen);
+	tag = data[1];
+
+	memcpy(buf, data + 5, len);
+	if(tag == 0x15){
+		twofish(buf,len, out,maxlen,reader->jet_vendor_key,sizeof(vendor_key),1);
+	}
+	else if(tag == 0x16){
+		for(i = 0; i < (len / 8); i++)
+			des_ecb_encrypt(buf + 8 * i, reader->vendor_key + (i % 4) * 8, 8);
+		memcpy(out, buf, len);
+	}
+	else
+		memcpy(out, buf, len);
+	return (len);
+}
+#endif
 
 /*================================================================*/
 
@@ -190,8 +214,8 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	uint8_t cmd_buf[256];
 	uint8_t temp[256];
 	uint8_t buf[256];
-	struct TWOFISH ctx;
 	int i;
+	struct twofish_ctx ctx;
 
 	if((atr_size != 20) || atr[0] != 0x3B || atr[1] != 0x7F) { return ERROR; }
 	if(atr[17] > 0x34 && atr[18] > 0x32)
@@ -219,8 +243,8 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get rootkey");
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	memset(temp + cta_res[4], 0, sizeof(temp) - cta_res[4]);
-	twofish_init(&ctx, reader->jet_vendor_key, 256);
-	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
+	twofish_setkey(&ctx, reader->jet_vendor_key, sizeof(reader->jet_vendor_key));
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
 	memset(reader->jet_root_key, 0 ,sizeof(reader->jet_root_key));
 	memcpy(reader->jet_root_key, buf + 4, (cta_res[4] < sizeof(reader->jet_root_key)) ? cta_res[4] : sizeof(reader->jet_root_key));
 
@@ -241,8 +265,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd(reader, cmd_buf, sizeof(get_key_cmd), 0xAA, "get authkey");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res, cta_res[4]);
-	twofish_init(&ctx, reader->jet_vendor_key, 256);
-	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
 	memcpy(reader->jet_auth_key, buf, 10);
 
 	//confirm auth key
@@ -254,8 +277,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd(reader, change_vendorkey_cmd, sizeof(change_vendorkey_cmd), 0x15, "change vendorkey");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
-	twofish_init(&ctx, reader->jet_vendor_key, 256);
-	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
 	if(((cta_res[4] + 15)/ 16 * 16) == 48 && buf[0] == 0x42 && buf[1] == 0x20)
 		memcpy(reader->jet_vendor_key, buf + 4, 32);
 
@@ -266,8 +288,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd_hold(reader, pairing_cmd01, sizeof(pairing_cmd01), 0x15, "pairing step 1");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
-	twofish_init(&ctx, reader->jet_vendor_key, 256);
-	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
 	if(buf[0] != 0x41)
 		rdr_log(reader, "error: pairing step 1 failed(invalid data)! continue ...");
 
@@ -286,8 +307,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get service key");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
-	twofish_init(&ctx, reader->jet_vendor_key, 256);
-	twofish_crypt(&ctx, buf, temp, (cta_res[4] + 15)/ 16, NULL, 1);		//twfish decrypt
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
 	memcpy(reader->jet_service_key, buf + 4, 8);
 	reader->jet_service_key[3] += reader->jet_service_key[1];
 
