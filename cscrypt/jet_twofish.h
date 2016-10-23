@@ -22,12 +22,15 @@ struct twofish_ctx {
     uint32_t sBox[4*256];
     uint32_t subKeys[40];
     uint32_t sBoxKey[4];
-    int status;	// 1. inited; 0 not init
 }; 
 extern struct twofish_ctx ctx;
 int twofish_setkey(struct twofish_ctx* ctx, uint8_t * key, int length);
 int twofish_encrypt(struct twofish_ctx* ctx, uint8_t *in, int len, uint8_t *out, int maxlen);
 int twofish_decrypt(struct twofish_ctx* ctx, uint8_t *in, int len, uint8_t *out, int maxlen);
+
+// bDecrypt & 0x80 == 1, will set key force first, else check if done setting.
+// bDecrypt & 0x7F == 0, encrypt
+// bDecrypt & 0x7F == 1, decrypt
 int twofish(uint8_t * data, int len, uint8_t *out, int maxlen, uint8_t * key, int keylen, int bDecrypt);
 
 #endif

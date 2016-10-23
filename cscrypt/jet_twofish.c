@@ -98,7 +98,7 @@ const static int GF256_FDBK_2 = 0x169 / 2;
 const static int GF256_FDBK_4 = 0x169 / 4;
 const static int RS_GF_FDBK = 0x14D; // field generator
 
-struct twofish_ctx __twofish_ctx;
+struct twofish_ctx * __twofish_ctx;
 
 /** MDS matrix */
 const static int MDS[4][256]={
@@ -481,7 +481,6 @@ int twofish_setkey(struct twofish_ctx* ctx, uint8_t * key, int length) {
 		    sBox[0x200+2*i+1] = MDS[3][(P[P_31][(P[P_32][b3] & 0xFF) ^ b3(k1)] & 0xFF) ^ b3(k0)];
 		}
 	}
-	__twofish_ctx.status = 1;
 }
 
 /**
@@ -621,16 +620,19 @@ int twofish_decrypt(struct twofish_ctx* ctx, uint8_t *in, int len, uint8_t *out,
 
 
 int twofish(uint8_t * data, int len, uint8_t *out, int maxlen, uint8_t * key, int keylen, int bDecrypt){
-	if( 1 != __twofish_ctx.status){
-		if(-1 == twofish_setkey(&__twofish_ctx, key, keylen))
+	if( __twofish_ctx == NULL){
+		__twofish_ctx = malloc(sizeof(struct twofish_ctx));
+		if(__twofish_ctx == NULL)
 			return 0;
+		twofish_setkey(__twofish_ctx, key, keylen);
 	}
-
+	if(bDecrypt & 0x80)
+		twofish_setkey(__twofish_ctx, key, keylen);
 	int result = 0;
-	if(bDecrypt)
-		result = twofish_decrypt(&__twofish_ctx, data, len, out, maxlen);
+	if(bDecrypt & 0x7F)
+		result = twofish_decrypt(__twofish_ctx, data, len, out, maxlen);
 	else
-		result = twofish_encrypt(&__twofish_ctx, data, len, out, maxlen);
+		result = twofish_encrypt(__twofish_ctx, data, len, out, maxlen);
 	return result;
 }
 
