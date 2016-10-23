@@ -297,8 +297,10 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twofish decrypt
-	if(((cta_res[4] + 15)/ 16 * 16) == 48 && buf[0] == 0x42 && buf[1] == 0x20)
+	if(((cta_res[4] + 15)/ 16 * 16) == 48 && buf[0] == 0x42 && buf[1] == 0x20){
 		memcpy(reader->jet_vendor_key, buf + 4, 32);
+		twofish_setkey(&ctx, reader->jet_vendor_key, sizeof(reader->jet_vendor_key));
+	}
 
 	//pairing step1
 	if(reader->boxkey_length)
