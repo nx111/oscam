@@ -263,7 +263,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	memcpy(temp, cta_res + 5, cta_res[4]);
 	memset(temp + cta_res[4], 0, sizeof(temp) - cta_res[4]);
 	twofish_setkey(&ctx, reader->jet_vendor_key, sizeof(reader->jet_vendor_key));
-	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twofish decrypt
 	memset(reader->jet_root_key, 0 ,sizeof(reader->jet_root_key));
 	memcpy(reader->jet_root_key, buf + 4, (cta_res[4] < sizeof(reader->jet_root_key)) ? cta_res[4] : sizeof(reader->jet_root_key));
 
@@ -284,7 +284,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd(reader, cmd_buf, sizeof(get_key_cmd), 0xAA, "get authkey");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res, cta_res[4]);
-	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twofish decrypt
 	memcpy(reader->jet_auth_key, buf, 10);
 
 	//confirm auth key
@@ -296,7 +296,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd(reader, change_vendorkey_cmd, sizeof(change_vendorkey_cmd), 0x15, "change vendorkey");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
-	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twofish decrypt
 	if(((cta_res[4] + 15)/ 16 * 16) == 48 && buf[0] == 0x42 && buf[1] == 0x20)
 		memcpy(reader->jet_vendor_key, buf + 4, 32);
 
@@ -307,7 +307,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd_hold(reader, pairing_cmd01, sizeof(pairing_cmd01), 0x15, "pairing step 1");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
-	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twofish decrypt
 	if(buf[0] != 0x41)
 		rdr_log(reader, "error: pairing step 1 failed(invalid data)! continue ...");
 
@@ -326,7 +326,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get service key");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
-	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twfish decrypt
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));		//twofish decrypt
 	memcpy(reader->jet_service_key, buf + 4, 8);
 	reader->jet_service_key[3] += reader->jet_service_key[1];
 
