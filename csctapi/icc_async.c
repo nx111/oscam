@@ -895,6 +895,8 @@ static int32_t InitCard(struct s_reader *reader, ATR *atr, unsigned char FI, uin
 	SetRightParity(reader);  // some reader devices need to get set the right parity
 
 	uint32_t ETU = Fi / D;
+	if(reader->ETU)
+		ETU = reader->ETU;
 	if(atr->hbn >= 6 && !memcmp(atr->hb, "IRDETO", 6) && reader->protocol_type == ATR_PROTOCOL_TYPE_T14)
 	{
 		ETU = 0;    // for Irdeto T14 cards, do not set ETU
