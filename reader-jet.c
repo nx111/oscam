@@ -22,7 +22,6 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 		rdr_log(reader, "error: %s failed... (encrypt cmd failed.)", title);\
 		return ERROR;\
 	}\
-	__cmd_tmp[4] += 2;\
 	write_cmd(__cmd_tmp, __cmd_tmp + 5);\
 	if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00){\
 		rdr_log(reader, "error: %s failed... ", title);\
@@ -40,7 +39,6 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 	__cmd_buf[len] = crc >> 8;\
 	__cmd_buf[len + 1] = crc & 0xFF;\
 	if(jet_encrypt(reader, encrypt_tag, __cmd_buf, len + 2, __cmd_tmp, sizeof(__cmd_tmp))){\
-		__cmd_tmp[4] += 2;\
 		write_cmd(__cmd_tmp, __cmd_tmp + 5);\
 		if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00){\
 			rdr_log(reader, "error: %s failed... ", title);\
