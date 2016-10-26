@@ -286,7 +286,7 @@ static int32_t Sci_Reset(struct s_reader *reader, ATR *atr)
 		params.fs = (int32_t)(reader->cardmhz / 100.0 + 0.5);  /* calculate divider for 1 MHz  */
 		params.T = 0;
 	}
-	else if(reader->cardmhz == 8300)    /* PLL based reader DM7025 */
+	if(reader->cardmhz == 8300)    /* PLL based reader DM7025 */
 	{
 		params.ETU = 372;
 		params.EGT = 0;
@@ -303,9 +303,6 @@ static int32_t Sci_Reset(struct s_reader *reader, ATR *atr)
         params.fs = 15 for cardmhz = 2.128 MHz
         params.fs = 16 for cardmhz = 1.977 MHz */
 		params.T = 0;
-	}
-	else if(reader->ETU){
-		params.ETU = reader->ETU;
 	}
 
 	int32_t tries = 0;

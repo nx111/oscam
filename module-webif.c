@@ -2332,8 +2332,6 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		tpl_printf(vars, TPLADD, "COOLDOWNDELAY", "%d", rdr->cooldown[0]);
 		tpl_printf(vars, TPLADD, "COOLDOWNTIME", "%d", rdr->cooldown[1]);
 	}
-
-	tpl_printf(vars, TPLADD, "ETU", "%d", rdr->ETU);
 	// Frequencies
 	tpl_printf(vars, TPLADD, "MHZ", "%d", rdr->mhz);
 	tpl_printf(vars, TPLADD, "CARDMHZ", "%d", rdr->cardmhz);
