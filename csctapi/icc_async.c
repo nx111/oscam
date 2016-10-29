@@ -757,12 +757,6 @@ static int32_t InitCard(struct s_reader *reader, ATR *atr, unsigned char FI, uin
 		}
 	}	
 	F = reader->mhz; } // all other readers
-	if(reader->caid == 0x4A30){
-		Fi = 186;
-		reader->mhz = 300;
-		F = reader->mhz;
-		rdr_log(reader, "(DVN) Fi = %d reader mhz = %d", Fi, F);
-	}
         reader->worketu = (double)((double)(1 / (double)D) * ((double)Fi / (double)((double)F / 100)));
 	rdr_log(reader, "Calculated work ETU is %.2f us reader mhz = %u", reader->worketu, reader->mhz);
 
