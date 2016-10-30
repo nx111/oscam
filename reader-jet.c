@@ -234,7 +234,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	int i;
 	struct twofish_ctx ctx;
 
-	if((atr_size != 20) || atr[0] != 0x3B || atr[1] != 0x7F) { return ERROR; }
+	if((atr_size != 20) || atr[0] != 0x3B || atr[1] != 0x7F || memcmp(atr + 5, "DVN TECH", 8) != 0) { return ERROR; }
 	if(atr[17] > 0x34 && atr[18] > 0x32)
 		reader->cas_version=5;
 	else
@@ -548,7 +548,7 @@ static int32_t jet_card_info(struct s_reader *UNUSED(reader))
 const struct s_cardsystem reader_jet =
 {
 	.desc         = "jet",
-	.caids        = (uint16_t[]){ 0x4A, 0 },
+	.caids        = (uint16_t[]){ 0x4A30, 0 },
 	.do_emm       = jet_do_emm,
 	.do_ecm       = jet_do_ecm,
 	.card_info    = jet_card_info,
