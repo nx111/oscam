@@ -406,7 +406,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	}
 
 	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX, boxkey: %s",
-			reader->caid, (uint64_t) b2ll(8, reader->hexserial), (uint64_t) b2ll(8, reader->hexserial),
+			reader->caid, (unsigned long long)b2ll(8, reader->hexserial), (unsigned long long)b2ll(8, reader->hexserial),
 			cs_hexdump(0, reader->boxkey, 32, (char*)buf, sizeof(buf)));
 
 	return OK;
@@ -431,7 +431,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 		NULLFREE(tmp);
 	}
 	if((ecm_len = check_sct_len(er->ecm, 3, sizeof(er->ecm))) < 0) {
-		rdr_log(reader, "error: check_sct_len failed, smartcard section too long %d > %d", SCT_LEN(er->ecm), sizeof(er->ecm) - 3);
+		rdr_log(reader, "error: check_sct_len failed, smartcard section too long %d > %ld", SCT_LEN(er->ecm), sizeof(er->ecm) - 3);
 		return ERROR;
 	}
 
