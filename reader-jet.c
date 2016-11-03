@@ -431,7 +431,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 		NULLFREE(tmp);
 	}
 	if((ecm_len = check_sct_len(er->ecm, 3, sizeof(er->ecm))) < 0) {
-		rdr_log(reader, "error: check_sct_len failed, smartcard section too long %d > %ld", SCT_LEN(er->ecm), sizeof(er->ecm) - 3);
+		rdr_log(reader, "error: check_sct_len failed, smartcard section too long %d > %zd", SCT_LEN(er->ecm), sizeof(er->ecm) - 3);
 		return ERROR;
 	}
 
