@@ -23,7 +23,7 @@ struct twofish_ctx {
     uint32_t subKeys[40];
     uint32_t sBoxKey[4];
 }; 
-extern struct twofish_ctx ctx;
+
 int twofish_setkey(struct twofish_ctx* ctx, uint8_t * key, int length);
 int twofish_encrypt(struct twofish_ctx* ctx, uint8_t *in, int len, uint8_t *out, int maxlen);
 int twofish_decrypt(struct twofish_ctx* ctx, uint8_t *in, int len, uint8_t *out, int maxlen);

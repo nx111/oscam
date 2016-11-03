@@ -60,48 +60,48 @@
 #define OUTPUT_WHITEN	4
 #define ROUND_SUBKEYS	8
 
-const static int SK_STEP = 0x02020202;
-const static int SK_BUMP = 0x01010101;
-const static int SK_ROTL = 9;
+static const int SK_STEP = 0x02020202;
+static const int SK_BUMP = 0x01010101;
+static const int SK_ROTL = 9;
 
 /**
  * Define the fixed p0/p1 permutations used in keyed S-box lookup.
  * By changing the following constant definitions, the S-boxes will
  * automatically get changed in the Twofish engine.
  */
-const static int P_00 = 1;
-const static int P_01 = 0;
-const static int P_02 = 0;
-const static int P_03 = 1;
-const static int P_04 = 1;
+static const int P_00 = 1;
+static const int P_01 = 0;
+static const int P_02 = 0;
+static const int P_03 = 1;
+static const int P_04 = 1;
 
-const static int P_10 = 0;
-const static int P_11 = 0;
-const static int P_12 = 1;
-const static int P_13 = 1;
-const static int P_14 = 0;
+static const int P_10 = 0;
+static const int P_11 = 0;
+static const int P_12 = 1;
+static const int P_13 = 1;
+static const int P_14 = 0;
 
-const static int P_20 = 1;
-const static int P_21 = 1;
-const static int P_22 = 0;
-const static int P_23 = 0;
-const static int P_24 = 0;
+static const int P_20 = 1;
+static const int P_21 = 1;
+static const int P_22 = 0;
+static const int P_23 = 0;
+static const int P_24 = 0;
 
-const static int P_30 = 0;
-const static int P_31 = 1;
-const static int P_32 = 1;
-const static int P_33 = 0;
-const static int P_34 = 1;
+static const int P_30 = 0;
+static const int P_31 = 1;
+static const int P_32 = 1;
+static const int P_33 = 0;
+static const int P_34 = 1;
 
 /** Primitive polynomial for GF(256) */
-const static int GF256_FDBK_2 = 0x169 / 2;
-const static int GF256_FDBK_4 = 0x169 / 4;
-const static int RS_GF_FDBK = 0x14D; // field generator
+static const int GF256_FDBK_2 = 0x169 / 2;
+static const int GF256_FDBK_4 = 0x169 / 4;
+static const int RS_GF_FDBK = 0x14D; // field generator
 
 struct twofish_ctx * __twofish_ctx;
 
 /** MDS matrix */
-const static int MDS[4][256]={
+static const int MDS[4][256]={
    {0xBCBC3275, 0xECEC21F3, 0x202043C6, 0xB3B3C9F4, 0xDADA03DB, 0x02028B7B, 0xE2E22BFB, 0x9E9EFAC8, 
     0xC9C9EC4A, 0xD4D409D3, 0x18186BE6, 0x1E1E9F6B, 0x98980E45, 0xB2B2387D, 0xA6A6D2E8, 0x2626B74B, 
     0x3C3C57D6, 0x93938A32, 0x8282EED8, 0x525298FD, 0x7B7BD437, 0xBBBB3771, 0x5B5B97F1, 0x474783E1, 
@@ -236,7 +236,7 @@ const static int MDS[4][256]={
 }; 
 
 /** Fixed 8x8 permutation S-boxes */
-const static uint8_t P[2][256] = { 
+static const uint8_t P[2][256] = { 
   { 0xa9, 0x67, 0xb3, 0xe8, 0x04, 0xfd, 0xa3, 0x76, 0x9a, 0x92, 0x80, 0x78, 0xe4, 0xdd, 0xd1, 0x38,
     0x0d, 0xc6, 0x35, 0x98, 0x18, 0xf7, 0xec, 0x6c, 0x43, 0x75, 0x37, 0x26, 0xfa, 0x13, 0x94, 0x48,
     0xf2, 0xd0, 0x8b, 0x30, 0x84, 0x54, 0xdf, 0x23, 0x19, 0x5b, 0x3d, 0x59, 0xf3, 0xae, 0xa2, 0x82,
@@ -362,7 +362,7 @@ static uint32_t F32( int k64Cnt, uint32_t x, uint32_t * k32 ) {
 	uint32_t result = 0;
 	switch (k64Cnt & 3) {
 	case 0:  // same as 4
-		b0 =  P[P_04][b0] & 0xFF ^ b0(k3);
+		b0 = (P[P_04][b0] & 0xFF) ^ b0(k3);
 		b1 = (P[P_14][b1] & 0xFF) ^ b1(k3);
 		b2 = (P[P_24][b2] & 0xFF) ^ b2(k3);
 		b3 = (P[P_34][b3] & 0xFF) ^ b3(k3);
@@ -370,10 +370,10 @@ static uint32_t F32( int k64Cnt, uint32_t x, uint32_t * k32 ) {
 	case 1:
 		break;
 	case 2:                             // 128-bit keys (optimize for this case)
-		b0 = P[P_01][(P[P_02][b0] & 0xFF) ^ b0(k1)] & 0xFF ^ b0(k0);
-		b1 = P[P_11][(P[P_12][b1] & 0xFF) ^ b1(k1)] & 0xFF ^ b1(k0);
-		b2 = P[P_21][(P[P_22][b2] & 0xFF) ^ b2(k1)] & 0xFF ^ b2(k0);
-		b3 = P[P_31][(P[P_32][b3] & 0xFF) ^ b3(k1)] & 0xFF ^ b3(k0);
+		b0 = (P[P_01][(P[P_02][b0] & 0xFF) ^ b0(k1)] & 0xFF) ^ b0(k0);
+		b1 = (P[P_11][(P[P_12][b1] & 0xFF) ^ b1(k1)] & 0xFF) ^ b1(k0);
+		b2 = (P[P_21][(P[P_22][b2] & 0xFF) ^ b2(k1)] & 0xFF) ^ b2(k0);
+		b3 = (P[P_31][(P[P_32][b3] & 0xFF) ^ b3(k1)] & 0xFF) ^ b3(k0);
 		break;
 	case 3:
 		b0 = (P[P_03][b0] & 0xFF) ^ b0(k2);
