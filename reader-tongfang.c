@@ -262,7 +262,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		memcpy(reader->tongfang3_commkey, data, 8);
 		des_ecb_encrypt(reader->tongfang3_commkey,des_key,8);
 
-		rdr_log_dbg(reader, D_IFD, "card commkey got(%llX)",(uint64_t)b2ll(8,reader->tongfang3_commkey));
+		rdr_log_dbg(reader, D_IFD, "card commkey got(%llX)",(unsigned long long)b2ll(8,reader->tongfang3_commkey));
 
 		//get card serial
 		write_cmd(get_serial_cmdv3, get_serial_cmdv3 + 5);
@@ -324,7 +324,10 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	}
 
 	rdr_log_sensitive(reader, "type: Tongfang, caid: %04X, serial: {%llu}, hex serial: {%llX}, Card ID: {%s}, BoxID: {%08X}",
-			reader->caid, (uint64_t) b2ll(6, reader->hexserial), (uint64_t) b2ll(4, reader->hexserial+2), card_id, b2i(4, boxID));
+			reader->caid, 
+			(unsigned long long) b2ll(6, reader->hexserial),
+			(unsigned long long) b2ll(4, reader->hexserial+2),
+			card_id, b2i(4, boxID));
 	return OK;
 }
 
@@ -358,7 +361,7 @@ static int32_t tongfang_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, s
 		NULLFREE(tmp);
 	}
 	if((ecm_len = check_sct_len(er->ecm, 3, sizeof(er->ecm))) < 0) {
-		rdr_log(reader, "error: check_sct_len failed, smartcard section too long %d > %d", SCT_LEN(er->ecm), sizeof(er->ecm) - 3);
+		rdr_log(reader, "error: check_sct_len failed, smartcard section too long %d > %ld", SCT_LEN(er->ecm), sizeof(er->ecm) - 3);
 		return ERROR;
 	}
 
@@ -534,7 +537,7 @@ static int32_t tongfang_card_info(struct s_reader *reader)
 
 				if (!j)
 					rdr_log(reader, "entitlements for provider: %d (%04X:%06X)", i, reader->caid, b2i(2, &reader->prid[i][2]));
-				rdr_log(reader, "    chid: %04llX  date: %s - %s", product_id, start_day, end_day);
+				rdr_log(reader, "    chid: %04"PRIX64"  date: %s - %s", product_id, start_day, end_day);
 				
 				cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][2]), product_id, 0, start_t, end_t, 0, 1);
 			}

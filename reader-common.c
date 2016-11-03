@@ -24,7 +24,7 @@ int32_t check_sct_len(const uchar *data, int32_t off, size_t maxSize)
 	size_t len = SCT_LEN(data);
 	if(len + off > maxSize)
 	{
-		cs_log_dbg(D_TRACE | D_READER, "check_sct_len(): smartcard section too long %d > %d", len, maxSize - off);
+		cs_log_dbg(D_TRACE | D_READER, "check_sct_len(): smartcard section too long %ld > %ld", len, maxSize - off);
 		len = -1;
 	}
 	return len;

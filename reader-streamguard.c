@@ -724,7 +724,7 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 
 			if(!j)
 				rdr_log(reader, "entitlements for provider: %d (%04X:%06X)", i, reader->caid, b2i(2, &reader->prid[i][2]));
-			rdr_log(reader, "    chid: %04llX  date: %s - %s", product_id, start_day, end_day);
+			rdr_log(reader, "    chid: %04"PRIX64" date: %s - %s", product_id, start_day, end_day);
 
 			cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][2]), product_id, 0, start_t, end_t, 0, 1);
 		}
