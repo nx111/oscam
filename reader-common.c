@@ -65,6 +65,9 @@ int32_t card_write(struct s_reader *reader, const uchar *cmd, const uchar *data,
 		{
 			datalen = cmd[4];			
 		}
+		if(reader->card_atr_length >= 13 && !memcmp(reader->card_atr + 5, "DVN TECH", 8))
+			datalen += 2;
+
 		memcpy(buf + CMD_LEN, data, datalen);
 		return (reader_cmd2icc(reader, buf, CMD_LEN + datalen, response, response_length));
 	}

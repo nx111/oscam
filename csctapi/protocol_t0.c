@@ -53,6 +53,7 @@
 #define APDU_CASE_2E    0x0102  /* Receive data (1..65536) */
 #define APDU_CASE_3E    0x0103  /* Send data (1..65535) */
 #define APDU_CASE_4E    0x0104  /* Send data (1..65535) and receive data (1..65536) */
+#define APDU_CASE_DVN   0x0010  /* Receive data (1..256),for DVN */
 #define APDU_MALFORMED      5   /* Malformed APDU */
 
 /* Timings in ATR are not used in T=0 cards */
@@ -90,6 +91,8 @@ static int32_t APDU_Cmd_Case(unsigned char *command, uint16_t command_len)
 
 		if((B1 != 0) && (L == (uint32_t)B1 + 1))
 			{ res = APDU_CASE_2S; }
+		else if((B1 != 0) && (L == (uint32_t)B1 + 3) && command[B1 + 5] == 0x90 && command[B1 + 6] == 0x00)
+			{ res = APDU_CASE_DVN; }
 		else if(L == 1)
 			{ res = APDU_CASE_3S; }
 		else if((B1 != 0) && (L == (uint32_t)B1 + 2))
@@ -123,7 +126,8 @@ int32_t Protocol_T0_Command(struct s_reader *reader, unsigned char *command, uin
 	*lr = 0; //will be returned in case of error
 	if(command_len < 5)  //APDU_CASE_1 or malformed
 		{ return ERROR; }
-	int32_t cmd_case = APDU_Cmd_Case(command, command_len);
+	int32_t cmd_case;
+	cmd_case = APDU_Cmd_Case(command, command_len);
 	rdr_log_dump(reader, command, command_len,"cmd_case=%d command_len=%d COMMAND:",cmd_case,command_len);
 	switch(cmd_case)
 	{
@@ -137,6 +141,7 @@ int32_t Protocol_T0_Command(struct s_reader *reader, unsigned char *command, uin
 		command_len--; //FIXME this should change 4S to 2S/3S command
 	case APDU_CASE_2S:
 	case APDU_CASE_3S:
+	case APDU_CASE_DVN:
 		return Protocol_T0_ExchangeTPDU(reader, command, command_len, rsp, lr);
 	default:
 		rdr_log_dbg(reader, D_IFD, "Protocol: T=0: Invalid APDU");
@@ -355,6 +360,12 @@ static int32_t Protocol_T0_ExchangeTPDU(struct s_reader *reader, unsigned char *
 	cmd_case = APDU_Cmd_Case(command, command_len);
 	switch(cmd_case)
 	{
+	case APDU_CASE_DVN:
+		Lc = command[4] + 2;
+		Le = 0;
+		expectedlen = 1;
+		data = command + 5;
+		break;
 	case APDU_CASE_2S:
 		Lc = command[4];
 		Le = 0;
