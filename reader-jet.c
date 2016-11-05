@@ -9,7 +9,7 @@
 static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03, 0x28, 0x60, 0x80, 0x94, 0xD6, 0xC4, 0x3A, 0x48, 
                                          0x43, 0x71, 0x28, 0x94, 0xF4, 0xE3, 0xAB, 0xC7, 0x36, 0x59, 0x17, 0x8E, 0xCC, 0x6D, 0xA0, 0x9B};
 
-#define jet_write_cmd(reader, cmd, len, encrypt_tag, title) \
+#define jet_write_cmd(reader, cmd, len, ins, title) \
  do { \
 	uint8_t __cmd_buf[256];\
 	uint8_t __cmd_tmp[256];\
@@ -18,7 +18,7 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 	uint16_t crc=calc_crc16(__cmd_buf, len);\
 	__cmd_buf[len] = crc >> 8;\
 	__cmd_buf[len + 1] = crc & 0xFF;\
-	if(!jet_encrypt(reader, encrypt_tag, __cmd_buf, len + 2, __cmd_tmp, sizeof(__cmd_tmp))){\
+	if(!jet_encrypt(reader, ins, __cmd_buf, len + 2, __cmd_tmp, sizeof(__cmd_tmp))){\
 		rdr_log(reader, "error: %s failed... (encrypt cmd failed.)", title);\
 		return ERROR;\
 	}\
@@ -29,7 +29,7 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 	}\
   } while (0)
 
-#define jet_write_cmd_hold(reader, cmd, len, encrypt_tag, title) \
+#define jet_write_cmd_hold(reader, cmd, len, ins, title) \
  do { \
 	uint8_t __cmd_buf[256];\
 	uint8_t __cmd_tmp[256];\
@@ -38,7 +38,7 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 	uint16_t crc=calc_crc16(__cmd_buf, len);\
 	__cmd_buf[len] = crc >> 8;\
 	__cmd_buf[len + 1] = crc & 0xFF;\
-	if(jet_encrypt(reader, encrypt_tag, __cmd_buf, len + 2, __cmd_tmp, sizeof(__cmd_tmp))){\
+	if(jet_encrypt(reader, ins, __cmd_buf, len + 2, __cmd_tmp, sizeof(__cmd_tmp))){\
 		write_cmd(__cmd_tmp, __cmd_tmp + 5);\
 		if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00){\
 			rdr_log(reader, "error: %s failed... ", title);\
@@ -101,7 +101,7 @@ static uint16_t calc_crc16(uint8_t* in, int len) {
         return crc_value;
     }
 
-static size_t jet_encrypt(struct s_reader* reader,uint8_t tag, uint8_t *data, size_t len, uint8_t *out, size_t maxlen)
+static size_t jet_encrypt(struct s_reader* reader,uint8_t ins, uint8_t *data, size_t len, uint8_t *out, size_t maxlen)
 {
 	uint8_t buf[256];
 	size_t i;
@@ -111,15 +111,15 @@ static size_t jet_encrypt(struct s_reader* reader,uint8_t tag, uint8_t *data, si
 	memset(buf, 0xFF, aligned_len + 7);
 
 	out[0] = 0x84;
-	out[1] = tag;
+	out[1] = ins;
 	out[2] = 0;
 	out[3] = 0;
 	out[4] = aligned_len & 0xFF;
 	memcpy(buf, data, len);
-	if(tag == 0x15){
-		twofish(buf,len, out + 5,maxlen,reader->jet_vendor_key,sizeof(vendor_key),0);
+	if(ins == 0x15){
+		twofish(buf,len, out + 5, maxlen, reader->jet_vendor_key, sizeof(vendor_key), 0);
 	}
-	else if(tag == 0x16){
+	else if(ins == 0x16){
 		for(i = 0; i < (aligned_len / 8); i++)
 			des_ecb_encrypt(buf + 8 * i, reader->jet_vendor_key + (i % 4) * 8, 8);
 		memcpy(out + 5, buf, aligned_len);
@@ -134,18 +134,18 @@ static size_t jet_decrypt(struct s_reader* reader, uint8_t *data,  uint8_t *out,
 {
 	uint8_t buf[256];
 	size_t i;
-	uint8_t tag;
+	uint8_t ins;
 	int len = data[4];
 
 	memset(buf, 0, sizeof(buf));
 	memset(out, 0, maxlen);
-	tag = data[1];
+	ins = data[1];
 
 	memcpy(buf, data + 5, len);
-	if(tag == 0x15){
+	if(ins == 0x15){
 		twofish(buf,len, out,maxlen,reader->jet_vendor_key,sizeof(vendor_key),1);
 	}
-	else if(tag == 0x16){
+	else if(ins == 0x16){
 		for(i = 0; i < (len / 8); i++)
 			des_ecb_encrypt(buf + 8 * i, reader->vendor_key + (i % 4) * 8, 8);
 		memcpy(out, buf, len);
