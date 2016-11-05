@@ -124,6 +124,9 @@ static size_t jet_encrypt(struct s_reader* reader,uint8_t ins, uint8_t *data, si
 			des_ecb_encrypt(buf + 8 * i, reader->jet_vendor_key + (i % 4) * 8, 8);
 		memcpy(out + 5, buf, aligned_len);
 	}
+	else
+		memcpy(out + 5, buf, aligned_len);
+
 	out[aligned_len + 5] = 0x90;
 	out[aligned_len + 6] = 0x00;
 
