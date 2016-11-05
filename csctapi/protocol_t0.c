@@ -124,6 +124,7 @@ int32_t Protocol_T0_Command(struct s_reader *reader, unsigned char *command, uin
 	if(command_len < 5)  //APDU_CASE_1 or malformed
 		{ return ERROR; }
 	int32_t cmd_case = APDU_Cmd_Case(command, command_len);
+	rdr_log_dump(reader, command, command_len,"cmd_case=%d command_len=%d COMMAND:",cmd_case,command_len);
 	switch(cmd_case)
 	{
 	case APDU_CASE_2E:
