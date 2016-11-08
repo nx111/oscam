@@ -704,7 +704,7 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 		}
 
 
-		uint16_t count = data[1];
+		count = data[1];
 		int j;
 		for(j = 0; j < count; j++){
 			//if(data[j * 19 + 3] == 0 && data[j * 19 + 4] == 0) continue;
