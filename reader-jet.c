@@ -234,7 +234,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	uint8_t cmd_buf[256];
 	uint8_t temp[256];
 	uint8_t buf[256];
-	int i;
+	int i,len;
 	struct twofish_ctx ctx;
 
 	if((atr_size != 20) || atr[0] != 0x3B || atr[1] != 0x7F || memcmp(atr + 5, "DVN TECH", 8) != 0) { return ERROR; }
@@ -273,7 +273,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		//get derive key
 		memset(temp, 0, sizeof(temp));
 		if(!generate_derivekey(reader, temp, sizeof(temp))){
-			rdr_log(reader, "error: generate derivekey faild, buffer overflow!");
+			rdr_log(reader, "error: generate derivekey failed, buffer overflow!");
 			return ERROR;
 		}
 		//generate_derivekey has filled crc16. so call jet_write_cmd with len - 2.
@@ -300,14 +300,14 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		jet_write_cmd(reader, change_vendorkey_cmd, sizeof(change_vendorkey_cmd), 0x15, "change vendorkey");
 		memset(temp, 0, sizeof(temp));
 		memcpy(temp, cta_res + 5, cta_res[4]);
-		if(48 == twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf)) &&
-		    buf[0] == 0x42 && buf[1] == 0x20){
+		len = twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
+		if(48 == len &&  buf[0] == 0x42 && buf[1] == 0x20){
 			memcpy(reader->jet_vendor_key, buf + 4, 32);
 			twofish_setkey(&ctx, reader->jet_vendor_key, sizeof(reader->jet_vendor_key));
 		}
 		else{
-			rdr_log(reader, "update vendor key faild!(return data incorrect)...");
-			return ERROR;
+			rdr_log_dump(reader, buf, len, "update vendor key failed, return data incorrect. returned data[%d]:",len);
+//			return ERROR;
 		}
 	}
 
