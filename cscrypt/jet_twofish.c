@@ -69,25 +69,21 @@ static const int SK_ROTL = 9;
  * By changing the following constant definitions, the S-boxes will
  * automatically get changed in the Twofish engine.
  */
-static const int P_00 = 1;
 static const int P_01 = 0;
 static const int P_02 = 0;
 static const int P_03 = 1;
 static const int P_04 = 1;
 
-static const int P_10 = 0;
 static const int P_11 = 0;
 static const int P_12 = 1;
 static const int P_13 = 1;
 static const int P_14 = 0;
 
-static const int P_20 = 1;
 static const int P_21 = 1;
 static const int P_22 = 0;
 static const int P_23 = 0;
 static const int P_24 = 0;
 
-static const int P_30 = 0;
 static const int P_31 = 1;
 static const int P_32 = 1;
 static const int P_33 = 0;
@@ -386,6 +382,7 @@ static uint32_t F32( int k64Cnt, uint32_t x, uint32_t * k32 ) {
 	return result;
 }
 
+#if 0
 static uint32_t Fe32( uint32_t *sBox, uint32_t x, int R ) {
 	return
 		sBox[        2*byte(x, R  )    ] ^
@@ -393,7 +390,7 @@ static uint32_t Fe32( uint32_t *sBox, uint32_t x, int R ) {
 		sBox[0x200 + 2*byte(x, R+2)    ] ^
 		sBox[0x200 + 2*byte(x, R+3) + 1];
 }
-
+#endif
 
 /**
  * Expand a user-supplied key material into a session key.
@@ -481,6 +478,7 @@ int twofish_setkey(struct twofish_ctx* ctx, uint8_t * key, int length) {
 		    sBox[0x200+2*i+1] = MDS[3][(P[P_31][(P[P_32][b3] & 0xFF) ^ b3(k1)] & 0xFF) ^ b3(k0)];
 		}
 	}
+	return 0;
 }
 
 /**
@@ -596,7 +594,7 @@ int twofish_encrypt(struct twofish_ctx* ctx, uint8_t *in, int len, uint8_t *out,
 		data = malloc(aligned_len);
 		if(data == NULL)
 			return 0;
-		memset(data, 0xFF, sizeof(data));
+		memset(data, 0xFF, aligned_len);
 		memcpy(data, in, len);
 	}
 	int i,offset;
