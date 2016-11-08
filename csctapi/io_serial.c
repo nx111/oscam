@@ -714,9 +714,6 @@ bool IO_Serial_WaitToRead(struct s_reader *reader, uint32_t delay_us, uint32_t t
 		cs_ftime(&end); // register end time
 		switch(ret_val)
 		{
-		case 0:
-			rdr_log(reader, "ERROR: not any char to read, timeout=%"PRId64" ms", comp_timeb(&end, &start));
-			return ERROR;
 		case -1:
 			if(errno == EINTR || errno == EAGAIN)
 			{
