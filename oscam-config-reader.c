@@ -319,7 +319,7 @@ static void boxkey_fn(const char *token, char *value, void *setting, FILE *f)
 	if(value)
 	{
 		int32_t len = strlen(value);
-		if(((len % 8) != 0) || len == 0 || len > 32)
+		if(((len % 8) != 0) || len == 0 || len > 64)
 		{
 			rdr->boxkey_length = 0;
 			memset(rdr->boxkey, 0, sizeof(rdr->boxkey));
