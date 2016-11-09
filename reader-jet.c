@@ -41,11 +41,11 @@ static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC,
 	if(jet_encrypt(reader, ins, __cmd_buf, len + 2, __cmd_tmp, sizeof(__cmd_tmp))){\
 		write_cmd(__cmd_tmp, __cmd_tmp + 5);\
 		if(cta_res[cta_lr - 2] != 0x90 || cta_res[cta_lr - 1] != 0x00){\
-			rdr_log(reader, "error: %s failed... ", title);\
+			rdr_log(reader, "warning: %s failed... ", title);\
 		}\
 	}\
 	else \
-		rdr_log(reader, "error: %s failed... (encrypt cmd failed.)", title);\
+		rdr_log(reader, "warning: %s failed... (encrypt cmd failed.)", title);\
   } while (0)
 
 static const uint16_t crc16_table[256]={
@@ -322,7 +322,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
 	if(buf[0] != 0x41){
 		rdr_log(reader, "error: pairing step 1 failed(invalid data) ...");
-		return ERROR;
+//		return ERROR;
 	}
 
 	//pairing step 2
@@ -333,7 +333,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		pairing_cmd02[i] = 0x30;
 	if(reader->cas_version >= 5)
 		memcpy(pairing_cmd02 + 45, reader->jet_derive_key + 45, 8);
-	jet_write_cmd(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing step 2");
+	jet_write_cmd_hold(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing step 2");
 
 	if(reader->cas_version < 5){
 		for( i = 1; i <= 7; i++){
