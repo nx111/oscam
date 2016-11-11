@@ -117,7 +117,7 @@ static size_t jet_encrypt(struct s_reader* reader,uint8_t ins, uint8_t *data, si
 	out[4] = aligned_len & 0xFF;
 	memcpy(buf, data, len);
 	if(ins == 0x15){
-		twofish(buf,len, out + 5, maxlen, reader->jet_vendor_key, sizeof(vendor_key), 0);
+		twofish(buf,len, out + 5, maxlen, reader->jet_vendor_key, sizeof(vendor_key), TWOFISH_MODE_ENCRYPT);
 	}
 	else if(ins == 0x16){
 		for(i = 0; i < (aligned_len / 8); i++)
@@ -294,7 +294,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		memcpy(register_key_cmd + 36, reader->jet_auth_key, 8);
 		register_key_cmd[42] = 0;
 		memcpy(register_key_cmd + 44, reader->jet_derive_key + 44, 4);
-		jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "confirm auth");
+		jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "register authkey");
 
 		//change vendor key
 		jet_write_cmd(reader, change_vendorkey_cmd, sizeof(change_vendorkey_cmd), 0x15, "change vendorkey");
@@ -550,7 +550,7 @@ static int32_t jet_card_info(struct s_reader *UNUSED(reader))
 
 const struct s_cardsystem reader_jet =
 {
-	.desc         = "jet",
+	.desc         = "dvn",
 	.caids        = (uint16_t[]){ 0x4A30, 0 },
 	.do_emm       = jet_do_emm,
 	.do_ecm       = jet_do_ecm,

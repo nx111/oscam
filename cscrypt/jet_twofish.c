@@ -403,11 +403,14 @@ int twofish_setkey(struct twofish_ctx* ctx, uint8_t * key, int length) {
 		printf("Empty key\n");
 		return -1;
 	}
-	if (!(length == 8 || length == 16 || length == 24 || length == 32)){
+	if (length > TWOFISH_MAX_KEY_LENGHT || (length % 8) != 0){
 		printf("Incorrect key length\n");
 		return -1;
 	}
 	memset((void*)ctx, 0, sizeof(struct twofish_ctx));
+
+	ctx->key_length = length;
+	memcpy(ctx->key, key, length);
 
 	int k64Cnt = length / 8;
 	int subkeyCnt = ROUND_SUBKEYS + 2*ROUNDS;
@@ -624,10 +627,10 @@ int twofish(uint8_t * data, int len, uint8_t *out, int maxlen, uint8_t * key, in
 			return 0;
 		twofish_setkey(__twofish_ctx, key, keylen);
 	}
-	if(bDecrypt & 0x80)
+	if(keylen != __twofish_ctx->key_length || memcmp(key,__twofish_ctx->key, keylen))
 		twofish_setkey(__twofish_ctx, key, keylen);
 	int result = 0;
-	if(bDecrypt & 0x7F)
+	if(bDecrypt == TWOFISH_MODE_DECRYPT)
 		result = twofish_decrypt(__twofish_ctx, data, len, out, maxlen);
 	else
 		result = twofish_encrypt(__twofish_ctx, data, len, out, maxlen);
