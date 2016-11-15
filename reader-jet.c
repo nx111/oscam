@@ -451,8 +451,8 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 
 	offset = 0;
 	if(reader->cas_version < 5){
-		ecm_len = len;
-		len += 19;
+		ecm_len = len - 13;
+		len = len + 25;
 	}
 	else{
 		if(ecm[2] == 0x8B)
@@ -460,8 +460,8 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 		ecm_len = len - 13 + offset;
 		if(ecm[2] == 0x9E){
 			ecm[23] = ecm[23] ^ ecm[80] ^ ecm[90] ^ ecm[140];
-			ecm[29] = ecm[29] ^ 0x59;
-			ecm[41] = ecm[41] ^ 0xEA;
+			ecm[28] = ecm[28] ^ 0x59;
+			ecm[41] = ecm[41] ^ 0xAE;
 			ecm_len = 128;
 		}
 		len = ecm_len + 54;
@@ -478,6 +478,8 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 
 	if(reader->cas_version < 5)
 		cmd[1] = 0xA2;
+	else
+		cmd[1] = 0xB2;
 
 	memcpy(cmd + 4, ecm + 12 - offset, ecm_len);
 	memcpy(cmd + 4 + ecm_len, boxkey, sizeof(boxkey));
@@ -486,7 +488,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 	if(reader->cas_version >= 5)
 		memcpy(cmd + ecm_len + 38, reader->jet_service_key, 8);
 	jet_write_cmd(reader, cmd, len, 0x16, "parse ecm");
-	if(cta_lr < 29){
+	if(cta_lr < 27){
 			rdr_log(reader, "error: get cw failed...(response data too short.)");
 			return ERROR;
 	}
