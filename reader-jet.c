@@ -496,7 +496,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res, cta_res[4] + 5);
 	for(i = 0; i < (cta_res[4] / 8); i++)
-		des_ecb_encrypt(temp + 5 + 8 * i, reader->jet_vendor_key + (i % 4) * 8, 8);
+		des_ecb_decrypt(temp + 5 + 8 * i, reader->jet_vendor_key + (i % 4) * 8, 8);
 	if(temp[9] == 0xFF){
 		rdr_log(reader, "error: invalid cw data... (cw[9]=0xFF)");
 		return ERROR;
