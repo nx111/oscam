@@ -2138,12 +2138,11 @@ int32_t dvbapi_start_descrambling(int32_t demux_id, int32_t pid, int8_t checked)
 
 			demux[demux_id].curindex = pid; // set current pid to the fresh started one
 
-			if(!caid_is_dvn(demux[demux_id].ECMpids[pid].CAID))
-				dvbapi_start_filter(demux_id, pid, demux[demux_id].ECMpids[pid].ECM_PID, demux[demux_id].ECMpids[pid].CAID,
-								demux[demux_id].ECMpids[pid].PROVID, 0x80, 0xF0, 3000, TYPE_ECM);
-			else
-				dvbapi_start_filter(demux_id, pid, demux[demux_id].ECMpids[pid].ECM_PID, demux[demux_id].ECMpids[pid].CAID,
-								demux[demux_id].ECMpids[pid].PROVID, 0x50, 0xF0, 3000, TYPE_ECM);
+			uint32_t table = 0x80;
+			if(caid_is_dvn(demux[demux_id].ECMpids[pid].CAID))
+				table = 0x50;
+			dvbapi_start_filter(demux_id, pid, demux[demux_id].ECMpids[pid].ECM_PID, demux[demux_id].ECMpids[pid].CAID,
+								demux[demux_id].ECMpids[pid].PROVID, table, 0xF0, 3000, TYPE_ECM);
 			started = 1;
 			break; // we started an ecmfilter so stop looking for next matching reader!
 		}
@@ -4637,7 +4636,7 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uchar *buffer, i
 		}
 
 		// check for matching chid (unique ecm part in case of non-irdeto cas) + added fix for seca2 monthly changing fakechid 
-		if((curpid->CHID < 0x10000) && !((chid == curpid->CHID) || ((curpid->CAID >> 8 == 0x01) && (chid&0xF0FF) == (curpid->CHID&0xF0FF)) ) )  
+		if((curpid->CHID < 0x10000) && !((chid == curpid->CHID) || ((curpid->CAID >> 8 == 0x01) && (chid&0xF0FF) == (curpid->CHID&0xF0FF)) || caid_is_dvn(curpid->CAID)) )
 		{
 			if(caid_is_irdeto(curpid->CAID))
 			{
@@ -6688,22 +6687,22 @@ int32_t dvbapi_set_section_filter(int32_t demux_index, ECM_REQUEST *er, int32_t 
 	uint8_t ecmfilter = 0;
 
 	if(er->ecm[0] == 0x80) { ecmfilter = 0x81; }  // current processed ecm is even, next will be filtered for odd
-	else if(er->ecm[0] == 0x81) { ecmfilter = 0x80; } // current processed ecm is odd, next will be filtered for even
-	else if(caid_is_dvn(er->caid)){ ecmfilter = 0x50; }
+	else { ecmfilter = 0x80; } // current processed ecm is odd, next will be filtered for even
 
-	if(curpid->table != 0)   // cycle ecmtype from odd to even or even to odd
+	if(curpid->table != 0 && !caid_is_dvn(er->caid))   // cycle ecmtype from odd to even or even to odd
 	{
 		filter[0] = ecmfilter; // only accept new ecms (if previous odd, filter for even and visaversa)
 		mask[0] = 0xFF;
 		cs_log_dbg(D_DVBAPI, "Demuxer %d Filter %d set ecmtable to %s (CAID %04X PROVID %06X FD %d)", demux_index, n + 1,
-					  ((ecmfilter& 0x01) ? "ODD" : "EVEN"), curpid->CAID, curpid->PROVID, fd);
+					  ((ecmfilter == 0x80) ? "EVEN" : "ODD"), curpid->CAID, curpid->PROVID, fd);
 	}
 	else  // not decoding right now so we are interessted in all ecmtypes!
 	{
-		if(!caid_is_dvn(er->caid))
-			filter[0] = 0x80; // set filter to wait for any ecms
+		if(caid_is_dvn(er->caid))
+			filter[0] = 0x50; // set filter to wait for any ecms
 		else
-			filter[0] = 0x50;
+			filter[0] = 0x80; // set filter to wait for any ecms
+
 		mask[0] = 0xF0;
 		cs_log_dbg(D_DVBAPI, "Demuxer %d Filter %d set ecmtable to ODD+EVEN (CAID %04X PROVID %06X FD %d)", demux_index, n + 1,
 					  curpid->CAID, curpid->PROVID, fd);
