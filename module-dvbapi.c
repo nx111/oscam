@@ -4636,7 +4636,10 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uchar *buffer, i
 		}
 
 		// check for matching chid (unique ecm part in case of non-irdeto cas) + added fix for seca2 monthly changing fakechid 
-		if((curpid->CHID < 0x10000) && !((chid == curpid->CHID) || ((curpid->CAID >> 8 == 0x01) && (chid&0xF0FF) == (curpid->CHID&0xF0FF)) || caid_is_dvn(curpid->CAID)) )
+		if((curpid->CHID < 0x10000) && !( (chid == curpid->CHID)
+						 || ((curpid->CAID >> 8 == 0x01) && (chid&0xF0FF) == (curpid->CHID&0xF0FF))
+						 || caid_is_dvn(curpid->CAID)
+						 || caid_is_streamguard(curpid->CAID) ) )
 		{
 			if(caid_is_irdeto(curpid->CAID))
 			{
