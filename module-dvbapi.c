@@ -6692,12 +6692,21 @@ int32_t dvbapi_set_section_filter(int32_t demux_index, ECM_REQUEST *er, int32_t 
 	if(er->ecm[0] == 0x80) { ecmfilter = 0x81; }  // current processed ecm is even, next will be filtered for odd
 	else { ecmfilter = 0x80; } // current processed ecm is odd, next will be filtered for even
 
-	if(curpid->table != 0 && !caid_is_dvn(er->caid))   // cycle ecmtype from odd to even or even to odd
+	if(curpid->table != 0)   // cycle ecmtype from odd to even or even to odd
 	{
-		filter[0] = ecmfilter; // only accept new ecms (if previous odd, filter for even and visaversa)
 		mask[0] = 0xFF;
-		cs_log_dbg(D_DVBAPI, "Demuxer %d Filter %d set ecmtable to %s (CAID %04X PROVID %06X FD %d)", demux_index, n + 1,
+		if(!caid_is_dvn(er->caid))
+		{
+			filter[0] = ecmfilter; // only accept new ecms (if previous odd, filter for even and visaversa)
+			cs_log_dbg(D_DVBAPI, "Demuxer %d Filter %d set ecmtable to %s (CAID %04X PROVID %06X FD %d)", demux_index, n + 1,
 					  ((ecmfilter == 0x80) ? "EVEN" : "ODD"), curpid->CAID, curpid->PROVID, fd);
+		}
+		else
+		{
+			filter[0] = 0x50;
+			cs_log_dbg(D_DVBAPI, "Demuxer %d Filter %d set ecmtable to %s (CAID %04X PROVID %06X FD %d)", demux_index, n + 1,
+					   "EVEN+ODD", curpid->CAID, curpid->PROVID, fd);
+		}
 	}
 	else  // not decoding right now so we are interessted in all ecmtypes!
 	{
