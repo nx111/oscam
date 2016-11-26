@@ -548,9 +548,71 @@ static int32_t jet_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 	return OK;
 }
 
-static int32_t jet_card_info(struct s_reader *UNUSED(reader))
+static int32_t jet_card_info(struct s_reader *reader)
 {
+	uint8_t get_entitlements_cmd1[38] = {0x31, 0x22, 0x00, 0x00, 0x00, 0x01};
+	uint8_t get_entitlements_cmd2[56] = {0x34, 0x34, 0x00, 0x00, 0x00, 0x01, 0x00};
+	uint8_t temp[256];
+	uint8_t buf[256];
+	int entitlements_count = 0;
+	int i,page=0;
+	def_resp;
 
+	struct twofish_ctx ctx;
+	twofish_setkey(&ctx, reader->jet_vendor_key, sizeof(reader->jet_vendor_key));
+
+	memcpy(get_entitlements_cmd1 + 6, boxkey, sizeof(boxkey));
+	jet_write_cmd(reader, get_entitlements_cmd1, sizeof(get_entitlements_cmd1), 0x15, "get entitlements info");
+	memset(temp, 0, sizeof(temp));
+	memcpy(temp, cta_res + 5, cta_res[4]);
+	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
+	if(buf[0] != 0x42 && buf[1] != 0x03){
+		rdr_log(reader, "error: get entitlements info failed(invalid data) ...");
+		return ERROR;
+	}
+	entitlements_count = buf[4];
+	memcpy(get_entitlements_cmd2 + 7, boxkey, sizeof(boxkey));
+	get_entitlements_cmd2[39] = 0x01;
+	for(i = 40; i < 48; i++)
+		get_entitlements_cmd2[i] = 0x09;
+	memcpy(get_entitlements_cmd2 + 48, reader->jet_authorize_id, 8);
+	for(i=0; i < entitlements_count; page++){
+		get_entitlements_cmd2[6] = page;
+		jet_write_cmd(reader, get_entitlements_cmd2, sizeof(get_entitlements_cmd2), 0x15, "get entitlements data");
+		memset(temp, 0, sizeof(temp));
+		memcpy(temp, cta_res + 5, cta_res[4]);
+		twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
+		if(buf[0] != 0x42 && buf[1] != 0xC9){
+			rdr_log(reader, "ERROR: get entitlements data failed(invalid data) ...");
+			return ERROR;
+		}
+		int k;
+		for(k=0; k < buf[4]; k++, i++){
+			struct tm tm_start,tm_end;
+			time_t start_t,end_t;
+
+			uint64_t product_id=b2i(2, buf + 5 + k * 20);
+			tm_start.tm_year = buf[5 + k * 20 + 4] * 100 + buf[5 + k * 20 + 5] - 1900;
+			tm_start.tm_mon  = buf[5 + k * 20 + 6] - 1;
+			tm_start.tm_mday = buf[5 + k * 20 + 7];
+			tm_end.tm_year = buf[5 + k * 20 + 12] * 100 + buf[5 + k * 20 + 13] - 1900;
+			tm_end.tm_mon  = buf[5 + k * 20 + 14] - 1;
+			tm_end.tm_mday = buf[5 + k * 20 + 15];
+			start_t = mktime(&tm_start);
+			end_t = mktime(&tm_end);
+
+			char start_day[11], end_day[11];
+
+			strftime(start_day, sizeof(start_day), "%Y/%m/%d", &tm_start);
+			strftime(end_day, sizeof(end_day), "%Y/%m/%d", &tm_end);
+
+			if (!i)
+				rdr_log(reader, "entitlements for (%04X:%06X):",  reader->caid, 0);
+			rdr_log(reader, "    chid: %04"PRIX64"  date: %s - %s", product_id, start_day, end_day);
+				
+			cs_add_entitlement(reader, reader->caid, 0, product_id, 0, start_t, end_t, 0, 1);
+		}
+	}
 	return OK;
 }
 

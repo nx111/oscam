@@ -1,100 +1,100 @@
-2e496 not dynamically load pcsc library when linked static library.
+be5c4 Merge from 'streamboard.tv' to r11281
+4ddb0 fix odd even check for jet.
+b1031 dvbapi: not handle unique ecm part for streamguard.
+2e65a dvbapi: for jet, not stop filter for unique ecm.
+04759 dvbapi: for jet, not wait for odd/even ecm change.
+ebdb9 DVBAPI: fix for DVN, set ecm table id to 0x50.
+c1132 gbx: - Fix for local card with caprovid 00000000. Happens when oscam is patched with emu - Add log/msg for peer on-offline, authentication and connection lost - Add OSD notification for incoming GSMS - OSD feature enabled by suitable 'msg.osd' in tmp_dir - Add and update some debug log outputs
+de831 - Add support of ORF P4 Irdeto mode - Patch provided and tested by Optimum Power - Fix for Ticket #4517
+2b0d0 jet: fix ecm decrypt.
+44ebf jet: fix parse ecm.
+c4702 dvbapi: fix parse cat for caid 0x4Axx.
+a08c2 jet: fill boxkey with 0xEE default.
+71d32 jet: output more debug message for init.
+89375 jet: add debug code in Sci_Reset.
+b2b6a jet: auto check whether set key in twofish.
+cd0e8 fix boxkey length for jet.
+a7773 jet: continue work when something failed.
+125fe jet: clean some compile warning.
+fefc0 jet: continue work when update vendor key failed.
+1ebb8 jet: update protocol_t0 for jet.
+00951 jet: append 90 00 to command.
+7c8ec jet: add debug info for T0 command.
+9afa8 jet: fix encrypt output
+20217 jet: rename tag to ins by iso7816
+74d9c jet: fix compile warning for size_t in printf.
+05142 jet: fix compile warning in jet_twofish.
+f0c76 jet: fix conflict in printf long long unsigned int and uint64_t.
+57bc9 jet: check atr by DVN identity.
+0c9d0 Revert "jet: try to change card params."
+b7e65 jet: try to change card params.
+ceb60 jet: fix cmd len.
+60b87 Revert "add ETU config for reader."
+f80d5 add ETU config for reader.
+67c84 jet: support old version card.
+c69aa jet: fix and update init.
+7eb99 jet: change Boxkey to textarea in webif.
+2f95e jet: update twofish
+d7856 jet: when updated vendor key, update twofish key.
+6b112 jet: fix comments for twofish.
+a8828 jet: fix for "warning: statement with no effect"
+af970 jet: remove unused varible i.
+8309a jet: fill data with 0xFF before encrypt.
+6e980 jet: fix calc_crc16.
+1e90d jet: update and rename twofish to jet_twofish, fix it for jet.
+2ace7 jet: now just support version 5.
+650c8 jet: compile towfish when enable jet.
+81540 jet: implement do emm.
+75a6e jet: update some message for write_cmd.
+f9401 jet: implement do ecm.
+37c47 jet: finished init function, merge some command.
+2860e jet: add for register service key and confirm box in init.
+79ecc jet: add for get service key in init.
+1d13d jet: update boxkey webif config for jet.
+adf67 jet: add pairing for init.
+190ae jet: add change vendor key for init.
+46263 jet: add confirm auth for init.
+3b247 jet: fix compile error.
+a2881 jet: try to simplify write cmd.
+a93df jet: add lost declear in readers.h
+dbf54 jet: fix twofish compile error
+c9385 jet: add support to get root key,derive key and auth key.
+2f1a2 jet: add crc16 and encrypt function.
+475b2 jet: init add reader jet
+5d342 jet: add towfish algorithm
+48c91 remove cas_version from reader config.
+edf4b streamguard: clean a compile warning.
+1f8fc fix compile warning for size_t in printf.
+c927e fix conflict in printf long long unsigned int and uint64_t.
+09c60 scripts: remove --no-warn-unuserd-cli parameter and some deprecated config.
+ae1a6 update .svnrevision to 11279
+01388 scripts: fix compile warning for i686linux.
+3c9c7 Merge from www.streamboard.tv to r11279
+62892 gbx: - Prepare code for more generalized OSD messages - renamed driver sh from goodnight.osd to msg.osd
+bf28b gbx: try to fix sporadic malfunction of server init
+1c1b3 fix warning "Manually-specified variables were not used by the project"
+ce1f6 pcsc: add alternate shared library support.
+70731 update .svnrevisino to 11277
+29407 cmakelists: fix link error when use libpcsclite.so.0
+baad7 Merge from http://www.streamboard.tv/svn/oscam
+a7e04 tongfang: parse version 1 and 2.
+baa5e tongfang: just use version 1/2 command for get serial number in old version card.
+b3f8f emulator: adjust log prefix.
+679e3 streamguard/tongfang: fix caids of s_cardsystem.
+ab643 tongfang/streamguard: update for show entitlements.
+7c1d6 Increase ECM length for Viaccess. Patch provided by  pr2
+1b86c tongfang: try pairing to FFFFFFFF when confirm commkey return 0x94b2.
+1c1c1 tongfang/streamguard: clean some debug message, show entitlements in log.
+b3532 display provider as 00XXXX for tongfang and streamguard.
+1117c gbx: code cosmetic
+7fa78 fix "not dynamically load pcsc library when linked static library".
+223dc Merge from www.streamboard.tv
+bffaf not dynamically load pcsc library when linked static library.
 d3c9d update history.txt
+a2fb0 gbx: reduced code as proposed by chimpie23
 a1e42 tongfang: when check pairing failed, just warning and continue init work.
 0a76f tongfang: for version 1/2, try use get serial command of version 3 at first.
 d4353 Revert "tongfang: just use 8 bytes for card id decimal string"
 ffeef tongfang: improve parsing provider and entitlements.
 d6327 streamguard: improve parsing provider and entitlements.
-9f5c3 streamguard: fix decrypt_cw_ex for tag 0x47. remove unused comment.
-418e7 streamguard: fix custom md5
-057bb streamguard: add entitlement
-21002 streamguard: support for encrypt tag 0x92 and 0xDE.
-e3c59 update init scripts for openwrt.
-df49b tongfang: add product id for entitlements.
-7424f tongfang: fix subscription time calculation.
-4d6a0 fix dependence of des lib for tongfang and streamguard.
-73638 tongfang: parse subscription.
-7dccb update build scripts,clean unused OPENSSL_LIBRARIES and OPENSSL_ROOT_DIR.
-951c0 tongfang: just use 8 bytes for card id decimal string
-37c7b tongfang: needlessly separate pairing for versino 3.
-81424 tongfang: rename begin_cmd to get_ppua_cmd
-54eb8 tongfang: change some message.
-e243e tongfang: check pairing before confirm commkey.
-d9e4c tongfang: fix for pairing when box and card bound.
-7ef01 streamguard: rename some varible name.
-7dfd7 streamguard: no check des_key be zero all.
-f1048 streamguard: remove local varible pbuf.
-e162a streamguard: use custom md5 functions, upgrade to newer version.
-ea38f set cas_version default to 0
-b5c0a md5: skip byte reverse for all little endian platform.
-cb908 fix saving httputf8 config.
-b1fd9 build scripts: use toolchain from dm800 for dm800.
-1cf1d tongfang: fix for agegrade status.
-aff8a when debug, copy compressed binary.
-3e0b6 fix build script restore history.txt.
-2c650 better fix check_sec_len for some large ecm data.
-f1509 tongfang: correct some message words.
-b924b tongfang: try pairing with boxid.
-8bb98 Revert "fix some ecm data too long,increase the buffer size.", and check to MAX_SCT_SIZE.
-d7be0 pcsc: catch exception for dlopen and dlsym.
-4577c streamguard: upgrade to support newer version cas.
-6c51f tongfang: use cas_version instead of tongfang3_version.
-b2ac1 build scripts: build all ignore include/build_all.sh
-aa2b0 build scripts: remove depends to libc
-c1dbb buildscripts: remove some depends.
-dfe43 build scripts: not set ipk Architecture when set Architecture value empty.
-53dae build scripts: fix sed error.
-e9148 build scripts: not update history.txt everytime.
-be37d build scripts: run build_all.sh in correct directory.
-0a06b build scripts: add config for cygwin.
-33381 build scripts: create image directory when it not exists.
-863a4 add history.txt for change histories in git.
-92b2f tongfang3: add tongfang3_calibsn manual text.
-ae6e7 update config.sh
-f6f66 update build scripts.
-db4d0 pcsc: if not found pcsc shared library,disable pcsc function.
-4e314 build scripts: fix cut warning when calculating package size in dash.                and, no waiting after building.
-41a50 build scripts: build ipkg packages for openwrt.
-a9a17 update build scripts: support build ipkg packages.
-b8379 update build scripts: clean old files before making.
-9180a support set revision from file .revision, if not svn and git respository.
-4417f tongfang: skip empty prov,read agegrade.
-6ce1b update building scripts.
-96b6f tongfang: use des crypto function from cscrypt.
-d5b03 link static libssl and libcryto for i686 linux.
-ea404 enable link static libssl just when linking static libcrypto.
-2c49b fix some ecm data too long,increase the buffer size.
-f3e88 add cross auto compile scripts.
-e3e18 pcsc: fix probable segment faults.
-b892a add update logs from nx111, in chinese
-e3be8 add or update toolchain cmake files.
-4aca3 not touch oscam.c and oscam-log.c
-4eda0 fix for windows/cygwin.
-f7db7 add support MT7620 and AR71xx for OpenWRT.
-85724 fix winsmcrd header name.
-72c8a support cross compile by i686-pc-cygwin-pcsc.
-908d4 add Document of OpenXCAS_API.pdf
-caa38 support link static libssl/libpcsclite/libcrypto/libusb/librt.
-65520 upgrade reader tongfang to support version 3(NTIC2).
-e51ab fix get svnversion in config.sh for git repository.
-fa743 add reader streamguard
-c6fcc cccam: fix card matching for prov is 0.
-832e9 dvbapi: adjust and save caid priority
-1d7d6 cccam: drop expired bad srvid.
-526b8 dvbapi: fix playing program break out for streamguard(CAID: 0x4AD2).
-998ae cccam: friendly output debug message.
-7e327 fix some compile warnning.
-26cf2 enable sse2 on x86
-b84eb support auto restart reader after some time,and extend resetcycle for network reader.
-fae1a add a switch for auto block sid in cccam.
-9d2c4 change cccam keepalive to default on.
-26755 support init reader and user from cccam.cfg.
-a281a change update interval to 120 seconds.
-93eaf webif: config http as utf-8.
-f28b0 Merged Conditional Access Module Emulator from github.com/oscam-emu
-81f35 - Add hop info to ecmformat like its already in use for gbox protocol idea and testing by speedy1245
-6206c Revert: lowered CS_SERVICENAME_SIZE from 64 to 32; the increased memory usage causes troubles on sone systems
-63e75 CACHEX: fix big/little endianess bug; i2b_buf() and b2i() already take care of endianess, also using htonl() broke it; we cannot simply remove the htonl() calls, because this would break compatibility with older oscam versions, for this reason we now use CSP_HASH_SWAP() to always swap the bytes; type of csp_hash changed from int32_t to unint32_t
-3f7c6 [gbx] remove ecm rebroadcasting. Causes trouble on some systems.
-653ca DVBAPI: revert prio changes from r11246; this fixes problems with irdeto cards
-7caf1 tryfix: possible stackoverflow?
+9aa55 gbx: correct reader log message for cw proxy cards

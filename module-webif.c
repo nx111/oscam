@@ -2530,7 +2530,15 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		{ tpl_printf(vars, TPLADD, "TONGFANGCALIBSN", "%08X", rdr->tongfang3_calibsn); }
 
 #endif
-		
+#ifdef READER_JET
+	for(i = 0; (size_t)i < sizeof(rdr->jet_authorize_id) && rdr->jet_authorize_id[i] == 0; i++);
+	if((size_t)i <  sizeof(rdr->jet_authorize_id))
+	{
+		for(i = 0; (size_t)i <  sizeof(rdr->jet_authorize_id) ; i++)
+			{ tpl_printf(vars, TPLAPPEND, "JETAUTHORIZEID", "%02X", rdr->jet_authorize_id[i]); }
+	}
+#endif
+
 #ifdef MODULE_CCCAM
 	tpl_printf(vars, TPLADD, "CCCMAXHOPS",   "%d", rdr->cc_maxhops);
 	tpl_printf(vars, TPLADD, "CCCMINDOWN",   "%d", rdr->cc_mindown);

@@ -1519,6 +1519,7 @@ struct s_reader                                     //contains device info, read
 	uint8_t         jet_derive_key[56];
 	uint8_t         jet_auth_key[10];
 	uint8_t         jet_service_key[8];
+	uint8_t         jet_authorize_id[8];
 #endif
 	uint32_t        cas_version;
 	int8_t          nagra_read;                     // read nagra ncmed records: 0 Disabled (default), 1 read all records, 2 read valid records only

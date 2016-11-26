@@ -225,6 +225,39 @@ static void boxid_fn(const char *token, char *value, void *setting, FILE *f)
 		{ fprintf_conf(f, token, "\n"); }
 }
 
+#ifdef READER_JET
+static void jet_authorize_id_fn(const char *token, char *value, void *setting, FILE *f)
+{
+	struct s_reader *rdr = setting;
+	if(value)
+	{
+		int32_t len = strlen(value);
+		if(len != 16)
+		{
+			memset(rdr->jet_authorize_id, 0, sizeof(rdr->jet_authorize_id));
+		}
+		else
+		{
+			if(key_atob_l(value, rdr->jet_authorize_id, len))
+			{
+				fprintf(stderr, "reader jet authoriz id parse error, %s=%s\n", token, value);
+				memset(rdr->jet_authorize_id, 0, sizeof(rdr->jet_authorize_id));
+			}
+		}
+		return;
+	}
+	size_t i;
+	for(i = 0; i < sizeof(rdr->jet_authorize_id) && rdr->jet_authorize_id[i] == 0; i++);
+	if( i < sizeof(rdr->jet_authorize_id))
+	{
+		char tmp[17];
+		fprintf_conf(f, "jet_authorize_id", "%s\n", cs_hexdump(0, rdr->jet_authorize_id, sizeof(rdr->jet_authorize_id), tmp, sizeof(tmp)));
+	}
+	else if(cfg.http_full_cfg)
+		{ fprintf_conf(f, token, "\n"); }
+}
+#endif
+
 #ifdef READER_TONGFANG
 static void tongfang3_calibsn_fn(const char *token, char *value, void *setting, FILE *f)
 {
@@ -852,6 +885,9 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_FUNC("boxid"                , 0,                            boxid_fn),
 #ifdef  READER_TONGFANG
 	DEF_OPT_FUNC("tongfang3_calibsn"    , 0,                            tongfang3_calibsn_fn),
+#endif
+#ifdef  READER_JET
+	DEF_OPT_FUNC("jet_authorize_id"     , 0,                            jet_authorize_id_fn),
 #endif
 	DEF_OPT_FUNC("boxkey"               , 0,                            boxkey_fn),
 	DEF_OPT_FUNC("rsakey"               , 0,                            rsakey_fn),
