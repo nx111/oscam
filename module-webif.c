@@ -2537,6 +2537,7 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		for(i = 0; (size_t)i <  sizeof(rdr->jet_authorize_id) ; i++)
 			{ tpl_printf(vars, TPLAPPEND, "JETAUTHORIZEID", "%02X", rdr->jet_authorize_id[i]); }
 	}
+	tpl_addVar(vars, TPLADD, "JETFIXECM", (rdr->jet_fix_ecm == 1) ? "checked" : "");
 #endif
 
 #ifdef MODULE_CCCAM

@@ -888,6 +888,7 @@ static const struct config_list reader_opts[] =
 #endif
 #ifdef  READER_JET
 	DEF_OPT_FUNC("jet_authorize_id"     , 0,                            jet_authorize_id_fn),
+	DEF_OPT_INT8("jet_fix_ecm"          , OFS(jet_fix_ecm),             0),
 #endif
 	DEF_OPT_FUNC("boxkey"               , 0,                            boxkey_fn),
 	DEF_OPT_FUNC("rsakey"               , 0,                            rsakey_fn),
