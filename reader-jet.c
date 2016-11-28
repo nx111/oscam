@@ -1,9 +1,9 @@
 #include "globals.h"
 #ifdef READER_JET
+#include "oscam-time.h"
 #include "reader-common.h"
 #include "cscrypt/des.h"
 #include "cscrypt/jet_twofish.h"
-#include <time.h>
 
 #define CRC16 0x8005
 static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03, 0x28, 0x60, 0x80, 0x94, 0xD6, 0xC4, 0x3A, 0x48, 
@@ -592,14 +592,18 @@ static int32_t jet_card_info(struct s_reader *reader)
 			time_t start_t,end_t;
 
 			uint64_t product_id=b2i(2, buf + 5 + k * 20);
+			memset(&tm_start, 0, sizeof(tm_start));
 			tm_start.tm_year = buf[5 + k * 20 + 4] * 100 + buf[5 + k * 20 + 5] - 1900;
 			tm_start.tm_mon  = buf[5 + k * 20 + 6] - 1;
 			tm_start.tm_mday = buf[5 + k * 20 + 7];
+
+			memset(&tm_end, 0, sizeof(tm_end));
 			tm_end.tm_year = buf[5 + k * 20 + 12] * 100 + buf[5 + k * 20 + 13] - 1900;
 			tm_end.tm_mon  = buf[5 + k * 20 + 14] - 1;
 			tm_end.tm_mday = buf[5 + k * 20 + 15];
-			start_t = mktime(&tm_start);
-			end_t = mktime(&tm_end);
+
+			start_t = cs_timegm(&tm_start);
+			end_t = cs_timegm(&tm_end);
 
 			char start_day[11], end_day[11];
 
