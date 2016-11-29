@@ -25,6 +25,8 @@ if [ "${OSCAM_TARGET}" = "" ]; then
 		OSCAM_TARGET=/PLUGINS/OpenXCAS/oscamCAS/oscam
 	elif echo $TOOCHAINFILE | grep -qi dm500; then
 		OSCAM_TARGET=/var/bin/oscam
+	elif echo $TOOCHAINFILE | grep -qi Android; then
+		OSCAM_TARGET=/data/data/oscam/oscam
 	else
 		OSCAM_TARGET=/usr/bin/oscam
 	fi

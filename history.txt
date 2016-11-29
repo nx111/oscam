@@ -1,3 +1,12 @@
+2519b fix lost librt for android ndk.
+277a6 jet: comment out unused byte function in jet_twofish
+5074f jet: fix mktime when get entitlements.
+d1fb0 add some config to Distribution docs.
+c5714 jet: add config for fix ecm head.
+b00f2 dvbapi: fix setting ecm filter for dvn jetcas.
+37a82 fix cw check and get odd/even  for dvn jetcas.
+241c0 dvbapi: for dvn, try to fix odd/even ecm filter check.
+b8ec3 jet: parse entitlements info.
 be5c4 Merge from 'streamboard.tv' to r11281
 4ddb0 fix odd even check for jet.
 b1031 dvbapi: not handle unique ecm part for streamguard.
@@ -89,12 +98,3 @@ b3532 display provider as 00XXXX for tongfang and streamguard.
 1117c gbx: code cosmetic
 7fa78 fix "not dynamically load pcsc library when linked static library".
 223dc Merge from www.streamboard.tv
-bffaf not dynamically load pcsc library when linked static library.
-d3c9d update history.txt
-a2fb0 gbx: reduced code as proposed by chimpie23
-a1e42 tongfang: when check pairing failed, just warning and continue init work.
-0a76f tongfang: for version 1/2, try use get serial command of version 3 at first.
-d4353 Revert "tongfang: just use 8 bytes for card id decimal string"
-ffeef tongfang: improve parsing provider and entitlements.
-d6327 streamguard: improve parsing provider and entitlements.
-9aa55 gbx: correct reader log message for cw proxy cards
