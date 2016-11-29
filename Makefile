@@ -42,8 +42,10 @@ LIB_DL = -ldl
 
 LIB_RT :=
 ifeq ($(uname_S),Linux)
+ifndef ANDROID_NDK
 ifeq "$(shell ./config.sh --enabled CLOCKFIX)" "Y"
 	LIB_RT := -lrt
+endif
 endif
 endif
 ifeq ($(uname_S),FreeBSD)
