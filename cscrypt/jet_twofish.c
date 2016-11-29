@@ -290,7 +290,7 @@ static int32_t LFSR2( uint32_t x ) {
 	   ((x & 0x02) != 0 ? GF256_FDBK_2 : 0) ^
 	   ((x & 0x01) != 0 ? GF256_FDBK_4 : 0);
 }
-
+#if 0
 static uint32_t byte( uint32_t x, int N) {
 	int result = 0;
 	switch (N%4) {
@@ -309,7 +309,7 @@ static uint32_t byte( uint32_t x, int N) {
 	}
 	return result;
 }
-
+#endif
 
 /*
  * Reed-Solomon code parameters: (12, 8) reversible code:<p>
