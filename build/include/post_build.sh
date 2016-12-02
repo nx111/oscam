@@ -14,7 +14,7 @@ if [ -f $ROOT/build/.tmp/$(basename ${OSCAM_TARGET}) ]; then
 	cp $ROOT/build/.tmp/$(basename ${OSCAM_TARGET}) $ROOT/build/.tmp/image${machine}/$(dirname ${OSCAM_TARGET})/
 	if [ -x $TOOLCHAIN_STAGE/upx ]; then
 		cp $TOOLCHAIN_STAGE/upx $ROOT/build/.tmp/
-		$ROOT/build/.tmp/upx $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} >/dev/null
+		$ROOT/build/.tmp/upx $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} >/dev/null 2>/dev/null
 	fi
 fi
 
