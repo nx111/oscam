@@ -832,6 +832,11 @@ if (OSCamOperatingSystem MATCHES "Windows/Cygwin")
     set (CMAKE_EXE_LINKER_FLAGS "--enable-stdcall-fixup")
 endif (OSCamOperatingSystem MATCHES "Windows/Cygwin")
 
+if (OSCamOperatingSystem MATCHES "Android")
+    set (CMAKE_C_FLAGS "-pie -fPIE")
+    set (CMAKE_EXE_LINKER_FLAGS "-pie -fPIE")
+endif (OSCamOperatingSystem MATCHES "Android")
+
 #----------------------- subdirectory list smargo ------------------------------
 
 if( HAVE_LIBRT OR HAVE_LIBRT_STATIC)
