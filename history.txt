@@ -1,3 +1,7 @@
+4b129 buildscript: hide upx error.
+22df0 CMakeLists: build position independent executable for android.
+2ea7d build scripts: add support for android.
+ed4b9 support to build for android
 2519b fix lost librt for android ndk.
 277a6 jet: comment out unused byte function in jet_twofish
 5074f jet: fix mktime when get entitlements.
@@ -94,7 +98,3 @@ ab643 tongfang/streamguard: update for show entitlements.
 7c1d6 Increase ECM length for Viaccess. Patch provided by  pr2
 1b86c tongfang: try pairing to FFFFFFFF when confirm commkey return 0x94b2.
 1c1c1 tongfang/streamguard: clean some debug message, show entitlements in log.
-b3532 display provider as 00XXXX for tongfang and streamguard.
-1117c gbx: code cosmetic
-7fa78 fix "not dynamically load pcsc library when linked static library".
-223dc Merge from www.streamboard.tv
