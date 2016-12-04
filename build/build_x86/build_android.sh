@@ -1,9 +1,9 @@
 #!/bin/sh
-plat=arm-android
-plat_dir=build_arm
+plat=i686-android
+plat_dir=build_x86
 machine=android
-TOOLCHAIN=arm-linux-androideabi
-TOOLCHAIN_ROOT=arm-linux-androideabi-4.9
+TOOLCHAIN=i686-linux-android
+TOOLCHAIN_ROOT=i686-linux-android-4.9
 TOOCHAINFILE=toolchain-arm-android.cmake
 #TOOLCHAIN_STAGE=/work/dreambox/toolchains
 
@@ -12,6 +12,7 @@ curdir=`pwd`
 builddir=`cd $(dirname $0);pwd`
 
 . $(dirname $builddir)/include/pre_build.sh
+eval "sed -e \"s/\(.*CMAKE_SYSTEM_PROCESSOR \).*)/\1i686)/\" -i $ROOT/toolchains/${TOOCHAINFILE}"
 
 ##############################################
    PATH=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/bin:$PATH \

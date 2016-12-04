@@ -1,6 +1,7 @@
 #!/bin/sh
 plat=cygwin
-plat_dir=build_cygwin
+plat_dir=build_x86
+machine=cygwin
 TOOLCHAIN=i686-pc-cygwin
 TOOLCHAIN_ROOT=i686-pc-cygwin
 TOOCHAINFILE=toolchain-i386-cygwin.cmake

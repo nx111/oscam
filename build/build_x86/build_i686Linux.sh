@@ -1,6 +1,7 @@
 #!/bin/sh
 plat=i686_linux
-plat_dir=build_i686Linux
+plat_dir=build_x86
+machine=linux
 TOOLCHAIN=i686-pc-linux-gnu
 TOOLCHAIN_ROOT=i686-pc-linux-gnu
 TOOCHAINFILE=toolchain-i686-pc-linux.cmake
