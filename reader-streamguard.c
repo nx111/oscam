@@ -645,7 +645,7 @@ static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 static int32_t streamguard_card_info(struct s_reader *reader)
 {
 	uchar get_provid_cmd[12] = {0x00,0xb2,0x00,0x06,0x07,0x00,0x05,0xff,0x00,0x02,0xff,0xff};
-	uchar get_subscription_cmd[12] = {0x00,0xb2,0x00,0x0d,0x07,0x00,0x01,0x28,0x00,0x02,0x05,0xd2};
+	uchar get_subscription_cmd[12] = {0x00,0xb2,0x00,0x07,0x07,0x00,0xfa,0xff,0x00,0x02,0x03,0xd4};
 	uchar data[256];
 	uint16_t status = 0;
 
@@ -703,15 +703,18 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 			break;
 		}
 
-
 		count = data[1];
 		int j;
 		for(j = 0; j < count; j++){
 			//if(data[j * 19 + 3] == 0 && data[j * 19 + 4] == 0) continue;
 
-			time_t start_t,end_t;
-			start_t = b2i(4, data + j * 19 + 12) * 24 * 3600L;
-			end_t = b2i(4, data + j * 19 + 16) * 24 * 3600L;
+			time_t start_t,end_t,subscription_t;
+			subscription_t = b2i(4, data + j * 19 + 7);
+			start_t = b2i(4, data + j * 19 + 12);
+			if((uint32_t)start_t == 0xFFFFFFFFLU)
+				start_t = subscription_t;
+			start_t = (start_t + 24 * 3600 - 1) - (start_t + 24*3600 - 1) % (24 * 3600);
+			end_t = b2i(4, data + j * 19 + 16);
 			uint64_t product_id=b2i(2, data + j * 19 + 5);
 
 			struct tm  tm_start, tm_end;
