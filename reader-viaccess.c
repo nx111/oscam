@@ -125,7 +125,8 @@ static void show_class(struct s_reader *reader, const char *p, uint32_t provid, 
 				struct via_date vd;
 				parse_via_date(b - 4, &vd, 1);
 				cls = (l - (j + 1)) * 8 + i;
-				if(p)
+				
+				if(p) // just show class info, dont add entitlement!
 				{
 					rdr_log(reader, "%sclass: %02X, expiry date: %04d/%02d/%02d - %04d/%02d/%02d", p, cls,
 							vd.year_s + 1980, vd.month_s, vd.day_s,
@@ -136,10 +137,10 @@ static void show_class(struct s_reader *reader, const char *p, uint32_t provid, 
 					rdr_log(reader, "class: %02X, expiry date: %04d/%02d/%02d - %04d/%02d/%02d", cls,
 							vd.year_s + 1980, vd.month_s, vd.day_s,
 							vd.year_e + 1980, vd.month_e, vd.day_e);
-
+					
+					//convert time:
 					time_t start_t, end_t;
 					struct tm tm;
-					//convert time:
 					memset(&tm, 0, sizeof(tm));
 					tm.tm_year = vd.year_s + 80; //via year starts in 1980, tm_year starts in 1900
 					tm.tm_mon = vd.month_s - 1; // january is 0 in tm_mon
@@ -150,7 +151,6 @@ static void show_class(struct s_reader *reader, const char *p, uint32_t provid, 
 					tm.tm_mon = vd.month_e - 1; // january is 0 in tm_mon
 					tm.tm_mday = vd.day_e;
 					end_t = cs_timegm(&tm);
-
 					cs_add_entitlement(reader, reader->caid, provid, cls, cls, start_t, end_t, 5, 1);
 				}
 			}
@@ -221,56 +221,34 @@ static void show_subs(struct s_reader *reader, const uchar *emm)
 
 	switch(emm[0])
 	{
-	case 0xA9:
-		show_class(reader, "nano A9: ", 0, emm + 2, emm[1]);
-		break;
-		/*
+		case 0xA9:
 		{
-		int32_t i, j, byts;
-		const uchar *oemm;
-
-		oemm = emm;
-		byts = emm[1]-4;
-		emm+=6;
-
-		j=byts-1;
-		for( ; j>=0; j-- )
-		for( i=0; i<8; i++ )
-		if( emm[j] & (1 << (i&7)) )
+			show_class(reader, "nano A9: ", 1, emm + 2, emm[1]);
+			break;
+		}
+		
+		case 0xA6:
 		{
-		uchar cls;
-		struct via_date vd;
-		parse_via_date(emm-4, &vd, 1);
-		cls=(byts-(j+1))*8+i;
-		rdr_log(reader, "%sclass %02X: expiry date: %02d/%02d/%04d - %02d/%02d/%04d",
-		fnano?"nano A9: ":"", cls,
-		vd.day_s, vd.month_s, vd.year_s+1980,
-		vd.day_e, vd.month_e, vd.year_e+1980);
-		}
-		break;
-		}
-		*/
-	case 0xA6:
-	{
-		char szGeo[256];
+			char szGeo[256];
 
-		memset(szGeo, 0, 256);
-		strncpy(szGeo, (char *)emm + 2, emm[1]);
-		rdr_log(reader, "nano A6: geo %s", szGeo);
-		break;
-	}
-	case 0xB6:
-	{
-		uchar m; // modexp
-		struct via_date vd;
+			memset(szGeo, 0, 256);
+			strncpy(szGeo, (char *)emm + 2, emm[1]);
+			rdr_log(reader, "nano A6: geo %s", szGeo);
+			break;
+		}
+		
+		case 0xB6:
+		{
+			uchar m; // modexp
+			struct via_date vd;
 
-		m = emm[emm[1] + 1];
-		parse_via_date(emm + 2, &vd, 0);
-		rdr_log(reader, "nano B6: modexp %d%d%d%d%d%d: %02d/%02d/%04d", (m & 0x20) ? 1 : 0,
+			m = emm[emm[1] + 1];
+			parse_via_date(emm + 2, &vd, 0);
+			rdr_log(reader, "nano B6: modexp %d%d%d%d%d%d: %02d/%02d/%04d", (m & 0x20) ? 1 : 0,
 				(m & 0x10) ? 1 : 0, (m & 0x08) ? 1 : 0, (m & 0x04) ? 1 : 0, (m & 0x02) ? 1 : 0, (m & 0x01) ? 1 : 0,
 				vd.day_s, vd.month_s, vd.year_s + 1980);
-		break;
-	}
+			break;
+		}
 	}
 }
 
@@ -1956,8 +1934,10 @@ static int32_t viaccess_card_info(struct s_reader *reader)
 
 	insa4[2] = 0x00;
 	write_cmd(insa4, NULL); // select issuer 0
+	
 	for(i = 1; (cta_res[cta_lr - 2] == 0x90) && (cta_res[cta_lr - 1] == 0); i++)
 	{
+		bool added = false;
 		uint32_t l_provid, l_sa;
 		uchar l_name[64];
 		insc0[4] = 0x1a;
@@ -1996,6 +1976,8 @@ static int32_t viaccess_card_info(struct s_reader *reader)
 		write_cmd(insb8, NULL); // read geo
 		rdr_log_sensitive(reader, "provider: %d, id: {%06X%s}, sa: {%08X}, geo: %s",
 						  i, l_provid, l_name, l_sa, (l < 4) ? "empty" : cs_hexdump(1, cta_res, l, tmp, sizeof(tmp)));
+		
+		
 
 		// read classes subscription
 		insac[2] = 0xa9;
@@ -2022,8 +2004,15 @@ static int32_t viaccess_card_info(struct s_reader *reader)
 						(cta_res[cta_lr - 1] == 0x00 || cta_res[cta_lr - 1] == 0x08))
 				{
 					show_class(reader, NULL, l_provid, cta_res, cta_lr - 2);
+					added = true;
 				}
 			}
+		}
+		
+		if(!added)
+		{
+			// add entitlement info for provid without class
+			cs_add_entitlement(reader, reader->caid, l_provid, 0, 0, 0, 0, 5, 1);
 		}
 
 		insac[4] = 0;
