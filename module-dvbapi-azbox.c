@@ -104,7 +104,11 @@ static void azbox_openxcas_ex_callback(int32_t stream_id, uint32_t seq, int32_t 
 	memset(&comp, 0x00, sizeof(comp));
 
 	mask[0] = 0xff;
-	comp[0] = ecm_data[0] ^ 1;
+
+	if(caid_is_dvn(openxcas_caid))
+		comp[0] = 0x50;
+	else
+		comp[0] = ecm_data[0] ^ 1;
 
 	if((openxcas_filter_idx = openxcas_start_filter_ex(stream_id, seq, openxcas_ecm_pid, mask, comp, (void *)azbox_openxcas_ex_callback)) < 0)
 		{ cs_log("unable to start ex filter"); }
@@ -184,6 +188,11 @@ static void *azbox_main_thread(void *cli)
 
 				mask[0] = 0xfe;
 				comp[0] = 0x80;
+
+				if(caid_is_dvn(openxcas_caid)){
+					mask[0] = 0xff;
+					comp[0] = 0x50;
+				}
 
 				if((ret = openxcas_add_filter(msg.stream_id, OPENXCAS_FILTER_ECM, 0, 0xffff, openxcas_ecm_pid, mask, comp, (void *)azbox_openxcas_ecm_callback)) < 0)
 					{ cs_log("unable to add ecm filter"); }
@@ -284,6 +293,11 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er)
 
 			mask[0] = 0xfe;
 			comp[0] = 0x80;
+
+			if(caid_is_dvn(openxcas_caid)){
+				mask[0] = 0xff;
+				comp[0] = 0x50;
+			}
 
 			if(openxcas_add_filter(openxcas_stream_id, OPENXCAS_FILTER_ECM, 0, 0xffff, openxcas_ecm_pid, mask, comp, (void *)azbox_openxcas_ecm_callback) < 0)
 			{
