@@ -6,7 +6,11 @@
 
 #include "module-dvbapi.h"
 #include "module-cacheex.h"
+#ifdef WITH_A8Plus
+#include "module-xcam-a8plus.h"
+#else
 #include "module-dvbapi-azbox.h"
+#endif
 #include "module-dvbapi-mca.h"
 #include "module-dvbapi-coolapi.h"
 #include "module-dvbapi-stapi.h"

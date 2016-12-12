@@ -8,7 +8,9 @@
 #define TOUCH 1
 //#define WITH_SSL 1
 #if defined(__linux__) || defined(__CYGWIN__)
+#if !defined(WITH_A8Plus)
 #define HAVE_DVBAPI 1
+#endif
 #endif
 #define READ_SDT_CHARSETS 1
 #define CLOCKFIX 1
