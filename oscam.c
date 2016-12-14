@@ -12,6 +12,7 @@
 #include "module-cacheex.h"
 #include "module-cccam.h"
 #include "module-dvbapi.h"
+#include "module-xcam-a8plus.h"
 #include "module-dvbapi-azbox.h"
 #include "module-dvbapi-mca.h"
 #include "module-dvbapi-chancache.h"

@@ -6,7 +6,7 @@
 
 #include "module-dvbapi.h"
 #include "module-cacheex.h"
-#ifdef WITH_A8Plus
+#ifdef WITH_TIARTOP
 #include "module-xcam-a8plus.h"
 #else
 #include "module-dvbapi-azbox.h"
@@ -5296,6 +5296,10 @@ static bool dvbapi_handlesockdata(int32_t connfd, uchar* mbuf, uint16_t mbuf_siz
 
 static void *dvbapi_main_local(void *cli)
 {
+#ifdef WITH_TIARTOP
+	return tiartop_main_thread(cli);
+#endif
+
 	int32_t i, j, l;
 	struct s_client *client = (struct s_client *) cli;
 	client->thread = pthread_self();
@@ -6063,6 +6067,11 @@ void delayer(ECM_REQUEST *er, uint32_t delay)
 
 void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 {
+#ifdef WITH_TIARTOP
+	tiartop_send_dcw(client, er);
+	return;
+#endif
+
 	int32_t i, j, k, handled = 0;
 
 	for(i = 0; i < MAX_DEMUX; i++)
