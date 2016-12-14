@@ -4,6 +4,7 @@
 #include "reader-common.h"
 #include "cscrypt/des.h"
 #include "cscrypt/jet_twofish.h"
+#include "cscrypt/jet_dh.h"
 
 #define CRC16 0x8005
 static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03, 0x28, 0x60, 0x80, 0x94, 0xD6, 0xC4, 0x3A, 0x48, 
@@ -223,6 +224,32 @@ static int generate_derivekey(struct s_reader *reader, uint8_t * out, int len)
 	return sizeof(derivekey);
 }
 
+static int32_t jet_resync_vendorkey(struct s_reader *reader)
+{
+	int i;
+	uint8_t x[16], k1[32], X[32], buf[512];
+	uint8_t resync_vendorkey_cmd[108] = {0x11, 0x68, 0x00, 0x00};
+
+	srand((int32_t)time(0));
+	for(i = 0; i < 16; i++)
+	{
+		x[i] = rand();
+	}
+	DH_Public_Key_Gen(x, 16, X);
+	memset(resync_vendorkey_cmd + 4, 0, sizeof(resync_vendorkey_cmd) - 4);
+	memcpy(resync_vendorkey_cmd + 12, boxkey, sizeof(boxkey));
+	memcpy(resync_vendorkey_cmd + sizeof(boxkey), X, 32);
+	def_resp;
+	jet_write_cmd(reader, resync_vendorkey_cmd, sizeof(resync_vendorkey_cmd), 0x15, "resync vendorkey");
+	if(37 > twofish(cta_res + 5, cta_res[4], buf, sizeof(buf), reader->jet_vendor_key, sizeof(reader->jet_vendor_key), TWOFISH_MODE_DECRYPT))
+		return -1;
+	DH_Agree_Key_Gen(buf + 5, 32, x, 16, k1);
+	if(reader->cas_version > 52 && !memcmp(buf + 0x25, X, 32))
+		return -1;
+	memcpy(reader->jet_vendor_key, k1, sizeof(k1));
+	return 0;
+}
+
 static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 {
 	uint8_t get_serial_cmd[37] = {0x21, 0x21, 0x00, 0x00, 0x00};
@@ -427,6 +454,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 	int i, offset, len;
 	int ecm_len;
 	char * tmp;
+	static uint32_t count_for_resync_vendorkey = 0;
 
 	def_resp;
 
@@ -505,6 +533,14 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 		return ERROR;
 	}
 
+	if(reader->cas_version >= 40 && reader->jet_resync_vendorkey){
+		count_for_resync_vendorkey++;
+		if(count_for_resync_vendorkey > 48)
+		{
+			jet_resync_vendorkey(reader);
+			count_for_resync_vendorkey = 0;
+		}
+	}
 	return OK;
 }
 

@@ -519,6 +519,10 @@ DESCRIPTIONS
 
        jet_fix_ecm = 0|1
            1 = fix ecm header for dvn jetcas,just for network reader. default 0.
+
+       jet_resync_vendorkey = 0|1
+           1 = enable resync vendorkey for dvn jetcas, when enabled,every 48 ecm data handled,resync vendorkey from dvn card. 
+           defalt=0.
 OVERCLOCKING
        ·  Dreambox and other internal readers
 
