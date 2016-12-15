@@ -303,7 +303,7 @@ static int32_t pcsc_do_api(struct s_reader *pcsc_reader, const uchar *buf, uchar
 		return ERROR;
 	}
 
-	char tmp[l * 3];
+	char tmp[l * 3 + 1];
 	dwRecvLength = CTA_RES_LEN;
 
 	struct pcsc_data *crdr_data = pcsc_reader->crdr_data;
