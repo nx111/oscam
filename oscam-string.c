@@ -1253,3 +1253,22 @@ size_t UnicodetoUTF8(const unsigned char **inbuf, size_t *inbytesleft, unsigned 
 
 }
 
+#ifdef WITH_TIARTOP
+
+void* __memcpy_chk(void* dest, const void* src, size_t copy_amount, size_t dest_len)
+{
+    if (copy_amount > dest_len)
+	copy_amount = dest_len;
+
+    return memcpy(dest, src, copy_amount);
+}
+
+size_t __strlen_chk(const char* s, size_t s_len)
+{
+    size_t ret = strlen(s);
+    if(ret > s_len)
+	ret = s_len;
+    return ret;
+}
+#endif
+

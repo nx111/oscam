@@ -61,4 +61,9 @@ size_t ISO8859toUTF8(int8_t iso_table_number, const unsigned char **inbuf, size_
 size_t UnicodetoUTF8(const unsigned char **inbuf, size_t *inbytesleft,
 							unsigned char **outbuf, size_t *outbytesleft);
 
+#ifdef WITH_TIARTOP
+void* __memcpy_chk(void* dest, const void* src, size_t copy_amount, size_t dest_len);
+size_t __strlen_chk(const char* s, size_t s_len);
+#endif
+
 #endif
