@@ -12,7 +12,7 @@ curdir=`pwd`
 builddir=`cd $(dirname $0);pwd`
 
 . $(dirname $builddir)/include/pre_build.sh
-eval "sed -e \"s/\(.*OSCAM_SYSTEM_NAME \).*)/\1A8Plus)/\" -i $ROOT/toolchains/${TOOCHAINFILE}"
+eval "sed -e \"s/\(.*OSCAM_SYSTEM_NAME \).*)/\1A8PlusBox)/\" -i $ROOT/toolchains/${TOOCHAINFILE}"
 
 ##############################################
    mv $ROOT/module-dvbapi-azbox.c $ROOT/module-dvbapi-azbox.c.orig
