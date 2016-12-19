@@ -239,6 +239,7 @@ SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_word.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/mem.c
 SRC-$(CONFIG_LIB_DES) += cscrypt/des.c
 SRC-$(CONFIG_LIB_TWOFISH) += cscrypt/jet_twofish.c
+SRC-$(CONFIG_READER_JET) += cscrypt/jet_dh.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_cbc.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_ecb.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_skey.c
