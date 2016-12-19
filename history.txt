@@ -1,3 +1,30 @@
+f1e68 a8plus: rename A8Plus to A8PlusBox
+5f3c9 a8plus: fix link for some lost functions.
+d8395 a8plus: update build script and libA8PlusXCam.a
+2f7f0 a8plus:  fix some link error.
+fb3bd try to fix link.
+3fb0c support to a8plus
+849b6 ifd_pcsc: fix hexdump send/receive data length.
+d10b9 jet: support to resync vendor key.
+159c1 jet: parse cas version more detail.
+d2c0e Merge to r11289 from 'streamboard.tv/svn/oscam'
+74532 DVBAPI:
+3c45a DVBAPI:
+296ef DVBAPI:
+184a0 - Restore class option for viaccess card in webif (Tnx Pr2 for patch!)
+31340 DVBAPI:
+9cf13 dvbapi: support dvn jetcas for azbox.
+889b6 gbx: - fix for ticket #4522
+b920b fix byte order issue of sha1.
+d9ba4 Merge to r11283 from http://www.streamboard.tv/svn/oscam
+10aa6 streamguard: fix get entitlements info.
+2cc60 VIACCESS:
+9a961 VIACCESS:
+a88ba merge Android and Mac OS X in CMakeLists.txt
+f1703 build script: fix link warning for lost librt.so.0
+d69a1 build scripts: merge cygwin and i686Linux and x86 android to build_x86.
+ead62 fix redefine _GNU_SOURCE for android ndk x86 toolchain.
+8242b build scripts: update for build android arm version.
 4b129 buildscript: hide upx error.
 22df0 CMakeLists: build position independent executable for android.
 2ea7d build scripts: add support for android.
@@ -71,30 +98,3 @@ adf67 jet: add pairing for init.
 a2881 jet: try to simplify write cmd.
 a93df jet: add lost declear in readers.h
 dbf54 jet: fix twofish compile error
-c9385 jet: add support to get root key,derive key and auth key.
-2f1a2 jet: add crc16 and encrypt function.
-475b2 jet: init add reader jet
-5d342 jet: add towfish algorithm
-48c91 remove cas_version from reader config.
-edf4b streamguard: clean a compile warning.
-1f8fc fix compile warning for size_t in printf.
-c927e fix conflict in printf long long unsigned int and uint64_t.
-09c60 scripts: remove --no-warn-unuserd-cli parameter and some deprecated config.
-ae1a6 update .svnrevision to 11279
-01388 scripts: fix compile warning for i686linux.
-3c9c7 Merge from www.streamboard.tv to r11279
-62892 gbx: - Prepare code for more generalized OSD messages - renamed driver sh from goodnight.osd to msg.osd
-bf28b gbx: try to fix sporadic malfunction of server init
-1c1b3 fix warning "Manually-specified variables were not used by the project"
-ce1f6 pcsc: add alternate shared library support.
-70731 update .svnrevisino to 11277
-29407 cmakelists: fix link error when use libpcsclite.so.0
-baad7 Merge from http://www.streamboard.tv/svn/oscam
-a7e04 tongfang: parse version 1 and 2.
-baa5e tongfang: just use version 1/2 command for get serial number in old version card.
-b3f8f emulator: adjust log prefix.
-679e3 streamguard/tongfang: fix caids of s_cardsystem.
-ab643 tongfang/streamguard: update for show entitlements.
-7c1d6 Increase ECM length for Viaccess. Patch provided by  pr2
-1b86c tongfang: try pairing to FFFFFFFF when confirm commkey return 0x94b2.
-1c1c1 tongfang/streamguard: clean some debug message, show entitlements in log.
