@@ -1147,6 +1147,22 @@ int32_t init_readerdb(void)
 	}
 	NULLFREE(token);
 	LL_ITER itr = ll_iter_create(configured_readers);
+	while((rdr = ll_iter_next(&itr)) && rdr->from_cccam_cfg)   //free duplicate reader
+	{
+		struct s_reader *rdr2;
+		LL_ITER iter = ll_iter_create(configured_readers);
+		while((rdr2 = ll_iter_next(&iter))){
+			if(rdr != rdr2 && !strcmp(rdr->device, rdr2->device)
+			   && rdr->r_port == rdr2->r_port && !strcmp(rdr->r_usr,rdr2->r_usr)
+			   && !strcmp(rdr->r_pwd, rdr2->r_pwd)){
+				rdr = ll_iter_remove(&itr);
+				free_reader(rdr);
+				break;
+			}
+		}
+	}
+
+	itr = ll_iter_create(configured_readers);
 	while((rdr = ll_iter_next(&itr)))   //build active readers list
 	{
 		reader_fixups_fn(rdr);

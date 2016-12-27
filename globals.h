@@ -1590,6 +1590,7 @@ struct s_reader                                     //contains device info, read
 	int8_t          cc_hop;                         // For non-cccam reader: hop for virtual cards
 	int8_t          cc_reshare;
 	int32_t         cc_reconnect;                   //reconnect on ecm-request timeout
+	int8_t          from_cccam_cfg;                 //created from cccam.cfg
 #endif
 	int8_t          tcp_connected;
 	int32_t         tcp_ito;                        // inactivity timeout
