@@ -14,7 +14,7 @@ NX111的更新历史：
     2011-05-22  进一步完善CCcam.cfg文件的读取，支持C/N/L/R/F行读取。修复早期修改导致作转发服务器回应保持连接请求时出错退出的问题。
     2011-04-07  针对Atmosphere版本修改编译配置，在powerpc平台的tuxbox下使用oscam自带的加密模块。
     2011-03-26  解决138香港YX频道数据导致oscam崩溃的问题。修复读取CCcam.cfg失败的问题。
-    2010-12-12  支持直接从CCcam.cfg文件读取帐号信息。参数为oscam.conf的cccam节的cccamcfgfile，其值默认为空，当非空时为CCcam.cfg文件的路径。去除主动丢弃过期cw的代码。
+    2010-12-12  支持直接从CCcam.cfg文件读取帐号信息。参数为oscam.conf的cccam节的cccfgfile，其值默认为空，当非空时为CCcam.cfg文件的路径。去除主动丢弃过期cw的代码。
     2010-12-05  针对网络掉线引起请求cw超时情况，不限定timeout时播放频道的重试次数。主动丢弃部分过期的cw。默认启用客户端的ccckeepalive。
     2010-11-09  ecm.info文件支持输出CCcam格式（dvbapi节设置ecm_infomode = 1）。ppc插件针对A版调整启动脚本。
     2010-10-29  几个主要函数转为采用官方代码。
