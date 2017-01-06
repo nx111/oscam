@@ -31,7 +31,7 @@ char *get_tmp_dir(void)
 		{ strcat(cs_tmpdir, "/"); }
 	strcat(cs_tmpdir, "_oscam");
 #else
-	cs_strncpy(cs_tmpdir, "/tmp/.oscam", sizeof(cs_tmpdir));
+	cs_strncpy(cs_tmpdir, "/mnt/ram/.oscam", sizeof(cs_tmpdir));
 #endif
 	mkdir(cs_tmpdir, S_IRWXU);
 	return cs_tmpdir;

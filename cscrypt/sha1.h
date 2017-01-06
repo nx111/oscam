@@ -4,6 +4,18 @@
 /* public api for steve reid's public domain SHA-1 implementation */
 /* this file is in the public domain */
 
+#ifndef __BIG_ENDIAN
+#define __BIG_ENDIAN    0x1234
+#endif
+
+#ifndef __LITTLE_ENDIAN
+#define __LITTLE_ENDIAN	0x3412
+#endif
+
+
+#undef  __BYTE_ORDER
+#define __BYTE_ORDER	_LITTLE_ENDIAN
+
 #ifndef __SHA1_H
 #define __SHA1_H
 

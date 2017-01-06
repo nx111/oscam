@@ -89,6 +89,8 @@ static void account_allowedprotocols_fn(const char *token, char *value, void *se
 				else if(streq(ptr, "cs378x"))   { account->allowedprotocols |= LIS_CAMD35TCP; }
 				else if(streq(ptr, "newcamd"))  { account->allowedprotocols |= LIS_NEWCAMD; }
 				else if(streq(ptr, "cccam"))    { account->allowedprotocols |= LIS_CCCAM; }
+				else if (streq(ptr, "cccamx"))    account->allowedprotocols |= LIS_CCCAM;
+				else if (streq(ptr, "acam"))    account->allowedprotocols |= LIS_CCCAM;
 				else if(streq(ptr, "csp"))      { account->allowedprotocols |= LIS_CSPUDP; }
 				else if(streq(ptr, "gbox"))     { account->allowedprotocols |= LIS_GBOX; }
 				else if(streq(ptr, "radegast")) { account->allowedprotocols |= LIS_RADEGAST; }

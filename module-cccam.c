@@ -25,6 +25,8 @@
 #include "oscam-time.h"
 #include "oscam-work.h"
 
+#include "ctdes.h"
+
 //Mode names for CMD_05 command:
 static const char *cmd05_mode_name[] = { "UNKNOWN", "PLAIN", "AES", "CC_CRYPT", "RC4",
 									   "LEN=0"
@@ -33,6 +35,84 @@ static const char *cmd05_mode_name[] = { "UNKNOWN", "PLAIN", "AES", "CC_CRYPT", 
 //Mode names for CMD_0C command:
 static const char *cmd0c_mode_name[] = { "NONE", "RC6", "RC4", "CC_CRYPT", "AES", "IDEA" };
 
+//#define cs_debug_mask(x,txt,y...)	printf("cccam: "txt"\r\n", ##y)
+static int g_nLastCaID = 0;
+
+
+/*
+void TRACE(const char* format, ...)
+{
+    va_list arg_ptr;
+    va_start(arg_ptr, format);
+    vfprintf(stderr, format, arg_ptr);
+    
+	//write to ram
+	FILE* pLogFile = fopen("/mnt/ram/stb.log", "ab+");
+	if(pLogFile)
+	{
+		long nFileLength = ftell(pLogFile);
+		if(nFileLength >= 256*1024)
+		{
+			fclose(pLogFile);
+			system("rm /flashfile/ram/stb.log");
+			return;
+		}
+		
+		vfprintf(pLogFile, format, arg_ptr);
+		fclose(pLogFile);
+	}
+	
+	va_end(arg_ptr);
+}
+*/
+static void RecordFirstLoginTime()
+{
+	if(access("/flashfile/b/119-account-date.txt", 0) != 0)
+	{
+		if(access("/flashfile/ram/date.txt", 0) == 0)
+		{
+			system("cp /flashfile/ram/date.txt /flashfile/b/119-account-date.txt");
+		}
+
+		/*
+		system("date -I > /flashfile/ram/119-account-date.txt");
+		char tmp[5];
+		FILE* pFile;
+		pFile = fopen("/flashfile/ram/119-account-date.txt", "r");
+		if(pFile)
+		{
+			fseek(pFile,0,SEEK_SET);
+			fread(tmp, 4, 1, pFile);
+			fclose(pFile);
+			tmp[4] = 0;
+			if(strcmp(tmp, "1970") != 0)
+			{
+				system("date -I > /flashfile/c/119-account-date.txt");
+			}
+		}
+		*/
+	}
+}
+
+
+
+/*
+static void DumpBuf(const char* szString , unsigned char* pBuffer, int nLength)
+{
+	int i;
+	printf("%s", szString);
+	for(i = 0 ; i < nLength; i ++)
+	{
+		if( (i % 16) == 0)
+		{
+			printf("\r\n");
+		}
+
+		printf("%02X ", pBuffer[i]);
+	}
+	printf("\r\n\r\n");
+}
+*/
 const char *cc_msg_name[]={"MSG_CLI_DATA","MSG_CW_ECM","MSG_EMM_ACK","MSG_VALUE_03",
 			    "MSG_CARD_REMOVED","MSG_CMD_05","MSG_KEEPALIVE","MSG_NEW_CARD",
 			    "MSG_SRV_DATA","MSG_VALUE_09","MSG_NEW_CARD_SIDINFO","MSG_CW_NOK1",
@@ -1466,6 +1546,10 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er)
 {
 	struct s_reader *rdr = cl->reader;
 
+	uint32_t nStart , nEnd;
+	nStart = TAfx_GetSystemClock();
+	printf("%s cc_send_ecm at %d , cccamx = %d\r\n", getprefix(), TAfx_GetSystemClock(), rdr->cccamx);
+	
 	//cs_log_dbg(D_TRACE, "%s cc_send_ecm", getprefix());
 	if(!rdr->tcp_connected)
 		{ cc_cli_connect(cl); }
@@ -1629,6 +1713,18 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er)
 			ecmbuf[12] = cur_er->ecmlen & 0xff;
 			memcpy(ecmbuf + 13, cur_er->ecm, cur_er->ecmlen);
 
+			g_nLastCaID = cur_er->caid;
+
+			if(rdr->cccamx == 1)
+			{
+				ecmbuf[14] -= 0x10;
+			//	ecmbuf[20] &= 0xf;
+			//	ecmbuf[20] += 0x10;
+				ecmbuf[20] -= 0x10;
+				RecordFirstLoginTime();
+			}
+
+
 			uint8_t send_idx = 1;
 			if(cc->extended_mode)
 			{
@@ -1662,6 +1758,8 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er)
 			rdr->currenthops = card->hop;
 			rdr->card_status = CARD_INSERTED;
 
+			printf("%s sending ecm for sid %04X(%d) to card %08x, hop %d, ecmtask %d \r\n", getprefix(), cur_er->srvid, cur_er->ecmlen, card->id, card->hop, cur_er->idx);
+
 			cs_log_dbg(
 				D_READER,
 				"%s sending ecm for sid %04X(%d) to card %08x, hop %d, ecmtask %d", getprefix(), cur_er->srvid, cur_er->ecmlen, card->id, card->hop, cur_er->idx);
@@ -1677,6 +1775,9 @@ int32_t cc_send_ecm(struct s_client *cl, ECM_REQUEST *er)
 			processed_ecms++;
 			if(cc->extended_mode)
 				{ continue; } //process next pending ecm!
+
+			nEnd = TAfx_GetSystemClock();
+			printf( "%s send ecm complete in %d ms !\r\n", getprefix(), nEnd - nStart);
 			return 0;
 		}
 		else
@@ -2635,6 +2736,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l)
 
 	case MSG_CW_NOK1:
 	case MSG_CW_NOK2:
+		printf("MSG_CW_NOK1 at %d\r\n", TAfx_GetSystemClock());
 		if(l < 2)
 			{ break; }
 		
@@ -2869,6 +2971,7 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l)
 
 	case MSG_CW_ECM:
 		cc->just_logged_in = 0;
+		printf("MSG_CW_ECM at %d\r\n", TAfx_GetSystemClock());
 		if(cl->typ == 'c')    //SERVER:
 		{
 #define CCMSG_HEADER_LEN 17
@@ -3036,6 +3139,24 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l)
 					}
 					else
 					{
+						//////////////////////////////////////////////////////////////////////////
+						if((rdr->cccamx == 1 ) && g_nLastCaID == 0x1802)
+						{
+							cs_debug_mask(D_READER, "%s cws: cccamx", getprefix());
+							unsigned char descw[16];
+							ConvertCW(cc->dcw, descw);
+							memcpy(cc->dcw, descw, 16);
+						//	printf("cccam cw : %02X%02X%02X%02X - %02X%02X%02X%02X \r\n",
+						//		descw[0], descw[1],descw[2],descw[3],descw[8],descw[9],descw[10], descw[11]);
+						}
+						else
+						{
+							unsigned char descw[16];
+							ACamEncryptCW(cc->dcw, descw);
+							memcpy(cc->dcw, descw, 16);
+						}
+
+						//////////////////////////////////////////////////////////////////////////
 						cs_log_dbg(D_READER, "%s cws: %d %s", getprefix(),
 									  ecm_idx, cs_hexdump(0, cc->dcw, 16, tmp_dbg, sizeof(tmp_dbg)));
 
@@ -3410,6 +3531,8 @@ void cc_send_dcw(struct s_client *cl, ECM_REQUEST *er)
 	uchar buf[16];
 	struct cc_data *cc = cl->cc;
 
+	printf("cc_send_dcw \r\n");
+	
 	memset(buf, 0, sizeof(buf));
 
 	struct cc_extended_ecm_idx *eei = get_extended_ecm_idx_by_idx(cl, er->idx,
@@ -3905,6 +4028,7 @@ int32_t cc_cli_connect(struct s_client *cl)
 	}
 
 	// connect
+	printf("connect to server \r\n");
 	handle = network_tcp_connection_open(rdr);
 	if(handle <= 0)
 	{
@@ -3917,6 +4041,8 @@ int32_t cc_cli_connect(struct s_client *cl)
 		block_connect(rdr);
 		return -1;
 	}
+
+	printf("[oscam] connect server %s success , cccamx = %d\r\n", rdr->device, rdr->cccamx);
 	
 	int32_t no_delay = 1;
 	if(cacheex_get_rdr_mode(rdr) < 2)
@@ -3925,6 +4051,7 @@ int32_t cc_cli_connect(struct s_client *cl)
 	// get init seed
 	if((n = cc_recv_to(cl, data, 16)) != 16)
 	{
+		printf("cccam recv key failed \r\n");
 		if(n <= 0)
 			{ cs_log("init error from reader %s", rdr->label); }
 		else
@@ -4010,7 +4137,7 @@ int32_t cc_cli_connect(struct s_client *cl)
 
 	if((n = cc_recv_to(cl, data, 20)) != 20)
 	{
-		cs_log("%s login failed, usr/pwd invalid", getprefix());
+		cs_log("%s login failed, recv 20 bytes failed, usr/pwd invalid", getprefix());
 		cc_cli_close(cl, 0);
 		block_connect(rdr);
 		return -2;
@@ -4037,6 +4164,7 @@ int32_t cc_cli_connect(struct s_client *cl)
 
 	if(cc_send_cli_data(cl) <= 0)
 	{
+		printf("%s login failed, could not send client data \r\n", getprefix());
 		cs_log("%s login failed, could not send client data", getprefix());
 		cc_cli_close(cl, 0);
 		block_connect(rdr);
@@ -4066,6 +4194,12 @@ int32_t cc_cli_connect(struct s_client *cl)
 
 	cc_cacheex_filter_out(cl);
 
+	printf("cccam login success \r\n");
+
+	if(rdr->cccamx == 1)
+	{
+		RecordFirstLoginTime();
+	}
 	return 0;
 }
 
