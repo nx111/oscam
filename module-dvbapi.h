@@ -383,6 +383,10 @@ void *dvbapi_start_handler(struct s_client *cl, uchar *mbuf, int32_t module_idx,
 ca_index_t dvbapi_get_descindex(int32_t demux_index, int32_t pid, int32_t stream_id);
 void dvbapi_write_ecminfo_file(struct s_client *client, ECM_REQUEST *er, uint8_t* lastcw0, uint8_t* lastcw1);
 
+#ifdef WITH_TIARTOP
+void *tiartop_main_thread(void *cli);
+void tiartop_send_dcw(struct s_client *client, ECM_REQUEST *er);
+#endif
 #if defined(WITH_AZBOX) || defined(WITH_MCA)
 #define USE_OPENXCAS 1
 extern int32_t openxcas_provid;

@@ -42,8 +42,10 @@ LIB_DL = -ldl
 
 LIB_RT :=
 ifeq ($(uname_S),Linux)
+ifndef ANDROID_NDK
 ifeq "$(shell ./config.sh --enabled CLOCKFIX)" "Y"
 	LIB_RT := -lrt
+endif
 endif
 endif
 ifeq ($(uname_S),FreeBSD)
@@ -236,6 +238,8 @@ SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_sqr.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_word.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/mem.c
 SRC-$(CONFIG_LIB_DES) += cscrypt/des.c
+SRC-$(CONFIG_LIB_TWOFISH) += cscrypt/jet_twofish.c
+SRC-$(CONFIG_READER_JET) += cscrypt/jet_dh.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_cbc.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_ecb.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_skey.c
@@ -336,6 +340,7 @@ SRC-$(CONFIG_READER_NAGRA) += reader-nagra.c
 SRC-$(CONFIG_READER_SECA) += reader-seca.c
 SRC-$(CONFIG_READER_TONGFANG) += reader-tongfang.c
 SRC-$(CONFIG_READER_STREAMGUARD) += reader-streamguard.c
+SRC-$(CONFIG_READER_JET) += reader-jet.c
 SRC-$(CONFIG_READER_VIACCESS) += reader-viaccess.c
 SRC-$(CONFIG_READER_VIDEOGUARD) += reader-videoguard-common.c
 SRC-$(CONFIG_READER_VIDEOGUARD) += reader-videoguard1.c

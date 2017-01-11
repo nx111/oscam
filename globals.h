@@ -1,6 +1,7 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
+#undef _GNU_SOURCE
 #define _GNU_SOURCE //needed for PTHREAD_MUTEX_RECURSIVE on some plattforms and maybe other things; do not remove
 #include <stdlib.h>
 #include <stdio.h>
@@ -620,7 +621,9 @@ enum {E2_GLOBAL = 0, E2_GROUP, E2_CAID, E2_IDENT, E2_CLASS, E2_CHID, E2_QUEUE, E
 #define DEFAULT_CC_RECONNECT 12000
 #define DEFAULT_CC_RECV_TIMEOUT 2000
 
-#define CS_GBOX_MAX_PROXY_CARDS	32
+#define GBOX_MAX_PROXY_CARDS 32
+#define GBOX_MAX_IGNORED_PEERS  16
+#define GBOX_MAX_BLOCKED_ECM 16
 
 #define DEFAULT_AC_USERS   -1 // Use global cfg
 #define DEFAULT_AC_PENALTY -1 // Use global cfg
@@ -1513,11 +1516,21 @@ struct s_reader                                     //contains device info, read
 	uint32_t	 tongfang3_calibsn;
 	uchar            tongfang3_commkey[8];
 #endif
+#ifdef READER_JET
+	uint8_t         jet_vendor_key[32];
+	uint8_t         jet_root_key[8];
+	uint8_t         jet_derive_key[56];
+	uint8_t         jet_auth_key[10];
+	uint8_t         jet_service_key[8];
+	uint8_t         jet_authorize_id[8];
+	uint8_t         jet_fix_ecm;                   // for dvn jet ,ecm head is 0x50, this option indicate if fix it to 0x80 or 0x81.
+	uint8_t         jet_resync_vendorkey;
+#endif
 	uint32_t        cas_version;
 	int8_t          nagra_read;                     // read nagra ncmed records: 0 Disabled (default), 1 read all records, 2 read valid records only
 	int8_t          detect_seca_nagra_tunneled_card;
 	int8_t          force_irdeto;
-	uint8_t         boxkey[16];                     // n3 boxkey 8 bytes, seca sessionkey 16 bytes, viaccess camid 4 bytes
+	uint8_t         boxkey[32];                     // n3 boxkey 8 bytes, seca sessionkey 16 bytes, viaccess camid 4 bytes, jet boxkey 32 bytes
 	uint8_t         boxkey_length;
 	uint8_t         rsa_mod[120];                   // rsa modulus for nagra cards.
 	uint8_t         rsa_mod_length;
@@ -1577,6 +1590,7 @@ struct s_reader                                     //contains device info, read
 	int8_t          cc_hop;                         // For non-cccam reader: hop for virtual cards
 	int8_t          cc_reshare;
 	int32_t         cc_reconnect;                   //reconnect on ecm-request timeout
+	int8_t          from_cccam_cfg;                 //created from cccam.cfg
 #endif
 	int8_t          tcp_connected;
 	int32_t         tcp_ito;                        // inactivity timeout
@@ -2102,14 +2116,18 @@ struct s_config
 	char            *gbox_hostname;
 	int32_t         gbox_reconnect;
 	char            gbox_my_password[9];
-	unsigned long	gbox_proxy_card[CS_GBOX_MAX_PROXY_CARDS];
-	int8_t		gbox_proxy_cards_num;  
+	unsigned long   gbox_proxy_card[GBOX_MAX_PROXY_CARDS];
+	int8_t          gbox_proxy_cards_num;
 	char            gbox_my_vers[3];
-	char		gbox_my_cpu_api[3];
-	uint8_t					gsms_dis;
-	uint8_t					log_hello;
-	char						*gbox_tmp_dir; 
-	uint8_t					ccc_reshare;    	     
+	char            gbox_my_cpu_api[3];
+	uint8_t         gsms_dis;
+	uint8_t         log_hello;
+	char            *gbox_tmp_dir; 
+	uint8_t         ccc_reshare;
+	uint16_t        gbox_ignored_peer[GBOX_MAX_IGNORED_PEERS];
+	uint8_t         gbox_ignored_peer_num;
+	uint16_t        gbox_block_ecm[GBOX_MAX_BLOCKED_ECM];
+	uint8_t         gbox_block_ecm_num;
 #endif
 #ifdef MODULE_SERIAL
 	char            *ser_device;
@@ -2403,6 +2421,8 @@ static inline bool caid_is_nagra(uint16_t caid) { return caid >> 8 == 0x18; }
 static inline bool caid_is_bulcrypt(uint16_t caid) { return caid == 0x5581 || caid == 0x4AEE; }
 static inline bool caid_is_dre(uint16_t caid) { return caid == 0x4AE0 || caid == 0x4AE1 || caid == 0x2710;}
 static inline bool caid_is_streamguard(uint16_t caid) { return caid == 0x4AD2; }
+static inline bool caid_is_dvn(uint16_t caid) { return caid == 0x4A30; }
+static inline bool caid_is_tongfang(uint16_t caid) { return (caid == 0x4A02) || (caid >= 0x4B00 && caid <= 0x4BFF); }
 const char *get_cardsystem_desc_by_caid(uint16_t caid);
 
 #ifdef WITH_EMU

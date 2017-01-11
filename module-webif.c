@@ -1293,6 +1293,7 @@ static char *send_oscam_config_webif(struct templatevars *vars, struct uriparams
 
 	tpl_addVar(vars, TPLADD, "HTTPSAVEFULLSELECT", (cfg.http_full_cfg == 1) ? "checked" : "");
 	tpl_addVar(vars, TPLADD, "HTTPOVERWRITEBAKFILE", (cfg.http_overwrite_bak_file == 1) ? "checked" : "");
+	tpl_addVar(vars, TPLADD, "HTTPREADONLY", (cfg.http_readonly == 1) ? "checked" : "");
 
 
 #ifdef WITH_SSL
@@ -2530,7 +2531,16 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		{ tpl_printf(vars, TPLADD, "TONGFANGCALIBSN", "%08X", rdr->tongfang3_calibsn); }
 
 #endif
-		
+#ifdef READER_JET
+	for(i = 0; (size_t)i < sizeof(rdr->jet_authorize_id) && rdr->jet_authorize_id[i] == 0; i++);
+	if((size_t)i <  sizeof(rdr->jet_authorize_id))
+	{
+		for(i = 0; (size_t)i <  sizeof(rdr->jet_authorize_id) ; i++)
+			{ tpl_printf(vars, TPLAPPEND, "JETAUTHORIZEID", "%02X", rdr->jet_authorize_id[i]); }
+	}
+	tpl_addVar(vars, TPLADD, "JETFIXECM", (rdr->jet_fix_ecm == 1) ? "checked" : "");
+#endif
+
 #ifdef MODULE_CCCAM
 	tpl_printf(vars, TPLADD, "CCCMAXHOPS",   "%d", rdr->cc_maxhops);
 	tpl_printf(vars, TPLADD, "CCCMINDOWN",   "%d", rdr->cc_mindown);

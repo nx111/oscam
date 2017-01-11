@@ -1609,7 +1609,7 @@ void * read_cccamcfg(int32_t mode)
 			int32_t paracount=0;
 			char * proto=0;
 			ret=0;
-			uchar ncd_key[13+sizeof(uint)];
+			unsigned int ncd_key[14];
 			memset(ncd_key,0,sizeof(ncd_key));
 			int32_t reshare=-1;
 			switch(line[0]){
@@ -1626,9 +1626,9 @@ void * read_cccamcfg(int32_t mode)
 				case 'N':
 					proto = "newcamd";
 					ret=sscanf(line,"%c:%s%d%s%s%x%x%x%x%x%x%x%x%x%x%x%x%x%x%d",&typ,host,&port,uname,upass,
-						(uint*) &ncd_key[0], (uint*) &ncd_key[1], (uint*) &ncd_key[2], (uint*) &ncd_key[3],(uint*) &ncd_key[4],
-						(uint*) &ncd_key[5], (uint*) &ncd_key[6], (uint*) &ncd_key[7], (uint*) &ncd_key[8],(uint*) &ncd_key[9],
-						(uint*) &ncd_key[10],(uint*) &ncd_key[11],(uint*) &ncd_key[12],(uint*) &ncd_key[13],&reshare);
+						&ncd_key[0], &ncd_key[1], &ncd_key[2], &ncd_key[3],&ncd_key[4],
+						&ncd_key[5], &ncd_key[6], &ncd_key[7], &ncd_key[8],&ncd_key[9],
+						&ncd_key[10],&ncd_key[11],&ncd_key[12],&ncd_key[13],&reshare);
 					paracount=5;
 					break;
 				case 'R':
@@ -1638,7 +1638,7 @@ void * read_cccamcfg(int32_t mode)
 					break;
 			}
 
-			if(!proto || ret<paracount)continue;
+			if(!proto || ret < paracount)continue;
 
 			int32_t found=0;
 			LL_ITER itr = ll_iter_create(configured_readers);
@@ -1661,7 +1661,7 @@ void * read_cccamcfg(int32_t mode)
 
 			reader_set_defaults(rdr);
 
-			chk_reader("protocol",proto,rdr);
+			chk_reader("protocol", proto, rdr);
 			cs_strncpy(rdr->device,host,sizeof(rdr->device));
 			rdr->r_port = port;
 			cs_strncpy(rdr->r_usr,uname,sizeof(rdr->r_usr));
@@ -1669,9 +1669,24 @@ void * read_cccamcfg(int32_t mode)
 			snprintf(token,sizeof(token),"%s_%d",host,port);
 			cs_strncpy(rdr->label,token,sizeof(rdr->label));
 			rdr->grp = 1;
+			rdr->from_cccam_cfg = 1;
+
+			// for newcamd.
+			if(line[0] == 'N'){
+				if(ret >= 19){
+					int i;
+					char sncd_key[sizeof(ncd_key) * 2 + 1];
+					memset(sncd_key, 0, sizeof(sncd_key));
+					for(i = 0; i < (int)sizeof(ncd_key); i++)
+						snprintf(sncd_key + 2 * i, sizeof(sncd_key) - 2 * i, "%02x", ncd_key[i]);
+					chk_reader("key", sncd_key, rdr);
+				}
+				char connectoninit[2] = "1";
+				chk_reader("connectoninit", connectoninit, rdr);
+			}
 
 			ll_append(configured_readers, rdr);
-			cs_debug_mask(D_READER,"Add reader device=%s,%d(type:0x%X,protocol=%s)from CCcam.cfg",rdr->device,rdr->r_port,rdr->typ,proto);
+			cs_debug_mask(D_READER,"Add reader device=%s,%d (typ:0x%X, protocol=%s) from CCcam.cfg",rdr->device, rdr->r_port, rdr->typ, proto);
 		}
 		else if (line[0]=='F' && line[1]==':' && mode==CCCAMCFGUSER){
 			ret=sscanf(line,"F:%126s%126s%126s%126s%126s",uname,upass,uhops,uemu,uemm);
