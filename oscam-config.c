@@ -1675,9 +1675,9 @@ void * read_cccamcfg(int32_t mode)
 			if(line[0] == 'N'){
 				if(ret >= 19){
 					int i;
-					char sncd_key[sizeof(ncd_key) * 2 + 1];
+					char sncd_key[(sizeof(ncd_key)/sizeof(unsigned int)) * 2 + 1];
 					memset(sncd_key, 0, sizeof(sncd_key));
-					for(i = 0; i < (int)sizeof(ncd_key); i++)
+					for(i = 0; i < (int)(sizeof(ncd_key)/sizeof(unsigned int)); i++)
 						snprintf(sncd_key + 2 * i, sizeof(sncd_key) - 2 * i, "%02x", ncd_key[i]);
 					chk_reader("key", sncd_key, rdr);
 				}
