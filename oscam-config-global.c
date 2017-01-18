@@ -151,6 +151,23 @@ void check_caidtab_fn(const char *token, char *value, void *setting, FILE *f)
 	}
 }
 
+void chk_ftab_fn(const char *token, char *value, void *setting, FILE *f)
+{
+	FTAB *ftab = setting;
+	if(value)
+	{
+		if(strlen(value))
+			chk_ftab(value, ftab);
+		else
+			ftab_clear(ftab);
+		return;
+	}
+	value = mk_t_ftab(ftab);
+	if(strlen(value) > 0 || cfg.http_full_cfg)
+		{ fprintf_conf(f, token, "%s\n", value); }
+	free_mk_t(value);
+}
+
 
 void caidvaluetab_fn(const char *token, char *value, void *setting, FILE *f)
 {
@@ -303,13 +320,13 @@ static const struct config_list global_opts[] =
 #endif
 	DEF_OPT_FUNC("disablelog"               , OFS(disablelog),          disablelog_fn),
 #if defined(WEBIF) || defined(MODULE_MONITOR)
-	DEF_OPT_FUNC("loghistorylines"           , OFS(loghistorylines),      loghistorylines_fn),
+	DEF_OPT_FUNC("loghistorylines"          , OFS(loghistorylines),    loghistorylines_fn),
 #endif
 	DEF_OPT_FUNC("serverip"                 , OFS(srvip),               serverip_fn),
 	DEF_OPT_FUNC("logfile"                  , OFS(logfile),             logfile_fn),
 	DEF_OPT_INT32("initial_debuglevel"      , OFS(initial_debuglevel),  0), 
 	DEF_OPT_STR("sysloghost"                , OFS(sysloghost),          NULL),
-	DEF_OPT_INT32("syslogport"				, OFS(syslogport),			514),
+	DEF_OPT_INT32("syslogport"              , OFS(syslogport),          514),
 	DEF_OPT_INT8("logduplicatelines"        , OFS(logduplicatelines),   0),
 	DEF_OPT_STR("pidfile"                   , OFS(pidfile),             NULL),
 	DEF_OPT_INT8("disableuserfile"          , OFS(disableuserfile),     1),
@@ -326,7 +343,7 @@ static const struct config_list global_opts[] =
 	DEF_OPT_INT32("nice"                    , OFS(nice),                99),
 	DEF_OPT_INT32("maxlogsize"              , OFS(max_log_size),        10),
 	DEF_OPT_INT8("waitforcards"             , OFS(waitforcards),        1),
-	DEF_OPT_INT32("waitforcards_extra_delay"    , OFS(waitforcards_extra_delay), 500),
+	DEF_OPT_INT32("waitforcards_extra_delay", OFS(waitforcards_extra_delay), 500),
 	DEF_OPT_INT8("preferlocalcards"         , OFS(preferlocalcards),    0),
 	DEF_OPT_INT32("readerrestartseconds"    , OFS(reader_restart_seconds), 5),
 	DEF_OPT_INT8("dropdups"                 , OFS(dropdups),            0),
@@ -352,7 +369,7 @@ static const struct config_list global_opts[] =
 	DEF_OPT_INT32("lb_min_ecmcount"         , OFS(lb_min_ecmcount),     DEFAULT_MIN_ECM_COUNT),
 	DEF_OPT_INT32("lb_max_ecmcount"         , OFS(lb_max_ecmcount),     DEFAULT_MAX_ECM_COUNT),
 	DEF_OPT_INT32("lb_reopen_seconds"       , OFS(lb_reopen_seconds),   DEFAULT_REOPEN_SECONDS),
-	DEF_OPT_INT8("lb_reopen_invalid"  		, OFS(lb_reopen_invalid),   1),
+	DEF_OPT_INT8("lb_reopen_invalid"        , OFS(lb_reopen_invalid),   1),
 	DEF_OPT_INT8("lb_force_reopen_always"   , OFS(lb_force_reopen_always),   0),
 	DEF_OPT_INT32("lb_retrylimit"           , OFS(lb_retrylimit),       DEFAULT_RETRYLIMIT),
 	DEF_OPT_INT32("lb_stat_cleanup"         , OFS(lb_stat_cleanup),     DEFAULT_LB_STAT_CLEANUP),
@@ -376,6 +393,8 @@ static const struct config_list global_opts[] =
 	DEF_OPT_INT8("suppresscmd08"            , OFS(c35_suppresscmd08),   0),
 	DEF_OPT_INT8("getblockemmauprovid"      , OFS(getblockemmauprovid), 0),
 	DEF_OPT_INT8("double_check"             , OFS(double_check),        0),
+	DEF_OPT_INT8("disablecrccws"                 , OFS(disablecrccws),            0),
+	DEF_OPT_FUNC("disablecrccws_only_for"	, OFS(disablecrccws_only_for),     chk_ftab_fn),
 	DEF_LAST_OPT
 };
 
@@ -523,51 +542,51 @@ static bool webif_should_save_fn(void *UNUSED(var))
 static const struct config_list webif_opts[] =
 {
 	DEF_OPT_SAVE_FUNC(webif_should_save_fn),
-	DEF_OPT_FUNC("httpport"                 , OFS(http_port),               http_port_fn),
-	DEF_OPT_FUNC("serverip"                 , OFS(http_srvip),              serverip_fn),
-	DEF_OPT_STR("httpuser"                  , OFS(http_user),               NULL),
-	DEF_OPT_STR("httppwd"                   , OFS(http_pwd),                NULL),
-	DEF_OPT_STR("httpcss"                   , OFS(http_css),                NULL),
-	DEF_OPT_STR("httpjscript"               , OFS(http_jscript),            NULL),
-	DEF_OPT_STR("httpscript"                , OFS(http_script),             NULL),
-	DEF_OPT_STR("httptpl"                   , OFS(http_tpl),                NULL),
-	DEF_OPT_STR("httppiconpath"             , OFS(http_piconpath),          NULL),
-	DEF_OPT_STR("httphelplang"              , OFS(http_help_lang),          "en"),
-	DEF_OPT_STR("httplocale"                , OFS(http_locale),             NULL),
-	DEF_OPT_INT8("http_prepend_embedded_css"   , OFS(http_prepend_embedded_css), 0),
-	DEF_OPT_INT32("httprefresh"             , OFS(http_refresh),            0),
-	DEF_OPT_INT32("httppollrefresh"         , OFS(poll_refresh),            60),
-	DEF_OPT_INT8("httphideidleclients"      , OFS(http_hide_idle_clients),  1),
-	DEF_OPT_STR("httphidetype"              , OFS(http_hide_type),          NULL),
-	DEF_OPT_INT8("httpshowpicons"           , OFS(http_showpicons),         0),
-	DEF_OPT_INT8("httppiconsize"            , OFS(http_picon_size),         0),
-	DEF_OPT_INT8("httpshowmeminfo"          , OFS(http_showmeminfo),        0),
-	DEF_OPT_INT8("httpshowuserinfo"         , OFS(http_showuserinfo),       0),
-	DEF_OPT_INT8("httpshowreaderinfo"       , OFS(http_showreaderinfo),     0),
-	DEF_OPT_INT8("httpshowcacheexinfo"      , OFS(http_showcacheexinfo),    0),
-	DEF_OPT_INT8("httpshowecminfo"          , OFS(http_showecminfo),        0),
-	DEF_OPT_INT8("httpshowloadinfo"         , OFS(http_showloadinfo),       0),
-	DEF_OPT_FUNC("httpallowed"              , OFS(http_allowed),            iprange_fn, .free_value = iprange_free_fn),
-	DEF_OPT_INT8("httpreadonly"             , OFS(http_readonly),           0),
-	DEF_OPT_INT8("httpsavefullcfg"          , OFS(http_full_cfg),           0),
-	DEF_OPT_INT8("httpoverwritebakfile"     , OFS(http_overwrite_bak_file), 0),
-	DEF_OPT_STR("httpcert"                  , OFS(http_cert),               NULL),
-	DEF_OPT_INT8("https_force_secure_mode"  , OFS(https_force_secure_mode), 1),
-	DEF_OPT_FUNC("httpdyndns"               , OFS(http_dyndns),             http_dyndns_fn),
-	DEF_OPT_INT32("aulow"                   , OFS(aulow),                   30),
-	DEF_OPT_INT32("hideclient_to"           , OFS(hideclient_to),           25),
-	DEF_OPT_STR("httposcamlabel"            , OFS(http_oscam_label),        "OSCam"),
-	DEF_OPT_INT32("httpemmuclean"           , OFS(http_emmu_clean),         256),
-	DEF_OPT_INT32("httpemmsclean"           , OFS(http_emms_clean),         -1),
-	DEF_OPT_INT32("httpemmgclean"           , OFS(http_emmg_clean),         -1),
-	DEF_OPT_FUNC("httputf8"                 , OFS(http_utf8),                http_utf8_fn),
+	DEF_OPT_FUNC("httpport"			 , OFS(http_port)			, http_port_fn),
+	DEF_OPT_FUNC("serverip"			 , OFS(http_srvip)			, serverip_fn),
+	DEF_OPT_STR("httpuser"			 , OFS(http_user)			, NULL),
+	DEF_OPT_STR("httppwd"			 , OFS(http_pwd)			, NULL),
+	DEF_OPT_STR("httpcss"			 , OFS(http_css)			, NULL),
+	DEF_OPT_STR("httpjscript"		 , OFS(http_jscript)			, NULL),
+	DEF_OPT_STR("httpscript"		 , OFS(http_script)			, NULL),
+	DEF_OPT_STR("httptpl"			 , OFS(http_tpl)			, NULL),
+	DEF_OPT_STR("httppiconpath"		 , OFS(http_piconpath)			, NULL),
+	DEF_OPT_STR("httphelplang"		 , OFS(http_help_lang)			, "en"),
+	DEF_OPT_STR("httplocale"		 , OFS(http_locale)			, NULL),
+	DEF_OPT_INT8("http_prepend_embedded_css" , OFS(http_prepend_embedded_css)	, 0),
+	DEF_OPT_INT32("httprefresh"		 , OFS(http_refresh)			, 0),
+	DEF_OPT_INT32("httppollrefresh"		 , OFS(poll_refresh)			, 60),
+	DEF_OPT_INT8("httphideidleclients"	 , OFS(http_hide_idle_clients)		, 1),
+	DEF_OPT_STR("httphidetype"		 , OFS(http_hide_type)			, NULL),
+	DEF_OPT_INT8("httpshowpicons"		 , OFS(http_showpicons)			, 0),
+	DEF_OPT_INT8("httppiconsize"		 , OFS(http_picon_size)			, 0),
+	DEF_OPT_INT8("httpshowmeminfo"		 , OFS(http_showmeminfo)		, 0),
+	DEF_OPT_INT8("httpshowuserinfo"		 , OFS(http_showuserinfo)		, 0),
+	DEF_OPT_INT8("httpshowreaderinfo"	 , OFS(http_showreaderinfo)		, 0),
+	DEF_OPT_INT8("httpshowcacheexinfo"	 , OFS(http_showcacheexinfo)		, 0),
+	DEF_OPT_INT8("httpshowecminfo"		 , OFS(http_showecminfo)		, 0),
+	DEF_OPT_INT8("httpshowloadinfo"		 , OFS(http_showloadinfo)		, 0),
+	DEF_OPT_FUNC("httpallowed"		 , OFS(http_allowed)			, iprange_fn, .free_value = iprange_free_fn),
+	DEF_OPT_INT8("httpreadonly"		 , OFS(http_readonly)			, 0),
+	DEF_OPT_INT8("httpsavefullcfg"		 , OFS(http_full_cfg)			, 0),
+	DEF_OPT_INT8("httpoverwritebakfile"	 , OFS(http_overwrite_bak_file)		, 0),
+	DEF_OPT_STR("httpcert"			 , OFS(http_cert)			, NULL),
+	DEF_OPT_INT8("https_force_secure_mode"	 , OFS(https_force_secure_mode)		, 1),
+	DEF_OPT_FUNC("httpdyndns"		 , OFS(http_dyndns)			, http_dyndns_fn),
+	DEF_OPT_INT32("aulow"			 , OFS(aulow)				, 30),
+	DEF_OPT_INT32("hideclient_to"		 , OFS(hideclient_to)			, 25),
+	DEF_OPT_STR("httposcamlabel"		 , OFS(http_oscam_label)		, "OSCam"),
+	DEF_OPT_INT32("httpemmuclean"		 , OFS(http_emmu_clean)			, 256),
+	DEF_OPT_INT32("httpemmsclean"		 , OFS(http_emms_clean)			, -1),
+	DEF_OPT_INT32("httpemmgclean"		 , OFS(http_emmg_clean)			, -1),
+	DEF_OPT_FUNC("httputf8"			 , OFS(http_utf8) 			,http_utf8_fn),
 #ifdef WEBIF_LIVELOG
- 	DEF_OPT_INT8("http_status_log"          , OFS(http_status_log),         0),
+	DEF_OPT_INT8("http_status_log"		 , OFS(http_status_log)			, 0),
 #else
-	DEF_OPT_INT8("http_status_log"          , OFS(http_status_log),         1),
+	DEF_OPT_INT8("http_status_log"		 , OFS(http_status_log)			, 1),
 #endif
 #ifndef WEBIF_JQUERY
-	DEF_OPT_STR("http_extern_jquery"        , OFS(http_extern_jquery),      "//code.jquery.com/jquery-1.11.0.min.js"),
+	DEF_OPT_STR("http_extern_jquery"	 , OFS(http_extern_jquery)		, "//code.jquery.com/jquery-1.12.4.min.js"),
 #endif
 	DEF_LAST_OPT
 };
@@ -628,7 +647,7 @@ static const struct config_list cache_opts[] =
 #ifdef CS_CACHEEX
 	DEF_OPT_INT32("max_hit_time"		, OFS(max_hitcache_time),	DEFAULT_MAX_HITCACHE_TIME),
 	DEF_OPT_FUNC("wait_time"		, OFS(cacheex_wait_timetab),	cacheex_valuetab_fn),
-	DEF_OPT_FUNC("cacheex_mode1_delay"  , OFS(cacheex_mode1_delay_tab), caidvaluetab_fn),
+	DEF_OPT_FUNC("cacheex_mode1_delay"	, OFS(cacheex_mode1_delay_tab), caidvaluetab_fn),
 	DEF_OPT_UINT8("cacheexenablestats"	, OFS(cacheex_enable_stats),	0),
 	DEF_OPT_INT32("csp_port"		, OFS(csp_port),		0),
 	DEF_OPT_FUNC("csp_serverip"		, OFS(csp_srvip),		serverip_fn),
@@ -636,8 +655,8 @@ static const struct config_list cache_opts[] =
 	DEF_OPT_UINT8("csp_allow_request"	, OFS(csp.allow_request),	1),
 	DEF_OPT_UINT8("csp_allow_reforward"	, OFS(csp.allow_reforward),	0),
 	DEF_OPT_FUNC("cacheex_cw_check"		, OFS(cacheex_cwcheck_tab),	cacheex_cwcheck_tab_fn),
-	DEF_OPT_UINT8("wait_until_ctimeout"     , OFS(wait_until_ctimeout),	0),
-	DEF_OPT_UINT8("csp_block_fakecws"     , OFS(csp.block_fakecws),	0),
+	DEF_OPT_UINT8("wait_until_ctimeout"	, OFS(wait_until_ctimeout),	0),
+	DEF_OPT_UINT8("csp_block_fakecws"	, OFS(csp.block_fakecws),	0),
 #endif
 #ifdef CW_CYCLE_CHECK
 	DEF_OPT_INT8("cwcycle_check_enable"	, OFS(cwcycle_check_enable),	0),
@@ -671,10 +690,8 @@ static const struct config_list camd35_opts[] =
 static const struct config_list camd35_opts[] = { DEF_LAST_OPT };
 #endif
 
-#if defined(MODULE_CAMD35_TCP) || defined(MODULE_NEWCAMD)
-#define PORTTAB_CS378X  1
-#define PORTTAB_NEWCAMD 2
-static void porttab_fn(const char *token, char *value, void *setting, long type, FILE *f)
+#ifdef MODULE_NEWCAMD
+static void porttab_fn(const char *token, char *value, void *setting, FILE *f)
 {
 	PTAB *ptab = setting;
 	if(value)
@@ -689,11 +706,35 @@ static void porttab_fn(const char *token, char *value, void *setting, long type,
 		}
 		return;
 	}
-	value = (type == PORTTAB_CS378X) ? mk_t_camd35tcp_port() : mk_t_newcamd_port();
+	value = mk_t_newcamd_port();
 	fprintf_conf(f, token, "%s\n", value);
 	free_mk_t(value);
 }
+#endif
 
+#ifdef MODULE_CAMD35_TCP
+static void porttab_camd35_fn(const char *token, char *value, void *setting, FILE *f)
+{
+	PTAB *ptab = setting;
+	if(value)
+	{
+		if(strlen(value) == 0)
+		{
+			clear_ptab(ptab);
+		}
+		else
+		{
+			chk_port_camd35_tab(value, ptab);
+		}
+		return;
+	}
+	value = mk_t_camd35tcp_port();
+	fprintf_conf(f, token, "%s\n", value);
+	free_mk_t(value);
+}
+#endif
+
+#if defined(MODULE_NEWCAMD) || defined(MODULE_CAMD35_TCP)
 static void porttab_free_fn(void *setting)
 {
 	clear_ptab(setting);
@@ -709,9 +750,9 @@ static bool cs378x_should_save_fn(void *UNUSED(var))
 static const struct config_list cs378x_opts[] =
 {
 	DEF_OPT_SAVE_FUNC(cs378x_should_save_fn),
-	DEF_OPT_FUNC_X("port"		, OFS(c35_tcp_ptab),		porttab_fn, PORTTAB_CS378X, .free_value = porttab_free_fn),
-	DEF_OPT_FUNC("serverip"		, OFS(c35_tcp_srvip),		serverip_fn),
-	DEF_OPT_INT8("suppresscmd08"	, OFS(c35_tcp_suppresscmd08),	0),
+	DEF_OPT_FUNC("port"				, OFS(c35_tcp_ptab)			, porttab_camd35_fn	, .free_value = porttab_free_fn),
+	DEF_OPT_FUNC("serverip"			, OFS(c35_tcp_srvip)		, serverip_fn),
+	DEF_OPT_INT8("suppresscmd08"	, OFS(c35_tcp_suppresscmd08), 0),
 	DEF_LAST_OPT
 };
 #else
@@ -727,12 +768,12 @@ static bool newcamd_should_save_fn(void *UNUSED(var))
 static const struct config_list newcamd_opts[] =
 {
 	DEF_OPT_SAVE_FUNC(newcamd_should_save_fn),
-	DEF_OPT_FUNC_X("port"		, OFS(ncd_ptab),	porttab_fn, PORTTAB_NEWCAMD, .free_value = porttab_free_fn),
-	DEF_OPT_FUNC("serverip"		, OFS(ncd_srvip),	serverip_fn),
-	DEF_OPT_FUNC("allowed"		, OFS(ncd_allowed),	iprange_fn, .free_value = iprange_free_fn),
-	DEF_OPT_HEX("key"		, OFS(ncd_key),		SIZEOF(ncd_key)),
-	DEF_OPT_INT8("keepalive"	, OFS(ncd_keepalive),	DEFAULT_NCD_KEEPALIVE),
-	DEF_OPT_INT8("mgclient"		, OFS(ncd_mgclient),	0),
+	DEF_OPT_FUNC("port"			, OFS(ncd_ptab)		, porttab_fn, .free_value = porttab_free_fn),
+	DEF_OPT_FUNC("serverip"		, OFS(ncd_srvip)	, serverip_fn),
+	DEF_OPT_FUNC("allowed"		, OFS(ncd_allowed)	, iprange_fn, .free_value = iprange_free_fn),
+	DEF_OPT_HEX("key"			, OFS(ncd_key)		, SIZEOF(ncd_key)),
+	DEF_OPT_INT8("keepalive"	, OFS(ncd_keepalive), DEFAULT_NCD_KEEPALIVE),
+	DEF_OPT_INT8("mgclient"		, OFS(ncd_mgclient)	, 0),
 	DEF_LAST_OPT
 };
 #else
@@ -888,16 +929,41 @@ static const struct config_list serial_opts[] = { DEF_LAST_OPT };
 
 #ifdef MODULE_GBOX
 
+static void gbox_password_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
+{
+	if (value)
+	{
+	    const char *s;
+		s=value;
+    	if (s[strspn(s, "0123456789abcdefABCDEF")] == 0)
+		{
+    		/* valid Hexa symbol */
+			cfg.gbox_password = a2i(value, 8);
+			return;
+	 	}
+	 	else
+	 	{
+	 		cfg.gbox_password = 0;
+	 	}
+	 }
+	if (cfg.gbox_password != 0)
+	{
+		fprintf_conf(f, token, "%08X\n", cfg.gbox_password);
+	}
+}
+
 static void gbox_block_ecm_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
 {
 	if (value)
 	{
 		char *ptr1, *saveptr1 = NULL;
+		const char *s;
 		memset(cfg.gbox_block_ecm, 0, sizeof(cfg.gbox_block_ecm));
 		int n = 0, i;
 		for (i = 0, ptr1 = strtok_r(value, ",", &saveptr1); (i < 4) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1))
 		{
-			if (n < GBOX_MAX_BLOCKED_ECM)
+			s=ptr1;
+			if ((n < GBOX_MAX_BLOCKED_ECM) && (s[strspn(s, "0123456789abcdefABCDEF")] == 0))
 			{ cfg.gbox_block_ecm[n++] = a2i(ptr1, 4); }
 		}
 		cfg.gbox_block_ecm_num = n;
@@ -905,15 +971,9 @@ static void gbox_block_ecm_fn(const char *token, char *value, void *UNUSED(setti
 	}
 	if (cfg.gbox_block_ecm_num > 0)
 	{
-		int i;
-		char *dot = "";
-		fprintf_conf(f, token, " ");
-		for (i = 0; i < cfg.gbox_block_ecm_num; i++)
-		{
-			fprintf(f, "%s%04X", dot, cfg.gbox_block_ecm[i]);
-			dot = ",";
-		}
-		fprintf(f, "\n");
+		value = mk_t_gbox_block_ecm();
+		fprintf_conf(f, token, "%s\n", value);
+		free_mk_t(value);
 	}
 }
 
@@ -922,27 +982,23 @@ static void gbox_ignored_peer_fn(const char *token, char *value, void *UNUSED(se
 	if (value)
 	{
 		char *ptr1, *saveptr1 = NULL;
+		const char *s;
 		memset(cfg.gbox_ignored_peer, 0, sizeof(cfg.gbox_ignored_peer));
 		int n = 0, i;
 		for (i = 0, ptr1 = strtok_r(value, ",", &saveptr1); (i < 4) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1))
 		{
-			if (n < GBOX_MAX_IGNORED_PEERS)
-			{ cfg.gbox_ignored_peer[n++] = a2i(ptr1, 4); }
+			s=ptr1;
+			if ((n < GBOX_MAX_IGNORED_PEERS) && (s[strspn(s, "0123456789abcdefABCDEF")] == 0))
+			{ cfg.gbox_ignored_peer[n++] = a2i(ptr1, 4); }	
 		}
 		cfg.gbox_ignored_peer_num = n;
 		return;
 	}
 	if (cfg.gbox_ignored_peer_num > 0)
 	{
-		int i;
-		char *dot = "";
-		fprintf_conf(f, token, " ");
-		for (i = 0; i < cfg.gbox_ignored_peer_num; i++)
-		{
-			fprintf(f, "%s%04X", dot, cfg.gbox_ignored_peer[i]);
-			dot = ",";
-		}
-		fprintf(f, "\n");
+		value = mk_t_gbox_ignored_peer();
+		fprintf_conf(f, token, "%s\n", value);
+		free_mk_t(value);
 	}
 }
 
@@ -951,27 +1007,24 @@ static void gbox_proxy_card_fn(const char *token, char *value, void *UNUSED(sett
 	if (value)
 	{
 		char *ptr1, *saveptr1 = NULL;
+		const char *s;
 		memset(cfg.gbox_proxy_card, 0, sizeof(cfg.gbox_proxy_card));
 		int n = 0, i;
 		for (i = 0, ptr1 = strtok_r(value, ",", &saveptr1); (i < 8) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1))
 		{
-			if (n < GBOX_MAX_PROXY_CARDS)
+			s=ptr1;
+			if ((n < GBOX_MAX_PROXY_CARDS) && (s[strspn(s, "0123456789abcdefABCDEF")] == 0))
 				{ cfg.gbox_proxy_card[n++] = a2i(ptr1, 8); }
 		}
 		cfg.gbox_proxy_cards_num = n;
 		return;
 	 }
+
 	if (cfg.gbox_proxy_cards_num > 0)
 	{
-		int i;
-		char *dot = "";
-		fprintf_conf(f, token, " ");
-		for (i = 0; i < cfg.gbox_proxy_cards_num; i++)
-		{
-			fprintf(f, "%s%08lX", dot, cfg.gbox_proxy_card[i]);
-			dot = ",";
-		}
-		fprintf(f, "\n");
+		value = mk_t_gbox_proxy_card();
+		fprintf_conf(f, token, "%s\n", value);
+		free_mk_t(value);
 	}
 }
 
@@ -981,11 +1034,11 @@ static void gbox_port_fn(const char *token, char *value, void *UNUSED(setting), 
 	{
 		int i;
 		char *ptr, *saveptr1 = NULL;
-		memset(cfg.gbx_port, 0, sizeof(cfg.gbx_port));
+		memset(cfg.gbox_port, 0, sizeof(cfg.gbox_port));
 		for(i = 0, ptr = strtok_r(value, ",", &saveptr1); ptr && i < CS_MAXPORTS; ptr = strtok_r(NULL, ",", &saveptr1))
 		{
-			cfg.gbx_port[i] = strtoul(ptr, NULL, 10);
-			if(cfg.gbx_port[i])
+			cfg.gbox_port[i] = strtoul(ptr, NULL, 10);
+			if(cfg.gbox_port[i])
 				{ i++; }
 		}
 		return;
@@ -995,27 +1048,126 @@ static void gbox_port_fn(const char *token, char *value, void *UNUSED(setting), 
 	free_mk_t(value);
 }
 
+static void gbox_my_vers_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
+{
+	if(value)
+	{
+		const char *s;
+		s=value;
+		int32_t len = strlen(value);
+	if ((s[strspn(s, "0123456789abcdefABCDEF")] != 0) || (len == 0) || (len > 2))
+		{
+			cfg.gbox_my_vers = GBOX_MY_VERS_DEF;
+		}
+		else
+		{
+			cfg.gbox_my_vers = a2i(value,1);
+			return;
+		}
+	}
+
+	if(cfg.gbox_my_vers != GBOX_MY_VERS_DEF)
+	{
+		fprintf_conf(f, token, "%02X\n", cfg.gbox_my_vers);
+	}
+	else if(cfg.http_full_cfg)
+		{
+			fprintf_conf(f, token, "%02X\n", GBOX_MY_VERS_DEF);
+		}
+}
+
+static void gbox_my_cpu_api_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
+{
+	if(value)
+	{
+		const char *s;
+		s=value;
+		int32_t len = strlen(value);
+	if ((s[strspn(s, "0123456789abcdefABCDEF")] != 0) || (len == 0) || (len > 2))
+		{
+			cfg.gbox_my_cpu_api = GBOX_MY_CPU_API_DEF;
+		}
+		else
+		{
+			cfg.gbox_my_cpu_api = a2i(value,1);
+			return;
+		}
+	}
+	
+	if(cfg.gbox_my_cpu_api != GBOX_MY_CPU_API_DEF)
+	{
+		fprintf_conf(f, token, "%02X\n", cfg.gbox_my_cpu_api);
+	}
+	else if(cfg.http_full_cfg)
+		{ fprintf_conf(f, token, "%02X\n", GBOX_MY_CPU_API_DEF); }
+}
+
+static void gbox_dest_peers_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
+{
+	if (value)
+	{
+		char *ptr1, *saveptr1 = NULL;
+		const char *s;
+		memset(cfg.gbox_dest_peers, 0, sizeof(cfg.gbox_dest_peers));
+		int n = 0;
+		for (ptr1 = strtok_r(value, ",", &saveptr1); (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1))
+		{
+			s=trim(ptr1);
+			if ((n < GBOX_MAX_DEST_PEERS) && (s[strspn(s, "0123456789abcdefABCDEF")] == 0))
+			{ cfg.gbox_dest_peers[n++] = a2i(trim(ptr1), strlen(trim(ptr1))); }
+		}
+		cfg.gbox_dest_peers_num = n;
+		return;
+	}
+	if ((cfg.gbox_dest_peers_num > 0) && cfg.gbox_save_gsms)
+	{
+		value = mk_t_gbox_dest_peers();
+		fprintf_conf(f, token, "%s\n", value);
+		free_mk_t(value);
+	}
+}
+
+static void gbox_msg_txt_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
+{
+	int len = 0;
+	if (value)
+	{
+		len = strlen(value);
+		if (len > GBOX_MAX_MSG_TXT) { len = GBOX_MAX_MSG_TXT; }
+		cs_strncpy(cfg.gbox_msg_txt,value, len+1);
+		return;
+	}
+	if ((cfg.gbox_msg_txt[0]!='\0') && cfg.gbox_save_gsms)
+	{
+		fprintf_conf(f, token, "%s\n", cfg.gbox_msg_txt);
+	}
+}
+
 static bool gbox_should_save_fn(void *UNUSED(var))
 {
-	return cfg.gbx_port[0];
+	return cfg.gbox_port[0];
 }
 
 static const struct config_list gbox_opts[] =
 {
 	DEF_OPT_SAVE_FUNC(gbox_should_save_fn),
-	DEF_OPT_FUNC("port"		, OFS(gbx_port),		gbox_port_fn),
-	DEF_OPT_STR("hostname"		, OFS(gbox_hostname),		NULL),
-	DEF_OPT_INT32("gbox_reconnect"	, OFS(gbox_reconnect),		DEFAULT_GBOX_RECONNECT),
-	DEF_OPT_FUNC("proxy_card"	, OFS(gbox_proxy_card),		gbox_proxy_card_fn ),
-	DEF_OPT_SSTR("my_password"	, OFS(gbox_my_password),	"", SIZEOF(gbox_my_password)),
-	DEF_OPT_SSTR("my_vers"		, OFS(gbox_my_vers),		"25", SIZEOF(gbox_my_vers)),
-	DEF_OPT_SSTR("my_cpu_api"	, OFS(gbox_my_cpu_api),		"40", SIZEOF(gbox_my_cpu_api)),
-	DEF_OPT_UINT8("gsms_disable"	, OFS(gsms_dis),		0),
-	DEF_OPT_UINT8("ccc_reshare"		, OFS(ccc_reshare),	0),	
-	DEF_OPT_UINT8("log_hello"			, OFS(log_hello),		1),	
-	DEF_OPT_STR("tmp_dir"		, OFS(gbox_tmp_dir),		NULL),
-	DEF_OPT_FUNC("ignore_peer"	, OFS(gbox_ignored_peer),		gbox_ignored_peer_fn ),
-	DEF_OPT_FUNC("block_ecm"	, OFS(gbox_block_ecm),		gbox_block_ecm_fn ),
+	DEF_OPT_FUNC("port"		, OFS(gbox_port)	, gbox_port_fn),
+	DEF_OPT_STR("hostname"		, OFS(gbox_hostname)	, NULL),
+	DEF_OPT_FUNC("my_password"	, OFS(gbox_password)	, gbox_password_fn ),
+	DEF_OPT_INT32("gbox_reconnect"	, OFS(gbox_reconnect)	, DEFAULT_GBOX_RECONNECT),
+	DEF_OPT_FUNC("my_vers"		, OFS(gbox_my_vers)	, gbox_my_vers_fn),
+	DEF_OPT_FUNC("my_cpu_api"	, OFS(gbox_my_cpu_api)	, gbox_my_cpu_api_fn),
+	DEF_OPT_UINT8("ccc_reshare"	, OFS(ccc_reshare)	, 0),
+	DEF_OPT_UINT8("gsms_disable"	, OFS(gsms_dis)		, 1),
+	DEF_OPT_UINT8("log_hello"	, OFS(log_hello)	, 1),
+	DEF_OPT_STR("tmp_dir"		, OFS(gbox_tmp_dir)	, NULL ),
+	DEF_OPT_FUNC("ignore_peer"	, OFS(gbox_ignored_peer), gbox_ignored_peer_fn ),
+	DEF_OPT_FUNC("block_ecm"	, OFS(gbox_block_ecm)	, gbox_block_ecm_fn ),
+	DEF_OPT_FUNC("proxy_card"	, OFS(gbox_proxy_card)	, gbox_proxy_card_fn ),
+	DEF_OPT_UINT8("gbox_save_gsms"	, OFS(gbox_save_gsms)		, 0),
+ 	DEF_OPT_UINT8("gbox_msg_type"	, OFS(gbox_msg_type)		, 0),
+ 	DEF_OPT_FUNC("gbox_dest_peers"	, OFS(gbox_dest_peers)		, gbox_dest_peers_fn ),
+ 	DEF_OPT_FUNC("gbox_msg_txt"		, OFS(gbox_msg_txt)			, gbox_msg_txt_fn ),
 	DEF_LAST_OPT
 };
 #else
@@ -1191,6 +1343,7 @@ void config_free(void)
 	config_sections_free(oscam_conf, &cfg);
 	caidvaluetab_clear(&cfg.ftimeouttab);
 	caidtab_clear(&cfg.double_check_caid);
+	ftab_clear(&cfg.disablecrccws_only_for);
 #ifdef WITH_LB
 	caidvaluetab_clear(&cfg.lb_retrylimittab);
 	caidvaluetab_clear(&cfg.lb_nbest_readers_tab);

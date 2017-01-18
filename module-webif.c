@@ -30,6 +30,9 @@
 #include "oscam-string.h"
 #include "oscam-time.h"
 #include "oscam-work.h"
+#ifdef MODULE_GBOX
+#include "module-gbox-sms.h"
+#endif
 
 extern const struct s_cardreader *cardreaders[];
 extern char cs_confdir[];
@@ -68,17 +71,17 @@ static bool use_srvid2 = false;
 
 /* constants for menuactivating */
 #define MNU_STATUS 		0
-#define MNU_LIVELOG 	1
+#define MNU_LIVELOG 		1
 #define MNU_CONFIG		2
 #define MNU_READERS		3
 #define MNU_USERS		4
-#define MNU_SERVICES	5
+#define MNU_SERVICES		5
 #define MNU_FILES		6
 #define MNU_FAILBAN		7
 #define MNU_CACHEEX		8
 #define MNU_SCRIPT		9
-#define MNU_SHUTDOWN	10
-#define MNU_TOTAL_ITEMS 11 // sum of items above
+#define MNU_SHUTDOWN		10
+#define MNU_TOTAL_ITEMS 	11 // sum of items above
 
 /* constants for config.html submenuactivating */
 #define MNU_CFG_GLOBAL 		0
@@ -119,10 +122,19 @@ static bool use_srvid2 = false;
 #define MNU_CFG_FFAKECWS	15
 #define MNU_CFG_FCSS		16
 #define MNU_CFG_FTWIN		17
-#define MNU_CFG_FKEYCW 18
-#define MNU_CFG_FSOFTCAMKEY	19
+#define MNU_CFG_FKEYCW		18
+/* constants for files.html for GBOX submenuactivating */
+#define MNU_GBX_FSCINF      	19 
+#define MNU_GBX_FSHRINF     	20
+#define MNU_GBX_FSHRONL     	21
+#define MNU_GBX_FSTAINF     	22
+#define MNU_GBX_FEXPINF     	23
+#define MNU_GBX_FSMSLOG     	24
+#define MNU_GBX_FSMSACK     	25
+#define MNU_GBX_FSMSNACK    	26
+#define MNU_CFG_FSOFTCAMKEY	27
 
-#define MNU_CFG_TOTAL_ITEMS 20 // sum of config or files items above. Use it for "All inactive" in function calls too.
+#define MNU_CFG_TOTAL_ITEMS 	28 // sum of items above. Use it for "All inactive" in function calls too.
 
 static void set_status_info_var(struct templatevars *vars, char *varname, int no_data, char *fmt, double value) {
 	if (no_data)
@@ -703,6 +715,12 @@ static char *send_oscam_config_global(struct templatevars *vars, struct uriparam
 	tpl_addVar(vars, TPLADD, "DOUBLECHECKCAID", value);
 	free_mk_t(value);
 
+	tpl_addVar(vars, TPLADD, "DISABLECRCCWSCHECKEDGLOBAL", (cfg.disablecrccws == 1) ? "checked" : "");
+
+	value = mk_t_ftab(&cfg.disablecrccws_only_for);
+	tpl_addVar(vars, TPLADD, "IGNCHKSUMONLYFORGLOBAL", value);
+	free_mk_t(value);
+
 #ifdef LEDSUPPORT
 	if(cfg.enableled == 1)
 		{ tpl_addVar(vars, TPLADD, "ENABLELEDSELECTED1", "selected"); }
@@ -1009,14 +1027,146 @@ static char *send_oscam_config_newcamd(struct templatevars *vars, struct uripara
 #ifdef MODULE_GBOX
 static char *send_oscam_config_gbox(struct templatevars *vars, struct uriparams *params)
 {
+	uint8_t 	i=0;
+	char		local_gbox_save_gsms[2],local_gbox_msg_type[3], local_gbox_dest_peers[GBOX_MAX_DEST_PEERS*5], tmp_gbox_dest_peers[GBOX_MAX_DEST_PEERS*5] ;
+	int			n=0, len_gbox_save_gsms=0, len_gbox_msg_type=0, len_gbox_dest_peers=0, len_gbox_msg_txt=0;
+	char		*ptr1, *saveptr1, *isbroadcast = NULL;
+	const char	*s;
+	uint16_t	gbox_dest_peers_tmp;
+	
 	setActiveSubMenu(vars, MNU_CFG_GBOX);
 	webif_save_config("gbox", vars, params);
-
+	/*
+	 * Action when GetOnlinePeers is pressed
+	 */
+	if(streq(getParam(params, "action"), "Online peers"))
+	{
+		gbox_get_online_peers();
+		// init var
+		len_gbox_save_gsms=strlen(getParam(params, "gbox_msg_type"));
+		len_gbox_msg_type=strlen(getParam(params, "gbox_msg_type"));
+		len_gbox_msg_txt=strlen(getParam(params, "gbox_msg_txt"));
+		if(len_gbox_msg_txt>GBOX_MAX_MSG_TXT) { len_gbox_msg_txt=GBOX_MAX_MSG_TXT; }
+		// retrieve value from Webif
+		cs_strncpy(local_gbox_save_gsms, getParam(params, "gbox_save_gsms"), len_gbox_save_gsms+1);
+		cfg.gbox_save_gsms=atoi(local_gbox_save_gsms);
+		cs_strncpy(local_gbox_msg_type, getParam(params, "gbox_msg_type"), len_gbox_msg_type+1);
+		cfg.gbox_msg_type=atoi(local_gbox_msg_type);
+		cs_strncpy(cfg.gbox_msg_txt,getParam(params, "gbox_msg_txt"), len_gbox_msg_txt+1);
+	}
+	/*
+	 *  Action when ResetGSMS button is pressed
+	 */	
+	if(streq(getParam(params, "action"), "resetallgsms"))
+	{
+		cfg.gbox_save_gsms = 0;
+		cfg.gbox_msg_type = 0;
+		for(i = 0; i < GBOX_MAX_DEST_PEERS; i++)
+		{
+			cfg.gbox_dest_peers[i]='\0';
+		}
+		cfg.gbox_dest_peers_num=0;
+		for(i = 0; i < GBOX_MAX_MSG_TXT; i++)
+		{
+			cfg.gbox_msg_txt[i]='\0';
+		}	
+		tpl_addMsg(vars, "GBOX: Reset GSMS datas done!");
+	}
+	/*
+	 * Action when Send GSMS is pressed
+	 */
+	if(streq(getParam(params, "action"), "Send GSMS"))
+	{		
+		// init var
+		len_gbox_msg_type=strlen(getParam(params, "gbox_msg_type"));
+		len_gbox_dest_peers=strlen(trim(getParam(params, "gbox_dest_peers")));
+		len_gbox_msg_txt=strlen(getParam(params, "gbox_msg_txt"));
+		if(len_gbox_msg_txt>GBOX_MAX_MSG_TXT) { len_gbox_msg_txt=GBOX_MAX_MSG_TXT; }
+		// retrieve value from Webif
+		cs_strncpy(local_gbox_msg_type, getParam(params, "gbox_msg_type"), len_gbox_msg_type+1);
+		cfg.gbox_msg_type=atoi(local_gbox_msg_type);
+		cs_strncpy(local_gbox_dest_peers, strtoupper(trim(getParam(params, "gbox_dest_peers"))), len_gbox_dest_peers+1);
+		cs_strncpy(tmp_gbox_dest_peers, strtoupper(trim(getParam(params, "gbox_dest_peers"))), len_gbox_dest_peers+1);
+		cs_strncpy(cfg.gbox_msg_txt,getParam(params, "gbox_msg_txt"), len_gbox_msg_txt+1);
+		n=0;
+		for (ptr1 = strtok_r(tmp_gbox_dest_peers, ",", &saveptr1); (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1))
+		{
+			s=trim(ptr1);
+			if ((n < GBOX_MAX_DEST_PEERS) && (s[strspn(s, "0123456789abcdefABCDEF")] == 0))
+			{ cfg.gbox_dest_peers[n++] = a2i(trim(ptr1), strlen(trim(ptr1))); }
+		}
+		cfg.gbox_dest_peers_num = n;
+		/*
+			Start sending GBox SMS
+		*/		
+		if((strlen(cfg.gbox_msg_txt) > 5))
+		{
+			isbroadcast=strstr(local_gbox_dest_peers, "FFFF");
+			if(isbroadcast == NULL)
+			{
+				n =0;	
+				for (i = 0, ptr1 = strtok_r(local_gbox_dest_peers, ",", &saveptr1); (i < 4) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1))
+				{
+					s=ptr1;
+					if ((n < GBOX_MAX_DEST_PEERS) && (s[strspn(s, "0123456789abcdefABCDEF")] == 0))
+					{ 
+						gbox_dest_peers_tmp = a2i(ptr1, 4);
+						if(gbox_direct_send_gsms(gbox_dest_peers_tmp, cfg.gbox_msg_type, cfg.gbox_msg_txt)) { cs_log("GBOX  message sent to[%04X] type[%d] text[%s] ", gbox_dest_peers_tmp, cfg.gbox_msg_type, cfg.gbox_msg_txt);}
+						n++;
+					}
+				}
+				tpl_addMsg(vars, "GBOX Send SMS: individual messages started.");
+			}
+			else
+			{
+				if(gbox_direct_send_gsms(0xFFFF, cfg.gbox_msg_type, cfg.gbox_msg_txt)) { cs_log("GBOX broadcast message sent type[%d] text[%s] ", cfg.gbox_msg_type, cfg.gbox_msg_txt);}
+				tpl_addMsg(vars, "GBOX Send SMS: broadcast started.");
+			}
+		}
+		else
+		{
+			cs_log("GBox SMS: destination peers or message text not specified or too short");
+			tpl_addMsg(vars, "GBOX: Send SMS failed - error in input fields: dest peers or text message.");
+		}
+	}
+		
 	tpl_addVar(vars, TPLADD, "HOSTNAME", xml_encode(vars, cfg.gbox_hostname));
-	char *value = mk_t_gbox_port();
-	tpl_addVar(vars, TPLAPPEND, "PORT", value);
-	free_mk_t(value);
-	tpl_addVar(vars, TPLADD, "MYPASSWORD", xml_encode(vars, cfg.gbox_my_password));
+	char *value0 = mk_t_gbox_port();
+	tpl_addVar(vars, TPLAPPEND, "PORT", value0);
+	free_mk_t(value0);
+	tpl_printf(vars, TPLADD, "GBOXPASSWORD", "%08X", cfg.gbox_password);
+	tpl_printf(vars, TPLADD, "GBOXRECONNECT", "%d", cfg.gbox_reconnect);
+	tpl_printf(vars, TPLADD, "GBOXMYVERS", "%02X", cfg.gbox_my_vers);
+	tpl_printf(vars, TPLAPPEND, "GBOXMYCPUAPI", "%02X", cfg.gbox_my_cpu_api);
+	if(cfg.ccc_reshare == 1)  { tpl_addVar(vars, TPLADD, "GBOXCCCRESHARE", "checked"); }
+	if(cfg.log_hello == 1)  { tpl_addVar(vars, TPLADD, "GBOXLOGHELLO", "checked"); }
+	if(cfg.gsms_dis == 1)  { tpl_addVar(vars, TPLADD, "GBOXGSMSDISABLE", "checked"); }
+	if(cfg.gbox_tmp_dir != NULL) { tpl_addVar(vars, TPLADD, "GBOXTMPDIR", cfg.gbox_tmp_dir); }
+	char *value1 = mk_t_gbox_proxy_card();	
+	tpl_addVar(vars, TPLAPPEND, "GBOXPROXYCARD", value1);
+	free_mk_t(value1);
+	char *value2 = mk_t_gbox_ignored_peer();	
+	tpl_addVar(vars, TPLAPPEND, "GBOXIGNOREDPEER", value2);
+	free_mk_t(value2);
+	char *value3 = mk_t_gbox_block_ecm();	
+	tpl_addVar(vars, TPLAPPEND, "GBOXBLOCKECM", value3);
+	free_mk_t(value3);
+/* 
+ *	GBOX SMS
+*/
+	tpl_addVar(vars, TPLADD, "GBOXSAVEGSMS", (cfg.gbox_save_gsms == 1) ? "checked" : "");
+	if(cfg.gbox_msg_type == 0)
+	{
+		tpl_addVar(vars, TPLADD, "GBOXMSGTYPENORMAL", "selected");
+	}
+	else if(cfg.gbox_msg_type == 1)
+	{
+		tpl_addVar(vars, TPLADD, "GBOXMSGTYPEOSD", "selected");	
+	}
+	char *gmsg_dest_peers = mk_t_gbox_dest_peers();
+	tpl_addVar(vars, TPLADD, "GBOXMSGDESTPEERS", gmsg_dest_peers); 
+	free_mk_t(gmsg_dest_peers);
+	tpl_addVar(vars, TPLADD, "GBOXMSGTXT", cfg.gbox_msg_txt);
 
 	return tpl_getTpl(vars, "CONFIGGBOX");
 }
@@ -2082,6 +2232,11 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	tpl_addVar(vars, TPLADD, "FALLBACK_PERCAID", value);
 	free_mk_t(value);
 
+	// disable checksum test only for selected caid/provid
+	value = mk_t_ftab(&rdr->disablecrccws_only_for);
+	tpl_addVar(vars, TPLADD, "IGN_CHKSUM_ONLYFOR", value);
+	free_mk_t(value);
+
 #ifdef WITH_LB
 		tpl_addVar(vars, TPLADD, "LBFORCEFALLBACK", (rdr->lb_force_fallback == 1) ? "checked" : "");
 #endif
@@ -2558,6 +2713,7 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	tpl_printf(vars, TPLADD, "GBOXMAXDISTANCE",   "%d", rdr->gbox_maxdist);
 	tpl_printf(vars, TPLADD, "GBOXMAXECMSEND",   "%d", rdr->gbox_maxecmsend);
 	tpl_printf(vars, TPLADD, "GBOXRESHARE",   "%d", rdr->gbox_reshare);
+	tpl_printf(vars, TPLADD, "GBOXCCCAMRESHARE",   "%d", rdr->gbox_cccam_reshare);
 #endif
 
 #ifdef READER_DRECAS
@@ -2619,9 +2775,11 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	case R_GHTTP:
 		tpl_addVar(vars, TPLAPPEND, "READERDEPENDINGCONFIG", tpl_getTpl(vars, "READERCONFIGGHTTPBIT"));
 		break;
+#ifdef MODULE_GBOX
 	case R_GBOX:
 		tpl_addVar(vars, TPLAPPEND, "READERDEPENDINGCONFIG", tpl_getTpl(vars, "READERCONFIGGBOXBIT"));
 		break;
+#endif
 	case R_NEWCAMD:
 		if(rdr->ncd_proto == NCD_525)
 		{
@@ -3265,6 +3423,10 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 	tpl_addVar(vars, TPLADD, "AFCHECKED", (account->cacheex.allow_filter == 1) ? "checked" : "");
 	tpl_addVar(vars, TPLADD, "BLOCKFAKECWSCHECKED", (account->cacheex.block_fakecws == 1) ? "checked" : "");
 	tpl_addVar(vars, TPLADD, "NWTCHECKED", (account->no_wait_time == 1) ? "checked" : "");
+	tpl_addVar(vars, TPLADD, "DISABLECRCCEX4USER", (account->disablecrccacheex == 1) ? "checked" : "");
+	value = mk_t_ftab(&account->disablecrccacheex_only_for);
+	tpl_addVar(vars, TPLADD, "IGNCRCCEX4USERONLYFOR", value);
+	free_mk_t(value);
 	
 #endif
 
@@ -3418,7 +3580,7 @@ static void webif_add_client_proto(struct templatevars *vars, struct s_client *c
 	if(strncmp(proto, "cccam", 5) == 0)
 	{
 		struct cc_data *cc = cl->cc;
-		if(cc && cc->remote_version && cc->remote_build)
+		if(cc && *cc->remote_version && *cc->remote_build)
 		{
 			tpl_printf(vars, TPLADD, "CLIENTPROTO", "%s (%s-%s)", proto, cc->remote_version, cc->remote_build);
 			tpl_printf(vars, TPLADD, "CLIENTPROTOSORT", "%s (%s-%s)", proto, cc->remote_version, cc->remote_build);
@@ -6222,7 +6384,7 @@ static void webif_process_userfile(struct templatevars * vars, struct uriparams 
 	tpl_addVar(vars, TPLADD, "FILTERFORM", tpl_getTpl(vars, "FILTERFORM"));
 }
 
-enum file_types { FTYPE_CONFIG, FTYPE_VERSION, FTYPE_ANTICASC, FTYPE_LOGFILE, FTYPE_USERFILE };
+enum file_types { FTYPE_CONFIG, FTYPE_VERSION, FTYPE_ANTICASC, FTYPE_LOGFILE, FTYPE_USERFILE , FTYPE_GBOX };
 
 struct files
 {
@@ -6269,8 +6431,18 @@ static char *send_oscam_files(struct templatevars * vars, struct uriparams * par
 #ifdef MODULE_CONSTCW
 		{ "constant.cw",     MNU_CFG_FKEYCW,    FTYPE_CONFIG },     // id 18
 #endif
+#ifdef MODULE_GBOX
+		{ "sc.info",         MNU_GBX_FSCINF,    FTYPE_GBOX },     // id 19
+		{ "share.info",      MNU_GBX_FSHRINF,   FTYPE_GBOX },     // id 20
+		{ "share.onl",       MNU_GBX_FSHRONL,   FTYPE_GBOX },     // id 21
+		{ "stats.info",      MNU_GBX_FSTAINF,   FTYPE_GBOX },     // id 22
+		{ "expired.info",    MNU_GBX_FEXPINF,   FTYPE_GBOX },     // id 23
+		{ "gsms.log",        MNU_GBX_FSMSLOG,   FTYPE_GBOX },     // id 24
+		{ "gsms.ack",        MNU_GBX_FSMSACK,   FTYPE_GBOX },     // id 25
+		{ "gsms.nack",       MNU_GBX_FSMSNACK,  FTYPE_GBOX },     // id 26
+#endif
 #ifdef WITH_EMU
-		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },	// id 19
+		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },	// id 27
 #endif
 		{ NULL, 0, 0 },
 	};
@@ -6357,6 +6529,11 @@ static char *send_oscam_files(struct templatevars * vars, struct uriparams * par
 				break;
 			case FTYPE_USERFILE:
 				if(!apicall) { webif_process_userfile(vars, params, targetfile, sizeof(targetfile)); }
+				break;
+			case FTYPE_GBOX:
+#ifdef MODULE_GBOX
+				get_gbox_filename(targetfile, sizeof(targetfile), entry->file);
+#endif
 				break;
 			}
 			tpl_addVar(vars, TPLADD, "APIFILENAME", entry->file);
@@ -6910,7 +7087,9 @@ static char *send_oscam_EMM(struct templatevars * vars, struct uriparams * param
 static uint64_t get_cacheex_node(struct s_client * cl)
 {
 	uint64_t node = 0x00;
+#if defined(MODULE_CCCAM) || defined(MODULE_CAMD35) || defined(MODULE_CAMD35_TCP)
 	struct s_module *module = (cl->reader ? &cl->reader->ph : get_module(cl));
+#endif
 #ifdef MODULE_CCCAM
 	if(module->num == R_CCCAM && cl->cc)
 	{
@@ -8243,6 +8422,7 @@ static int32_t process_request(FILE * f, IN_ADDR_T in)
 			case 29:
 				result = send_oscam_logpoll(vars, &params);
 				break;
+			//case 30: jquery.js
 #endif				
 			default:
 				result = send_oscam_status(vars, &params, 0);

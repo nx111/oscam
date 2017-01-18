@@ -574,7 +574,7 @@ config_dialog() {
 		opt=${?}
 		if [ $opt != 0 ]; then clear; exit; fi
 
-		menuitem=`cat $tempfile`
+		menuitem=$(cat $tempfile)
 		case $menuitem in
 			Add-ons) menu_addons ;;
 			Protocols) menu_protocols ;;

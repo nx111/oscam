@@ -139,9 +139,9 @@ char *mk_t_camd35tcp_port(void)
 	/* Precheck to determine how long the resulting string will maximally be (might be a little bit smaller but that shouldn't hurt) */
 	for(i = 0; i < cfg.c35_tcp_ptab.nports; ++i)
 	{
-		/* Port is maximally 5 chars long, plus the @caid, plus the ";" between ports */
-		needed += 11;
-		if(cfg.c35_tcp_ptab.ports[i].ncd && cfg.c35_tcp_ptab.ports[i].ncd->ncd_ftab.filts[0].nprids > 1)
+		/* Port is maximally 5 chars long, plus comma, plus the @caid, plus the :provid plus the ";" between ports */
+		needed += 18;
+		if(cfg.c35_tcp_ptab.ports[i].ncd && cfg.c35_tcp_ptab.ports[i].ncd->ncd_ftab.filts[0].nprids > 0)
 		{
 			needed += cfg.c35_tcp_ptab.ports[i].ncd->ncd_ftab.filts[0].nprids * 7;
 		}
@@ -159,12 +159,12 @@ char *mk_t_camd35tcp_port(void)
 							cfg.c35_tcp_ptab.ports[i].s_port,
 							cfg.c35_tcp_ptab.ports[i].ncd->ncd_ftab.filts[0].caid);
 
-			if(cfg.c35_tcp_ptab.ports[i].ncd->ncd_ftab.filts[0].nprids > 1)
+			if(cfg.c35_tcp_ptab.ports[i].ncd->ncd_ftab.filts[0].nprids > 0)
 			{
 				dot2 = ":";
 				for(j = 0; j < cfg.c35_tcp_ptab.ports[i].ncd->ncd_ftab.filts[0].nprids; ++j)
 				{
-					pos += snprintf(value + pos, needed - (value - saveptr), "%s%X", dot2, cfg.c35_tcp_ptab.ports[i].ncd->ncd_ftab.filts[0].prids[j]);
+					pos += snprintf(value + pos, needed - (value - saveptr), "%s%06X", dot2, cfg.c35_tcp_ptab.ports[i].ncd->ncd_ftab.filts[0].prids[j]);
 					dot2 = ",";
 				}
 			}
@@ -172,7 +172,8 @@ char *mk_t_camd35tcp_port(void)
 		}
 		else
 		{
-			pos += snprintf(value + pos, needed - (value - saveptr), "%d", cfg.c35_tcp_ptab.ports[i].s_port);
+			pos += snprintf(value + pos, needed - (value - saveptr), "%s%d", dot1, cfg.c35_tcp_ptab.ports[i].s_port);
+			dot1 = ";";
 		}
 	}
 	return value;
@@ -216,9 +217,84 @@ char *mk_t_gbox_port(void)
 	char *dot = "";
 	for(i = 0; i < CS_MAXPORTS; i++)
 	{
-		if(!cfg.gbx_port[i]) { break; }
+		if(!cfg.gbox_port[i]) { break; }
 
-		pos += snprintf(value + pos, needed - pos, "%s%d", dot, cfg.gbx_port[i]);
+		pos += snprintf(value + pos, needed - pos, "%s%d", dot, cfg.gbox_port[i]);
+		dot = ",";
+	}
+	return value;
+}
+/*
+ * Creates a string ready to write as a token into config or WebIf for the gbox proxy card. You must free the returned value through free_mk_t().
+ */
+char *mk_t_gbox_proxy_card(void)
+{
+	int32_t i, pos = 0, needed = GBOX_MAX_PROXY_CARDS * 9 + 8;
+
+	char *value;
+	if(!cs_malloc(&value, needed)) { return ""; }
+	char *dot = "";
+	for(i = 0; i < GBOX_MAX_PROXY_CARDS; i++)
+	{
+		if(!cfg.gbox_proxy_card[i]) { break; }
+
+		pos += snprintf(value + pos, needed - pos, "%s%08lX", dot, cfg.gbox_proxy_card[i]);
+		dot = ",";
+	}
+	return value;
+}
+/*
+ * Creates a string ready to write as a token into config or WebIf for the gbox ignore peer. You must free the returned value through free_mk_t().
+ */
+char *mk_t_gbox_ignored_peer(void)
+{
+	int32_t i, pos = 0, needed = GBOX_MAX_IGNORED_PEERS * 5 + 8;
+
+	char *value;
+	if(!cs_malloc(&value, needed)) { return ""; }
+	char *dot = "";
+	for(i = 0; i < GBOX_MAX_IGNORED_PEERS; i++)
+	{
+		if(!cfg.gbox_ignored_peer[i]) { break; }
+
+		pos += snprintf(value + pos, needed - pos, "%s%04hX", dot, cfg.gbox_ignored_peer[i]);
+		dot = ",";
+	}
+	return value;
+}
+/*
+ * Creates a string ready to write as a token into config or WebIf for the gbox block ecm. You must free the returned value through free_mk_t().
+ */
+char *mk_t_gbox_block_ecm(void)
+{
+	int32_t i, pos = 0, needed = GBOX_MAX_BLOCKED_ECM * 5 + 8;
+
+	char *value;
+	if(!cs_malloc(&value, needed)) { return ""; }
+	char *dot = "";
+	for(i = 0; i < GBOX_MAX_BLOCKED_ECM; i++)
+	{
+		if(!cfg.gbox_block_ecm[i]) { break; }
+
+		pos += snprintf(value + pos, needed - pos, "%s%04hX", dot, cfg.gbox_block_ecm[i]);
+		dot = ",";
+	}
+	return value;
+}
+/*
+ * Creates a string ready to write as a token into config or WebIf for the gbox SMS dest peers. You must free the returned value through free_mk_t().
+ */
+char *mk_t_gbox_dest_peers(void)
+{
+	int32_t i, pos = 0, needed = GBOX_MAX_DEST_PEERS * 5 + 8;
+
+	char *value;
+	if(!cs_malloc(&value, needed)) { return ""; }
+	char *dot = "";
+	for(i = 0; i < GBOX_MAX_DEST_PEERS; i++)
+	{
+		if(!cfg.gbox_dest_peers[i]) { break; }
+		pos += snprintf(value + pos, needed - pos, "%s%04hX", dot, cfg.gbox_dest_peers[i]);
 		dot = ",";
 	}
 	return value;
