@@ -127,14 +127,16 @@ static bool use_srvid2 = false;
 #define MNU_GBX_FSCINF      	19 
 #define MNU_GBX_FSHRINF     	20
 #define MNU_GBX_FSHRONL     	21
-#define MNU_GBX_FSTAINF     	22
-#define MNU_GBX_FEXPINF     	23
+#define MNU_GBX_FVERS       	22
+#define MNU_GBX_FATTACK     	23
 #define MNU_GBX_FSMSLOG     	24
 #define MNU_GBX_FSMSACK     	25
 #define MNU_GBX_FSMSNACK    	26
-#define MNU_CFG_FSOFTCAMKEY	27
+#define MNU_GBX_FSTAINF     	27
+#define MNU_GBX_FEXPINF     	28
+#define MNU_CFG_FSOFTCAMKEY	29
 
-#define MNU_CFG_TOTAL_ITEMS 	28 // sum of items above. Use it for "All inactive" in function calls too.
+#define MNU_CFG_TOTAL_ITEMS 	30 // sum of items above. Use it for "All inactive" in function calls too.
 
 static void set_status_info_var(struct templatevars *vars, char *varname, int no_data, char *fmt, double value) {
 	if (no_data)
@@ -3222,16 +3224,11 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 	char buf [80];
 	strftime(buf, 80, "%Y-%m-%d", &timeinfo);
 	if(strcmp(buf, "1970-01-01")) { tpl_addVar(vars, TPLADD, "EXPDATE", buf); }
-
+	
 	//Allowed TimeFrame
-	if(account->allowedtimeframe[0] && account->allowedtimeframe[1])
-	{
-		tpl_printf(vars, TPLADD, "ALLOWEDTIMEFRAME", "%02d:%02d-%02d:%02d",
-				   account->allowedtimeframe[0] / 60,
-				   account->allowedtimeframe[0] % 60,
-				   account->allowedtimeframe[1] / 60,
-				   account->allowedtimeframe[1] % 60);
-	}
+	char *allowedtf = mk_t_allowedtimeframe(account);
+	tpl_printf(vars, TPLADD, "ALLOWEDTIMEFRAME", "%s", allowedtf);
+	free_mk_t(allowedtf);
 
 	//Group
 	char *value = mk_t_group(account->grp);
@@ -6435,14 +6432,16 @@ static char *send_oscam_files(struct templatevars * vars, struct uriparams * par
 		{ "sc.info",         MNU_GBX_FSCINF,    FTYPE_GBOX },     // id 19
 		{ "share.info",      MNU_GBX_FSHRINF,   FTYPE_GBOX },     // id 20
 		{ "share.onl",       MNU_GBX_FSHRONL,   FTYPE_GBOX },     // id 21
-		{ "stats.info",      MNU_GBX_FSTAINF,   FTYPE_GBOX },     // id 22
-		{ "expired.info",    MNU_GBX_FEXPINF,   FTYPE_GBOX },     // id 23
+		{ "gbox.ver",        MNU_GBX_FVERS,     FTYPE_GBOX },     // id 22
+		{ "attack.txt",      MNU_GBX_FATTACK,   FTYPE_GBOX },     // id 23
 		{ "gsms.log",        MNU_GBX_FSMSLOG,   FTYPE_GBOX },     // id 24
 		{ "gsms.ack",        MNU_GBX_FSMSACK,   FTYPE_GBOX },     // id 25
 		{ "gsms.nack",       MNU_GBX_FSMSNACK,  FTYPE_GBOX },     // id 26
+		{ "stats.info",      MNU_GBX_FSTAINF,   FTYPE_GBOX },     // id 27
+		{ "expired.info",    MNU_GBX_FEXPINF,   FTYPE_GBOX },     // id 28
 #endif
 #ifdef WITH_EMU
-		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },	// id 27
+		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },	// id 29
 #endif
 		{ NULL, 0, 0 },
 	};

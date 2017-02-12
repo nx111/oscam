@@ -1576,7 +1576,7 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 	}
 
 	//SPECIAL CHECKs for rc
-	if(rc < E_NOTFOUND && cw && chk_is_null_CW(cw))    //if cw=0 by anticascading
+	if(rc < E_NOTFOUND && cw && chk_is_null_CW(cw) && er->caid !=0x2600) // 0x2600 used by biss and constant cw could be zero but still catch cw=0 by anticascading
 	{
 		rc = E_NOTFOUND;
 		cs_log_dbg(D_TRACE | D_LB, "WARNING: reader %s send fake cw, set rc=E_NOTFOUND!", reader ? reader->label : "-");
@@ -1702,7 +1702,7 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 	if(!ea->is_pending)   //not for pending ea - only once for ea
 	{
 		//cache update
-		if(ea && (ea->rc < E_NOTFOUND) && (!chk_is_null_CW(ea->cw)))
+		if(ea && (ea->rc < E_NOTFOUND) && (!chk_is_null_CW(ea->cw) && er->caid !=0x2600)) // 0x2600 used by biss and constant cw could be indeed zero
 			add_cache_from_reader(er, reader, er->csp_hash, er->ecmd5, ea->cw, er->caid, er->prid, er->srvid );
 
 		//readers stats for LB
@@ -2106,18 +2106,26 @@ void get_cw(struct s_client *client, ECM_REQUEST *er)
 		{ er->rc = E_EXPDATE; }
 
 	// out of timeframe
-	if(client->allowedtimeframe[0] && client->allowedtimeframe[1])
+	if(client->allowedtimeframe_set)
 	{
 		struct tm acttm;
 		localtime_r(&now, &acttm);
-		int32_t curtime = (acttm.tm_hour * 60) + acttm.tm_min;
-		int32_t mintime = client->allowedtimeframe[0];
-		int32_t maxtime = client->allowedtimeframe[1];
-		if(!((mintime <= maxtime && curtime > mintime && curtime < maxtime) || (mintime > maxtime && (curtime > mintime || curtime < maxtime))))
+		int32_t curday = acttm.tm_wday;
+		char *dest = strstr(weekdstr,"ALL");
+		int32_t all_idx = (dest - weekdstr)/3;
+		uint8_t allowed=0;
+		
+		// checkout if current time is allowed in the current day
+		allowed = CHECK_BIT(client->allowedtimeframe[curday][acttm.tm_hour][acttm.tm_min/30], (acttm.tm_min % 30));
+		
+		// or checkout if current time is allowed for all days
+		allowed |= CHECK_BIT(client->allowedtimeframe[all_idx][acttm.tm_hour][acttm.tm_min/30], (acttm.tm_min % 30));
+		
+		if(!(allowed))
 		{
 			er->rc = E_EXPDATE;
 		}
-		cs_log_dbg(D_TRACE, "Check Timeframe - result: %d, start: %d, current: %d, end: %d\n", er->rc, mintime, curtime, maxtime);
+		cs_log_dbg(D_TRACE, "Check Timeframe - result: %d, day:%s time: %02dH%02d, allowed: %s\n", er->rc, shortDay[curday], acttm.tm_hour, acttm.tm_min, allowed ? "true" : "false");
 	}
 
 	// user disabled
