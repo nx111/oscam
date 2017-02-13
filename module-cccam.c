@@ -2075,6 +2075,7 @@ void cc_idle(void)
 			if(cl->reader)
 			{
 				cl->reader->last_s = now;
+				cl->reader->last_g = now;
 			}
 		}
 		return;
@@ -3097,15 +3098,15 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l)
 		break;
 
 	case MSG_KEEPALIVE:
-#ifdef MODULE_CCCSHARE
-		if(cl && rdr == NULL) // server: react to keepalive package from client
+		if(cl)
 		{
-			cc_s_idle(cl);
+			cl->last = time(NULL);
 		}
-#endif
-		if(rdr && rdr->cc_keepalive) // client: received keepalive package from server
+		if(rdr && rdr->cc_keepalive)
 		{
 			rdr->last_g = time(NULL);
+			rdr->last_s = time(NULL);
+			rdr_log_dbg(rdr, D_READER, "%s: receive keepalive", __func__);
 		}
 		
 		cc->just_logged_in = 0;
