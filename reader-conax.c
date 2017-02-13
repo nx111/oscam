@@ -136,7 +136,22 @@ static uint8_t PairingECMRotation(struct s_reader *reader, const ECM_REQUEST *er
 	reader->cnxlastecm = cnxcurrecm;
 	return cnxcurrecm;
 }
-
+/*
+static void Dump(const char* szTitle, const unsigned char* pData, int nSize)
+{
+	int i;
+	printf("%s", szTitle);
+	for( i = 0 ; i < nSize; i ++)
+	{
+		if((i%16) == 0)
+		{
+			printf("\r\n");
+		}
+		printf("%02X ", pData[i]);
+	}
+	printf("\r\n\r\n");
+}
+*/
 static int32_t conax_card_init(struct s_reader *reader, ATR *newatr)
 {
 	unsigned char cta_res[CTA_RES_LEN];
@@ -149,7 +164,11 @@ static int32_t conax_card_init(struct s_reader *reader, ATR *newatr)
 	uchar cardver = 0;
 
 	get_hist;
-	if((hist_size < 4) || (memcmp(hist, "0B00", 4)))
+
+	if(hist_size < 4) 
+		{ return ERROR; }
+
+	if((memcmp(hist, "0B00", 4) != 0) && (memcmp(hist, "\x62\xc9\x01\x01", 4) != 0) )
 		{ return ERROR; }
 
 	reader->caid = 0xB00;

@@ -497,6 +497,28 @@ FILE *open_config_file_or_die(const char *conf_filename)
 	return __open_config_file(conf_filename, true);
 }
 
+static const char DEFAULT_CONF[] = "[global]\n"
+"logfile                       = /mnt/ram/oscam.log\n"
+"fallbacktimeout               = 2000\n"
+"netprio                       = 1\n"
+"nice                          = -1\n"
+"maxlogsize                    = 500\n"
+"waitforcards                  = 0\n"
+"dropdups                      = 1\n"
+"lb_min_ecmcount               = 20\n"
+"failbancount                  = 50\n"
+"\n"
+"[dvbapi]"
+"enabled                       = 1\n"
+"au                            = 1\n"
+"user                          = anonymous\n"
+"\n"
+"[webif]"
+"httpport                      = 1211\n"
+"httpallowed                   = 0.0.0.0-255.255.255.255\n"
+"httpuser                      = admin\n"
+"httppwd                       = 36999209\n\n";
+
 
 FILE *create_config_file(const char *conf_filename)
 {
@@ -513,6 +535,8 @@ FILE *create_config_file(const char *conf_filename)
 			conf_filename, CS_VERSION, CS_SVN_VERSION);
 	fprintf(f, "# Read more: http://www.streamboard.tv/svn/oscam/trunk/Distribution/doc/txt/%s.txt\n\n",
 			conf_filename);
+
+//	fprintf(f, DEFAULT_CONF);
 	return f;
 }
 

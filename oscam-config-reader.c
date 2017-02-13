@@ -99,6 +99,8 @@ static void protocol_fn(const char *token, char *value, void *setting, FILE *f)
 			{ "camd33",     R_CAMD33 },
 			{ "gbox",       R_GBOX },
 			{ "cccam",      R_CCCAM },
+			{ "cccamx",     R_CCCAM },
+			{ "acam",		R_CCCAM },
 			{ "cccam_ext",  R_CCCAM },
 			{ "cccam_mcs",  R_CCCAM },
 			{ "constcw",    R_CONSTCW },
@@ -132,6 +134,20 @@ static void protocol_fn(const char *token, char *value, void *setting, FILE *f)
 				break;
 			}
 		}
+
+		if (streq(value, "cccamx")) 
+		{
+			rdr->cccamx = 1;
+		}
+		else if (streq(value, "acam")) 
+		{
+			rdr->cccamx = 2;
+		}
+		else
+		{
+			rdr->cccamx = 0;
+		}
+
 		if(rdr->typ == R_NEWCAMD)
 			{ rdr->ncd_proto = streq(value, "newcamd524") ? NCD_524 : NCD_525; }
 		if(!rdr->typ)

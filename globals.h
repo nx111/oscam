@@ -1,8 +1,10 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
-#undef _GNU_SOURCE
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE //needed for PTHREAD_MUTEX_RECURSIVE on some plattforms and maybe other things; do not remove
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -55,6 +57,23 @@
 #define ___config_enabled(__ignored, val, ...) val
 
 #include "config.h"
+#ifndef NO_ENDIAN_H
+#if defined(__APPLE__)
+#include <machine/endian.h>
+#define __BYTE_ORDER __DARWIN_BYTE_ORDER
+#define __BIG_ENDIAN    __DARWIN_BIG_ENDIAN
+#define __LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
+#elif defined(__FreeBSD__) || defined(__OpenBSD__)
+#include <sys/endian.h>
+#define __BYTE_ORDER _BYTE_ORDER
+#define __BIG_ENDIAN    _BIG_ENDIAN
+#define __LITTLE_ENDIAN _LITTLE_ENDIAN
+#else
+#include <endian.h>
+#include <byteswap.h>
+#endif
+#endif
+
 
 #if defined(WITH_SSL) && !defined(WITH_LIBCRYPTO)
 #  define WITH_LIBCRYPTO 1
@@ -125,22 +144,7 @@ typedef unsigned char uchar;
 #define DEFAULT_AF AF_INET
 #endif
 
-#ifndef NO_ENDIAN_H
-#if defined(__APPLE__)
-#include <machine/endian.h>
-#define __BYTE_ORDER __DARWIN_BYTE_ORDER
-#define __BIG_ENDIAN    __DARWIN_BIG_ENDIAN
-#define __LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
-#elif defined(__FreeBSD__) || defined(__OpenBSD__)
-#include <sys/endian.h>
-#define __BYTE_ORDER _BYTE_ORDER
-#define __BIG_ENDIAN    _BIG_ENDIAN
-#define __LITTLE_ENDIAN _LITTLE_ENDIAN
-#else
-#include <endian.h>
-#include <byteswap.h>
-#endif
-#endif
+
 
 /* ===========================
  *         macros
@@ -370,10 +374,10 @@ typedef unsigned char uchar;
 #   define CS_TARGET "unknown"
 #endif
 #ifndef CS_CONFDIR
-#define CS_CONFDIR    "/usr/local/etc"
+#define CS_CONFDIR    "/data/tiartop_dvb"
 #endif
 #ifndef CS_LOGFILE
-#define CS_LOGFILE    "/var/log/oscam.log"
+#define CS_LOGFILE    "/mnt/ram/oscam.log"
 #endif
 #define CS_QLEN       128 // size of request queue
 #define CS_MAXPROV    32
@@ -1598,6 +1602,7 @@ struct s_reader                                     //contains device info, read
 	int8_t          from_cccam_cfg;                 //created from cccam.cfg
 #endif
 	int8_t          tcp_connected;
+	int8_t			getcw_success;
 	int32_t         tcp_ito;                        // inactivity timeout
 	int32_t         tcp_rto;                        // reconnect timeout
 	int32_t         tcp_reconnect_delay;			// max tcp connection block delay
@@ -1741,6 +1746,9 @@ struct s_reader                                     //contains device info, read
 	uint8_t		gbox_cccam_reshare;
 	char		last_gsms[128];
 #endif
+
+	uint8_t			cccamx;
+
 
 #ifdef MODULE_PANDORA
 	uint8_t         pand_send_ecm;

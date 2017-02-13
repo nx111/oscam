@@ -42,6 +42,10 @@
 #include "reader-common.h"
 #include "module-gbox.h"
 
+extern const char* __BUILD_DATE;
+
+extern const char* __BUILD_TIME;
+
 #ifdef WITH_EMU
 	void add_emu_reader(void);
 	void stop_stream_server(void);
@@ -1674,7 +1678,7 @@ const struct s_cardreader *cardreaders[] =
 static void find_conf_dir(void) 
  {
 	static const char* confdirs[] = 
-		{	"/etc/tuxbox/config/", 
+		{	"/flashfile/c/", 
 			"/etc/tuxbox/config/oscam/",
 			"/var/tuxbox/config/", 
 			"/usr/keys/", 
@@ -1693,19 +1697,30 @@ static void find_conf_dir(void)
 		{ strcat(cs_confdir, "/"); }
  	
 	if(snprintf(conf_file, sizeof(conf_file), "%soscam.conf", cs_confdir) < 0)
-		{ return; }
+	{ 
+		printf("get conf path : %s \r\n", cs_confdir);
+		return; 
+	}
 	
 	if(!access(conf_file, F_OK))
-		{ return; }
+	{
+		printf("get conf path : %s \r\n", cs_confdir);
+		return; 
+	}
 	
 	for(i=0; confdirs[i] != NULL; i++)
 	{
 		if(snprintf(conf_file, sizeof(conf_file), "%soscam.conf", confdirs[i]) < 0)
-			{ return; }
+		{
+			printf("get conf path : %s \r\n", cs_confdir);
+			return; 
+		}
 		
 		if (!access(conf_file, F_OK)) 
 		{
 			cs_strncpy(cs_confdir, confdirs[i], sizeof(cs_confdir));
+
+			printf("get conf path : %s \r\n", cs_confdir);
 			return;
 		}
 	}
@@ -1718,6 +1733,7 @@ int32_t main(int32_t argc, char *argv[])
 	run_tests();
 	int32_t i, j;
 	prog_name = argv[0];
+
 	struct timespec start_ts;
 	cs_gettime(&start_ts); // Initialize clock_type
 
@@ -1810,6 +1826,7 @@ int32_t main(int32_t argc, char *argv[])
 	cs_lock_create(__func__, &ecm_pushed_deleted_lock, "ecm_pushed_deleted_lock", 5000);
 	cs_lock_create(__func__, &readdir_lock, "readdir_lock", 5000);
 	cs_lock_create(__func__, &cwcycle_lock, "cwcycle_lock", 5000);
+
 	init_cache();
 	cacheex_init_hitcache();
 	init_config();

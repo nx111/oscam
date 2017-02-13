@@ -4,6 +4,8 @@
 #include "reader-common.h"
 #include "reader-irdeto.h"
 
+static pthread_mutex_t 			g_IrdetoMutex = PTHREAD_MUTEX_INITIALIZER;
+
 static const uchar CryptTable[256] =
 {
 	0xDA, 0x26, 0xE8, 0x72, 0x11, 0x52, 0x3E, 0x46,
@@ -461,8 +463,9 @@ static int32_t irdeto_card_init(struct s_reader *reader, ATR *newatr)
 	reader->nprov = cta_res[10 + acspadd];
 	memcpy(reader->hexserial, cta_res + 12 + acspadd, 4);
 
-	rdr_log_sensitive(reader, "providers: %d, ascii serial: {%s}, hex serial: {%02X%02X%02X}, hex base: {%02X}",
+	rdr_log(reader, "providers: %d, ascii serial: %s, hex serial: %02X%02X%02X, hex base: %02X",
 					  reader->nprov, buf, reader->hexserial[0], reader->hexserial[1], reader->hexserial[2], reader->hexserial[3]);
+
 
 	/*
 	 * CardFile
@@ -593,10 +596,33 @@ static int32_t irdeto_card_init(struct s_reader *reader, ATR *newatr)
 	if((reader->cardmhz != 600 && reader->typ != R_INTERNAL) || (reader->typ == R_INTERNAL && (reader->mhz < 510 || reader->cardmhz > 690)))
 		{ rdr_log(reader, "WARNING: For Irdeto cards you will have to set '%s= 600' in oscam.server", (reader->typ == R_INTERNAL ? "mhz" : "cardmhz") ); }
 
-	return irdeto_card_init_provider(reader);
+	int r = irdeto_card_init_provider(reader);
+
+	int i;
+	for( i = 0 ; i < reader->nprov; i ++)
+	{
+		rdr_log(reader, "provider %d :  %02X %02X %02X %02X",
+			i, reader->prid[i][0], reader->prid[i][1], reader->prid[i][2], reader->prid[i][3]);
+	}
+
+	FILE* pFile = fopen("/flashfile/ram/card_info.txt", "wb");
+	if(pFile)
+	{
+		fprintf(pFile, "ca type : irdeto\r\nhexserial : 0x%02X%02X%02X%02X\r\n", 
+				reader->hexserial[0], reader->hexserial[1], reader->hexserial[2], reader->hexserial[3]);
+		fprintf(pFile, "provider count : %d\r\n", reader->nprov);
+		for( i = 0 ; i < reader->nprov; i ++)
+		{
+			fprintf(pFile, "provider : 0x%02X%02X%02X%02X\r\n", reader->prid[i][0], reader->prid[i][1], reader->prid[i][2], reader->prid[i][3]);
+		}
+		fprintf(pFile, "\r\n");
+		fclose(pFile);
+	}
+	return r;
 }
 
-int32_t irdeto_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct s_ecm_answer *ea)
+
+int32_t irdeto_do_ecm_proc(struct s_reader *reader, const ECM_REQUEST *er, struct s_ecm_answer *ea)
 {
 	def_resp;
 	cta_lr = 0; //suppress compiler error
@@ -747,6 +773,16 @@ int32_t irdeto_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct s_e
 	ReverseSessionKeyCrypt(reader->boxkey, cta_res + 14 + acspadd);
 	memcpy(ea->cw, cta_res + 6 + acspadd, 16);
 	return OK;
+}
+
+int32_t irdeto_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct s_ecm_answer *ea)
+{
+	int r = 0;
+	pthread_mutex_lock(&g_IrdetoMutex);
+	r = irdeto_do_ecm_proc(reader, er, ea);
+	pthread_mutex_unlock(&g_IrdetoMutex);
+
+	return r;
 }
 
 static int32_t irdeto_get_emm_type(EMM_PACKET *ep, struct s_reader *rdr)
@@ -1024,7 +1060,7 @@ void irdeto_add_emm_header(EMM_PACKET *ep)
 
 #define ADDRLEN 4 // Address length in EMM commands
 
-static int32_t irdeto_do_emm(struct s_reader *reader, EMM_PACKET *ep)
+static int32_t irdeto_do_emm_proc(struct s_reader *reader, EMM_PACKET *ep)
 {
 	def_resp;
 	static const uchar sc_EmmCmd[] = { 0x01, 0x00, 0x00, 0x00, 0x00 };
@@ -1176,6 +1212,17 @@ static int32_t irdeto_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 		return SKIPPED;
 	}
 }
+
+static int32_t irdeto_do_emm(struct s_reader *reader, EMM_PACKET *ep)
+{
+	int r = 0;
+	pthread_mutex_lock(&g_IrdetoMutex);
+	r = irdeto_do_emm_proc(reader, ep);
+	pthread_mutex_unlock(&g_IrdetoMutex);
+	
+	return r;
+}
+
 
 static int32_t irdeto_card_info(struct s_reader *reader)
 {

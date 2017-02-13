@@ -1513,17 +1513,20 @@ static int32_t newcamd_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc
 		{
 			*rc = 0;
 			memset(dcw, 0, 16);
+		client->reader->getcw_success = 0;
 			break;
 		}
 
 		if(n < 21)
 		{
 			cs_log_dbg(D_CLIENT, "invalid newcamd answer");
+		client->reader->getcw_success = 0;
 			return (-1);
 		}
 
 		*rc = 1;
 		memcpy(dcw, buf + 5, 16);
+	  client->reader->getcw_success = 1;
 		break;
 
 	case MSG_KEEPALIVE:

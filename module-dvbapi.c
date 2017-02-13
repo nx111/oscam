@@ -5323,8 +5323,8 @@ static void *dvbapi_main_local(void *cli)
 #ifdef WITH_TIARTOP
 	return tiartop_main_thread(cli);
 #endif
-
 	int32_t i, j, l;
+
 	struct s_client *client = (struct s_client *) cli;
 	client->thread = pthread_self();
 	SAFE_SETSPECIFIC(getclient, cli);
@@ -6095,6 +6095,7 @@ void delayer(ECM_REQUEST *er, uint32_t delay)
 void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 {
 #ifdef WITH_TIARTOP
+	printf("dvbapi_send_dcw \r\n");
 	tiartop_send_dcw(client, er);
 	return;
 #endif

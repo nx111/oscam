@@ -205,6 +205,30 @@ static int32_t mouse_init(struct s_reader *reader)
 	const struct s_cardreader *crdr_ops = reader->crdr;
 	if (!crdr_ops) return ERROR;
 
+	//先检查设备
+	if(access(reader->device, 0) != 0)
+	{
+		//未找到设备
+		char tmp[64];
+		memset(tmp, 64, 0);
+		strncpy(tmp , reader->device, 63);
+		int len = strlen(tmp);
+		int i = 0;
+		for(i = 0 ; i < 10; i ++)
+		{
+			tmp[len-1] = '0' + i;
+			if(access(reader->device, 0) == 0)
+			{
+				break;
+			}
+		}
+		if(i < 10)
+		{
+			strncpy(reader->device, tmp, 63);
+			rdr_log(reader, "device reset to %s", reader->device);
+		}
+	}
+
 	if(detect_db2com_reader(reader))
 	{
 		reader->crdr = crdr_ops = &cardreader_db2com;
