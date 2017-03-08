@@ -903,6 +903,7 @@ struct s_module
 	// int32_t checktype (0=return connected, 1=return loadbalance-avail) return int
 	void (*c_idle)(void);               // Schlocke: called when reader is idle
 	void (*s_idle)(struct s_client *);
+	void (*s_peer_idle)(struct s_client *);
 	void (*c_card_info)(void);              // Schlocke: request card infos
 
 	int32_t (*c_capmt)(struct s_client *, struct demux_s *);
@@ -2132,7 +2133,7 @@ struct s_config
 
 	uint16_t        gbox_port[CS_MAXPORTS];
 	char            *gbox_hostname;
-	int32_t         gbox_reconnect;
+	uint32_t        gbox_reconnect;
 	uint32_t        gbox_password;
 	unsigned long   gbox_proxy_card[GBOX_MAX_PROXY_CARDS];
 	int8_t          gbox_proxy_cards_num;
@@ -2140,6 +2141,7 @@ struct s_config
 	uint8_t         gbox_my_cpu_api;
 	uint8_t         gsms_dis;
 	uint8_t         log_hello;
+	uint8_t         dis_attack_txt;
 	char            *gbox_tmp_dir; 
 	uint8_t         ccc_reshare;
 	uint16_t        gbox_ignored_peer[GBOX_MAX_IGNORED_PEERS];

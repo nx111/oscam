@@ -135,8 +135,9 @@ static bool use_srvid2 = false;
 #define MNU_GBX_FSTAINF     	27
 #define MNU_GBX_FEXPINF     	28
 #define MNU_CFG_FSOFTCAMKEY	29
+#define MNU_GBX_INFOLOG     	30
 
-#define MNU_CFG_TOTAL_ITEMS 	30 // sum of items above. Use it for "All inactive" in function calls too.
+#define MNU_CFG_TOTAL_ITEMS 	31 // sum of items above. Use it for "All inactive" in function calls too.
 
 static void set_status_info_var(struct templatevars *vars, char *varname, int no_data, char *fmt, double value) {
 	if (no_data)
@@ -1146,6 +1147,7 @@ static char *send_oscam_config_gbox(struct templatevars *vars, struct uriparams 
 	if(cfg.ccc_reshare == 1)  { tpl_addVar(vars, TPLADD, "GBOXCCCRESHARE", "checked"); }
 	if(cfg.log_hello == 1)  { tpl_addVar(vars, TPLADD, "GBOXLOGHELLO", "checked"); }
 	if(cfg.gsms_dis == 1)  { tpl_addVar(vars, TPLADD, "GBOXGSMSDISABLE", "checked"); }
+	if(cfg.dis_attack_txt == 1)  { tpl_addVar(vars, TPLADD, "GBOXDISATTACKTXT", "checked"); }
 	if(cfg.gbox_tmp_dir != NULL) { tpl_addVar(vars, TPLADD, "GBOXTMPDIR", cfg.gbox_tmp_dir); }
 	char *value1 = mk_t_gbox_proxy_card();	
 	tpl_addVar(vars, TPLAPPEND, "GBOXPROXYCARD", value1);
@@ -6442,6 +6444,7 @@ static char *send_oscam_files(struct templatevars * vars, struct uriparams * par
 		{ "gsms.nack",       MNU_GBX_FSMSNACK,  FTYPE_GBOX },     // id 26
 		{ "stats.info",      MNU_GBX_FSTAINF,   FTYPE_GBOX },     // id 27
 		{ "expired.info",    MNU_GBX_FEXPINF,   FTYPE_GBOX },     // id 28
+		{ "info.log",        MNU_GBX_INFOLOG,   FTYPE_GBOX },     // id 30
 #endif
 #ifdef WITH_EMU
 		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },	// id 29

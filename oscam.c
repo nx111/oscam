@@ -62,7 +62,9 @@ static void ssl_init(void)
 
 static void ssl_done(void)
 {
+#if OPENSSL_VERSION_NUMBER < 0x1010005fL
 	ERR_remove_state(0);
+#endif
 	ERR_free_strings();
 	EVP_cleanup();
 	CRYPTO_cleanup_all_ex_data();
@@ -135,7 +137,7 @@ static char *stb_boxtype;
 static char *stb_boxname;
 
 static uint32_t oscam_stacksize = 0;
-	
+
 /*****************************************************************************
         Statics
 *****************************************************************************/
@@ -259,10 +261,10 @@ static void write_versionfile(bool use_stdout);
 
 static void parse_cmdline_params(int argc, char **argv)
 {
-#if defined(WITH_STAPI) || defined(WITH_STAPI5)	
+#if defined(WITH_STAPI) || defined(WITH_STAPI5)
 	bg = 1;
 #endif
-	
+
 	int i;
 	while((i = getopt_long(argc, argv, short_options, long_options, NULL)) != EOF)
 	{
@@ -389,14 +391,14 @@ static void write_versionfile(bool use_stdout)
 	fprintf(fp, "WebifPort:      %d\n", cfg.http_port);
 #endif
 #ifdef MODULE_GBOX
-	if(cfg.gbox_tmp_dir == NULL) 
-	{ 
+	if(cfg.gbox_tmp_dir == NULL)
+	{
 		fprintf(fp, "\nGBox tmp_dir:   not defined using: %s\n", cs_tmpdir);
 	}
 	else
 	{
 		fprintf(fp, "\nGBox tmp_dir:   %s\n", cfg.gbox_tmp_dir);
-	} 
+	}
 	fprintf(fp, "                value read during start up, not refreshed if changed later in webif!\n");
 #endif
 	fprintf(fp, "\n");
@@ -674,18 +676,18 @@ static void cs_reload_config(void)
 {
 	static pthread_mutex_t mutex;
 	static int8_t mutex_init = 0;
-	
+
 	if(!mutex_init)
 	{
 		SAFE_MUTEX_INIT(&mutex, NULL);
 		mutex_init = 1;
 	}
-	
+
 	if(pthread_mutex_trylock(&mutex))
 	{
-		return;	
+		return;
 	}
-	
+
 	if(cfg.reload_useraccounts)
 	{
 		cs_accounts_chk();
@@ -725,7 +727,7 @@ static void cs_reload_config(void)
 	{
 		cs_reopen_log(); // FIXME: aclog.log, emm logs, cw logs (?)
 	}
-	
+
 	SAFE_MUTEX_UNLOCK(&mutex);
 }
 
@@ -892,7 +894,7 @@ static void init_machine_info(void)
 
 	if (!boxtype[0] && !strcasecmp(model, "dm800") && !strcasecmp(buffer.machine, "armv7l"))
 		snprintf(boxtype, sizeof(boxtype), "%s", "su980");
-	
+
 	if (!boxtype[0])
 	{
 		uchar *pos;
@@ -1017,7 +1019,7 @@ static void fix_stacksize(void)
 #define PTHREAD_STACK_MIN 64000
 #endif
 #define OSCAM_STACK_MIN PTHREAD_STACK_MIN+32768
-   
+
 	if(oscam_stacksize < OSCAM_STACK_MIN)
 	{
 		long pagesize = sysconf(_SC_PAGESIZE);
@@ -1026,7 +1028,7 @@ static void fix_stacksize(void)
 			oscam_stacksize = OSCAM_STACK_MIN;
 			return;
 		}
-		
+
 		oscam_stacksize = (((OSCAM_STACK_MIN) / pagesize) + 1) * pagesize;
 	}
 }
@@ -1036,21 +1038,21 @@ int32_t start_thread(char *nameroutine, void *startroutine, void *arg, pthread_t
 {
 	pthread_t temp;
 	pthread_attr_t attr;
-	
+
 	cs_log_dbg(D_TRACE, "starting thread %s", nameroutine);
 
 	SAFE_ATTR_INIT(&attr);
-	
+
 	if(modify_stacksize)
  		{ SAFE_ATTR_SETSTACKSIZE(&attr, oscam_stacksize); }
- 		
+
 	int32_t ret = pthread_create(pthread == NULL ? &temp : pthread, &attr, startroutine, arg);
 	if(ret)
 		{ cs_log("ERROR: can't create %s thread (errno=%d %s)", nameroutine, ret, strerror(ret)); }
 	else
 	{
 		cs_log_dbg(D_TRACE, "%s thread started", nameroutine);
-		
+
 		if(detach)
 			{ pthread_detach(pthread == NULL ? temp : *pthread); }
 	}
@@ -1062,14 +1064,14 @@ int32_t start_thread(char *nameroutine, void *startroutine, void *arg, pthread_t
 
 int32_t start_thread_nolog(char *nameroutine, void *startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize)
 {
-	pthread_t temp;	
+	pthread_t temp;
 	pthread_attr_t attr;
-	
+
 	SAFE_ATTR_INIT(&attr);
-	
+
 	if(modify_stacksize)
  		{ SAFE_ATTR_SETSTACKSIZE(&attr, oscam_stacksize); }
- 		
+
 	int32_t ret = pthread_create(pthread == NULL ? &temp : pthread, &attr, startroutine, arg);
 	if(ret)
 		{ fprintf(stderr, "ERROR: can't create %s thread (errno=%d %s)", nameroutine, ret, strerror(ret)); }
@@ -1078,7 +1080,7 @@ int32_t start_thread_nolog(char *nameroutine, void *startroutine, void *arg, pth
 		if(detach)
 			{ pthread_detach(pthread == NULL ? temp : *pthread); }
 	}
-	
+
 	pthread_attr_destroy(&attr);
 
 	return ret;
@@ -1141,7 +1143,7 @@ static void cs_waitforcardinit(void)
 			//alarm(cfg.cmaxidle + cfg.ctimeout / 1000 + 1);
 		}
 		while(!card_init_done && !exit_oscam);
-		
+
 		if(cfg.waitforcards_extra_delay > 0 && !exit_oscam)
 			{ cs_sleepms(cfg.waitforcards_extra_delay); }
 		cs_log("init for all local cards done");
@@ -1671,13 +1673,13 @@ const struct s_cardreader *cardreaders[] =
 	NULL
 };
 
-static void find_conf_dir(void) 
+static void find_conf_dir(void)
  {
-	static const char* confdirs[] = 
-		{	"/etc/tuxbox/config/", 
+	static const char* confdirs[] =
+		{	"/etc/tuxbox/config/",
 			"/etc/tuxbox/config/oscam/",
-			"/var/tuxbox/config/", 
-			"/usr/keys/", 
+			"/var/tuxbox/config/",
+			"/usr/keys/",
 			"/var/keys/",
 			"/var/etc/oscam/",
 			"/var/etc/",
@@ -1685,25 +1687,25 @@ static void find_conf_dir(void)
 			"/config/oscam/",
 			NULL
 		};
- 	
+
 	char conf_file[128+16];
  	int32_t i;
- 	
+
 	if(cs_confdir[strlen(cs_confdir) - 1] != '/')
 		{ strcat(cs_confdir, "/"); }
- 	
+
 	if(snprintf(conf_file, sizeof(conf_file), "%soscam.conf", cs_confdir) < 0)
 		{ return; }
-	
+
 	if(!access(conf_file, F_OK))
 		{ return; }
-	
+
 	for(i=0; confdirs[i] != NULL; i++)
 	{
 		if(snprintf(conf_file, sizeof(conf_file), "%soscam.conf", confdirs[i]) < 0)
 			{ return; }
-		
-		if (!access(conf_file, F_OK)) 
+
+		if (!access(conf_file, F_OK))
 		{
 			cs_strncpy(cs_confdir, confdirs[i], sizeof(cs_confdir));
 			return;
@@ -1714,7 +1716,7 @@ static void find_conf_dir(void)
 int32_t main(int32_t argc, char *argv[])
 {
 	fix_stacksize();
-		
+
 	run_tests();
 	int32_t i, j;
 	prog_name = argv[0];
@@ -1776,7 +1778,7 @@ int32_t main(int32_t argc, char *argv[])
 #endif
 		0
 	};
-	
+
 	find_conf_dir();
 
 	parse_cmdline_params(argc, argv);
@@ -1867,7 +1869,7 @@ int32_t main(int32_t argc, char *argv[])
 
 	global_whitelist_read();
 	ratelimit_read();
-	
+
 #ifdef MODULE_SERIAL
 	twin_read();
 #endif
@@ -1900,7 +1902,7 @@ int32_t main(int32_t argc, char *argv[])
 	init_cardreader();
 
 	cs_waitforcardinit();
-	
+
 	emm_load_cache();
 	load_emmstat_from_file();
 
@@ -1928,7 +1930,7 @@ int32_t main(int32_t argc, char *argv[])
 #ifdef WITH_EMU
 	stop_stream_server();
 #endif
-#ifdef MODULE_GBOX	
+#ifdef MODULE_GBOX
 	stop_sms_sender();
 #endif
 	webif_close();
@@ -1947,9 +1949,9 @@ int32_t main(int32_t argc, char *argv[])
 	dvbapi_save_channel_cache();
 	emm_save_cache();
 	save_emmstat_to_file();
-	
+
 	cccam_done_share();
-	gbox_send_good_night(); 
+	gbox_send_good_night();
 
 	kill_all_clients();
 	kill_all_readers();

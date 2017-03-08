@@ -8,7 +8,9 @@
 #define DEFAULT_GBOX_MAX_DIST		2
 #define DEFAULT_GBOX_MAX_ECM_SEND	3
 #define DEFAULT_GBOX_RESHARE		2
-#define DEFAULT_GBOX_RECONNECT		300
+#define DEFAULT_GBOX_RECONNECT		180
+#define GBOX_MIN_RECONNECT		60
+#define GBOX_MAX_RECONNECT		300
 #define CS_GBOX_MAX_LOCAL_CARDS		16
 #define GBOX_REBROADCAST_TIMEOUT	1250
 #define GBOX_MIN_REBROADCAST_TIME	100
@@ -44,7 +46,7 @@
 #define FILE_ATTACK_INFO        "attack.txt"
 #define FILE_GBOX_PEER_ONL      "share.onl"
 #define FILE_STATS              "stats.info"
-#define FILE_MSG_OSD            "msg.osd"
+#define FILE_MSG_INFO           "msg.info"
 #define FILE_LOCAL_CARDS_INFO   "sc.info"
 
 #define	MSGID_GOODNIGHT         0
@@ -55,7 +57,8 @@
 #define	MSGID_LOSTCONNECT       5
 #define	MSGID_ATTACK            6
 #define	MSGID_IPCHANGE          7
-#define	MSGID_UNKNOWNMSG        8
+#define	MSGID_GBOXONL           8
+#define	MSGID_UNKNOWNMSG        9
 
 #define GBOX_STAT_HELLOL        0
 #define GBOX_STAT_HELLOS        1
@@ -69,6 +72,12 @@
 
 #define GBOX_PEER_OFFLINE	0
 #define GBOX_PEER_ONLINE	1
+
+#define GBOX_ATTACK_LOCAL_PW	0
+#define GBOX_ATTACK_PEER_IGNORE	1
+#define GBOX_ATTACK_PEER_PW	2
+#define GBOX_ATTACK_AUTH_FAIL	3
+#define GBOX_ATTACK_ECM_BLOCKED	4
 
 struct gbox_rbc_thread_args 
 {
@@ -168,9 +177,11 @@ int8_t gbox_message_header(uchar *buf, uint16_t cmd, uint32_t peer_password, uin
 void gbox_free_cards_pending(ECM_REQUEST *er);
 void gbox_send_good_night(void);
 void gbox_send_goodbye(struct s_client *cli);
+extern void gbx_local_card_changed(void);
 #else
 static inline void gbox_free_cards_pending(ECM_REQUEST *UNUSED(er)) { }
 static inline void gbox_send_good_night(void) { }
+static inline void gbx_local_card_changed(void) { }
 #endif
 
 #endif
