@@ -2,6 +2,7 @@
 #ifdef READER_STREAMGUARD
 #include "reader-common.h"
 #include "cscrypt/des.h"
+#include "oscam-time.h"
 #include <time.h>
 
 /************* custom md5 functions begin *************/
@@ -689,49 +690,61 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 	}
 	int bankid=0;
 	for(i = 0; i < reader->nprov; i++){
-		get_subscription_cmd[5] = bankid;
+		int j=0;
 		get_subscription_cmd[10] = reader->prid[i][2];
 		get_subscription_cmd[11] = reader->prid[i][3];
-		write_cmd(get_subscription_cmd, get_subscription_cmd + 5);
-		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
-			rdr_log(reader, "error:  get subscription failed.");
-			break;
+                for(;;){
+			get_subscription_cmd[5] = bankid;
+			write_cmd(get_subscription_cmd, get_subscription_cmd + 5);
+			if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
+				rdr_log(reader, "error:  get subscription failed.");
+				break;
+			}
+
+			data_len = streamguard_read_data(reader,cta_res[cta_lr - 1], data, &status);
+			if(data_len < 0){
+				rdr_log(reader, "error: read data failed for get subscription.");
+				break;
+			}
+
+			count = data[1];
+			int k;
+			for(k = 0; k < count; j++,k++){
+				//if(data[j * 19 + 2 + 3] == 0 && data[j * 19 + 3 + 3] == 0) continue;
+
+				time_t start_t,end_t,subscription_t;
+				subscription_t = b2i(4, data + 3 + j * 19 + 4);
+				start_t = b2i(4, data + j * 19 + 9 + 3);
+				if((uint32_t)start_t == 0xFFFFFFFFLU)
+					start_t = subscription_t;
+				end_t = b2i(4, data + 3 + j * 19 + 13);
+				uint64_t product_id=b2i(2, data + 3 + j * 19 + 2);
+
+				struct tm  tm_start, tm_end, tm_subscription;
+				char start_day[20], end_day[20], subscription_day[20];
+
+				localtime_r(&start_t, &tm_start);
+				localtime_r(&end_t, &tm_end);
+				localtime_r(&subscription_t, &tm_subscription);
+				if(tm_subscription.tm_year >= 117){
+					tm_end.tm_year += 1;
+					end_t = cs_timegm(&tm_end);
+				}
+
+				strftime(subscription_day, sizeof(subscription_day), "%Y-%m-%d %H:%M:%S", &tm_subscription);
+				strftime(start_day, sizeof(start_day), "%Y-%m-%d %H:%M:%S", &tm_start);
+				strftime(end_day, sizeof(end_day), "%Y-%m-%d %H:%M:%S", &tm_end);
+
+				if(!j)
+					rdr_log(reader, "entitlements for provider: %d (%04X:%06X)", i, reader->caid, b2i(2, &reader->prid[i][2]));
+				rdr_log(reader, "    chid: %04"PRIX64" auth:%s  valid:%s - %s", product_id,  subscription_day, start_day, end_day);
+
+				cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][2]), product_id, 0, start_t, end_t, 0, 1);
+			}
+			if(data[0] == 0)
+				break;
+			bankid = data[0];
 		}
-		data_len = streamguard_read_data(reader,cta_res[cta_lr - 1], data, &status);
-		if(data_len < 0){
-			rdr_log(reader, "error: read data failed for get subscription.");
-			break;
-		}
-
-		count = data[1];
-		int j;
-		for(j = 0; j < count; j++){
-			//if(data[j * 19 + 3] == 0 && data[j * 19 + 4] == 0) continue;
-
-			time_t start_t,end_t,subscription_t;
-			subscription_t = b2i(4, data + j * 19 + 7);
-			start_t = b2i(4, data + j * 19 + 12);
-			if((uint32_t)start_t == 0xFFFFFFFFLU)
-				start_t = subscription_t;
-			start_t = (start_t + 24 * 3600 - 1) - (start_t + 24*3600 - 1) % (24 * 3600);
-			end_t = b2i(4, data + j * 19 + 16);
-			uint64_t product_id=b2i(2, data + j * 19 + 5);
-
-			struct tm  tm_start, tm_end;
-			char start_day[11], end_day[11];
-
-			localtime_r(&start_t, &tm_start);
-			localtime_r(&end_t, &tm_end);
-			strftime(start_day, sizeof(start_day), "%Y/%m/%d", &tm_start);
-			strftime(end_day, sizeof(end_day), "%Y/%m/%d", &tm_end);
-
-			if(!j)
-				rdr_log(reader, "entitlements for provider: %d (%04X:%06X)", i, reader->caid, b2i(2, &reader->prid[i][2]));
-			rdr_log(reader, "    chid: %04"PRIX64" date: %s - %s", product_id, start_day, end_day);
-
-			cs_add_entitlement(reader, reader->caid, b2i(2, &reader->prid[i][2]), product_id, 0, start_t, end_t, 0, 1);
-		}
-		bankid = data[0];
 	}
 
 	return OK;
