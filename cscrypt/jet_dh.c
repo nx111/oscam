@@ -68,7 +68,7 @@ static void nm_assign( DH_NUMBERS *d, DH_NUMBERS *s )
 	if (s == d)
 		return;
 
-	if ( l = s->length )
+	if ((l = s->length))
 		memcpy( d->values, s->values, sizeof(uint16_t) * l);
 
 	d->length = l;
