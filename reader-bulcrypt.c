@@ -308,7 +308,7 @@ static int32_t bulcrypt_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, s
 
 	def_resp
 
-	int32_t ecm_len = check_sct_len(er->ecm, 3);
+	int32_t ecm_len = check_sct_len(er->ecm, 3, sizeof(er->ecm));
 	if(ecm_len < 64 || ecm_len > 188)
 	{
 		rdr_log(reader, "Wrong ECM length: %d", ecm_len);
@@ -444,7 +444,7 @@ Total EMMs for the period: 3175317
 static int32_t bulcrypt_get_emm_type(EMM_PACKET *ep, struct s_reader *reader)
 {
 	char dump_emm_sn[64];
-	int32_t emm_len = check_sct_len(ep->emm, 3);
+	int32_t emm_len = check_sct_len(ep->emm, 3, sizeof(ep->emm));
 
 	memset(ep->hexserial, 0, 8);
 

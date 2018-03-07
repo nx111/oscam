@@ -109,6 +109,7 @@ static void protocol_fn(const char *token, char *value, void *setting, FILE *f)
 			{ "newcamd525", R_NEWCAMD },
 			{ "newcamd524", R_NEWCAMD },
 			{ "drecas",		R_DRECAS },
+			{ "emu",        R_EMU },
 			{ NULL        , 0 }
 		}, *p;
 		int i;
@@ -224,6 +225,55 @@ static void boxid_fn(const char *token, char *value, void *setting, FILE *f)
 		{ fprintf_conf(f, token, "\n"); }
 }
 
+#ifdef READER_JET
+static void jet_authorize_id_fn(const char *token, char *value, void *setting, FILE *f)
+{
+	struct s_reader *rdr = setting;
+	if(value)
+	{
+		int32_t len = strlen(value);
+		if(len != 16)
+		{
+			memset(rdr->jet_authorize_id, 0, sizeof(rdr->jet_authorize_id));
+		}
+		else
+		{
+			if(key_atob_l(value, rdr->jet_authorize_id, len))
+			{
+				fprintf(stderr, "reader jet authoriz id parse error, %s=%s\n", token, value);
+				memset(rdr->jet_authorize_id, 0, sizeof(rdr->jet_authorize_id));
+			}
+		}
+		return;
+	}
+	size_t i;
+	for(i = 0; i < sizeof(rdr->jet_authorize_id) && rdr->jet_authorize_id[i] == 0; i++);
+	if( i < sizeof(rdr->jet_authorize_id))
+	{
+		char tmp[17];
+		fprintf_conf(f, "jet_authorize_id", "%s\n", cs_hexdump(0, rdr->jet_authorize_id, sizeof(rdr->jet_authorize_id), tmp, sizeof(tmp)));
+	}
+	else if(cfg.http_full_cfg)
+		{ fprintf_conf(f, token, "\n"); }
+}
+#endif
+
+#ifdef READER_TONGFANG
+static void tongfang3_calibsn_fn(const char *token, char *value, void *setting, FILE *f)
+{
+	struct s_reader *rdr = setting;
+	if(value)
+	{
+		rdr->tongfang3_calibsn = strlen(value) ? a2i(value, 4) : 0;
+		return;
+	}
+	if(rdr->tongfang3_calibsn)
+		fprintf_conf(f, token, "%08X\n", rdr->tongfang3_calibsn);
+	else if(cfg.http_full_cfg)
+		{ fprintf_conf(f, token, "\n"); }
+}
+#endif
+
 static void rsakey_fn(const char *token, char *value, void *setting, FILE *f)
 {
 	struct s_reader *rdr = setting;
@@ -302,7 +352,7 @@ static void boxkey_fn(const char *token, char *value, void *setting, FILE *f)
 	if(value)
 	{
 		int32_t len = strlen(value);
-		if(((len % 8) != 0) || len == 0 || len > 32)
+		if(((len % 8) != 0) || len == 0 || len > 64)
 		{
 			rdr->boxkey_length = 0;
 			memset(rdr->boxkey, 0, sizeof(rdr->boxkey));
@@ -448,6 +498,9 @@ void ftab_fn(const char *token, char *value, void *setting, long ftab_type, FILE
 		if(ftab_type & FTAB_FBPCAID)     { rdr = container_of(setting, struct s_reader, fallback_percaid); }
 		if(ftab_type & FTAB_LOCALCARDS)  { rdr = container_of(setting, struct s_reader, localcards); }
 		if(ftab_type & FTAB_IGNCHKSMCAID){ rdr = container_of(setting, struct s_reader, disablecrccws_only_for); }
+#ifdef WITH_EMU
+		if(ftab_type & FTAB_EMUAU)      { rdr = container_of(setting, struct s_reader, emu_auproviders); }
+#endif
 		if(rdr)
 			{ rdr->changes_since_shareupdate = 1; }
 	}
@@ -779,7 +832,7 @@ static void cooldowntime_fn(const char *UNUSED(token), char *value, void *settin
 }
 
 
-static void reader_fixups_fn(void *var)
+void reader_fixups_fn(void *var)
 {
 	struct s_reader *rdr = var;
 #ifdef WITH_LB
@@ -832,6 +885,8 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_INT32("reconnecttimeout"    , OFS(tcp_rto),                 DEFAULT_TCP_RECONNECT_TIMEOUT),
 	DEF_OPT_INT32("reconnectdelay"		, OFS(tcp_reconnect_delay),		60000),
 	DEF_OPT_INT32("resetcycle"          , OFS(resetcycle),              0),
+	DEF_OPT_INT32("autorestartseconds"  , OFS(autorestartseconds),      0),
+	DEF_OPT_INT8("restartforresetcycle" , OFS(restartforresetcycle),    0),
 	DEF_OPT_INT8("disableserverfilter"  , OFS(ncd_disable_server_filt), 0),
 	DEF_OPT_INT8("connectoninit"        , OFS(ncd_connect_on_init),     0),
 	DEF_OPT_UINT8("keepalive"           , OFS(keepalive),               0),
@@ -854,6 +909,14 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_FUNC("caid"                 , OFS(ctab),                    reader_caid_fn),
 	DEF_OPT_FUNC("atr"                  , 0,                            atr_fn),
 	DEF_OPT_FUNC("boxid"                , 0,                            boxid_fn),
+#ifdef  READER_TONGFANG
+	DEF_OPT_FUNC("tongfang3_calibsn"    , 0,                            tongfang3_calibsn_fn),
+#endif
+#ifdef  READER_JET
+	DEF_OPT_FUNC("jet_authorize_id"     , 0,                            jet_authorize_id_fn),
+	DEF_OPT_INT8("jet_fix_ecm"          , OFS(jet_fix_ecm),             0),
+	DEF_OPT_INT8("jet_resync_vendorkey" , OFS(jet_resync_vendorkey),    0),
+#endif
 	DEF_OPT_FUNC("boxkey"               , 0,                            boxkey_fn),
 	DEF_OPT_FUNC("rsakey"               , 0,                            rsakey_fn),
 	DEF_OPT_FUNC("deskey"               , 0,                            deskey_fn),
@@ -922,6 +985,13 @@ static const struct config_list reader_opts[] =
 #endif
 #ifdef READER_DRECAS
 	DEF_OPT_STR("stmkeys"               , OFS(stmkeys),                 NULL),
+#endif
+#ifdef WITH_EMU
+	DEF_OPT_FUNC_X("emu_auproviders"    , OFS(emu_auproviders),         ftab_fn, FTAB_READER | FTAB_EMUAU),
+	DEF_OPT_STR("extee36"               , OFS(extee36),                 NULL),
+	DEF_OPT_STR("extee56"               , OFS(extee56),                 NULL),
+	DEF_OPT_HEX("dre36_force_group"     , OFS(dre36_force_group),       1),
+	DEF_OPT_HEX("dre56_force_group"     , OFS(dre56_force_group),       1),
 #endif
 	DEF_OPT_INT8("deprecated"           , OFS(deprecated),              0),
 	DEF_OPT_INT8("audisabled"           , OFS(audisabled),              0),
@@ -1058,6 +1128,12 @@ int32_t init_readerdb(void)
 	if(!cs_malloc(&token, MAXLINESIZE))
 		{ return 1; }
 
+	if(!configured_readers)
+		configured_readers = ll_create("configured_readers");
+
+	if(cfg.cc_cfgfile)
+		read_cccamcfg(CCCAMCFGREADER);
+
 	struct s_reader *rdr;
 	if(!cs_malloc(&rdr, sizeof(struct s_reader)))
 	{
@@ -1097,6 +1173,22 @@ int32_t init_readerdb(void)
 	}
 	NULLFREE(token);
 	LL_ITER itr = ll_iter_create(configured_readers);
+	while((rdr = ll_iter_next(&itr)) && rdr->from_cccam_cfg)   //free duplicate reader
+	{
+		struct s_reader *rdr2;
+		LL_ITER iter = ll_iter_create(configured_readers);
+		while((rdr2 = ll_iter_next(&iter))){
+			if(rdr != rdr2 && !strcmp(rdr->device, rdr2->device)
+			   && rdr->r_port == rdr2->r_port && !strcmp(rdr->r_usr,rdr2->r_usr)
+			   && !strcmp(rdr->r_pwd, rdr2->r_pwd)){
+				rdr = ll_iter_remove(&itr);
+				free_reader(rdr);
+				break;
+			}
+		}
+	}
+
+	itr = ll_iter_create(configured_readers);
 	while((rdr = ll_iter_next(&itr)))   //build active readers list
 	{
 		reader_fixups_fn(rdr);

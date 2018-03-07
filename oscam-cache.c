@@ -129,7 +129,10 @@ uint8_t check_is_pushed(void *cwp, struct s_client *cl){
 }
 
 uint8_t get_odd_even(ECM_REQUEST *er){
-	return (er->ecm[0] != 0x80 && er->ecm[0] != 0x81 ? 0 : er->ecm[0]);
+	if (er->ecm[0] != 0x80 && er->ecm[0] != 0x81 &&
+	    !(caid_is_dvn(er->caid) && er->ecm[0] == 0x50))
+		return 0;
+	return er->ecm[0];
 }
 
 

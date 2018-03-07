@@ -1,0 +1,26 @@
+#!/bin/sh
+case "$1" in
+start)
+	/usr/bin/oscam --config-dir /etc/tuxbox/config/oscam --daemon --pidfile /tmp/oscam.pid --restart 2 --utf8
+	;;
+stop)
+	kill `cat /tmp/oscam.pid` 2> /dev/null
+	rm -f /tmp/oscam.pid
+	;;
+restart|reload)
+	$0 stop
+	sleep 1
+	$0 start
+	;;
+version)
+	echo "1.2"
+	;;
+info)
+	echo "oscam 1.2"
+	;;
+*)
+	echo "Usage: $0 start|stop|restart"
+	exit 1
+	;;
+esac
+exit 0

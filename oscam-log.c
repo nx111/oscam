@@ -824,3 +824,11 @@ void log_free(void)
 	SAFE_COND_SIGNAL_NOLOG(&log_thread_sleep_cond);
 	SAFE_THREAD_JOIN_NOLOG(log_thread, NULL);
 }
+
+#ifdef WITH_TIARTOP
+void TRACE(const char *fmt, ...)
+{
+	const char * log_prefix = MODULE_LOG_PREFIX;
+	__do_log();
+}
+#endif
