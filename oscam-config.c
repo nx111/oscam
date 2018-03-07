@@ -1467,3 +1467,269 @@ struct ecmtw get_twin(ECM_REQUEST *er)
 	return (tmp);
 }
 #endif
+
+int32_t chk_cccam_cfg_F_more(char *line,struct s_auth * account)
+{
+	int32_t p1=0,off=0,no=0,cno=0,dno=0,reshare=0;
+	char *p=NULL,*sline=NULL,*p2=NULL,*p3=NULL;
+	char *optr=NULL,*iptr=NULL;
+	for(p=line;*p;p++){
+		if(*p=='{'){
+			p1=1;
+			sline=p+1;
+			off=0;
+			continue;
+		}
+
+		if(*p=='}' && p1==1){
+			sline[off]='\0';
+//			cs_debug_mask(D_TRACE,"parase CCcam.cfg F line:part{%s}",sline);
+			p1=0;
+			no++;
+			cno=0;
+			while((p2=strtok_r(sline,",",&optr))){
+				dno=0;
+				uint16_t caid=0,srvid=0;
+				uint32_t provid=0;
+//				cs_debug_mask(D_TRACE,"CHILD:%s",p2);
+				while((p3=strtok_r(p2,":",&iptr))){
+					if(!dno){
+						caid=(uint16_t)a2i(p3,4);
+						account->ftab.filts[dno].caid=caid;
+					}
+					if(dno==1){
+						provid=(uint32_t)a2i(p3,6);
+						account->ftab.filts[dno].prids[account->ftab.filts[dno].nprids]=provid;
+						account->ftab.filts[dno].nprids++;
+					}
+					if(dno==2){
+						if(!cno && !(account->cccreshare)){
+							sscanf(p3,"%d",&reshare);
+							account->cccreshare=(int32_t)reshare;
+						}
+						if(cno==1){
+							srvid=(uint16_t)a2i(p3,4);
+
+							struct s_sidtab *sp,*sidtab=cfg.sidtab;
+							uint32_t sppos=0;
+							for(sp=cfg.sidtab;sp;sp=sp->next,sppos++){
+								uint32_t j,found;
+
+								sidtab=sp;
+								for(j=0,found=0;!found && j<sp->num_caid;j++)
+									if(sp->caid[j]==caid)
+										found=1;
+								if(!found)continue;
+
+								for(j=0,found=0;!found && j<sp->num_provid;j++)
+									if(sp->provid[j]==provid)
+										found=1;
+								if(!found)continue;
+
+								for(j=0,found=0;!found && j<sp->num_srvid;j++)
+									if(sp->srvid[j]==srvid)
+										found=1;
+								if(!found)continue;
+
+							}
+							if(sp){
+								account->sidtabs.ok |= (1<<sppos);
+								continue;
+							}
+
+							if (!cs_malloc(&sp, sizeof(struct s_sidtab)) || !sp)continue;
+							if (sidtab)
+								sidtab->next=sp;
+							else
+								cfg.sidtab=sp;
+							sppos++;
+							memset(sp, 0, sizeof(struct s_sidtab));
+							snprintf(sp->label, sizeof(sp->label),"%04x_%06X_%04X",caid,provid,srvid);
+							char scaid[5],sprovid[7],ssrvid[5];
+							snprintf(scaid,sizeof(scaid),"%04X",caid);
+							snprintf(sprovid,sizeof(sprovid),"%04X",provid);
+							snprintf(scaid,sizeof(scaid),"%04X",provid);
+
+							chk_sidtab("caid",scaid, sp);
+							chk_sidtab("provid",sprovid,sp);
+							chk_sidtab("caid",ssrvid, sp);
+							account->sidtabs.ok |= (1<<sppos);
+						}
+					}
+					dno++;
+					p2=NULL;
+				}
+				cno++;
+				sline=NULL;
+			}
+			continue;
+		}
+		off++;
+	}
+	return 0;
+}
+
+void * read_cccamcfg(int32_t mode)
+{
+	struct s_auth *authptr = NULL;
+	FILE *fp;
+	char token[MAXLINESIZE];
+	char line[MAXLINESIZE];
+	char host[256],uname[128],upass[128],uhops[128],uemu[128],uemm[128];
+	char typ;
+	static int32_t readed_cccamcfg=0;
+	int32_t port,ret;
+	int32_t caid,prid;
+
+	if(!readed_cccamcfg)
+		cs_log("load CCcam config file: %s",cfg.cc_cfgfile);
+
+	if(!cfg.cc_cfgfile || (mode != CCCAMCFGREADER && mode != CCCAMCFGUSER))
+			return NULL;
+
+	readed_cccamcfg=1;
+
+	if(!(fp=fopen(cfg.cc_cfgfile,"r"))){
+		cs_log("can't open file \"%s\" (errno=%d)\n", cfg.cc_cfgfile, errno);
+		return NULL;
+	}
+
+	struct s_auth *account=NULL;
+	struct s_reader *rdr;
+
+	while (fgets(token,sizeof(token),fp)) {
+		void *ptr;
+		char *p=strchr(token,'#');
+		if(p)
+			*p='\0';
+		strncpy(line,trim(token),MAXLINESIZE-1);
+		if(!line[0])continue;
+		if((line[0] == 'C' || line[0] == 'L' || line[0] == 'N' || line[0] == 'R' ) && line[1] == ':' && (mode == CCCAMCFGREADER)){
+
+			int32_t paracount=0;
+			char * proto=0;
+			ret=0;
+			unsigned int ncd_key[14];
+			memset(ncd_key,0,sizeof(ncd_key));
+			int32_t reshare=-1;
+			switch(line[0]){
+				case 'C':
+					proto = "cccam";
+					ret=sscanf(line,"%c:%s%d%s%s",&typ,host,&port,uname,upass);
+					paracount=5;
+					break;
+				case 'L':
+					proto = "camd35";
+					ret=sscanf(line,"%c:%s%d%s%s%x%x%d",&typ,host,&port,uname,upass,&caid,&prid,&reshare);
+					paracount=5;
+					break;
+				case 'N':
+					proto = "newcamd";
+					ret=sscanf(line,"%c:%s%d%s%s%x%x%x%x%x%x%x%x%x%x%x%x%x%x%d",&typ,host,&port,uname,upass,
+						&ncd_key[0], &ncd_key[1], &ncd_key[2], &ncd_key[3],&ncd_key[4],
+						&ncd_key[5], &ncd_key[6], &ncd_key[7], &ncd_key[8],&ncd_key[9],
+						&ncd_key[10],&ncd_key[11],&ncd_key[12],&ncd_key[13],&reshare);
+					paracount=5;
+					break;
+				case 'R':
+					proto = "radegast";
+					ret=sscanf(line,"%c:%s%d%x%x%d",&typ,host,&port,&caid,&prid,&reshare);
+					paracount=3;
+					break;
+			}
+
+			if(!proto || ret < paracount)continue;
+
+			int32_t found=0;
+			LL_ITER itr = ll_iter_create(configured_readers);
+			struct s_reader *prdr=NULL;
+			while((prdr = ll_iter_next(&itr))){
+				if( strcasecmp(prdr->device,host) == 0 && prdr->r_port == port &&
+				    strcmp(prdr->r_usr,uname) == 0  && strcmp(prdr->r_pwd,upass) == 0 &&
+				    host[0] && port && uname[0] && upass[0] ){
+					found=1;
+					break;
+				}
+			}
+			if(found)
+				continue;
+
+			if(!cs_malloc(&rdr,sizeof(struct s_reader)))
+					continue;
+
+			memset(rdr, 0, sizeof(struct s_reader));
+
+			reader_set_defaults(rdr);
+
+			chk_reader("protocol", proto, rdr);
+			cs_strncpy(rdr->device,host,sizeof(rdr->device));
+			rdr->r_port = port;
+			cs_strncpy(rdr->r_usr,uname,sizeof(rdr->r_usr));
+			cs_strncpy(rdr->r_pwd,upass,sizeof(rdr->r_pwd));
+			snprintf(token,sizeof(token),"%s_%d",host,port);
+			cs_strncpy(rdr->label,token,sizeof(rdr->label));
+			rdr->grp = 1;
+			rdr->from_cccam_cfg = 1;
+
+			// for newcamd.
+			if(line[0] == 'N'){
+				if(ret >= 19){
+					int i;
+					char sncd_key[(sizeof(ncd_key)/sizeof(unsigned int)) * 2 + 1];
+					memset(sncd_key, 0, sizeof(sncd_key));
+					for(i = 0; i < (int)(sizeof(ncd_key)/sizeof(unsigned int)); i++)
+						snprintf(sncd_key + 2 * i, sizeof(sncd_key) - 2 * i, "%02x", ncd_key[i]);
+					chk_reader("key", sncd_key, rdr);
+				}
+				char connectoninit[2] = "1";
+				chk_reader("connectoninit", connectoninit, rdr);
+			}
+
+			ll_append(configured_readers, rdr);
+			cs_debug_mask(D_READER,"Add reader device=%s,%d (typ:0x%X, protocol=%s) from CCcam.cfg",rdr->device, rdr->r_port, rdr->typ, proto);
+		}
+		else if (line[0]=='F' && line[1]==':' && mode==CCCAMCFGUSER){
+			ret=sscanf(line,"F:%126s%126s%126s%126s%126s",uname,upass,uhops,uemu,uemm);
+			if(ret<2)continue;
+			if(ret<5)cs_strncpy(uemm,"1",sizeof(uemm));
+			if(ret<4)cs_strncpy(uemu,"1",sizeof(uemu));
+			if(ret<3)cs_strncpy(uhops,"10",sizeof(uhops));
+
+			//cs_log("Read Line:%s",line);
+			int32_t found=0;
+			struct s_auth *pusr=NULL;
+			for(pusr=authptr;pusr;pusr=pusr->next){
+				if(!strcmp(pusr->usr,uname)){
+					found=1;
+					break;
+				}
+			}
+			if(found)
+				continue;
+
+			if(!cs_malloc(&ptr, sizeof(struct s_auth))) return (void *)authptr;
+			if (account)
+				account->next = ptr;
+			else
+				authptr = ptr;
+
+			account = ptr;
+			account_set_defaults(account);
+
+			chk_account("user",uname,account);
+			chk_account("pwd",upass,account);
+			chk_account("cccmaxhops",uhops,account);
+			chk_account("au",uemu,account);
+			chk_cccam_cfg_F_more(line,account);
+			cs_debug_mask(D_TRACE,"Add usr: %s from CCcam.cfg",account->usr);
+
+		}
+	}
+	fclose(fp);
+	if(mode == CCCAMCFGREADER)
+		return (void *)configured_readers;
+	else if(mode == CCCAMCFGUSER)
+		return (void *)authptr;
+
+	return NULL;
+}

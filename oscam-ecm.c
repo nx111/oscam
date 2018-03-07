@@ -1191,6 +1191,17 @@ void request_cw_from_readers(ECM_REQUEST *er, uint8_t stop_stage)
 			cs_ftime(&ea->time_request_sent);
 
 			er->reader_requested++;
+#ifdef READER_JET
+			if(caid_is_dvn(er->caid) && er->ecm[0] != 0x80 && er->ecm[0] != 0x81 && rdr->jet_fix_ecm && (rdr->typ & R_IS_NETWORK))
+			{
+				static uint8_t last = 0;
+				if(last == 0x80)
+					last = 0x81;
+				else
+					last = 0x80;
+				er->ecm[0] = last;
+			}
+#endif
 
 			write_ecm_request(ea->reader, er);
 
@@ -1584,7 +1595,7 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 
 	if(reader && cw && rc < E_NOTFOUND)
 	{
-		if(cfg.disablecrccws == 0 && reader->disablecrccws == 0)
+		if(cfg.disablecrccws == 0 && reader->disablecrccws == 0 && (er->caid>>8) != 0x0E )
 		{
 			uint8_t selectedForIgnChecksum = chk_if_ignore_checksum(er, cfg.disablecrccws, &cfg.disablecrccws_only_for)
 					+ chk_if_ignore_checksum(er, reader->disablecrccws, &reader->disablecrccws_only_for);
@@ -1770,8 +1781,12 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 			{
 				reader->resetcounter = 0;
 				rdr_log(reader, "Resetting reader, resetcyle of %d ecms reached", reader->resetcycle);
-				reader->card_status = CARD_NEED_INIT;
-				cardreader_reset(cl);
+				if(reader->restartforresetcycle == 0){
+					reader->card_status = CARD_NEED_INIT;
+					cardreader_reset(cl);
+				}else{
+					add_job(cl, ACTION_READER_RESTART, NULL, 0);
+				}
 			}
 		}
 	}

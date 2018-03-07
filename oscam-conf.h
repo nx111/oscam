@@ -3,6 +3,9 @@
 
 #define MAXLINESIZE 16384
 
+#define CCCAMCFGREADER	1
+#define CCCAMCFGUSER	2
+
 enum opt_types {
 	OPT_UNKNOWN = 0,
 	OPT_INT8,

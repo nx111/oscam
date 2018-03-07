@@ -1,0 +1,12 @@
+Package: oscam
+Version:
+Depends: 
+Source: package/oscam-nx111
+License: GPL-3.0
+LicenseFiles: COPYING
+Section: net
+Maintainer: OSCam developers
+Architecture:
+Installed-Size:
+Description:  OSCam is an Open Source Conditional Access Module software,
+ based on the very good MpCS version 0.9d created by ​dukat.

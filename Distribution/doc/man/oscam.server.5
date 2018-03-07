@@ -477,7 +477,12 @@ number of ECMs with "not found" answer until the reader will be restarted, 0 = n
 .PP
 \fBresetcycle\fP = \fBcount\fP
 .RS 3n
-number of ECMs until SC reset is performed, 0 = disabled, valid for physical readers only, default:0
+number of ECMs until reader reset is performed, 0 = disabled, default:0
+.RE
+.PP
+\fBrestartforresetcycle\fP = \fB0|1\fP
+.RS 3n
+restart instead of reset for resetcycle, default:0
 .RE
 .PP
 \fBratelimitseconds\fP = \fBseconds\fP
@@ -586,6 +591,11 @@ write file (usually a copy of a file saved by savenano) to your smartcard, if no
           readnano = /var/oscam/write.emm
 .RE
 .PP
+\fBautorestartseconds\fP = \fBseconds\fP
+.RS 3n
+force restart reader after seconds,default 0 disabled.
+.RE
+.PP
 \fBdropbadcws\fP = \fB0\fP|\fB1\fP
 .RS 3n
 1 = reject bad CWs, send "not found" instead of bad CWs, default:0
@@ -692,6 +702,27 @@ maximum of gbox peers ECMs will be send to, default:3
 \fBuse_ssl\fP = \fB0\fP|\fB1\fP
 .RS 3n
 1 = use SSL for ghttp protocol, default:0
+.RE
+.PP
+\fBtongfang3_calibsn\fP = \fBcalibsn\fP
+.RS 3n
+CalibSN for tongfang3,it must be 4 hexadecimal bytes
+.RE
+.PP
+\fBjet_authorize_id\fP = \fBauthorize id\fP
+.RS 3n
+for dvn jetcas,query entitlements need authorize id.
+.RE
+.PP
+\fBjet_fix_ecm\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = fix ecm header for dvn jetcas,just for network reader. default 0.
+.RE
+.PP
+\jet_resync_vendorkey\fP = \fB0\fP|\fB1\fP
+.RS 3n
+1 = enable resync vendorkey for dvn jetcas, when enabled,every 48 ecm data handled,resync vendorkey from dvn card. 
+defalt=0.
 .RE
 .SH OVERCLOCKING
 .TP 3n

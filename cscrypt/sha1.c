@@ -82,6 +82,7 @@ A million repetitions of "a"
 
 #include <stdio.h>
 #include <string.h>
+#include "../globals.h"
 
 #include "sha1.h"
 

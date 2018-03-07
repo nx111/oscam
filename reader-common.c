@@ -15,16 +15,17 @@
 #include "reader-common.h"
 //#include "csctapi/atr.h"
 #include "csctapi/icc_async.h"
+#include "readers.h"
 
 extern const struct s_cardsystem *cardsystems[];
 extern char *RDR_CD_TXT[];
 
-int32_t check_sct_len(const uchar *data, int32_t off)
+int32_t check_sct_len(const uchar *data, int32_t off, size_t maxSize)
 {
-	int32_t len = SCT_LEN(data);
-	if(len + off > MAX_LEN)
+	size_t len = SCT_LEN(data);
+	if(len + off > maxSize)
 	{
-		cs_log_dbg(D_TRACE | D_READER, "check_sct_len(): smartcard section too long %d > %d", len, MAX_LEN - off);
+		cs_log_dbg(D_TRACE | D_READER, "check_sct_len(): smartcard section too long %zd > %zd", len, maxSize - off);
 		len = -1;
 	}
 	return len;
@@ -65,6 +66,9 @@ int32_t card_write(struct s_reader *reader, const uchar *cmd, const uchar *data,
 		{
 			datalen = cmd[4];			
 		}
+		if(reader->card_atr_length >= 13 && !memcmp(reader->card_atr + 5, "DVN TECH", 8))
+			datalen += 2;
+
 		memcpy(buf + CMD_LEN, data, datalen);
 		return (reader_cmd2icc(reader, buf, CMD_LEN + datalen, response, response_length));
 	}
@@ -142,6 +146,19 @@ void cardreader_poll_status(struct s_reader *reader)
 static int32_t reader_get_cardsystem(struct s_reader *reader, ATR *atr)
 {
 	int32_t i;
+
+#ifdef WITH_EMU
+	if(reader->typ == R_EMU)
+	{
+		NULLFREE(reader->csystem_data);
+		rdr_log(reader, "found card system %s", reader_emu.desc);
+		reader->csystem = &reader_emu;
+		reader->csystem_active = true;
+		led_status_found_cardsystem();
+		return (reader->csystem_active);
+	}
+#endif
+
 	for(i = 0; cardsystems[i]; i++)
 	{
 		NULLFREE(reader->csystem_data);

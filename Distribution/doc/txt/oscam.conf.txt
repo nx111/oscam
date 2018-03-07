@@ -393,6 +393,9 @@ DESCRIPTIONS
        httprefresh = seconds
 	  status refresh in seconds, default:none
 
+       httputf8 = 0|1
+	  1 = webif http use utf8 charset,default:0
+
        httphideidleclients = 0|1
 	  1 = enables hiding clients after idle time set in parameter hideclient_to, default:0
 
@@ -723,6 +726,12 @@ DESCRIPTIONS
 
 	    0 = disconnect client when maximum idle time is reached
 	    1 = keep client connected (default)
+
+       cccamcfgfile = filename
+	  enable to read reader from CCcam Config File filename,default to NULL string.
+
+       autosidblock = value
+          enable to add sevice to block list when service is not ok,default to 1.
 
        recv_timeout = milli-seconds
 	  set network timeout for receiving data, default:2000

@@ -1,0 +1,33 @@
+[global]
+nice	      = -1
+clientmaxidle = 300
+logfile       = /dev/null
+usrfile	      = /dev/null
+resolvegethostbyname = 1 
+
+
+# monitor
+[monitor]
+port	      = 988
+aulow	      = 120
+monlevel      = 1
+
+# web interface
+[webif]
+httpport      = 1211
+httpuser      = root	
+httppwd       = dreambox
+httpallowed   = 192.168.0.1-192.168.250.240
+
+# protocols
+[cccam]
+port          = 12110
+version       = 2.1.4
+#ignorereshare = 0
+#reshare       = 0
+#cccamcfgfile   = /etc/CCcam.cfg
+
+[dvbapi]
+enabled	      = 1
+au	      = 1
+ecm_infomode  = 1

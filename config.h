@@ -1,6 +1,7 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+#define WITH_EMU 1
 #define WEBIF 1
 #define WEBIF_LIVELOG 1
 #define WEBIF_JQUERY 1
@@ -49,6 +50,8 @@
 #define READER_VIDEOGUARD 1
 #define READER_DRE 1
 #define READER_TONGFANG 1
+#define READER_STREAMGUARD 1
+#define READER_JET 1
 #define READER_BULCRYPT 1
 #define READER_GRIFFIN 1
 #define READER_DGCRYPT 1

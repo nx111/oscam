@@ -1,6 +1,7 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
+#undef _GNU_SOURCE
 #define _GNU_SOURCE //needed for PTHREAD_MUTEX_RECURSIVE on some plattforms and maybe other things; do not remove
 #include <stdlib.h>
 #include <stdio.h>
@@ -389,17 +390,19 @@ typedef unsigned char uchar;
 #define CS_ECM_RINGBUFFER_MAX 0x10 // max size for ECM last responsetimes ringbuffer. Keep this set to power of 2 values!
 
 // Support for multiple CWs per channel and other encryption algos
-//#define WITH_EXTENDED_CW 1
+#define WITH_EXTENDED_CW 1
 
 #if defined(READER_DRE) || defined(READER_DRECAS) || defined(READER_VIACCESS)
 #define MAX_ECM_SIZE 1024
 #define MAX_EMM_SIZE 1024
+#define MAX_SCT_SIZE 1024	// smaller or equal to the minial one of MAX_ECM_SIZE and MAX_EMM_SIZE 
 #else
-#define MAX_ECM_SIZE 596
-#define MAX_EMM_SIZE 512
+#define MAX_ECM_SIZE 1024
+#define MAX_EMM_SIZE 1024
+#define MAX_SCT_SIZE 1024	// smaller or equal to the minial one of MAX_ECM_SIZE and MAX_EMM_SIZE 
 #endif
 
-#define CS_EMMCACHESIZE  512 //nr of EMMs that each reader will cache
+#define CS_EMMCACHESIZE  1024 //nr of EMMs that each reader will cache
 #define MSGLOGSIZE 64   //size of string buffer for a ecm to return messages
 
 #define D_TRACE     0x0001  // Generate very detailed error/trace messages per routine
@@ -431,6 +434,7 @@ typedef unsigned char uchar;
 #define R_SMART     0x7 // Smartreader+
 #define R_PCSC      0x8 // PCSC
 #define R_DRECAS    0x9 // Reader DRECAS
+#define R_EMU       0x17  // Reader emu
 /////////////////// proxy readers after R_CS378X
 #define R_CAMD35    0x20  // Reader cascading camd 3.5x
 #define R_CAMD33    0x21  // Reader cascading camd 3.3x
@@ -528,7 +532,7 @@ typedef unsigned char uchar;
 #define DEFAULT_RETRYLIMIT 0
 #define DEFAULT_LB_MODE 0
 #define DEFAULT_LB_STAT_CLEANUP 336
-#define DEFAULT_UPDATEINTERVAL 240
+#define DEFAULT_UPDATEINTERVAL 120
 #define DEFAULT_LB_AUTO_BETATUNNEL 1
 #define DEFAULT_LB_AUTO_BETATUNNEL_MODE 0
 #define DEFAULT_LB_AUTO_BETATUNNEL_PREFER_BETA 50
@@ -620,7 +624,7 @@ extern const char *weekdstr;
 #define DEFAULT_CC_RESHARE  -1 // Use global cfg
 #define DEFAULT_CC_IGNRSHR  -1 // Use global cfg
 #define DEFAULT_CC_STEALTH  -1 // Use global cfg
-#define DEFAULT_CC_KEEPALIVE 0
+#define DEFAULT_CC_KEEPALIVE 1
 #define DEFAULT_CC_RECONNECT 12000
 #define DEFAULT_CC_RECV_TIMEOUT 2000
 
@@ -858,6 +862,13 @@ typedef struct s_entitlement            // contains entitlement Info
 	uint32_t        class;              // the class needed for some systems
 	time_t          start;              // startdate
 	time_t          end;                // enddate
+#ifdef WITH_EMU
+	bool            isKey;
+	bool            isData;
+	char            name[8];
+	uint8_t         *key;
+	uint32_t        keyLength;
+#endif
 } S_ENTITLEMENT;
 
 struct s_client ;
@@ -982,6 +993,7 @@ struct s_cardsystem
 	void (*post_process)(struct s_reader *);
 	int32_t (*get_emm_type)(struct emm_packet_t *, struct s_reader *);
 	int32_t (*get_emm_filter)(struct s_reader *, struct s_csystem_emm_filter **, unsigned int *);
+	int32_t (*get_emm_filter_adv)(struct s_reader *, struct s_csystem_emm_filter **, unsigned int *, uint16_t, uint32_t, uint16_t);
 	int32_t (*get_tunemm_filter)(struct s_reader *, struct s_csystem_emm_filter **, unsigned int *);
 };
 
@@ -1455,6 +1467,14 @@ struct s_emmlen_range
 	int16_t max;
 };
 
+#ifdef WITH_EMU
+typedef struct opkeys
+{
+	uint8_t key3b[32][32];
+	uint8_t key56[32][32];
+} opkeys_t;
+#endif
+
 struct s_reader                                     //contains device info, reader info and card info
 {
 	uint8_t         keepalive;
@@ -1501,10 +1521,25 @@ struct s_reader                                     //contains device info, read
 	int32_t         l_port;
 	CAIDTAB         ctab;
 	uint32_t        boxid;
+#ifdef READER_TONGFANG
+	uint32_t	 tongfang3_calibsn;
+	uchar            tongfang3_commkey[8];
+#endif
+#ifdef READER_JET
+	uint8_t         jet_vendor_key[32];
+	uint8_t         jet_root_key[8];
+	uint8_t         jet_derive_key[56];
+	uint8_t         jet_auth_key[10];
+	uint8_t         jet_service_key[8];
+	uint8_t         jet_authorize_id[8];
+	uint8_t         jet_fix_ecm;                   // for dvn jet ,ecm head is 0x50, this option indicate if fix it to 0x80 or 0x81.
+	uint8_t         jet_resync_vendorkey;
+#endif
+	uint32_t        cas_version;
 	int8_t          nagra_read;                     // read nagra ncmed records: 0 Disabled (default), 1 read all records, 2 read valid records only
 	int8_t          detect_seca_nagra_tunneled_card;
 	int8_t          force_irdeto;
-	uint8_t         boxkey[16];                     // n3 boxkey 8 bytes, seca sessionkey 16 bytes, viaccess camid 4 bytes
+	uint8_t         boxkey[32];                     // n3 boxkey 8 bytes, seca sessionkey 16 bytes, viaccess camid 4 bytes, jet boxkey 32 bytes
 	uint8_t         boxkey_length;
 	uint8_t         rsa_mod[120];                   // rsa modulus for nagra cards.
 	uint8_t         rsa_mod_length;
@@ -1564,6 +1599,7 @@ struct s_reader                                     //contains device info, read
 	int8_t          cc_hop;                         // For non-cccam reader: hop for virtual cards
 	int8_t          cc_reshare;
 	int32_t         cc_reconnect;                   //reconnect on ecm-request timeout
+	int8_t          from_cccam_cfg;                 //created from cccam.cfg
 #endif
 	int8_t          tcp_connected;
 	int32_t         tcp_ito;                        // inactivity timeout
@@ -1665,6 +1701,8 @@ struct s_reader                                     //contains device info, read
 	uint32_t        ecmstout;
 	uint32_t        webif_ecmstout;
 	uint32_t        ecmnotfoundlimit;                   // config setting. restart reader if ecmsnok >= ecmnotfoundlimit
+	uint32_t        autorestartseconds;	             // auto restart reader after login ,default 0  disable
+	uint8_t         restartforresetcycle;	             //restart instead of reset for resetcycle.
 	int32_t         ecmsfilteredhead;                   // count filtered ECM's by ECM Headerwhitelist
 	int32_t         ecmsfilteredlen;                    // count filtered ECM's by ECM Whitelist
 	int32_t         webif_ecmsfilteredhead;             // count filtered ECM's by ECM Headerwhitelist to readers ecminfo
@@ -1713,6 +1751,15 @@ struct s_reader                                     //contains device info, read
 #endif
 #ifdef MODULE_GHTTP
 	uint8_t         ghttp_use_ssl;
+#endif
+#ifdef WITH_EMU
+	FTAB            emu_auproviders;
+	char            *extee36;
+	char            *extee56;
+	opkeys_t        *ee36;
+	opkeys_t        *ee56;
+	uint8_t         dre36_force_group;
+	uint8_t         dre56_force_group;
 #endif
 	uint8_t cnxlastecm; // == 0 - las ecm has not been paired ecm, > 0 last ecm has been paired ecm
 	LLIST           *emmstat; //emm stats
@@ -2024,6 +2071,7 @@ struct s_config
 #endif
 	int8_t          http_full_cfg;
 	int8_t          http_overwrite_bak_file;
+	int32_t         http_utf8;
 	int32_t         failbantime;
 	int32_t         failbancount;
 	LLIST           *v_list;                        // Failban list
@@ -2073,6 +2121,8 @@ struct s_config
 	int8_t          cc_reshare_services;
 	int8_t          cc_forward_origin_card;
 	uint8_t         cc_fixed_nodeid[8];
+	int8_t		cc_autosidblock;
+	char		*cc_cfgfile;	//cccam.cfg file path
 	uint32_t        cc_recv_timeout;                // The poll() timeout parameter in ms. Default: DEFAULT_CC_RECV_TIMEOUT (2000 ms).
 #endif
 #ifdef MODULE_GBOX
@@ -2207,6 +2257,18 @@ struct s_config
 	IN_ADDR_T   scam_srvip;
 	struct s_ip *scam_allowed;
 #endif
+
+#ifdef WITH_EMU
+	char        *emu_stream_source_host;
+	int32_t     emu_stream_source_port;
+	char        *emu_stream_source_auth_user;
+	char        *emu_stream_source_auth_password;
+	int32_t     emu_stream_relay_port;
+	uint32_t    emu_stream_ecm_delay;
+	int8_t      emu_stream_relay_enabled;
+	int8_t      emu_stream_emm_enabled;
+#endif
+
 	int32_t    max_cache_time;  //seconds ecms are stored in ecmcwcache
 	int32_t    max_hitcache_time;  //seconds hits are stored in cspec_hitcache (to detect dyn wait_time)
 
@@ -2386,6 +2448,13 @@ static inline bool caid_is_betacrypt(uint16_t caid) { return caid >> 8 == 0x17; 
 static inline bool caid_is_nagra(uint16_t caid) { return caid >> 8 == 0x18; }
 static inline bool caid_is_bulcrypt(uint16_t caid) { return caid == 0x5581 || caid == 0x4AEE; }
 static inline bool caid_is_dre(uint16_t caid) { return caid == 0x4AE0 || caid == 0x4AE1 || caid == 0x2710;}
+static inline bool caid_is_streamguard(uint16_t caid) { return caid == 0x4AD2; }
+static inline bool caid_is_dvn(uint16_t caid) { return caid == 0x4A30; }
+static inline bool caid_is_tongfang(uint16_t caid) { return (caid == 0x4A02) || (caid >= 0x4B00 && caid <= 0x4BFF); }
 const char *get_cardsystem_desc_by_caid(uint16_t caid);
+
+#ifdef WITH_EMU
+FILTER* get_emu_prids_for_caid(struct s_reader *rdr, uint16_t caid);
+#endif
 
 #endif
