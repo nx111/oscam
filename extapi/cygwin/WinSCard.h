@@ -29,7 +29,7 @@ Notes:
 
 #include <wtypes.h>
 #include <winioctl.h>
-#include "winsmcrd.h"
+#include "WinSmCrd.h"
 #ifndef SCARD_S_SUCCESS
 #include "SCardErr.h"
 #endif

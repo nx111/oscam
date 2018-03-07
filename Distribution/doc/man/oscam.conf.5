@@ -554,6 +554,11 @@ path for oscam.js javascript, default:none
 status refresh in seconds, default:none
 .RE
 .PP
+\fBhttutf8\fP = \fB0|1\fP
+.RS 3n
+1 = webif http use utf8 charset,default:0
+.RE
+.PP
 \fBhttphideidleclients\fP = \fB0\fP|\fB1\fP
 .RS 3n
 1 = enables hiding clients after idle time set in parameter \fBhideclient_to\fP, default:0
@@ -1016,7 +1021,7 @@ mode how to provide CCcam servers to CCcam clients:
 .PP
 \fBupdateinterval\fP = \fBseconds\fP
 .RS 3n
-interval to provide share list update to CCcam clients, values <= 10 are invalid and will be set to 30, default:240
+interval to provide share list update to CCcam clients, values <= 10 are invalid and will be set to 30, default:120
 .RE
 .PP
 \fBkeepconnected\fP = \fB0\fP|\fB1\fP
@@ -1025,6 +1030,16 @@ set CCcam keepalive modus:
 
   \fB0\fP = disconnect client when maximum idle time is reached
   \fB1\fP = keep client connected (default)
+.RE
+.PP
+\fBcccamcfgfile\fP = \fBfilename\fP
+.RS 3n
+enable to read reader from CCcam Config File filename,default to NULL string.
+.RE
+.PP
+\fBautosidblock\fP = \fBvalue\fP
+.RS 3n
+enable to add sevice to block list when service is not ok,default to 1.
 .RE
 .PP
 \fBrecv_timeout\fP = \fBmilli-seconds\fP

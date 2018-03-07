@@ -614,7 +614,14 @@ number of ECMs with &quot;not found&quot; answer until the reader will be restar
 
 <B>resetcycle</B> = <B>count</B>
 <DL COMPACT><DT><DD>
-number of ECMs until SC reset is performed, 0 = disabled, valid for physical readers only, default:0
+number of ECMs until reader reset is performed, 0 = disabled, default:0
+</DL>
+
+<P>
+
+<B>restartforresetcycle</B> = <B>1|0</B>
+<DL COMPACT><DT><DD>
+restart instead of reset for resetcycle, default:0
 </DL>
 
 <P>
@@ -758,7 +765,11 @@ write file (usually a copy of a file saved by savenano) to your smartcard, if no
 </DL>
 
 <P>
-
+<B>autorestartseconds</B> = <B>seconds</B>
+<DL COMPACT><DT><DD>
+force restart reader after seconds,default 0 disabled.
+</DL>
+<P>
 <B>dropbadcws</B> = <B>0</B>|<B>1</B>
 <DL COMPACT><DT><DD>
 1 = reject bad CWs, send &quot;not found&quot; instead of bad CWs, default:0
@@ -899,6 +910,36 @@ maximum of gbox peers ECMs will be send to, default:3
 <B>use_ssl</B> = <B>0</B>|<B>1</B>
 <DL COMPACT><DT><DD>
 1 = use SSL for ghttp protocol, default:0
+</DL>
+
+<P>
+
+<B>tongfang3_calibsn</B> = <B>calibsn</B>
+<DL COMPACT><DT><DD>
+CalibSN for tongfang3,it must be 4 hexadecimal bytes.
+</DL>
+
+<P>
+
+<B>jet_authorize_id</B> = <B>authorize id</B>
+<DL COMPACT><DT><DD>
+for dvn jetcas,query entitlements need authorize id.
+</DL>
+
+<P>
+
+<B>jet_fix_ecm</B> = <B>0</B>|<B>1</B>
+<DL COMPACT><DT><DD>
+1 = fix ecm header for dvn jetcas,just for network reader. default 0.
+</DL>
+
+
+<P>
+
+<B>jet_resync_vendorkey</B> = <B>0</B>|<B>1</B>
+<DL COMPACT><DT><DD>
+1 = enable resync vendorkey for dvn jetcas, when enabled,every 48 ecm data handled,resync vendorkey from dvn card. 
+defalt=0.
 </DL>
 
 <A NAME="lbAF">&nbsp;</A>

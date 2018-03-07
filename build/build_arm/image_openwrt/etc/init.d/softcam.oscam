@@ -1,0 +1,15 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+
+start() {
+	/usr/bin/oscam --config-dir /etc/oscam --daemon --pidfile /tmp/oscam.pid --restart 2 --utf8
+        echo "oscam started!"
+}
+
+stop() {
+	kill `cat /tmp/oscam.pid` 2> /dev/null
+	rm -f /tmp/oscam.pid
+        echo "oscam stoped!"
+}
+

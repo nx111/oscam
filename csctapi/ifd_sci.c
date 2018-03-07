@@ -305,6 +305,18 @@ static int32_t Sci_Reset(struct s_reader *reader, ATR *atr)
 		params.T = 0;
 	}
 
+#if 0
+	int i;
+	for(i=0;i < reader->ctab.ctnum; i++){
+		if(reader->ctab.ctdata[i].caid == 0x4A30){
+			params.ETU = 186;
+			reader->cardmhz = 340;
+			reader->mhz = 340;
+			break;
+		}
+	}
+#endif
+
 	int32_t tries = 0;
 	int32_t max_tries = 0;
 	int32_t pll_start_fs = 0;

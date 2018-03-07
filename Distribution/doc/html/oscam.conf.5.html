@@ -729,6 +729,12 @@ status refresh in seconds, default:none
 
 <P>
 
+<B>httputf8</B> = <B>0|1</B>
+<DL COMPACT><DT><DD>
+1 = webif http use utf8 charset,default:0
+</DL>
+
+<P>
 <B>httphideidleclients</B> = <B>0</B>|<B>1</B>
 <DL COMPACT><DT><DD>
 1 = enables hiding clients after idle time set in parameter <B>hideclient_to</B>, default:0
@@ -1344,7 +1350,7 @@ mode how to provide CCcam servers to CCcam clients:
 
 <B>updateinterval</B> = <B>seconds</B>
 <DL COMPACT><DT><DD>
-interval to provide share list update to CCcam clients, values &lt;= 10 are invalid and will be set to 30, default:240
+interval to provide share list update to CCcam clients, values &lt;= 10 are invalid and will be set to 30, default:120
 </DL>
 
 <P>
@@ -1355,6 +1361,20 @@ set CCcam keepalive modus:
 <P>
 <BR>&nbsp;&nbsp;<B>0</B>&nbsp;=&nbsp;disconnect&nbsp;client&nbsp;when&nbsp;maximum&nbsp;idle&nbsp;time&nbsp;is&nbsp;reached
 <BR>&nbsp;&nbsp;<B>1</B>&nbsp;=&nbsp;keep&nbsp;client&nbsp;connected&nbsp;(default)
+</DL>
+
+<P>
+
+<B>cccamcfgfile</B> = <B>filename</B>
+<DL COMPACT><DT><DD>
+enable to read reader from CCcam Config File filename,default to NULL string.
+</DL>
+
+<P>
+
+<B>autosidblock</B> = <B>value</B>
+<DL COMPACT><DT><DD>
+enable to add sevice to block list when service is not ok,default to 1.
 </DL>
 
 <P>

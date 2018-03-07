@@ -900,7 +900,7 @@ static int32_t smartreader_set_latency_timer(struct s_reader *reader, uint16_t  
 }
 
 #if defined(__CYGWIN__)
-static WINAPI read_callback(struct libusb_transfer *transfer)
+static void WINAPI read_callback(struct libusb_transfer *transfer)
 {
 #else
 static void read_callback(struct libusb_transfer *transfer)
@@ -1251,6 +1251,7 @@ static void *ReaderThread(void *p)
 	}
 
 	pthread_exit(NULL);
+	return NULL;
 }
 
 static void smart_fastpoll(struct s_reader *reader, int32_t on)

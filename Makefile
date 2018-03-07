@@ -42,8 +42,10 @@ LIB_DL = -ldl
 
 LIB_RT :=
 ifeq ($(uname_S),Linux)
+ifndef ANDROID_NDK
 ifeq "$(shell ./config.sh --enabled CLOCKFIX)" "Y"
 	LIB_RT := -lrt
+endif
 endif
 endif
 ifeq ($(uname_S),FreeBSD)
@@ -64,6 +66,13 @@ CC = $(CROSS_DIR)$(CROSS)gcc
 STRIP = $(CROSS_DIR)$(CROSS)strip
 
 LDFLAGS = -Wl,--gc-sections
+
+TARGETHELP := $(shell $(CC) --target-help)
+ifneq (,$(findstring sse2,$(TARGETHELP)))
+override CFLAGS += -fexpensive-optimizations -mmmx -msse -msse2 -msse3
+else
+override CFLAGS += -fexpensive-optimizations
+endif
 
 # The linker for powerpc have bug that prevents --gc-sections from working
 # Check for the linker version and if it matches disable --gc-sections
@@ -229,6 +238,8 @@ SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_sqr.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_word.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/mem.c
 SRC-$(CONFIG_LIB_DES) += cscrypt/des.c
+SRC-$(CONFIG_LIB_TWOFISH) += cscrypt/jet_twofish.c
+SRC-$(CONFIG_READER_JET) += cscrypt/jet_dh.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_cbc.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_ecb.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_skey.c
@@ -268,6 +279,21 @@ SRC-$(CONFIG_CS_CACHEEX) += module-cccam-cacheex.c
 SRC-$(CONFIG_MODULE_CCCAM) += module-cccam.c
 SRC-$(CONFIG_MODULE_CCCSHARE) += module-cccshare.c
 SRC-$(CONFIG_MODULE_CONSTCW) += module-constcw.c
+SRC-$(CONFIG_WITH_EMU) += module-emulator.c
+SRC-$(CONFIG_WITH_EMU) += module-emulator-osemu.c
+SRC-$(CONFIG_WITH_EMU) += module-emulator-stream.c
+SRC-$(CONFIG_WITH_EMU) += ffdecsa/ffdecsa.c
+UNAME := $(shell uname -s)
+ifneq ($(UNAME),Darwin)
+ifndef ANDROID_NDK
+ifndef ANDROID_STANDALONE_TOOLCHAIN
+ifeq "$(CONFIG_WITH_EMU)" "y"
+TOUCH_SK := $(shell touch SoftCam.Key)
+override LDFLAGS += -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default
+endif
+endif
+endif
+endif
 SRC-$(CONFIG_CS_CACHEEX) += module-csp.c
 SRC-$(CONFIG_CW_CYCLE_CHECK) += module-cw-cycle-check.c
 SRC-$(CONFIG_WITH_AZBOX) += module-dvbapi-azbox.c
@@ -315,6 +341,8 @@ SRC-$(CONFIG_READER_IRDETO) += reader-irdeto.c
 SRC-$(CONFIG_READER_NAGRA) += reader-nagra.c
 SRC-$(CONFIG_READER_SECA) += reader-seca.c
 SRC-$(CONFIG_READER_TONGFANG) += reader-tongfang.c
+SRC-$(CONFIG_READER_STREAMGUARD) += reader-streamguard.c
+SRC-$(CONFIG_READER_JET) += reader-jet.c
 SRC-$(CONFIG_READER_VIACCESS) += reader-viaccess.c
 SRC-$(CONFIG_READER_VIDEOGUARD) += reader-videoguard-common.c
 SRC-$(CONFIG_READER_VIDEOGUARD) += reader-videoguard1.c
@@ -365,7 +393,7 @@ SRC := $(subst config.c,$(OBJDIR)/config.c,$(SRC))
 # starts the compilation.
 all:
 	@./config.sh --use-flags "$(USE_FLAGS)" --objdir "$(OBJDIR)" --make-config.mak
-	@-mkdir -p $(OBJDIR)/cscrypt $(OBJDIR)/csctapi $(OBJDIR)/minilzo $(OBJDIR)/webif
+	@-mkdir -p $(OBJDIR)/cscrypt $(OBJDIR)/csctapi $(OBJDIR)/minilzo $(OBJDIR)/ffdecsa $(OBJDIR)/webif
 	@-printf "\
 +-------------------------------------------------------------------------------\n\
 | OSCam ver: $(VER) rev: $(SVN_REV) target: $(TARGET)\n\

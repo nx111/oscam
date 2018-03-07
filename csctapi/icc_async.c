@@ -516,6 +516,11 @@ static int32_t Parse_ATR(struct s_reader *reader, ATR *atr, uint16_t deprecated)
 		reader->read_timeout = 1000000; // in us
 		bool PPS_success = 0;
 		bool NeedsPTS = ((reader->protocol_type != ATR_PROTOCOL_TYPE_T14) && (numprottype > 1 || (atr->ib[0][ATR_INTERFACE_BYTE_TA].present == 1 && atr->ib[0][ATR_INTERFACE_BYTE_TA].value != 0x11) || N == 255)); //needs PTS according to old ISO 7816
+		if(atr->hbn >= 8 && !memcmp(atr->hb, "DVN TECH", 8)){
+			NeedsPTS = 0;
+			FI = 1;
+			D = 2;
+		}
 		if(NeedsPTS && deprecated == 0)
 		{
 			//                       PTSS   PTS0    PTS1    PCK

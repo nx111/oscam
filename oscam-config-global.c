@@ -16,6 +16,7 @@
 #define DEFAULT_HTTP_PORT   8888
 #define DEFAULT_HTTP_ALLOW  "127.0.0.1,192.168.0.0-192.168.255.255,10.0.0.0-10.255.255.255,::1"
 
+extern uint8_t cs_http_use_utf8;
 static void disablelog_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
 {
 	if(value)
@@ -523,6 +524,17 @@ static void http_dyndns_fn(const char *token, char *value, void *UNUSED(setting)
 	}
 }
 
+static void http_utf8_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
+{
+	if(value)
+	{
+		cfg.http_utf8 = strtoul(value, NULL, 10);
+		cs_http_use_utf8 = cfg.http_utf8;
+		return;
+	}
+	fprintf_conf(f, token, "%d\n",cfg.http_utf8);
+}
+
 static bool webif_should_save_fn(void *UNUSED(var))
 {
 	return cfg.http_port;
@@ -568,6 +580,7 @@ static const struct config_list webif_opts[] =
 	DEF_OPT_INT32("httpemmuclean"		 , OFS(http_emmu_clean)			, 256),
 	DEF_OPT_INT32("httpemmsclean"		 , OFS(http_emms_clean)			, -1),
 	DEF_OPT_INT32("httpemmgclean"		 , OFS(http_emmg_clean)			, -1),
+	DEF_OPT_FUNC("httputf8"			 , OFS(http_utf8) 			,http_utf8_fn),
 #ifdef WEBIF_LIVELOG
 	DEF_OPT_INT8("http_status_log"		 , OFS(http_status_log)			, 0),
 #else
@@ -810,6 +823,8 @@ static const struct config_list cccam_opts[] =
 	DEF_OPT_INT8("minimizecards"		, OFS(cc_minimize_cards),	0),
 	DEF_OPT_INT8("keepconnected"		, OFS(cc_keep_connected),	1),
 	DEF_OPT_UINT32("recv_timeout"		, OFS(cc_recv_timeout),		DEFAULT_CC_RECV_TIMEOUT),
+	DEF_OPT_STR("cccfgfile"             , OFS(cc_cfgfile),              NULL),
+	DEF_OPT_INT32("autosidblock"        , OFS(cc_autosidblock),         1),
 	DEF_LAST_OPT
 };
 #else
@@ -854,6 +869,30 @@ static const struct config_list scam_opts[] =
 #else
 static const struct config_list scam_opts[] = { DEF_LAST_OPT };
 #endif
+
+#ifdef WITH_EMU
+static bool streamrelay_should_save_fn(void *UNUSED(var))
+{
+	return 1;
+}
+static const struct config_list streamrelay_opts[] =
+{
+	DEF_OPT_SAVE_FUNC(streamrelay_should_save_fn),
+	DEF_OPT_STR("stream_source_host"	      , OFS(emu_stream_source_host),          "127.0.0.1"),
+	DEF_OPT_INT32("stream_source_port"        , OFS(emu_stream_source_port),          8001),
+	DEF_OPT_STR("stream_source_auth_user"     , OFS(emu_stream_source_auth_user),     NULL),
+	DEF_OPT_STR("stream_source_auth_password" , OFS(emu_stream_source_auth_password), NULL),
+	DEF_OPT_INT32("stream_relay_port"         , OFS(emu_stream_relay_port),           17999),
+	DEF_OPT_UINT32("stream_ecm_delay"         , OFS(emu_stream_ecm_delay),            600),
+	DEF_OPT_INT8("stream_relay_enabled"       , OFS(emu_stream_relay_enabled),        1),
+	DEF_OPT_INT8("stream_emm_enabled"         , OFS(emu_stream_emm_enabled),          1),
+	DEF_LAST_OPT
+};
+#else
+static const struct config_list streamrelay_opts[] = { DEF_LAST_OPT };
+#endif
+
+
 #ifdef MODULE_RADEGAST
 static bool radegast_should_save_fn(void *UNUSED(var))
 {
@@ -1289,6 +1328,7 @@ static const struct config_sections oscam_conf[] =
 	{ "cccam",	cccam_opts },
 	{ "pandora",	pandora_opts },
 	{ "scam",	scam_opts },
+	{ "streamrelay",	streamrelay_opts },
 	{ "dvbapi",	dvbapi_opts },
 	{ "monitor",	monitor_opts },
 	{ "webif",	webif_opts },
