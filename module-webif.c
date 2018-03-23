@@ -101,7 +101,7 @@ static bool use_srvid2 = false;
 #define MNU_CFG_LCD			14
 #define MNU_CFG_MONITOR		15
 #define MNU_CFG_WEBIF		16
-#define MNU_CFG_STREAMRELAY 17
+#define MNU_CFG_STREAMRELAY	17
 
 /* constants for files.html submenuactivating */
 #define MNU_CFG_FVERSION	0
@@ -134,10 +134,10 @@ static bool use_srvid2 = false;
 #define MNU_GBX_FSMSNACK    	26
 #define MNU_GBX_FSTAINF     	27
 #define MNU_GBX_FEXPINF     	28
-#define MNU_CFG_FSOFTCAMKEY	29
-#define MNU_GBX_INFOLOG     	30
+#define MNU_GBX_INFOLOG     	29
+#define MNU_CFG_FSOFTCAMKEY	30
 
-#define MNU_CFG_TOTAL_ITEMS 	31 // sum of items above. Use it for "All inactive" in function calls too.
+#define MNU_CFG_TOTAL_ITEMS 	31 // sum of config or files items above. Use it for "All inactive" in function calls too.
 
 static void set_status_info_var(struct templatevars *vars, char *varname, int no_data, char *fmt, double value) {
 	if (no_data)
@@ -1158,6 +1158,9 @@ static char *send_oscam_config_gbox(struct templatevars *vars, struct uriparams 
 	char *value3 = mk_t_gbox_block_ecm();	
 	tpl_addVar(vars, TPLAPPEND, "GBOXBLOCKECM", value3);
 	free_mk_t(value3);
+	char *value4 = mk_t_accept_remm_peer();
+	tpl_addVar(vars, TPLAPPEND, "GBOXACCEPTREMM", value4);
+	free_mk_t(value4);
 /* 
  *	GBOX SMS
 */
@@ -1589,6 +1592,10 @@ static char *send_oscam_config_dvbapi(struct templatevars *vars, struct uriparam
 
 	//extended_cw_api
 	tpl_printf(vars, TPLADD, "TMP", "EXTENDEDCWAPISELECTED%d", cfg.dvbapi_extended_cw_api);
+	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
+
+	//extended_cw_pids (pid limiter)
+	tpl_printf(vars, TPLADD, "TMP", "EXTENDEDCWPIDSSELECTED%d", cfg.dvbapi_extended_cw_pids);
 	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
 
 	//write_sdt_prov
@@ -2736,6 +2743,16 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	value = mk_t_ftab(&rdr->emu_auproviders);
 	tpl_addVar(vars, TPLADD, "EMUAUPROVIDERS", value);
 	free_mk_t(value);
+
+	// Date-coded BISS keys
+	if(!apicall)
+	{
+		tpl_addVar(vars, TPLADD, "EMUDATECODEDENABLED", (rdr->emu_datecodedenabled == 1) ? "checked" : "");
+	}
+	else
+	{
+		tpl_addVar(vars, TPLADD, "EMUDATECODEDENABLED", (rdr->emu_datecodedenabled == 1) ? "1" : "0");
+	}
 
 	//extee
 	tpl_addVar(vars, TPLADD, "EXTEE36", rdr->extee36);
@@ -6444,10 +6461,10 @@ static char *send_oscam_files(struct templatevars * vars, struct uriparams * par
 		{ "gsms.nack",       MNU_GBX_FSMSNACK,  FTYPE_GBOX },     // id 26
 		{ "stats.info",      MNU_GBX_FSTAINF,   FTYPE_GBOX },     // id 27
 		{ "expired.info",    MNU_GBX_FEXPINF,   FTYPE_GBOX },     // id 28
-		{ "info.log",        MNU_GBX_INFOLOG,   FTYPE_GBOX },     // id 30
+		{ "info.log",        MNU_GBX_INFOLOG,   FTYPE_GBOX },     // id 29
 #endif
 #ifdef WITH_EMU
-		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },	// id 29
+		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },  // id 30
 #endif
 		{ NULL, 0, 0 },
 	};
@@ -7983,10 +8000,9 @@ static int32_t process_request(FILE * f, IN_ADDR_T in)
 		if(!ok)
 		{
 			send_error(f, 403, "Forbidden", NULL, "Access denied.", 0);
-			cs_log("unauthorized access from %s", cs_inet_ntoa(addr));
+			cs_log("unauthorized access from %s - invalid ip or dyndns", cs_inet_ntoa(addr));
 			return 0;
 		}
-
 		int32_t authok = 0;
 		char expectednonce[(MD5_DIGEST_LENGTH * 2) + 1], opaque[(MD5_DIGEST_LENGTH * 2) + 1];
 		char authheadertmp[sizeof(AUTHREALM) + sizeof(expectednonce) + sizeof(opaque) + 100];

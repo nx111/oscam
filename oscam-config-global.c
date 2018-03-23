@@ -878,7 +878,7 @@ static bool streamrelay_should_save_fn(void *UNUSED(var))
 static const struct config_list streamrelay_opts[] =
 {
 	DEF_OPT_SAVE_FUNC(streamrelay_should_save_fn),
-	DEF_OPT_STR("stream_source_host"	      , OFS(emu_stream_source_host),          "127.0.0.1"),
+	DEF_OPT_STR("stream_source_host"          , OFS(emu_stream_source_host),          "127.0.0.1"),
 	DEF_OPT_INT32("stream_source_port"        , OFS(emu_stream_source_port),          8001),
 	DEF_OPT_STR("stream_source_auth_user"     , OFS(emu_stream_source_auth_user),     NULL),
 	DEF_OPT_STR("stream_source_auth_password" , OFS(emu_stream_source_auth_password), NULL),
@@ -973,6 +973,31 @@ static void gbox_block_ecm_fn(const char *token, char *value, void *UNUSED(setti
 	if (cfg.gbox_block_ecm_num > 0)
 	{
 		value = mk_t_gbox_block_ecm();
+		fprintf_conf(f, token, "%s\n", value);
+		free_mk_t(value);
+	}
+}
+
+static void accept_remm_peer_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
+{
+	if (value)
+	{
+		char *ptr1, *saveptr1 = NULL;
+		const char *s;
+		memset(cfg.accept_remm_peer, 0, sizeof(cfg.accept_remm_peer));
+		int n = 0, i;
+		for (i = 0, ptr1 = strtok_r(value, ",", &saveptr1); (i < 4) && (ptr1); ptr1 = strtok_r(NULL, ",", &saveptr1))
+		{
+			s=ptr1;
+			if ((n < GBOX_MAX_REMM_PEERS) && (s[strspn(s, "0123456789abcdefABCDEF")] == 0))
+			{ cfg.accept_remm_peer[n++] = a2i(ptr1, 4); }
+		}
+		cfg.accept_remm_peer_num = n;
+		return;
+	}
+	if (cfg.accept_remm_peer_num > 0)
+	{
+		value = mk_t_accept_remm_peer();
 		fprintf_conf(f, token, "%s\n", value);
 		free_mk_t(value);
 	}
@@ -1164,6 +1189,7 @@ static const struct config_list gbox_opts[] =
 	DEF_OPT_UINT8("log_hello"	, OFS(log_hello)	, 1),
 	DEF_OPT_STR("tmp_dir"		, OFS(gbox_tmp_dir)	, NULL ),
 	DEF_OPT_FUNC("ignore_peer"	, OFS(gbox_ignored_peer), gbox_ignored_peer_fn ),
+	DEF_OPT_FUNC("accept_remm_peer"	, OFS(accept_remm_peer), accept_remm_peer_fn ),
 	DEF_OPT_FUNC("block_ecm"	, OFS(gbox_block_ecm)	, gbox_block_ecm_fn ),
 	DEF_OPT_FUNC("proxy_card"	, OFS(gbox_proxy_card)	, gbox_proxy_card_fn ),
 	DEF_OPT_UINT8("gbox_save_gsms"	, OFS(gbox_save_gsms)		, 0),
@@ -1275,6 +1301,7 @@ static const struct config_list dvbapi_opts[] =
 	DEF_OPT_INT8("read_sdt"		, OFS(dvbapi_read_sdt),	0),
 	DEF_OPT_INT8("write_sdt_prov", OFS(dvbapi_write_sdt_prov),	0),
 	DEF_OPT_INT8("extended_cw_api", OFS(dvbapi_extended_cw_api),	0),
+	DEF_OPT_INT8("extended_cw_pids", OFS(dvbapi_extended_cw_pids),	64), // pid limiter
 	DEF_OPT_FUNC("boxtype"		, OFS(dvbapi_boxtype),		dvbapi_boxtype_fn),
 	DEF_OPT_FUNC("services"		, OFS(dvbapi_sidtabs.ok),	dvbapi_services_fn),
 	// OBSOLETE OPTIONS

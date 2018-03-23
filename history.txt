@@ -1,100 +1,100 @@
-f1e68 a8plus: rename A8Plus to A8PlusBox
-5f3c9 a8plus: fix link for some lost functions.
-d8395 a8plus: update build script and libA8PlusXCam.a
-2f7f0 a8plus:  fix some link error.
-fb3bd try to fix link.
-3fb0c support to a8plus
-849b6 ifd_pcsc: fix hexdump send/receive data length.
-d10b9 jet: support to resync vendor key.
-159c1 jet: parse cas version more detail.
-d2c0e Merge to r11289 from 'streamboard.tv/svn/oscam'
-74532 DVBAPI:
-3c45a DVBAPI:
-296ef DVBAPI:
-184a0 - Restore class option for viaccess card in webif (Tnx Pr2 for patch!)
-31340 DVBAPI:
-9cf13 dvbapi: support dvn jetcas for azbox.
-889b6 gbx: - fix for ticket #4522
-b920b fix byte order issue of sha1.
-d9ba4 Merge to r11283 from http://www.streamboard.tv/svn/oscam
-10aa6 streamguard: fix get entitlements info.
-2cc60 VIACCESS:
-9a961 VIACCESS:
-a88ba merge Android and Mac OS X in CMakeLists.txt
-f1703 build script: fix link warning for lost librt.so.0
-d69a1 build scripts: merge cygwin and i686Linux and x86 android to build_x86.
-ead62 fix redefine _GNU_SOURCE for android ndk x86 toolchain.
-8242b build scripts: update for build android arm version.
-4b129 buildscript: hide upx error.
-22df0 CMakeLists: build position independent executable for android.
-2ea7d build scripts: add support for android.
-ed4b9 support to build for android
-2519b fix lost librt for android ndk.
-277a6 jet: comment out unused byte function in jet_twofish
-5074f jet: fix mktime when get entitlements.
-d1fb0 add some config to Distribution docs.
-c5714 jet: add config for fix ecm head.
-b00f2 dvbapi: fix setting ecm filter for dvn jetcas.
-37a82 fix cw check and get odd/even  for dvn jetcas.
-241c0 dvbapi: for dvn, try to fix odd/even ecm filter check.
-b8ec3 jet: parse entitlements info.
-be5c4 Merge from 'streamboard.tv' to r11281
-4ddb0 fix odd even check for jet.
-b1031 dvbapi: not handle unique ecm part for streamguard.
-2e65a dvbapi: for jet, not stop filter for unique ecm.
-04759 dvbapi: for jet, not wait for odd/even ecm change.
-ebdb9 DVBAPI: fix for DVN, set ecm table id to 0x50.
-c1132 gbx: - Fix for local card with caprovid 00000000. Happens when oscam is patched with emu - Add log/msg for peer on-offline, authentication and connection lost - Add OSD notification for incoming GSMS - OSD feature enabled by suitable 'msg.osd' in tmp_dir - Add and update some debug log outputs
-de831 - Add support of ORF P4 Irdeto mode - Patch provided and tested by Optimum Power - Fix for Ticket #4517
-2b0d0 jet: fix ecm decrypt.
-44ebf jet: fix parse ecm.
-c4702 dvbapi: fix parse cat for caid 0x4Axx.
-a08c2 jet: fill boxkey with 0xEE default.
-71d32 jet: output more debug message for init.
-89375 jet: add debug code in Sci_Reset.
-b2b6a jet: auto check whether set key in twofish.
-cd0e8 fix boxkey length for jet.
-a7773 jet: continue work when something failed.
-125fe jet: clean some compile warning.
-fefc0 jet: continue work when update vendor key failed.
-1ebb8 jet: update protocol_t0 for jet.
-00951 jet: append 90 00 to command.
-7c8ec jet: add debug info for T0 command.
-9afa8 jet: fix encrypt output
-20217 jet: rename tag to ins by iso7816
-74d9c jet: fix compile warning for size_t in printf.
-05142 jet: fix compile warning in jet_twofish.
-f0c76 jet: fix conflict in printf long long unsigned int and uint64_t.
-57bc9 jet: check atr by DVN identity.
-0c9d0 Revert "jet: try to change card params."
-b7e65 jet: try to change card params.
-ceb60 jet: fix cmd len.
-60b87 Revert "add ETU config for reader."
-f80d5 add ETU config for reader.
-67c84 jet: support old version card.
-c69aa jet: fix and update init.
-7eb99 jet: change Boxkey to textarea in webif.
-2f95e jet: update twofish
-d7856 jet: when updated vendor key, update twofish key.
-6b112 jet: fix comments for twofish.
-a8828 jet: fix for "warning: statement with no effect"
-af970 jet: remove unused varible i.
-8309a jet: fill data with 0xFF before encrypt.
-6e980 jet: fix calc_crc16.
-1e90d jet: update and rename twofish to jet_twofish, fix it for jet.
-2ace7 jet: now just support version 5.
-650c8 jet: compile towfish when enable jet.
-81540 jet: implement do emm.
-75a6e jet: update some message for write_cmd.
-f9401 jet: implement do ecm.
-37c47 jet: finished init function, merge some command.
-2860e jet: add for register service key and confirm box in init.
-79ecc jet: add for get service key in init.
-1d13d jet: update boxkey webif config for jet.
-adf67 jet: add pairing for init.
-190ae jet: add change vendor key for init.
-46263 jet: add confirm auth for init.
-3b247 jet: fix compile error.
-a2881 jet: try to simplify write cmd.
-a93df jet: add lost declear in readers.h
-dbf54 jet: fix twofish compile error
+79048 emu: update to r769,powervu hash has mode 10.
+4f904 emu r769: Add powervu hash mode 10
+349e0 Merge to r11401 from 'streamboard.tv/svn/oscam'
+d014c gbx-remm: - add delay to remm request message - to avoid multiple requests during zapping and multi-tuner operation
+19f93 Tryfix #4261 ECM doublecheck is broken
+9c652 gbx: - new feature: gbox remote emm - new parameter on client side in oscam.conf [gbox]: 'accept_remm_peer = crdsrv_peer1,crdsrv_peer2,...' - corrected Distribution/doc in terms of gbx and AU note: - In order to get remm working, both, oscam gbox cardserver and gbox client must have svn rev >= r10399 and dist = 1 - oscam gbox < r10399 ignores remm feature, also orig. gbox, diablo etc
+7dee6 Attempt to make oscam revision svn-to-git friendly
+79ff0 Update a value to specific 15 as requested in #4646 by counter71
+0a849 DVBAPI: parse pmtpid also for PC clients Tnx Perexg
+c73c1 gbx: - Fix Error Message when oscam shutting down - Use more meaningful variables in some card functions - rework reconnect functionality
+21c7a When received CWs are different the logged warning contains wrong reader details Tnx Engy for providing patch!
+b3895 Fix for received CW has invalid checksum when CCcam own Node Id > 7FFFFFFFFFFFFFFF Tnx engy for this patch!
+aa4aa - WebIf:  show unauthorised access in oscam log - req. by Bust3D
+7ff78 Merge branch 'streamboard'
+7a3da - fix incorrect baudrate shown in log for under-/overclocked mouse/phoenix readers - diff provided by JoJoR
+32d7b Merge to r11390 from https://www.streamboard.tv/svn/oscam
+8ce49 get_cardsystem_desc_by_caid: add missing pvu
+42fb6 dvbapi: show capabilities in hello string (network mode)
+992ff dvbapi: another small fix after r11386
+77bce dvbapi: fixes after r11386
+59acb dvbapi: introduce protocol v3 (add msgid to be able to associate keys with ECMs)
+b03b6 DVBAPI:
+f7e4f no change just remove useless spaces
+7310f Revert r11382: Fix the ppc toolchain instead!
+50ae2 fix ppc mutex build warnings
+522c7 [gbx]: - More detailed log if authentication fails
+48752 streamguard: update parse entitlements.
+b49db Merge to r11380 from 'https://streamboard.tv/svn/oscam'
+d4c10 remove is_defined.txt on make distclean
+ddfe7 [gbx]: - Dont send msg goodbye in case late cw might arrive - Fix for local cards initialized twice
+7dc18 [gbx]: - Dont send msg goodbye if own gbx version is 2.2A - Change own gbx version default to 2.2A [reader nagra]                                                                                                             [ - Fix expiration data for HDplus cards - Optimum Power ticket #4597
+b01ad merge to r11376 from https://streamboard.tv/svn/oscam
+ed6ea dvbapi: do not send responses to all adapters, but to the origin (when decoding same srvid)
+c958b [gbx]: - Reactivate hello timing parameter 'gbox-reconnect' - Hello timing is now independant of 'clientmaxidle' - Limit number of hellos after peer gone offline
+3d381 adding pstruct prototype fixing debian 9 build #4590
+25c95 fix build ghttp for "openssl 1.10e"
+9f217 another ssl place fix for "openssl 1.10e"
+a195d fix build with "OpenSSL 1.1.0e"
+3be03 oscam-chk: accept all providers when provider is not specified
+e6dbf - Suppresses possible warnings on targets, which are not supporting SO_PRIORITY (e.g. Cygwin) or IP_TOS.
+6dd12 Correct a typo in r11368
+9b6b1 - Clean the cccam reader description code mess.
+28fef - Centralize code for attack handling - Introduce defines instead of numbers
+be569 - revert changeset 11364/5 - nobody should ask me again to release patches that are not proved by several users
+d086e - fixed bug - thx basta2k
+c76e9 - remove redundant code found by boneco69
+276dd - Fix bug introduced r11361 - thx hoho
+4bc94 [gbx]: - Revised code to detect Local card change - Gbx local cards updated only after physical local card eject/detect
+1896f [gbx]: - Revised local gbox init code. - Rename msg.osd to msg.info - Add info.log to WebIf gbox files
+92708 [gbx] - make creation of attack.txt configurable - oscam-conf [gbox]:    - dis_attack_txt = 0|1  default = 0
+a3f03 fix header for a8plus.
+f7218 Merge to r11359 from 'https://www.streamboard.tv/svn/oscam'
+6d7b6 CCCam:
+c082c - Netprio fix from #4580
+fe962 Merge to r11357 from "https://www.streamboard.tv/svn/oscam"
+1f237 Change man page so it matches the new allowed timeframe functionality
+5fecf - Add extended allowed timeframe request
+928e0 fix 11354. thx OP
+44e03 [gbx]: - Remove residuals of obsolete gsms1 protocol - fix and update attack warnings - dont send hello to ignored peers - add own id to vers file
+1ff90 - Restructure the stapi code so it will compile again!
+9896c - tryfix pixelization regression introduced r11351
+514cd - Fix for Biss using zeroed cw thanks vatlach for reporting and testing
+c806a Merge to r11350 from streamboard.tv
+6691b Webif cosmetics suggested by The Raven exceptionally patch delivered by the.sniffer
+90ecd Fix by Optimum Power for a copypaste error in r11348
+037eb In attempt to avoid possible crashes reviewed all the checkboxes in the webif Thanks Pr2 for the code review and patch!
+13d91 - Attempt to improve ecm handling code!
+13501 - Just remove the silly code since it aint usefull anyway!
+e226b (Tnx Pr2 for this patch)
+80ab8 - Fix more recently introduced regression!
+321c5 - Fix regression introduced in r11323
+564b2 fix aggressive-loop-optimizations warnning.
+9f4f8 Merge to r11342 from  https://www.streamboard.tv/svn/oscam
+2d6ed - add proper detection of 2 more Videoguard cards - requested by @pr2
+1bc59 [gbx]: - Remove obsolete gsms1 protocol from code - Following latest gbox.net, that removed gsms1 protocol as well - From now on only one password protected gsms protocol supported - Implement filter for unsave non alphanumerical characters in OSD messages
+ae4fa DVBAPI:
+ec9d4 fix 09C7
+40a60 - Tryfix ticket #4566
+aa4eb add halfcw fix for #4359
+aa14e [gbx] - fixed bug introduced with r11311
+587ec revert 11333 introduced crashes on mixed configurations
+cba2e WebIf - fix for a 3 years old bug in GHTTP reader webif - thx to @pr2
+91e89 fix half cw from mcs
+93fa8 fix #4490
+c6e6e DVBAPI:
+21ade fix warning compiler arm-cortex-linux-gnueabi-su980
+9db37 Tryfix ticket #4486
+637e8 [gbx webIf] - add feature send gsms (Gbox SMS) via WebIF - no need anymore to do that with text file - See WebIF/Config/GBox - all credits go to @pr2. - thanks
+ebf1b WebIf - Try fix webif crash - Requested by @pr2
+b6126 WebIf - Add missing HTML tag from r11292 - requested by @pr2
+f4ad0 WebIf - Add full support for multiport supported by Cs378x but never implemented in the webif - Patch provided by @pr2 - fixes #4535
+b4aba fix warnings on build for module-newcam.c and module-cccshare.c
+c90df fix warning in oscam-ecm.c macosx build
+751e6 fix warning in module-stat.c macosx build
+b5d06 fix warning in oscam-client.c macosx build
+1ce63 fix warning in module-webif.c macosx build
+628aa fix warning in oscam-simples.c macosx build
+651b3 fix warning in reader-dre-common.c macosx build
+d99cb fix warning in reader-nagra.c macosx build
+d338a [gbx] - was commented by accident - needed for webif tests

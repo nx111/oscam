@@ -399,7 +399,6 @@ typedef unsigned char uchar;
 #else
 #define MAX_ECM_SIZE 1024
 #define MAX_EMM_SIZE 1024
-#define MAX_SCT_SIZE 1024	// smaller or equal to the minial one of MAX_ECM_SIZE and MAX_EMM_SIZE 
 #endif
 
 #define CS_EMMCACHESIZE  1024 //nr of EMMs that each reader will cache
@@ -434,7 +433,7 @@ typedef unsigned char uchar;
 #define R_SMART     0x7 // Smartreader+
 #define R_PCSC      0x8 // PCSC
 #define R_DRECAS    0x9 // Reader DRECAS
-#define R_EMU       0x17  // Reader emu
+#define R_EMU       0x17 // Reader EMU
 /////////////////// proxy readers after R_CS378X
 #define R_CAMD35    0x20  // Reader cascading camd 3.5x
 #define R_CAMD33    0x21  // Reader cascading camd 3.3x
@@ -1753,11 +1752,10 @@ struct s_reader                                     //contains device info, read
 	uint8_t         ghttp_use_ssl;
 #endif
 #ifdef WITH_EMU
-	FTAB            emu_auproviders;
-	char            *extee36;
-	char            *extee56;
-	opkeys_t        *ee36;
-	opkeys_t        *ee56;
+	FTAB            emu_auproviders;                // AU providers for Emu reader
+	int8_t          emu_datecodedenabled;           // date-coded keys for BISS
+	char            *extee36;                       // path to "ee36.bin" - Set by the user via the webif
+	char            *extee56;                       // path to "ee56.bin" - Set by the user via the webif
 	uint8_t         dre36_force_group;
 	uint8_t         dre56_force_group;
 #endif
@@ -2128,11 +2126,12 @@ struct s_config
 #ifdef MODULE_GBOX
     #define         GBOX_MY_VERS_DEF       0x2A
     #define         GBOX_MY_CPU_API_DEF    0x40
-    #define        	GBOX_MAX_PROXY_CARDS   32
-    #define        	GBOX_MAX_IGNORED_PEERS 16
-    #define        	GBOX_MAX_BLOCKED_ECM   16
-    #define        	GBOX_MAX_DEST_PEERS    16
-    #define        	GBOX_MAX_MSG_TXT       127
+    #define         GBOX_MAX_PROXY_CARDS   32
+    #define         GBOX_MAX_IGNORED_PEERS 16
+    #define         GBOX_MAX_BLOCKED_ECM   16
+    #define         GBOX_MAX_REMM_PEERS    8
+    #define         GBOX_MAX_DEST_PEERS    16
+    #define         GBOX_MAX_MSG_TXT       127
 
 	uint16_t        gbox_port[CS_MAXPORTS];
 	char            *gbox_hostname;
@@ -2149,6 +2148,8 @@ struct s_config
 	uint8_t         ccc_reshare;
 	uint16_t        gbox_ignored_peer[GBOX_MAX_IGNORED_PEERS];
 	uint8_t         gbox_ignored_peer_num;
+	uint16_t        accept_remm_peer[GBOX_MAX_REMM_PEERS];
+	uint8_t         accept_remm_peer_num;
 	uint16_t        gbox_block_ecm[GBOX_MAX_BLOCKED_ECM];
 	uint8_t         gbox_block_ecm_num;
 	uint8_t			gbox_save_gsms;
@@ -2211,6 +2212,7 @@ struct s_config
 	int8_t      dvbapi_read_sdt;
 	int8_t      dvbapi_write_sdt_prov;
 	int8_t      dvbapi_extended_cw_api;
+	int8_t      dvbapi_extended_cw_pids;            // pid limiter
 #endif
 
 #ifdef CS_ANTICASC
