@@ -1311,6 +1311,14 @@ static char *send_oscam_config_cccam(struct templatevars *vars, struct uriparams
 	{
 		tpl_addVar(vars, TPLADD, "VERSIONSELECTED7", "selected");
 	}
+	else if(!strcmp((char *)cfg.cc_version, "2.3.1"))
+	{
+		tpl_addVar(vars, TPLADD, "VERSIONSELECTED8", "selected");
+	}
+	else if(!strcmp((char *)cfg.cc_version, "2.3.2"))
+	{
+		tpl_addVar(vars, TPLADD, "VERSIONSELECTED9", "selected");
+	}
 
 	tpl_printf(vars, TPLADD, "UPDATEINTERVAL", "%d", cfg.cc_update_interval);
 	tpl_printf(vars, TPLADD, "RECV_TIMEOUT", "%u", cfg.cc_recv_timeout);
@@ -2681,6 +2689,14 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	else if(!strcmp(rdr->cc_version, "2.3.0"))
 	{
 		tpl_addVar(vars, TPLADD, "CCCVERSIONSELECTED7", "selected");
+	}
+	else if(!strcmp(rdr->cc_version, "2.3.1"))
+	{
+		tpl_addVar(vars, TPLADD, "CCCVERSIONSELECTED8", "selected");
+	}
+	else if(!strcmp(rdr->cc_version, "2.3.2"))
+	{
+		tpl_addVar(vars, TPLADD, "CCCVERSIONSELECTED9", "selected");
 	}
 #endif
 
@@ -6797,7 +6813,7 @@ static bool process_single_emm(struct templatevars * vars, struct s_reader * rdr
 		char emmdata[1025] = {'\0'};     /*1024 + '\0'*/
 		unsigned char emmhex[513] = {'\0'};
 		char buff[5] = {'\0'};
-		uint32_t len = 0;
+		int8_t len = 0;
 		cs_strncpy(emmdata, ep, sizeof(emmdata));
 		remove_white_chars(emmdata);
 
@@ -8835,7 +8851,7 @@ void webif_client_init_lastreader(struct s_client * client, ECM_REQUEST * er, st
 		else if(er->rc == E_CACHEEX)
 			{ cs_strncpy(client->lastreader, "cache3", sizeof(client->lastreader)); }
 		else if(er->rc < E_NOTFOUND)
-			{ snprintf(client->lastreader, sizeof(client->lastreader) - 1, "%s (cache)", er_reader->label); }
+			{ snprintf(client->lastreader, sizeof(client->lastreader) - 1, "%.54s (cache)", er_reader->label); }
 		else
 			{ cs_strncpy(client->lastreader, stxt[er->rc], sizeof(client->lastreader)); }
 	}

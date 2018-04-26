@@ -26,9 +26,7 @@
 #include "oscam-work.h"
 
 //Mode names for CMD_05 command:
-static const char *cmd05_mode_name[] = { "UNKNOWN", "PLAIN", "AES", "CC_CRYPT", "RC4",
-									   "LEN=0"
-									   };
+static const char *cmd05_mode_name[] = { "UNKNOWN", "PLAIN", "AES", "CC_CRYPT", "RC4", "LEN=0" };
 
 //Mode names for CMD_0C command:
 static const char *cmd0c_mode_name[] = { "NONE", "RC6", "RC4", "CC_CRYPT", "AES", "IDEA" };
@@ -70,13 +68,11 @@ void cc_init_crypt(struct cc_crypt_block *block, uint8_t *key, int32_t len)
 	int32_t i = 0;
 	uint8_t j = 0;
 
-	for(i = 0; i < 256; i++)
-	{
+	for(i = 0; i < 256; i++){
 		block->keytable[i] = i;
 	}
 
-	for(i = 0; i < 256; i++)
-	{
+	for(i = 0; i < 256; i++){
 		j += key[i % len] + block->keytable[i];
 		SWAPC(&block->keytable[i], &block->keytable[j]);
 	}
@@ -86,8 +82,7 @@ void cc_init_crypt(struct cc_crypt_block *block, uint8_t *key, int32_t len)
 	block->sum = 0;
 }
 
-void cc_crypt(struct cc_crypt_block *block, uint8_t *data, int32_t len,
-			  cc_crypt_mode_t mode)
+void cc_crypt(struct cc_crypt_block *block, uint8_t *data, int32_t len, cc_crypt_mode_t mode)
 {
 	int32_t i;
 	uint8_t z;
@@ -107,9 +102,7 @@ void cc_crypt(struct cc_crypt_block *block, uint8_t *data, int32_t len,
 	}
 }
 
-void cc_rc4_crypt(struct cc_crypt_block *block, uint8_t *data, int32_t len,
-				  cc_crypt_mode_t mode)
-{
+void cc_rc4_crypt(struct cc_crypt_block *block, uint8_t *data, int32_t len, cc_crypt_mode_t mode){
 	int32_t i;
 	uint8_t z;
 
@@ -119,8 +112,7 @@ void cc_rc4_crypt(struct cc_crypt_block *block, uint8_t *data, int32_t len,
 		block->sum += block->keytable[block->counter];
 		SWAPC(&block->keytable[block->counter], &block->keytable[block->sum]);
 		z = data[i];
-		data[i] = z ^ block->keytable[(block->keytable[block->counter]
-									   + block->keytable[block->sum]) & 0xff];
+		data[i] = z ^ block->keytable[(block->keytable[block->counter] + block->keytable[block->sum]) & 0xff];
 		if(!mode)
 			{ z = data[i]; }
 		block->state = block->state ^ z;
@@ -135,8 +127,7 @@ void cc_xor(uint8_t *buf)
 	for(i = 0; i < 8; i++)
 	{
 		buf[8 + i] = i * buf[i];
-		if(i <= 5)
-		{
+		if(i <= 5){
 			buf[i] ^= cccam[i];
 		}
 	}
@@ -149,12 +140,9 @@ void cc_cw_crypt(struct s_client *cl, uint8_t *cws, uint32_t cardid)
 	uint8_t tmp;
 	int32_t i;
 
-	if(cl->typ != 'c')
-	{
+	if(cl->typ != 'c'){
 		node_id = b2ll(8, cc->node_id);
-	}
-	else
-	{
+	}else{
 		node_id = b2ll(8, cc->peer_node_id);
 	}
 
@@ -782,11 +770,11 @@ int32_t cc_cmd_send(struct s_client *cl, uint8_t *buf, int32_t len, cc_msg_type_
 	return n;
 }
 
-#define CC_DEFAULT_VERSION 7
-#define CC_VERSIONS 8
-static char *version[CC_VERSIONS]  = { "2.0.11", "2.1.1", "2.1.2", "2.1.3", "2.1.4", "2.2.0", "2.2.1", "2.3.0"};
-static char *build[CC_VERSIONS]    = { "2892",   "2971",  "3094",  "3165",  "3191",  "3290",  "3316",  "3367"};
-static char extcompat[CC_VERSIONS] = { 0,        0,       0,       0,       0,       1,       1,       1}; //Supporting new card format starting with 2.2.0
+#define CC_DEFAULT_VERSION 9
+#define CC_VERSIONS 10
+static char *version[CC_VERSIONS]  = { "2.0.11", "2.1.1", "2.1.2", "2.1.3", "2.1.4", "2.2.0", "2.2.1", "2.3.0", "2.3.1", "2.3.2"};
+static char *build[CC_VERSIONS]    = { "2892",   "2971",  "3094",  "3165",  "3191",  "3290",  "3316",  "3367",  "9d508a",  "4000"};
+static char extcompat[CC_VERSIONS] = { 0,        0,       0,       0,       0,       1,       1,       1,       1,       1}; //Supporting new card format starting with 2.2.0
 
 /**
  * reader+server
@@ -1126,8 +1114,7 @@ void UA_left(uint8_t *in, uint8_t *out, int32_t ofs)
 void UA_right(uint8_t *in, uint8_t *out, int32_t len)
 {
 	int32_t ofs = 0;
-	while(len)
-	{
+	while(len){
 		memcpy(out + ofs, in, len);
 		len--;
 		if(out[len]) { break; }
@@ -2613,26 +2600,20 @@ int32_t cc_parse_msg(struct s_client *cl, uint8_t *buf, int32_t l)
 
 	case MSG_SLEEPSEND:
 		//Server sends SLEEPSEND:
-		if(l < 5)
-			{ break; }
-		
-		if(!cfg.c35_suppresscmd08)
-		{
-			if(buf[4] == 0xFF)
-			{
+		if(l < 5){
+			break;
+		}
+		if(!cfg.c35_suppresscmd08){
+			if(buf[4] == 0xFF){
 				cl->stopped = 2; // server says sleep
 				//rdr->card_status = NO_CARD;
-			}
-			else
-			{
-				if(config_enabled(WITH_LB) && !cfg.lb_mode)
-				{
+			}else{
+				if(config_enabled(WITH_LB) && !cfg.lb_mode){
 					cl->stopped = 1; // server says invalid
 					rdr->card_status = CARD_FAILURE;
 				}
 			}
-		}
-		//NO BREAK!! NOK Handling needed!
+		} /* fallthrough */ //NO BREAK!! NOK Handling needed!
 
 	case MSG_CW_NOK1:
 	case MSG_CW_NOK2:
