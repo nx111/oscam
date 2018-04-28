@@ -87,3 +87,5 @@ cp $ROOT/toolchains/${TOOCHAINFILE} $ROOT/toolchains/${TOOCHAINFILE}.orig
 [ -f $ROOT/history.txt ] && cp $ROOT/history.txt $ROOT/history.txt.orig
 eval "sed -e \"s/\(.*CMAKE_C_COMPILER \).*)/\1${TOOLCHAIN}-gcc)/\" -i $ROOT/toolchains/${TOOCHAINFILE}"
 
+rm -f $ROOT/webif/pages_gen $ROOT/webif/pages.dep $ROOT/webif/pages.bin $ROOT/webif/pages.bin.compressed \
+      $ROOT/webif/pages.h $ROOT/webif/pages.c $ROOT/webif/is_defined.txt
