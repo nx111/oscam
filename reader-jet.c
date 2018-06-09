@@ -608,7 +608,7 @@ static int32_t jet_card_info(struct s_reader *reader)
 	memcpy(get_entitlements_cmd2 + 7, boxkey, sizeof(boxkey));
 	get_entitlements_cmd2[39] = 0x01;
 	for(i = 40; i < 48; i++)
-		get_entitlements_cmd2[i] = 0x09;
+		get_entitlements_cmd2[i] = reader->cas_version < 40 ? 0x09 : 0x30;
 	memcpy(get_entitlements_cmd2 + 48, reader->jet_authorize_id, 8);
 	for(i=0; i < entitlements_count; page++){
 		get_entitlements_cmd2[6] = page;
