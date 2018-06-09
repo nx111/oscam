@@ -467,7 +467,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 		}
 	}
 
-	rdr_log(reader, "type: StreamGuard, caid: %04X, serial: %llu, hex serial: %02x%02x%02x%02x",
+	rdr_log(reader, "type: StreamGuard, caid: %04X, serial: {%llu}, hex serial: {%02x%02x%02x%02x}",
 			reader->caid, (unsigned long long)b2ll(6, reader->hexserial), reader->hexserial[2],
 			reader->hexserial[3], reader->hexserial[4], reader->hexserial[5]);
 
