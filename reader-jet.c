@@ -9,8 +9,6 @@
 #define CRC16 0x8005
 static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03, 0x28, 0x60, 0x80, 0x94, 0xD6, 0xC4, 0x3A, 0x48, 
                                          0x43, 0x71, 0x28, 0x94, 0xF4, 0xE3, 0xAB, 0xC7, 0x36, 0x59, 0x17, 0x8E, 0xCC, 0x6D, 0xA0, 0x9B};
-static uint8_t boxkey[32];
-
 #define jet_write_cmd(reader, cmd, len, ins, title) \
  do { \
 	uint8_t __cmd_buf[256];\
@@ -237,8 +235,8 @@ static int32_t jet_resync_vendorkey(struct s_reader *reader)
 	}
 	DH_Public_Key_Gen(x, 16, X);
 	memset(resync_vendorkey_cmd + 4, 0, sizeof(resync_vendorkey_cmd) - 4);
-	memcpy(resync_vendorkey_cmd + 12, boxkey, sizeof(boxkey));
-	memcpy(resync_vendorkey_cmd + sizeof(boxkey), X, 32);
+	memcpy(resync_vendorkey_cmd + 12, reader->boxkey, 32);
+	memcpy(resync_vendorkey_cmd + 32, X, 32);
 	def_resp;
 	jet_write_cmd(reader, resync_vendorkey_cmd, sizeof(resync_vendorkey_cmd), 0x15, "resync vendorkey");
 	if(37 > twofish(cta_res + 5, cta_res[4], buf, sizeof(buf), reader->jet_vendor_key, sizeof(reader->jet_vendor_key), TWOFISH_MODE_DECRYPT))
@@ -277,10 +275,8 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	reader->nprov = 1;
 	memset(reader->prid, 0x00, sizeof(reader->prid));
 
-	if(reader->boxkey_length == sizeof(boxkey))
-		memcpy(boxkey, reader->boxkey, sizeof(boxkey));
-	else
-		memset(boxkey, 0xEE, sizeof(boxkey));
+	if(reader->boxkey_length != 32)
+		memset(reader->boxkey, 0xEE, 32);
 
 	if(reader->cas_version <= 52){
 		for(i = 0; i < 32; i++)
@@ -349,7 +345,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	}
 
 	//pairing step1
-	memcpy(pairing_cmd01 + 4, boxkey, sizeof(boxkey));
+	memcpy(pairing_cmd01 + 4, reader->boxkey, 32);
 	pairing_cmd01[36] = 0x00;
 	pairing_cmd01[37] = 0x01;
 	jet_write_cmd(reader, pairing_cmd01, sizeof(pairing_cmd01), 0x15, "pairing step 1");
@@ -362,7 +358,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	}
 
 	//pairing step 2
-	memcpy(pairing_cmd02 + 4, boxkey, sizeof(boxkey));
+	memcpy(pairing_cmd02 + 4, reader->boxkey, 32);
 	pairing_cmd02[36] = 0x01;
 	for(i = 37;i < 45; i++)
 		pairing_cmd02[i] = 0x30;
@@ -375,7 +371,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 			memcpy(cmd_buf, confirm_box_cmd, sizeof(confirm_box_cmd));
 			cmd_buf[0] = 0x38;
 			cmd_buf[4] = i;
-			memcpy(confirm_box_cmd + 6, boxkey, sizeof(boxkey));
+			memcpy(confirm_box_cmd + 6, reader->boxkey, 32);
 			confirm_box_cmd[38] = 0x01;
 			for(i = 39;i < 47; i++)
 				confirm_box_cmd[i] = 0x30;
@@ -387,7 +383,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		//get service key
 		memset(cmd_buf, 0, sizeof(cmd_buf));
 		memcpy(cmd_buf, get_key_cmd, sizeof(get_key_cmd));
-		memcpy(cmd_buf + 4, boxkey, 2);
+		memcpy(cmd_buf + 4, reader->boxkey, 2);
 		jet_write_cmd(reader, cmd_buf, sizeof(get_key_cmd), 0xAA, "get service key");
 		memset(temp, 0, sizeof(temp));
 		memcpy(temp, cta_res + 5, cta_res[4]);
@@ -399,7 +395,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		//register service key
 		memset(cmd_buf, 0, sizeof(cmd_buf));
 		memcpy(cmd_buf, register_key_cmd, sizeof(register_key_cmd));
-		memcpy(cmd_buf + 4, boxkey, sizeof(boxkey));
+		memcpy(cmd_buf + 4, reader->boxkey, 32);
 		memcpy(cmd_buf + 36, reader->jet_service_key, 8);
 		memcpy(cmd_buf + 44, reader->jet_derive_key + 44, 4);
 		cmd_buf[44] = 0x30;
@@ -407,7 +403,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 
 		//confirm box 1
 		confirm_box_cmd[4] = 0x0F;
-		memcpy(confirm_box_cmd + 6, boxkey, sizeof(boxkey));
+		memcpy(confirm_box_cmd + 6, reader->boxkey, 32);
 		confirm_box_cmd[38] = 0x01;
 		for(i = 39;i < 47; i++)
 			confirm_box_cmd[i] = 0x30;
@@ -416,12 +412,12 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	}
 
 	//unknow cmd 1
-	memcpy(unknow_cmd1 + 7, boxkey, sizeof(boxkey));
+	memcpy(unknow_cmd1 + 7, reader->boxkey, 32);
 	jet_write_cmd_hold(reader, unknow_cmd1, sizeof(unknow_cmd1), 0x15, "unknow_cmd1");
 
 	//update card serial
 	get_serial_cmd[4] = 0x01;
-	memcpy(get_serial_cmd + 5, boxkey, sizeof(boxkey));
+	memcpy(get_serial_cmd + 5, reader->boxkey, 32);
 	jet_write_cmd_hold(reader, get_serial_cmd, sizeof(get_serial_cmd), 0xAA, "update serial");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
@@ -440,7 +436,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 
 	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX, boxkey: %s",
 			reader->caid, (unsigned long long)b2ll(8, reader->hexserial), (unsigned long long)b2ll(8, reader->hexserial),
-			cs_hexdump(0, boxkey, 32, (char*)buf, sizeof(buf)));
+			cs_hexdump(0, reader->boxkey, 32, (char*)buf, sizeof(buf)));
 
 	return OK;
 }
@@ -508,7 +504,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 		cmd[1] = 0xB2;
 
 	memcpy(cmd + 4, ecm + 12 - offset, ecm_len);
-	memcpy(cmd + 4 + ecm_len, boxkey, sizeof(boxkey));
+	memcpy(cmd + 4 + ecm_len, reader->boxkey, 32);
 	cmd[ecm_len + 36] = ecm[10 - offset] ^ ecm[138 - offset];
 	cmd[ecm_len + 37] = ecm[11 - offset] ^ ecm[139 - offset];
 	if(reader->cas_version >= 5)
@@ -570,7 +566,7 @@ static int32_t jet_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 
 	len -= 4;
 	memcpy(cmd + 4, ep->emm + 17, len);
-	memcpy(cmd + 4 + len, reader->boxkey, sizeof(boxkey));
+	memcpy(cmd + 4 + len, reader->boxkey, 32);
 	memcpy(cmd + len + 40,ep->emm + 13, 4);
 	cmd[len + 44] = 0x14;
 	cmd[len + 46] = 0x01;
@@ -595,7 +591,7 @@ static int32_t jet_card_info(struct s_reader *reader)
 	struct twofish_ctx ctx;
 	twofish_setkey(&ctx, reader->jet_vendor_key, sizeof(reader->jet_vendor_key));
 
-	memcpy(get_entitlements_cmd1 + 6, boxkey, sizeof(boxkey));
+	memcpy(get_entitlements_cmd1 + 6, reader->boxkey, 32);
 	jet_write_cmd(reader, get_entitlements_cmd1, sizeof(get_entitlements_cmd1), 0x15, "get entitlements info");
 	memset(temp, 0, sizeof(temp));
 	memcpy(temp, cta_res + 5, cta_res[4]);
@@ -605,7 +601,7 @@ static int32_t jet_card_info(struct s_reader *reader)
 		return ERROR;
 	}
 	entitlements_count = buf[4];
-	memcpy(get_entitlements_cmd2 + 7, boxkey, sizeof(boxkey));
+	memcpy(get_entitlements_cmd2 + 7, reader->boxkey, 32);
 	get_entitlements_cmd2[39] = 0x01;
 	for(i = 40; i < 48; i++)
 		get_entitlements_cmd2[i] = reader->cas_version < 40 ? 0x09 : 0x30;
