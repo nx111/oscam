@@ -702,8 +702,8 @@ do
 		revision=`(svnversion -n . 2>/dev/null || printf 0) | sed 's/.*://; s/[^0-9]*$//; s/^$/0/'`
 
 		if [ "$revision" = "" -o "$revision" = "0" ]; then
-			svnrevision=$(git log 2>/dev/null | grep git-svn-id | sed -n 1p | cut -d@ -f2 | cut -d' ' -f1)
-			gitrevision=$(git log 2>/dev/null | sed -n 1p|cut -d' ' -f2 | cut -c1-5 )
+			which git > /dev/null 2>&1 && svnrevision=$(git log -10 --pretty=%B | grep git-svn-id | head -n 1 | sed -n -e 's/^.*trunk@\([0-9]*\) .*$/\1/p')
+			which git > /dev/null 2>&1 && gitrevision=$(git log 2>/dev/null | sed -n 1p|cut -d' ' -f2 | cut -c1-5 )
 			if [ "$svnrevision" = "" -o "$gitrevision" = "0" ]; then
 				[ -f history.txt ] && gitrevision=$(cat history.txt | sed -n 1p | cut -d' ' -f1)
 				[ -f .svnrevision ] && svnrevision=$(cat .svnrevision)
