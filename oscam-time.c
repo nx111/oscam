@@ -26,7 +26,11 @@ static int8_t is_leap(unsigned int y)
 /* Drop-in replacement for timegm function as some plattforms strip the function from their libc.. */
 time_t cs_timegm(struct tm *tm)
 {
+#if __WORDSIZE == 64
 	time_t result = 0;
+#else
+        int64_t result = 0;
+#endif
 	int32_t i;
 	if(tm->tm_mon > 12 || tm->tm_mon < 0 || tm->tm_mday > 31 || tm->tm_min > 60 || tm->tm_sec > 60 || tm->tm_hour > 24)
 		{ return 0; }
@@ -48,7 +52,13 @@ time_t cs_timegm(struct tm *tm)
 	result += tm->tm_min;
 	result *= 60;
 	result += tm->tm_sec;
+#if __WORDSIZE == 64
 	return result;
+#else
+        if(result > INT32_MAX)
+           result = INT32_MAX;
+        return (time_t)result;
+#endif
 }
 
 /* Drop-in replacement for gmtime_r as some plattforms strip the function from their libc. */
