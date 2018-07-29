@@ -1,6 +1,42 @@
-79048 emu: update to r769,powervu hash has mode 10.
-4f904 emu r769: Add powervu hash mode 10
-349e0 Merge to r11401 from 'streamboard.tv/svn/oscam'
+dd15e Merge to r11429 from streamboard.tv
+f018a Nagra: - prepare code for Nagra Merlin HD03, HD04 support - no k**s included
+0171b fix typo from last commit thanks OP
+f55fc Build System: -Add Parameter WITH_NEUTRINO
+b408a cccam.c: Fix typo "remove server" -> "remote server" patch by engy
+ed0c2 time: set timestamp to INT32_MAX when time larger than 2038-1-19 03:14:07 for 32bit system.
+b6c43 Improved oscam revision handling for git
+eb49e Improved oscam revision handling for git
+d8428 jet: just read boxkey from reader config.
+363c9 bump svn revision to 11424.
+8f136 streamguard: hide card serial in log.
+83a4e Merge to r11424 from streamboard.
+16e7d jet: fix get entitlements for jet 4.0+.
+c513b fix wrong bufsize in module-webif.c
+f8b1f update coding rules
+8a4f6 incrase size to fit the complete data set of emmdata
+905da fix rare crashes on writing emms found and proposed by digital-eliteboard thnx
+03215 webif: force rebuild pages before compile.
+b11e0 Merge to r11420 from streamboard.tv
+608a0 Merge to r11401 from 'streamboard.tv/svn/oscam'
+7b641 add pmtpid parsing to get demuxoptions(). QBOXHD by perexg #4645
+8e4a7 fix build warning on debian 9 this point needs to be checked
+6439d remove empty elseif fix warning for #4591
+921e4 fix SSL Build
+7c8be make the compiler happy... fixes #4665
+29dbf fix 6 implicit-fallthrough
+60384 fix string truncate ERROR
+65ad3 fix 30 implicit-fallthrough  NO CODECHANGE ! + fix 1 switch-unreachable swap lines
+0d77b revert breaks some stupid old compilers need another solution :-(
+52ffd fix 50% gcc7 build warnings no function change !!!!!!!!
+c143b fix BIGNUM issue on build with new compilers
+2857e add pairing->log
+f9ea0 Disable emmcache for NDS Videoguard CAS! The numbers of unique emms will flood the emmcache system within 24 hours and then affect the timely ecm handling
+23ddc sorry wrong file
+b9ffe fix secondary entry
+61f12 Part2 V15/V15 Fast Mode
+74d23 enable cccam 2.3.1 & cccam 2.3.2
+ed4c6 -V15/V15 Fast Mode Support
+1fab9 Update minilzo Update tommyDS
 d014c gbx-remm: - add delay to remm request message - to avoid multiple requests during zapping and multi-tuner operation
 19f93 Tryfix #4261 ECM doublecheck is broken
 9c652 gbx: - new feature: gbox remote emm - new parameter on client side in oscam.conf [gbox]: 'accept_remm_peer = crdsrv_peer1,crdsrv_peer2,...' - corrected Distribution/doc in terms of gbx and AU note: - In order to get remm working, both, oscam gbox cardserver and gbox client must have svn rev >= r10399 and dist = 1 - oscam gbox < r10399 ignores remm feature, also orig. gbox, diablo etc
@@ -62,39 +98,3 @@ fe962 Merge to r11357 from "https://www.streamboard.tv/svn/oscam"
 514cd - Fix for Biss using zeroed cw thanks vatlach for reporting and testing
 c806a Merge to r11350 from streamboard.tv
 6691b Webif cosmetics suggested by The Raven exceptionally patch delivered by the.sniffer
-90ecd Fix by Optimum Power for a copypaste error in r11348
-037eb In attempt to avoid possible crashes reviewed all the checkboxes in the webif Thanks Pr2 for the code review and patch!
-13d91 - Attempt to improve ecm handling code!
-13501 - Just remove the silly code since it aint usefull anyway!
-e226b (Tnx Pr2 for this patch)
-80ab8 - Fix more recently introduced regression!
-321c5 - Fix regression introduced in r11323
-564b2 fix aggressive-loop-optimizations warnning.
-9f4f8 Merge to r11342 from  https://www.streamboard.tv/svn/oscam
-2d6ed - add proper detection of 2 more Videoguard cards - requested by @pr2
-1bc59 [gbx]: - Remove obsolete gsms1 protocol from code - Following latest gbox.net, that removed gsms1 protocol as well - From now on only one password protected gsms protocol supported - Implement filter for unsave non alphanumerical characters in OSD messages
-ae4fa DVBAPI:
-ec9d4 fix 09C7
-40a60 - Tryfix ticket #4566
-aa4eb add halfcw fix for #4359
-aa14e [gbx] - fixed bug introduced with r11311
-587ec revert 11333 introduced crashes on mixed configurations
-cba2e WebIf - fix for a 3 years old bug in GHTTP reader webif - thx to @pr2
-91e89 fix half cw from mcs
-93fa8 fix #4490
-c6e6e DVBAPI:
-21ade fix warning compiler arm-cortex-linux-gnueabi-su980
-9db37 Tryfix ticket #4486
-637e8 [gbx webIf] - add feature send gsms (Gbox SMS) via WebIF - no need anymore to do that with text file - See WebIF/Config/GBox - all credits go to @pr2. - thanks
-ebf1b WebIf - Try fix webif crash - Requested by @pr2
-b6126 WebIf - Add missing HTML tag from r11292 - requested by @pr2
-f4ad0 WebIf - Add full support for multiport supported by Cs378x but never implemented in the webif - Patch provided by @pr2 - fixes #4535
-b4aba fix warnings on build for module-newcam.c and module-cccshare.c
-c90df fix warning in oscam-ecm.c macosx build
-751e6 fix warning in module-stat.c macosx build
-b5d06 fix warning in oscam-client.c macosx build
-1ce63 fix warning in module-webif.c macosx build
-628aa fix warning in oscam-simples.c macosx build
-651b3 fix warning in reader-dre-common.c macosx build
-d99cb fix warning in reader-nagra.c macosx build
-d338a [gbx] - was commented by accident - needed for webif tests
