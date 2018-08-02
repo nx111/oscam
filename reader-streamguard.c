@@ -336,9 +336,9 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 	if ((atr_size != 4) || (atr[0] != 0x3b) || (atr[1] != 0x02)) return ERROR;
 
 	reader->caid = 0x4AD2;
-	if(reader->cas_version == 0)
-		reader->cas_version=3;	//new version
-
+	if(reader->cas_version < 10){
+		reader->cas_version = ((atr[2] & atr[3] & 0xF0) * 10) + (atr[2] & atr[3] & 0x0F);
+	}
 	memset(reader->des_key, 0, sizeof(reader->des_key));
 
 	reader->nprov = 1;
@@ -358,7 +358,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 		return ERROR;
 	}
 
-	if(reader->cas_version > 1){
+	if(reader->cas_version >= 20){
 		write_cmd(begin_cmd2, begin_cmd2 + 5);
 		if((cta_res[cta_lr - 2] & 0xf0) == 0x60) {
 			data_len = streamguard_read_data(reader,cta_res[cta_lr - 1], data, &status);
@@ -387,7 +387,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 	memset(reader->hexserial, 0, 8);
 	memcpy(reader->hexserial + 2, data + 3, 4);
 
-	if(reader->cas_version > 1){
+	if(reader->cas_version >= 20){
 		memcpy(seed,data + 3, 4);
 		md5(seed,sizeof(seed),md5_key);
 
@@ -425,7 +425,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 		memcpy(key1, md5_key, 8);
 		memcpy(key2, md5_key + 8, 8);
 		memcpy(reader->des_key,randkey,sizeof(reader->des_key));
-		if(reader->cas_version > 2){
+		if(reader->cas_version >= 30){
 			des_ecb_encrypt(randkey, key1, 16);  //encrypt
 			des_ecb_decrypt(randkey, key2, 16);  //decrypt
 			des_ecb_encrypt(randkey, key1, 16);  //encrypt
@@ -537,12 +537,12 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 	uint16_t tag=0;
 	for(i = 0; i < (data_len - 1); i++)
 	{
-		if (reader->cas_version == 3 && data[i] == 0xB4 && data[i + 1] == 0x04)
+		if (reader->cas_version >= 30 && data[i] == 0xB4 && data[i + 1] == 0x04)
 			tag = b2i(2, data + i + 4);
 ;
 		if (data[i] == 0x83 && data[i + 1] == 0x16)
 		{
-			if(reader->cas_version <= 2 || data[i + 2] != 0 || data[i + 3] != 1)
+			if(reader->cas_version <= 20 || data[i + 2] != 0 || data[i + 3] != 1)
 				break;
 		}
 	}
@@ -568,7 +568,7 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 		memcpy(ea->cw + 12, data + i + 6 + 4 + 1, 4);
 	}
 
-	if(reader->cas_version == 1)
+	if(reader->cas_version < 20)
 		return OK;
 
 	if(((uint16_t)(ea->cw[0]) + (uint16_t)(ea->cw[1]) + (uint16_t)(ea->cw[2])) == (uint16_t)(ea->cw[3])
@@ -619,7 +619,7 @@ static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 		return ERROR;
 	}
 
-	if(reader->cas_version > 2 && ep->emm[0] == 0x83){
+	if(reader->cas_version >= 30 && ep->emm[0] == 0x83){
 		rdr_log(reader, "Receive refresh cmd");
 		return ERROR;
 	}
