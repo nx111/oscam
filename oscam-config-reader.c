@@ -909,6 +909,9 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_FUNC("caid"                 , OFS(ctab),                    reader_caid_fn),
 	DEF_OPT_FUNC("atr"                  , 0,                            atr_fn),
 	DEF_OPT_FUNC("boxid"                , 0,                            boxid_fn),
+#ifdef READER_STREAMGUARD
+	DEF_OPT_UINT32("cas_version"        , OFS(cas_version),             0),
+#endif
 #ifdef  READER_TONGFANG
 	DEF_OPT_FUNC("tongfang3_calibsn"    , 0,                            tongfang3_calibsn_fn),
 #endif
