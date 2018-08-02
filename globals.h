@@ -1559,7 +1559,7 @@ struct s_reader                                     //contains device info, read
 	uint8_t         jet_fix_ecm;                   // for dvn jet ,ecm head is 0x50, this option indicate if fix it to 0x80 or 0x81.
 	uint8_t         jet_resync_vendorkey;
 #endif
-	uint32_t        cas_version;
+	uint32_t        cas_version;			// cas version, used by tongfang,jet and streamguard. manual set for streamguard.
 	int8_t          nagra_read;                     // read nagra ncmed records: 0 Disabled (default), 1 read all records, 2 read valid records only
 	int8_t          detect_seca_nagra_tunneled_card;
 	int8_t          force_irdeto;
