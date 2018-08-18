@@ -674,6 +674,12 @@ if (HAVE_LIBCRYPTO)
     endif (STATIC_LIBCRYPTO)
 endif (HAVE_LIBCRYPTO)
 
+# some systems need libm for the nagra cak7 functions to work
+check_include_file("math.h" HAVE_LIBM)
+if(HAVE_LIBM)
+    target_link_libraries (${exe_name} m)
+endif(HAVE_LIBM)
+
 if (HAVE_LIBSTAPI)
     target_link_libraries(${exe_name} stapilib)
 endif (HAVE_LIBSTAPI)
