@@ -2584,7 +2584,7 @@ void dvbapi_write_prio(void) {
 	for (p=dvbapi_priority; p != NULL;p=p->next) {
 #ifdef WITH_STAPI
 		if(p->type == 's'){
-			fprintf(fp,"%c: %s";p->type,p->devname);
+			fprintf(fp,"%c: %s",p->type,p->devname);
 			if(p->pmtfile[0])
 				fprintf(fp," %s",p->pmtfile);
 			if(p->disablefilter)
