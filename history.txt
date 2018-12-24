@@ -1,4 +1,34 @@
-dd15e Merge to r11429 from streamboard.tv
+3b091 [gbx] - fix parameter 'gbox_reshare'  - show peer-id & online stat in webif reader  - code clear up
+762db fix compiler issue when build without gbox
+d8779 [gbx]  - improve REMM feature  - show remm req in webif  - gbx webif cosmetics/improvements  - fix typos from r11437 thx @sattotal  - remove ccc stuff from gbx page when ccc not compiled in  - webif: display 'use_gpio' on physical readers only
+cd737 [nagra merlin]  - fix some compiler errors and warnings introduced r11429  - patch provided by @DaMulda
+e20ee mdc2: fix multiple definition of DES_SPtrans and DES_encrypt1 for some toolchain.
+52b8c svnversion bump to 11439.
+a33d8 - Enables Nagra Merlin (CAK7) reader by default - Corresponding keys are now configurable via WebIf and config files
+89b87 dvbapi: fix a error for stapi.
+06efb [gbx webif] - dont show cccam stuff in gbx reader page
+1d62e [gbx webif] - make webif more gbx friendly - gbx specific settings not shown on other protocols - moved 'use_gpio' from smargo to mouse
+44881 Fix for tiers with rights set to 0x49xx (tnx tommy76 for research and patch!)
+adb7d - Revert r11164 see ticket #4609 (tnx Tommy76 for researching!)
+ce403 - Fix #4688 not procesing all received emm packets at filter startup tnx xoxo for this patch!
+df283 - fix DGCrypt Redlight Card not running since r11429 - this fixes ticket #4687 - thx @OP and @pehedima - fix mdc2.c compilation with openssl 1.1.x - thx @flk - fix orf_ice text in cardlist.h
+fd7f6 KDG G0x - don't set deprecated mode by default
+8e7c4 [CMake]： link pcsclite.
+cf262 [CMAKE] - some systems need libm for nagra cak7 - patch provided by @caveman99 - fix for ticket #4681
+ee601 [Nagra] - continue to prepare code for Nagra Merlin support - try to fix for HD04 display of tiers and valid_to
+24df3 Irdeto: fixed for caid 0650 acs 6.9
+68561 streamguard: display boxid info when init.
+96e4a streamguard: fix cas_version calculation.
+b0bdb streamguard: auto calculate cas version.
+311b6 webif: setup cas_version for streamguard.
+1dec8 comment for cas_version.
+5381f webif: process unparsed temple for jet.
+45e1b script: add missed TOOLCHAIN_STAGE for build_cygwin.sh.
+e9cc1 cygwin: add cygwin runtime dlls.
+e4b0d update cygwin headers to w32api v5.0.4-1.
+db0be add extapi source to csoscam.
+e9a0e update module emulator to r771.
+9cb3e Merge to r11429 from streamboard.tv
 f018a Nagra: - prepare code for Nagra Merlin HD03, HD04 support - no k**s included
 0171b fix typo from last commit thanks OP
 f55fc Build System: -Add Parameter WITH_NEUTRINO
@@ -68,33 +98,3 @@ ddfe7 [gbx]: - Dont send msg goodbye in case late cw might arrive - Fix for loca
 b01ad merge to r11376 from https://streamboard.tv/svn/oscam
 ed6ea dvbapi: do not send responses to all adapters, but to the origin (when decoding same srvid)
 c958b [gbx]: - Reactivate hello timing parameter 'gbox-reconnect' - Hello timing is now independant of 'clientmaxidle' - Limit number of hellos after peer gone offline
-3d381 adding pstruct prototype fixing debian 9 build #4590
-25c95 fix build ghttp for "openssl 1.10e"
-9f217 another ssl place fix for "openssl 1.10e"
-a195d fix build with "OpenSSL 1.1.0e"
-3be03 oscam-chk: accept all providers when provider is not specified
-e6dbf - Suppresses possible warnings on targets, which are not supporting SO_PRIORITY (e.g. Cygwin) or IP_TOS.
-6dd12 Correct a typo in r11368
-9b6b1 - Clean the cccam reader description code mess.
-28fef - Centralize code for attack handling - Introduce defines instead of numbers
-be569 - revert changeset 11364/5 - nobody should ask me again to release patches that are not proved by several users
-d086e - fixed bug - thx basta2k
-c76e9 - remove redundant code found by boneco69
-276dd - Fix bug introduced r11361 - thx hoho
-4bc94 [gbx]: - Revised code to detect Local card change - Gbx local cards updated only after physical local card eject/detect
-1896f [gbx]: - Revised local gbox init code. - Rename msg.osd to msg.info - Add info.log to WebIf gbox files
-92708 [gbx] - make creation of attack.txt configurable - oscam-conf [gbox]:    - dis_attack_txt = 0|1  default = 0
-a3f03 fix header for a8plus.
-f7218 Merge to r11359 from 'https://www.streamboard.tv/svn/oscam'
-6d7b6 CCCam:
-c082c - Netprio fix from #4580
-fe962 Merge to r11357 from "https://www.streamboard.tv/svn/oscam"
-1f237 Change man page so it matches the new allowed timeframe functionality
-5fecf - Add extended allowed timeframe request
-928e0 fix 11354. thx OP
-44e03 [gbx]: - Remove residuals of obsolete gsms1 protocol - fix and update attack warnings - dont send hello to ignored peers - add own id to vers file
-1ff90 - Restructure the stapi code so it will compile again!
-9896c - tryfix pixelization regression introduced r11351
-514cd - Fix for Biss using zeroed cw thanks vatlach for reporting and testing
-c806a Merge to r11350 from streamboard.tv
-6691b Webif cosmetics suggested by The Raven exceptionally patch delivered by the.sniffer

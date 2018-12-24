@@ -1028,6 +1028,10 @@ static int32_t dvbapi_read_device(int32_t dmx_fd, unsigned char *buf, uint32_t l
 	return count;
 }
 
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 int32_t dvbapi_open_device(int32_t type, int32_t num, int32_t adapter)
 {
 	int32_t dmx_fd, ret;
@@ -1041,7 +1045,6 @@ int32_t dvbapi_open_device(int32_t type, int32_t num, int32_t adapter)
 	{
 		snprintf(device_path2, sizeof(device_path2), devices[selected_box].demux_device, num);
 		snprintf(device_path, sizeof(device_path), devices[selected_box].path, adapter);
-
 		strncat(device_path, device_path2, sizeof(device_path) - strlen(device_path) - 1);
 	}
 	else
@@ -1110,6 +1113,9 @@ int32_t dvbapi_open_device(int32_t type, int32_t num, int32_t adapter)
 
 	return dmx_fd;
 }
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic pop
+#endif
 
 uint16_t tunemm_caid_map(uint8_t direct, uint16_t caid, uint16_t srvid)
 {
@@ -4204,6 +4210,10 @@ static void dvbapi_parse_pat(int32_t demux_id, unsigned char *buffer, uint32_t l
 	}
 }
 
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 int32_t dvbapi_init_listenfd(void)
 {
 	int32_t clilen, listenfd;
@@ -4230,6 +4240,9 @@ int32_t dvbapi_init_listenfd(void)
 
 	return listenfd;
 }
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic pop
+#endif
 
 int32_t dvbapi_net_init_listenfd(void)
 {
