@@ -1262,6 +1262,14 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_HEX("dre36_force_group"     , OFS(dre36_force_group),       1),
 	DEF_OPT_HEX("dre56_force_group"     , OFS(dre56_force_group),       1),
 #endif
+#ifdef WITH_EMU
+	DEF_OPT_FUNC_X("emu_auproviders"    , OFS(emu_auproviders),         ftab_fn, FTAB_READER | FTAB_EMUAU),
+	DEF_OPT_INT8("emu_datecodedenabled" , OFS(emu_datecodedenabled),    0),
+	DEF_OPT_STR("extee36"               , OFS(extee36),                 NULL),
+	DEF_OPT_STR("extee56"               , OFS(extee56),                 NULL),
+	DEF_OPT_HEX("dre36_force_group"     , OFS(dre36_force_group),       1),
+	DEF_OPT_HEX("dre56_force_group"     , OFS(dre56_force_group),       1),
+#endif
 	DEF_OPT_INT8("deprecated"           , OFS(deprecated),              0),
 	DEF_OPT_INT8("audisabled"           , OFS(audisabled),              0),
 	DEF_OPT_FUNC("auprovid"             , 0,                            auprovid_fn),

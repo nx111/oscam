@@ -393,7 +393,7 @@ typedef unsigned char uchar;
 // Support for multiple CWs per channel and other encryption algos
 #define WITH_EXTENDED_CW 1
 
-#if defined(READER_DRE) || defined(READER_DRECAS) || defined(READER_VIACCESS)
+#if defined(READER_DRE) || defined(READER_DRECAS) || defined(READER_VIACCESS) || defined(WITH_EMU)
 #define MAX_ECM_SIZE 1024
 #define MAX_EMM_SIZE 1024
 #define MAX_SCT_SIZE 1024	// smaller or equal to the minial one of MAX_ECM_SIZE and MAX_EMM_SIZE 
@@ -2331,6 +2331,7 @@ struct s_config
 	uint32_t    emu_stream_ecm_delay;
 	int8_t      emu_stream_relay_enabled;
 	int8_t      emu_stream_emm_enabled;
+	CAIDTAB     emu_stream_relay_ctab;              // use the stream server for these caids
 #endif
 
 	int32_t    max_cache_time;  //seconds ecms are stored in ecmcwcache
@@ -2490,11 +2491,15 @@ const char *boxtype_get(void);
 const char *boxname_get(void);
 static inline bool caid_is_fake(uint16_t caid) { return caid == 0xffff; }
 static inline bool caid_is_biss(uint16_t caid) { return caid >> 8 == 0x26; }
+static inline bool caid_is_biss_static(uint16_t caid) { return caid == 0x2600 || caid == 0x2602; } // static cw, fake ecm
+static inline bool caid_is_biss_dynamic(uint16_t caid) { return caid == 0x2610; } // dynamic cw, ecm and emm
 static inline bool caid_is_seca(uint16_t caid) { return caid >> 8 == 0x01; }
 static inline bool caid_is_viaccess(uint16_t caid) { return caid >> 8 == 0x05; }
 static inline bool caid_is_irdeto(uint16_t caid) { return caid >> 8 == 0x06; }
 static inline bool caid_is_videoguard(uint16_t caid) { return caid >> 8 == 0x09; }
 static inline bool caid_is_cryptoworks(uint16_t caid) { return caid >> 8 == 0x0D; }
+static inline bool caid_is_powervu(uint16_t caid) { return caid >> 8 == 0x0E; }
+static inline bool caid_is_director(uint16_t caid) { return caid >> 8 == 0x10; }
 static inline bool caid_is_betacrypt(uint16_t caid) { return caid >> 8 == 0x17; }
 static inline bool caid_is_nagra(uint16_t caid) { return caid >> 8 == 0x18; }
 static inline bool caid_is_bulcrypt(uint16_t caid) { return caid == 0x5581 || caid == 0x4AEE; }

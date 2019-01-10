@@ -1228,10 +1228,12 @@ static char *send_oscam_config_scam(struct templatevars *vars, struct uriparams 
 #endif
 
 #ifdef WITH_EMU
-#include "module-emulator-stream.h"
+#include "module-emulator-streamserver.h"
 
 static char *send_oscam_config_streamrelay(struct templatevars *vars, struct uriparams *params)
 {
+	char *value;
+
 	setActiveSubMenu(vars, MNU_CFG_STREAMRELAY);
 
 	webif_save_config("streamrelay", vars, params);
@@ -1244,12 +1246,16 @@ static char *send_oscam_config_streamrelay(struct templatevars *vars, struct uri
 		{ tpl_printf(vars, TPLADD, "STREAM_SOURCE_AUTH_PASSWORD", "%s", cfg.emu_stream_source_auth_password); }
 	tpl_printf(vars, TPLADD, "STREAM_RELAY_PORT", "%d", cfg.emu_stream_relay_port);
 	tpl_printf(vars, TPLADD, "STREAM_ECM_DELAY", "%d", cfg.emu_stream_ecm_delay);
-
+	
 	tpl_printf(vars, TPLADD, "TMP", "STREAMRELAYENABLEDSELECTED%d", cfg.emu_stream_relay_enabled);
 	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
 
 	tpl_printf(vars, TPLADD, "TMP", "STREAMEMMENABLEDSELECTED%d", cfg.emu_stream_emm_enabled);
 	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
+
+	value = mk_t_caidtab(&cfg.emu_stream_relay_ctab);
+	tpl_addVar(vars, TPLADD, "STREAM_RELAY_CTAB", value);
+	free_mk_t(value);
 
 	return tpl_getTpl(vars, "CONFIGSTREAMRELAY");
 }
@@ -1612,6 +1618,10 @@ static char *send_oscam_config_dvbapi(struct templatevars *vars, struct uriparam
 	tpl_printf(vars, TPLADD, "TMP", "EXTENDEDCWPIDSSELECTED%d", cfg.dvbapi_extended_cw_pids);
 	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
 
+	//extended_cw_pids (pid limiter)
+	tpl_printf(vars, TPLADD, "TMP", "EXTENDEDCWPIDSSELECTED%d", cfg.dvbapi_extended_cw_pids);
+	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
+
 	//write_sdt_prov
 	if(cfg.dvbapi_write_sdt_prov > 0)
 		{ tpl_addVar(vars, TPLADD, "WRITESDTPROVCHECKED", "checked"); }
@@ -1688,6 +1698,9 @@ static char *send_oscam_config(struct templatevars *vars, struct uriparams *para
 #endif
 #ifdef MODULE_SCAM
 	else if(!strcmp(part, "scam")) { return send_oscam_config_scam(vars, params); }
+#endif
+#ifdef WITH_EMU
+	else if(!strcmp(part, "streamrelay")) { return send_oscam_config_streamrelay(vars, params); }
 #endif
 #ifdef WITH_EMU
 	else if(!strcmp(part, "streamrelay")) { return send_oscam_config_streamrelay(vars, params); }
@@ -2860,6 +2873,31 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 
 #if defined(READER_DRE) || defined(READER_DRECAS)
 	tpl_addVar(vars, TPLADD, "USERSCRIPT", rdr->userscript);
+#endif
+
+#ifdef WITH_EMU
+	//emu_auproviders
+	value = mk_t_ftab(&rdr->emu_auproviders);
+	tpl_addVar(vars, TPLADD, "EMUAUPROVIDERS", value);
+	free_mk_t(value);
+
+	// Date-coded BISS keys
+	if(!apicall)
+	{
+		tpl_addVar(vars, TPLADD, "EMUDATECODEDENABLED", (rdr->emu_datecodedenabled == 1) ? "checked" : "");
+	}
+	else
+	{
+		tpl_addVar(vars, TPLADD, "EMUDATECODEDENABLED", (rdr->emu_datecodedenabled == 1) ? "1" : "0");
+	}
+
+	//extee
+	tpl_addVar(vars, TPLADD, "EXTEE36", rdr->extee36);
+	tpl_addVar(vars, TPLADD, "EXTEE56", rdr->extee56);
+
+	//dre force group
+	tpl_printf(vars, TPLADD, "DRE36FORCEGROUP","%02X", rdr->dre36_force_group);
+	tpl_printf(vars, TPLADD, "DRE56FORCEGROUP","%02X", rdr->dre56_force_group);
 #endif
 
 #ifdef WITH_EMU
@@ -5171,6 +5209,9 @@ static char *send_oscam_status(struct templatevars * vars, struct uriparams * pa
 #ifdef WITH_EMU
                         if(type == 'e' && cl->typ == 'r' && cl->reader->typ == R_EMU) filtered = 1;
 #endif
+#ifdef WITH_EMU
+						if(type == 'e' && cl->typ == 'r' && cl->reader->typ == R_EMU) filtered = 1;
+#endif
 					}
 				}
 
@@ -6633,6 +6674,9 @@ static char *send_oscam_files(struct templatevars * vars, struct uriparams * par
 		{ "stats.info",      MNU_GBX_FSTAINF,   FTYPE_GBOX },     // id 27
 		{ "expired.info",    MNU_GBX_FEXPINF,   FTYPE_GBOX },     // id 28
 		{ "info.log",        MNU_GBX_INFOLOG,   FTYPE_GBOX },     // id 29
+#endif
+#ifdef WITH_EMU
+		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },  // id 30
 #endif
 #ifdef WITH_EMU
 		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },  // id 30

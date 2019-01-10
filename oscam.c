@@ -47,6 +47,11 @@
 	void stop_stream_server(void);
 #endif
 
+#ifdef WITH_EMU
+	void add_emu_reader(void);
+	void stop_stream_server(void);
+#endif
+
 #ifdef WITH_SSL
 #include <openssl/crypto.h>
 #include <openssl/ssl.h>
@@ -1938,6 +1943,9 @@ int32_t main(int32_t argc, char *argv[])
 #ifdef MODULE_GBOX
  if(!cfg.gsms_dis)
 	{ stop_sms_sender(); }
+#endif
+#ifdef WITH_EMU
+	stop_stream_server();
 #endif
 #ifdef WITH_EMU
 	stop_stream_server();

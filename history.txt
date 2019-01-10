@@ -1,3 +1,13 @@
+5be98 dvbapi: update oscam-emu to r784.
+bfc98 fix for last commit ...
+52b0e !!!! Better stream type identification based on descriptors
+5f5e7 fix orf cards (0D98) au if global is blocked
+008fd better solution streamid thnx Nautilus7
+5cbfc Tryfix for Powervu EMU by Nautilus7 http://www.streamboard.tv/wbb2/thread.php?threadid=45918
+244e5 - [gbx] - Speed up local card status detection and report cards to peers
+50811 - fix for ticket #4699 - add tandberg to 'get cardsysten' in oscam.simples.c - fix for ticket #4700 - add #include <sys/sysmacros.h> to globals.h
+c0929 [gbx] - fix peer password not stored in config  issue introduced with last commit  thx @Azo for catching that
+e7fee dvbapi: slience array bounds warnning for selected_box device.
 3b091 [gbx] - fix parameter 'gbox_reshare'  - show peer-id & online stat in webif reader  - code clear up
 762db fix compiler issue when build without gbox
 d8779 [gbx]  - improve REMM feature  - show remm req in webif  - gbx webif cosmetics/improvements  - fix typos from r11437 thx @sattotal  - remove ccc stuff from gbx page when ccc not compiled in  - webif: display 'use_gpio' on physical readers only
@@ -88,13 +98,3 @@ aa4aa - WebIf:  show unauthorised access in oscam log - req. by Bust3D
 b03b6 DVBAPI:
 f7e4f no change just remove useless spaces
 7310f Revert r11382: Fix the ppc toolchain instead!
-50ae2 fix ppc mutex build warnings
-522c7 [gbx]: - More detailed log if authentication fails
-48752 streamguard: update parse entitlements.
-b49db Merge to r11380 from 'https://streamboard.tv/svn/oscam'
-d4c10 remove is_defined.txt on make distclean
-ddfe7 [gbx]: - Dont send msg goodbye in case late cw might arrive - Fix for local cards initialized twice
-7dc18 [gbx]: - Dont send msg goodbye if own gbx version is 2.2A - Change own gbx version default to 2.2A [reader nagra]                                                                                                             [ - Fix expiration data for HDplus cards - Optimum Power ticket #4597
-b01ad merge to r11376 from https://streamboard.tv/svn/oscam
-ed6ea dvbapi: do not send responses to all adapters, but to the origin (when decoding same srvid)
-c958b [gbx]: - Reactivate hello timing parameter 'gbox-reconnect' - Hello timing is now independant of 'clientmaxidle' - Limit number of hellos after peer gone offline

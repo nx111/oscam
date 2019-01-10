@@ -962,6 +962,12 @@ static int8_t newcamd_auth_client(IN_ADDR_T ip, uint8_t *deskey)
 			}
 #endif
 
+#ifdef WITH_EMU
+			if(aureader && aureader->typ == R_EMU && caid_is_dre(pufilt->caid))
+			{
+				mbuf[10] = aureader->dre36_force_group;
+			}
+#endif
 			mbuf[14] = pufilt->nprids;
 			for(j = 0; j < pufilt->nprids; j++)
 			{

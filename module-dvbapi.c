@@ -3687,15 +3687,9 @@ int32_t dvbapi_parse_capmt(unsigned char *buffer, uint32_t length, int32_t connf
 
 	uint32_t es_info_length = 0, vpid = 0;
 	struct s_dvbapi_priority *addentry;
-	
-	// pid limiter for PowerVu
-	if(demux[demux_id].ECMpids[0].CAID >> 8 == 0x0E)
-	{
-		max_pids = cfg.dvbapi_extended_cw_pids;
-	}
 
 	// pid limiter for PowerVu
-	if(demux[demux_id].ECMpids[0].CAID >> 8 == 0x0E)
+	if(caid_is_powervu(demux[demux_id].ECMpids[0].CAID))
 	{
 		max_pids = cfg.dvbapi_extended_cw_pids;
 	}
@@ -3705,7 +3699,7 @@ int32_t dvbapi_parse_capmt(unsigned char *buffer, uint32_t length, int32_t connf
 		uint8_t stream_type = buffer[i], type = STREAM_UNDEFINED;
 		uint16_t elementary_pid = b2i(2, buffer + i + 1)&0x1FFF;
 		es_info_length = b2i(2, buffer + i +3)&0x0FFF;
-		
+
 		if(demux[demux_id].STREAMpidcount < max_pids) // was "ECM_PIDS" (pid limiter)
 		{
 			cs_log_dbg(D_DVBAPI,"Demuxer %d found %s stream (type: %02X pid: %04X)",
@@ -4775,14 +4769,15 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uchar *buffer, i
 				return;
 			}
 
-			if(curpid->CAID >> 8 == 0x0E)
+			if(caid_is_powervu(curpid->CAID))
 			{
 				pvu_skip = 1;
 
 				if(sctlen - 11 > buffer[9])
 				{
-					if(buffer[11 + buffer[9]] > curpid->pvu_counter || (curpid->pvu_counter == 255 && buffer[11 + buffer[9]] == 0)
-							|| ((curpid->pvu_counter - buffer[11 + buffer[9]]) > 5))
+					if(buffer[11 + buffer[9]] > curpid->pvu_counter
+						|| (curpid->pvu_counter == 255 && buffer[11 + buffer[9]] == 0)
+						|| ((curpid->pvu_counter - buffer[11 + buffer[9]]) > 5))
 					{
 						curpid->pvu_counter = buffer[11 + buffer[9]];
 						pvu_skip = 0;
@@ -4790,7 +4785,8 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uchar *buffer, i
 				}
 			}
 
-			if((curpid->table == buffer[0] && !caid_is_irdeto(curpid->CAID) && !caid_is_dvn(curpid->CAID)) || pvu_skip)  // wait for odd / even ecm change (only not for irdeto and dvn!)
+			if((curpid->table == buffer[0] && !caid_is_irdeto(curpid->CAID) && !caid_is_dvn(curpid->CAID))
+				|| pvu_skip)  // wait for odd / even ecm change (only not for irdeto and dvn!)
 			{
 				
 				if(!(er = get_ecmtask()))
@@ -5079,7 +5075,7 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uchar *buffer, i
 		}
 
 #ifdef WITH_EMU
-		if((demux[demux_id].demux_fd[filter_num].caid>>8) == 0x10)
+		if(caid_is_director(demux[demux_id].demux_fd[filter_num].caid))
 		{
 			uint32_t i;
 			uint32_t emmhash;
@@ -5107,6 +5103,38 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uchar *buffer, i
 				}
 			}
 
+			return;
+		}
+#endif
+
+#ifdef WITH_EMU
+		if(caid_is_director(demux[demux_id].demux_fd[filter_num].caid))
+		{
+			uint32_t i;
+			uint32_t emmhash;
+
+			if(sctlen < 4)
+			{
+				return;
+			}
+
+			for(i=0; i+2<sctlen; i++)
+			{
+				if(buffer[i] == 0xF0 && (buffer[i+2] == 0xE1 || buffer[i+2] == 0xE4))
+				{
+					emmhash = (buffer[3]<<8) | buffer[sctlen-2];
+
+					if(demux[demux_id].demux_fd[filter_num].cadata == emmhash)
+					{
+						return;
+					}
+
+					demux[demux_id].demux_fd[filter_num].cadata = emmhash;
+
+					dvbapi_process_emm(demux_id, filter_num, buffer, sctlen);
+					return;
+				}
+			}
 			return;
 		}
 #endif
@@ -6658,7 +6686,7 @@ void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er)
 		delayer(er, delay);
 
 #ifdef WITH_EMU
-		if(er->caid>>8 != 0x0E || !cfg.emu_stream_relay_enabled)
+		if(!chk_ctab_ex(er->caid, &cfg.emu_stream_relay_ctab) || !cfg.emu_stream_relay_enabled)
 #endif
 		switch(selected_api)
 		{

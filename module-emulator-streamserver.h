@@ -1,8 +1,17 @@
-#ifndef EMU_STREAM_SERVER_H_
-#define EMU_STREAM_SERVER_H_
+#ifndef MODULE_EMULATOR_STREAMSERVER_H_
+#define MODULE_EMULATOR_STREAMSERVER_H_
+
+#ifdef WITH_EMU
 
 #define EMU_STREAM_SERVER_MAX_CONNECTIONS 8
 #define EMU_STREAM_MAX_AUDIO_SUB_TRACKS 16
+
+#define EMU_DVB_MAX_TS_PACKETS 278
+#define EMU_DVB_BUFFER_SIZE_CSA 188*EMU_DVB_MAX_TS_PACKETS
+#define EMU_DVB_BUFFER_WAIT_CSA 188*(EMU_DVB_MAX_TS_PACKETS-128)
+#define EMU_DVB_BUFFER_SIZE_DES 188*32
+#define EMU_DVB_BUFFER_WAIT_DES 188*29
+#define EMU_DVB_BUFFER_SIZE EMU_DVB_BUFFER_SIZE_CSA
 
 typedef struct
 {
@@ -30,6 +39,7 @@ typedef struct
 	uint16_t ecm_data_pos;
 	uint16_t emm_data_pos;
 	uint16_t srvid;
+	uint16_t caid;
 	uint16_t pmt_pid;
 	uint16_t ecm_pid;
 	uint16_t emm_pid;
@@ -52,7 +62,6 @@ extern int8_t stream_server_thread_init;
 void *stream_server(void *a);
 void stop_stream_server(void);
 
-#ifdef WITH_EMU
 typedef struct
 {
 	struct timeb write_time;
@@ -70,6 +79,7 @@ extern emu_stream_client_key_data emu_fixed_key_data[EMU_STREAM_SERVER_MAX_CONNE
 extern LLIST *ll_emu_stream_delayed_keys[EMU_STREAM_SERVER_MAX_CONNECTIONS];
 
 void *stream_key_delayer(void *arg);
-#endif
 
-#endif
+#endif // WITH_EMU
+
+#endif // MODULE_EMULATOR_STREAMSERVER_H_
