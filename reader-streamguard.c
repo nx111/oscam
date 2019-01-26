@@ -337,7 +337,13 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 
 	reader->caid = 0x4AD2;
 	if(reader->cas_version < 10){
-		reader->cas_version = (((atr[2] & atr[3]) >> 4) * 10) + ((atr[2] & atr[3]) & 0x0F);
+        if (atr[2] < 0x20) {
+            reader->cas_version = 10;
+        } else if (atr[2] > 0x20) {
+            reader->cas_version = 30;
+        } else {
+            reader->cas_version = 20;
+        }
 	}
 	memset(reader->des_key, 0, sizeof(reader->des_key));
 
