@@ -69,7 +69,10 @@ fi
 echo
 
 #for debug
-#cp $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} $builddir/../
+if [ "$debug" = "1" ]; then
+    cp $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} $builddir/../
+else
+    rm -rf $ROOT/build/.tmp/*
+fi
 
-rm -rf $ROOT/build/.tmp/*
 cd $curdir
