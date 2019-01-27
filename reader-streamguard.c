@@ -2,236 +2,9 @@
 #ifdef READER_STREAMGUARD
 #include "reader-common.h"
 #include "cscrypt/des.h"
+#include "cscrypt/md5.h"
 #include "oscam-time.h"
 #include <time.h>
-
-/************* custom md5 functions begin *************/
-typedef struct md5Context {
-	uint32_t buf[4];
-	uint32_t bits[2];
-	uint32_t in[16];
-} md5_CTX;
-
-
-/* The four core functions - F1 is optimized somewhat */
-
-/*#define F1(x, y, z) (x & y | ~x & z)*/
-#define F1(x, y, z) (z ^ (x & (y ^ z)))
-#define F2(x, y, z) F1(z, x, y)
-#define F3(x, y, z) (x ^ y ^ z)
-#define F4(x, y, z) (y ^ (x | ~z))
-
-inline static int64_t md5_FF(uint64_t w, uint64_t x, uint64_t y, uint64_t z, uint64_t i, uint64_t s, uint64_t data) {
-	int64_t v = F1(x, y, z) + i + data + w;
-	return (int64_t)((((uint32_t)v)) >> (((int)(32 - s))) | (((int32_t)v) << s)) + x;
-}
-
-inline static int64_t md5_GG(uint64_t w, uint64_t x, uint64_t y, uint64_t z, uint64_t i, uint64_t s, uint64_t data) {
-	int64_t v = F2(x, y, z) + i + data + w;
-	return (int64_t)((((uint32_t)v)) >> (((int)(32 - s))) | (((int32_t)v) << s)) + x;
-}
-
-inline static int64_t md5_HH(uint64_t w, uint64_t x, uint64_t y, uint64_t z, uint64_t i, uint64_t s, uint64_t data) {
-	int64_t v = F3(x, y, z) + i + data + w;
-	return (int64_t)((((uint32_t)v)) >> (((int)(32 - s))) | (((int32_t)v) << s)) + x;
-}
-
-inline static int64_t md5_II(uint64_t w, uint64_t x, uint64_t y, uint64_t z, uint64_t i, uint64_t s, uint64_t data) {
-	int64_t v = F4(x, y, z) + i + data + w;
-	return (int64_t)((((uint32_t)v)) >> (((int)(32 - s))) | (((int32_t)v) << s)) + x;
-}
-
-#if __BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__
-#define byteReverse(a, b)
-#else
-static void byteReverse(unsigned char *buf, unsigned int longs)
-{
-	uint32_t t;
-	do
-	{
-		t = (uint32_t)((unsigned int)buf[3] << 8 | buf[2]) << 16 |
-			((unsigned int)buf[1] << 8 | buf[0]);
-		memcpy(buf, &t, 4);
-		buf += 4;
-	}
-	while(--longs);
-}
-#endif
-
-/*
- * The core of the MD5 algorithm, this alters an existing MD5 hash to
- * reflect the addition of 64 byte of new data.  MD5_Update blocks
- * the data and converts bytes into longwords for this routine.
- */
-static void md5_transform(uint32_t *buf,  uint32_t *in)
-{
-	int64_t a = buf[0];
-	int64_t b = buf[1];
-	int64_t c = buf[2];
-	int64_t d = buf[3];
-	int64_t m = 0L;
-
-        a = md5_FF(a, b, c, d, in[0], 7, 0xD76AA478L);
-        d = md5_FF(d, a, b, c, in[1], 12, 0xE8C7B756L);
-        c = md5_FF(c, d, a, b, in[2], 17, 0x242070DB);
-        m = md5_FF(b, c, d, a, in[3], 22, 0xC1BDCEEEL);
-
-        a = md5_FF(a, m, c, d, in[4], 7, 0xF57C0FAFL);
-        d = md5_FF(d, a, m, c, in[5], 12, 0x4787C62A);
-        b = md5_FF(c, d, a, m, in[6], 17, 0xA8304613L);
-        c = md5_FF(m, b, d, a, in[7], 22, 0xFD469501L);
-
-        a = md5_FF(a, c, b, d, in[8], 7, 0x698098D8);
-        d = md5_FF(d, a, c, b, in[9], 12, 0x8B44F7AFL);
-        b = md5_FF(b, d, a, c, in[10], 17, 0xFFFF5BB1L);
-        c = md5_FF(c, b, d, a, in[11], 22, 0x895CD7BEL);
-
-        a = md5_FF(a, c, b, d, in[12], 7, 0x6B901122);
-        d = md5_FF(d, a, c, b, in[13], 12, 0xFD987193L);
-        b = md5_FF(b, d, a, c, in[14], 17, 0xA679438EL);
-        m = md5_FF(c, b, d, a, in[15], 22, 0x49B40821);
-
-        a = md5_GG(a, m, b, d, in[1], 5, 0xF61E2562L);
-        c = md5_GG(d, a, m, b, in[6], 9, 0xC040B340L);
-        b = md5_GG(b, c, a, m, in[11], 14, 0x265E5A51);
-        m = md5_GG(m, b, c, a, in[0], 20, 0xE9B6C7AAL);
-
-        d = md5_GG(a, m, b, c, in[5], 5, 0xD62F105DL);
-        c = md5_GG(c, d, m, b, in[10], 9, 0x2441453);
-        b = md5_GG(b, c, d, m, in[15], 14, 0xD8A1E681L);
-        a = md5_GG(m, b, c, d, in[4], 20, 0xE7D3FBC8L);
-
-        d = md5_GG(d, a, b, c, in[9], 5, 0x21E1CDE6);
-        c = md5_GG(c, d, a, b, in[14], 9, 0xC33707D6L);
-        b = md5_GG(b, c, d, a, in[3], 14, 0xF4D50D87L);
-        a = md5_GG(a, b, c, d, in[8], 20, 0x455A14ED);
-
-        d = md5_GG(d, a, b, c, in[13], 5, 0xA9E3E905L);
-        c = md5_GG(c, d, a, b, in[2], 9, 0xFCEFA3F8L);
-        b = md5_GG(b, c, d, a, in[7], 14, 0x676F02D9);
-        a = md5_GG(a, b, c, d, in[12], 20, 0x8D2A4C8AL);
-
-        d = md5_HH(d, a, b, c, in[5], 4, 0xFFFA3942L);
-        c = md5_HH(c, d, a, b, in[8], 11, 0x8771F681L);
-        b = md5_HH(b, c, d, a, in[11], 16, 0x6D9D6122);
-        a = md5_HH(a, b, c, d, in[14], 23, 0xFDE5380CL);
-
-        d = md5_HH(d, a, b, c, in[1], 4, 0xA4BEEA44L);
-        c = md5_HH(c, d, a, b, in[4], 11, 0x4BDECFA9);
-        b = md5_HH(b, c, d, a, in[7], 16, 0xF6BB4B60L);
-        a = md5_HH(a, b, c, d, in[10], 23, 0xBEBFBC70L);
-
-        d = md5_HH(d, a, b, c, in[13], 4, 0x289B7EC6);
-        c = md5_HH(c, d, a, b, in[0], 11, 0xEAA127FAL);
-        b = md5_HH(b, c, d, a, in[3], 16, 0xD4EF3085L);
-        a = md5_HH(a, b, c, d, in[6], 23, 0x4881D05);
-
-        d = md5_HH(d, a, b, c, in[9], 4, 0xD9D4D039L);
-        c = md5_HH(c, d, a, b, in[12], 11, 0xE6DB99E5L);
-        b = md5_HH(b, c, d, a, in[15], 16, 0x1FA27CF8);
-        a = md5_HH(a, b, c, d, in[2], 23, 0xC4AC5665L);
-
-        d = md5_II(d, a, b, c, in[0], 6, 0xF4292244L);
-        c = md5_II(c, d, a, b, in[7], 10, 0x432AFF97);
-        b = md5_II(b, c, d, a, in[14], 15, 0xAB9423A7L);
-        a = md5_II(a, b, c, d, in[5], 21, 0xFC93A039L);
-
-        d = md5_II(d, a, b, c, in[12], 6, 0x655B59C3);
-        c = md5_II(c, d, a, b, in[3], 10, 0x8F0CCC92L);
-        b = md5_II(b, c, d, a, in[10], 15, 0xFFEFF47DL);
-        a = md5_II(a, b, c, d, in[1], 21, 0x85845DD1L);
-
-        d = md5_II(d, a, b, c, in[8], 6, 0x6FA87E4F);
-        c = md5_II(c, d, a, b, in[15], 10, 0xFE2CE6E0L);
-        b = md5_II(b, c, d, a, in[6], 15, 0xA3014314L);
-        a = md5_II(a, b, c, d, in[13], 21, 0x4E0811A1);
-
-        d = md5_II(d, a, b, c, in[4], 6, 0xF7537E82L);
-        c = md5_II(c, d, a, b, in[11], 10, 0xBD3AF235L);
-        b = md5_II(b, c, d, a, in[2], 15, 0x2AD7D2BB);
-        a = md5_II(a, b, c, d, in[9], 21, 0xEB86D391L);
-
-	buf[0] += d;
-	buf[1] += a;
-	buf[2] += b;
-	buf[3] += c;
-}
-
-void md5_init(md5_CTX *ctx)
-{
-	ctx->buf[0] = 0x67452301;
-	ctx->buf[1] = 0xefcdab89;
-	ctx->buf[2] = 0x98badcfe;
-	ctx->buf[3] = 0x10325476;
-
-	ctx->bits[0] = 0;
-	ctx->bits[1] = 0;
-
-	memset(ctx->in, 0, 64);
-}
-
-static void md5_update(md5_CTX *ctx, const uint8_t *buf, uint32_t len)
-{
-	uint32_t temp[16];
-	memset(temp, 0 ,sizeof(temp));
-
-	int32_t t = (ctx->bits[0] >> 3) & 0x3F;
-	ctx->bits[0] += (len << 3);
-	if (ctx->bits[0] < (len << 3))
-		ctx->bits[1] += 1L;
-	ctx->bits[1] += (len >> 29);
-	if ((int32_t)len >= 64 - t)
-	{
-		memcpy((uint8_t*)ctx->in + t, buf, 64 - t);
-		byteReverse((uint8_t*)ctx->in, 16);
-		md5_transform(ctx->buf,ctx->in);
-		t = 64 - t;
-		while (t + 64 <= (int32_t)len)
-		{
-			memcpy((uint8_t*)temp, buf + t, 64);
-			byteReverse((uint8_t*)temp, 16);
-			md5_transform(ctx->buf, temp);
-			t += 64;
-		}
-		memcpy((uint8_t*)ctx->in, buf + t, len - t);
-		byteReverse((uint8_t*)ctx->in, 16);
-		return;
-	}
-	memcpy((uint8_t*)ctx->in + t, buf, len);
-	byteReverse((uint8_t*)ctx->in, t + len);
-}
-
-static void md5_final(unsigned char *digest, md5_CTX *ctx)
-{
-	unsigned char temp[8]={0};
-	unsigned char padding[64];
-	memset(padding, 0, 64);
-	padding[0] = 0x80;
-	memcpy(temp, (unsigned char*)ctx->bits, 8);
-	byteReverse(temp, 2);
-
-	uint32_t count = (ctx->bits[0] >> 3) & 0x3f;
-	if(count < 56)
-		count = 56 - count;
-	else
-		count = 120 - count;
-	md5_update(ctx, padding, count);
-	md5_update(ctx, temp, 8);
-	memcpy(digest,(unsigned char*)ctx->buf, 16);
-	byteReverse((unsigned char*)ctx->buf, 16);
-}
-
-unsigned char *md5(const unsigned char *input, unsigned long len, unsigned char *output)
-{
-	md5_CTX ctx;
-	md5_init(&ctx);
-	md5_update(&ctx, input, len);
-	md5_final(output, &ctx);
-	memset(&ctx, 0, sizeof(ctx));
-	return output;
-}
-
-/*********** custom md5 function end ****************/
 
 static int32_t is_valid(uchar *buf, size_t len)
 {
@@ -278,13 +51,13 @@ static void  decrypt_cw_ex(int32_t tag, int32_t a, int32_t b, int32_t c, uchar *
 	keybuf[19] = (c >> 8) & 0xFF;
 	keybuf[20] = c & 0xFF;
 	keybuf[21] = a & 0xFF;
-	md5(keybuf,22,md5tmp);
+	MD5(keybuf,22,md5tmp);
 
 	md5tmp[16] = (b >> 8)& 0xFF;
 	md5tmp[17] = b & 0xFF;
 	md5tmp[18] = (a >> 8) & 0xFF;
 	md5tmp[19] = a & 0xff;
-	md5(md5tmp,20,md5key);
+	MD5(md5tmp,20,md5key);
 
 	//3des decrypt
 	memcpy(deskey1, md5key, 8);
@@ -395,7 +168,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 
 	if(reader->cas_version >= 20){
 		memcpy(seed,data + 3, 4);
-		md5(seed,sizeof(seed),md5_key);
+		MD5(seed,sizeof(seed),md5_key);
 
 		write_cmd(begin_cmd2, begin_cmd2 + 5);
 
