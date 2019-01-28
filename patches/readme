@@ -1,0 +1,7 @@
+how to use the patch
+==============================================================
+
+1. clone oscam source from streamboard.tv;
+2. patch oscam-emu from github.com/oscam-emu;
+3. run in source dir: 
+   git apply --ignore-space-change --ignore-whitespace <patch file>
