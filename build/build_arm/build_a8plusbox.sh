@@ -40,8 +40,7 @@ eval "sed -e \"s/\(.*OSCAM_SYSTEM_NAME \).*)/\1A8PlusBox)/\" -i $ROOT/toolchains
    mv $ROOT/module-dvbapi-azbox.c.orig $ROOT/module-dvbapi-azbox.c
    mv $ROOT/csctapi/ifd_sci.c.orig $ROOT/csctapi/ifd_sci.c
 
-
 ##############################################
 
-. $(dirname $builddir)/include/post_build.sh 
+. $(dirname $builddir)/include/post_build.sh
 

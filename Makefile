@@ -18,13 +18,13 @@ LINKER_VER_OPT:=-Wl,--version
 
 # Find OSX SDK
 ifeq ($(uname_S),Darwin)
-# Setting OSX_VER allows you to choose prefered version if you have
-# two SDKs installed. For example if you have 10.6 and 10.5 installed
-# you can choose 10.5 by using 'make USE_PCSC=1 OSX_VER=10.5'
-# './config.sh --detect-osx-sdk-version' returns the newest SDK if
-# SDK_VER is not set.
-OSX_SDK := $(shell ./config.sh --detect-osx-sdk-version $(OSX_VER))
-LINKER_VER_OPT:=-Wl,-v
+	# Setting OSX_VER allows you to choose prefered version if you have
+	# two SDKs installed. For example if you have 10.6 and 10.5 installed
+	# you can choose 10.5 by using 'make USE_PCSC=1 OSX_VER=10.5'
+	# './config.sh --detect-osx-sdk-version' returns the newest SDK if
+	# SDK_VER is not set.
+	OSX_SDK := $(shell ./config.sh --detect-osx-sdk-version $(OSX_VER))
+	LINKER_VER_OPT:=-Wl,-v
 endif
 
 ifeq "$(shell ./config.sh --enabled WITH_SSL)" "Y"
@@ -43,13 +43,13 @@ LIB_DL = -ldl
 LIB_RT :=
 ifeq ($(uname_S),Linux)
 ifndef ANDROID_NDK
-ifeq "$(shell ./config.sh --enabled CLOCKFIX)" "Y"
-	LIB_RT := -lrt
-endif
+	ifeq "$(shell ./config.sh --enabled CLOCKFIX)" "Y"
+		LIB_RT := -lrt
+	endif
 endif
 endif
 ifeq ($(uname_S),FreeBSD)
-LIB_DL :=
+	LIB_DL :=
 endif
 
 override STD_LIBS := -lm $(LIB_PTHREAD) $(LIB_DL) $(LIB_RT)
@@ -64,6 +64,8 @@ CC_OPTS = -O2 -ggdb -pipe -ffunction-sections -fdata-sections
 
 CC = $(CROSS_DIR)$(CROSS)gcc
 STRIP = $(CROSS_DIR)$(CROSS)strip
+LD = $(CROSS_DIR)$(CROSS)ld
+OBJCOPY = $(CROSS_DIR)$(CROSS)objcopy
 
 LDFLAGS = -Wl,--gc-sections
 
@@ -85,15 +87,15 @@ LINKER_VER := $(shell set -e; VER="`$(CC) $(LINKER_VER_OPT) 2>&1`"; echo $$VER |
 
 # dm500 toolchain
 ifeq "$(LINKER_VER)" "20040727"
-LDFLAGS :=
+	LDFLAGS :=
 endif
 # dm600/7000/7020 toolchain
 ifeq "$(LINKER_VER)" "20041121"
-LDFLAGS :=
+	LDFLAGS :=
 endif
 # The OS X linker do not support --gc-sections
 ifeq ($(uname_S),Darwin)
-LDFLAGS :=
+	LDFLAGS :=
 endif
 
 # The compiler knows for what target it compiles, so use this information
@@ -109,39 +111,39 @@ DEFAULT_AZBOX_LIB = -Lextapi/openxcas -lOpenXCASAPI
 DEFAULT_LIBCRYPTO_LIB = -lcrypto
 DEFAULT_SSL_LIB = -lssl
 ifeq ($(uname_S),Linux)
-DEFAULT_LIBUSB_LIB = -lusb-1.0 -lrt
+	DEFAULT_LIBUSB_LIB = -lusb-1.0 -lrt
 else
-DEFAULT_LIBUSB_LIB = -lusb-1.0
+	DEFAULT_LIBUSB_LIB = -lusb-1.0
 endif
 # Since FreeBSD 8 (released in 2010) they are using their own
 # libusb that is API compatible to libusb but with different soname
 ifeq ($(uname_S),FreeBSD)
-DEFAULT_LIBUSB_LIB = -lusb
+	DEFAULT_LIBUSB_LIB = -lusb
 endif
 ifeq ($(uname_S),Darwin)
-DEFAULT_LIBUSB_FLAGS = -I/opt/local/include
-DEFAULT_LIBUSB_LIB = -L/opt/local/lib -lusb-1.0
-DEFAULT_PCSC_FLAGS = -isysroot $(OSX_SDK)
-DEFAULT_PCSC_LIB = -isysroot $(OSX_SDK) -framework IOKit -framework CoreFoundation -framework PCSC
+	DEFAULT_LIBUSB_FLAGS = -I/opt/local/include
+	DEFAULT_LIBUSB_LIB = -L/opt/local/lib -lusb-1.0
+	DEFAULT_PCSC_FLAGS = -isysroot $(OSX_SDK)
+	DEFAULT_PCSC_LIB = -isysroot $(OSX_SDK) -framework IOKit -framework CoreFoundation -framework PCSC
 else
-# Get the compiler's last include PATHs. Basicaly it is /usr/include
-# but in case of cross compilation it might be something else.
-#
-# Since using -Iinc_path instructs the compiler to use inc_path
-# (without add the toolchain system root) we need to have this hack
-# to get the "real" last include path. Why we needs this?
-# Well, the PCSC headers are broken and rely on having the directory
-# that they are installed it to be in the include PATH.
-#
-# We can't just use -I/usr/include/PCSC because it won't work in
-# case of cross compilation.
-TOOLCHAIN_INC_DIR := $(strip $(shell echo | $(CC) -Wp,-v -xc - -fsyntax-only 2>&1 | grep include$ | tail -n 1))
-DEFAULT_PCSC_FLAGS = -I$(TOOLCHAIN_INC_DIR)/PCSC -I$(TOOLCHAIN_INC_DIR)/../local/include/PCSC
-DEFAULT_PCSC_LIB = -lpcsclite
+	# Get the compiler's last include PATHs. Basicaly it is /usr/include
+	# but in case of cross compilation it might be something else.
+	#
+	# Since using -Iinc_path instructs the compiler to use inc_path
+	# (without add the toolchain system root) we need to have this hack
+	# to get the "real" last include path. Why we needs this?
+	# Well, the PCSC headers are broken and rely on having the directory
+	# that they are installed it to be in the include PATH.
+	#
+	# We can't just use -I/usr/include/PCSC because it won't work in
+	# case of cross compilation.
+	TOOLCHAIN_INC_DIR := $(strip $(shell echo | $(CC) -Wp,-v -xc - -fsyntax-only 2>&1 | grep include$ | tail -n 1))
+	DEFAULT_PCSC_FLAGS = -I$(TOOLCHAIN_INC_DIR)/PCSC -I$(TOOLCHAIN_INC_DIR)/../local/include/PCSC
+	DEFAULT_PCSC_LIB = -lpcsclite
 endif
 
 ifeq ($(uname_S),Cygwin)
-DEFAULT_PCSC_LIB += -lwinscard
+	DEFAULT_PCSC_LIB += -lwinscard
 endif
 
 DEFAULT_UTF8_FLAGS = -DWITH_UTF8
@@ -151,18 +153,18 @@ DEFAULT_UTF8_FLAGS = -DWITH_UTF8
 define prepare_use_flags
 override DEFAULT_$(1)_FLAGS:=$$(strip -DWITH_$(1)=1 $$(DEFAULT_$(1)_FLAGS))
 ifdef USE_$(1)
-$(1)_FLAGS:=$$(DEFAULT_$(1)_FLAGS)
-$(1)_CFLAGS:=$$($(1)_FLAGS)
-$(1)_LDFLAGS:=$$($(1)_FLAGS)
-$(1)_LIB:=$$(DEFAULT_$(1)_LIB)
-ifneq "$(2)" ""
-override PLUS_TARGET:=$$(PLUS_TARGET)-$(2)
-endif
-override USE_CFLAGS+=$$($(1)_CFLAGS)
-override USE_LDFLAGS+=$$($(1)_LDFLAGS)
-override USE_LIBS+=$$($(1)_LIB)
-override USE_FLAGS+=$$(if $$(USE_$(1)),USE_$(1))
-endif
+	$(1)_FLAGS:=$$(DEFAULT_$(1)_FLAGS)
+	$(1)_CFLAGS:=$$($(1)_FLAGS)
+	$(1)_LDFLAGS:=$$($(1)_FLAGS)
+	$(1)_LIB:=$$(DEFAULT_$(1)_LIB)
+	ifneq "$(2)" ""
+		override PLUS_TARGET:=$$(PLUS_TARGET)-$(2)
+	endif
+	override USE_CFLAGS+=$$($(1)_CFLAGS)
+	override USE_LDFLAGS+=$$($(1)_LDFLAGS)
+	override USE_LIBS+=$$($(1)_LIB)
+	override USE_FLAGS+=$$(if $$(USE_$(1)),USE_$(1))
+	endif
 endef
 
 # Initialize USE variables
@@ -181,9 +183,9 @@ $(eval $(call prepare_use_flags,UTF8))
 
 # Add PLUS_TARGET and EXTRA_TARGET to TARGET
 ifdef NO_PLUS_TARGET
-override TARGET := $(TARGET)$(EXTRA_TARGET)
+	override TARGET := $(TARGET)$(EXTRA_TARGET)
 else
-override TARGET := $(TARGET)$(PLUS_TARGET)$(EXTRA_TARGET)
+	override TARGET := $(TARGET)$(PLUS_TARGET)$(EXTRA_TARGET)
 endif
 
 EXTRA_CFLAGS = $(EXTRA_FLAGS)
@@ -202,9 +204,9 @@ override STD_DEFS += -D'CS_TARGET="$(TARGET)"'
 Q =
 SAY = @true
 ifndef V
-Q = @
-NP = --no-print-directory
-SAY = @echo
+	Q = @
+	NP = --no-print-directory
+	SAY = @echo
 endif
 
 BINDIR := Distribution
@@ -221,11 +223,10 @@ LIST_SMARGO_BIN := $(BINDIR)/list_smargo-$(VER)$(SVN_REV)-$(subst cygwin,cygwin.
 
 # Build list_smargo-.... only when WITH_LIBUSB build is requested.
 ifndef USE_LIBUSB
-override LIST_SMARGO_BIN =
+	override LIST_SMARGO_BIN =
 endif
 
 SRC-$(CONFIG_LIB_AES) += cscrypt/aes.c
-SRC-$(CONFIG_LIB_AESCBC) += cscrypt/aescbc.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_add.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_asm.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_ctx.c
@@ -238,17 +239,17 @@ SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_shift.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_sqr.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/bn_word.c
 SRC-$(CONFIG_LIB_BIGNUM) += cscrypt/mem.c
-SRC-$(CONFIG_LIB_MDC2) += cscrypt/mdc2.c
 SRC-$(CONFIG_LIB_DES) += cscrypt/des.c
 SRC-$(CONFIG_LIB_TWOFISH) += cscrypt/jet_twofish.c
 SRC-$(CONFIG_READER_JET) += cscrypt/jet_dh.c
-SRC-$(CONFIG_LIB_FASTAES) += cscrypt/fast_aes.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_cbc.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_ecb.c
 SRC-$(CONFIG_LIB_IDEA) += cscrypt/i_skey.c
 SRC-y += cscrypt/md5.c
 SRC-$(CONFIG_LIB_RC6) += cscrypt/rc6.c
 SRC-$(CONFIG_LIB_SHA1) += cscrypt/sha1.c
+SRC-$(CONFIG_LIB_MDC2) += cscrypt/mdc2.c
+SRC-$(CONFIG_LIB_FAST_AES) += cscrypt/fast_aes.c
 SRC-$(CONFIG_LIB_SHA256) += cscrypt/sha256.c
 
 SRC-$(CONFIG_WITH_CARDREADER) += csctapi/atr.c
@@ -302,7 +303,9 @@ ifndef ANDROID_NDK
 ifndef ANDROID_STANDALONE_TOOLCHAIN
 ifeq "$(CONFIG_WITH_EMU)" "y"
 TOUCH_SK := $(shell touch SoftCam.Key)
-override LDFLAGS += -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default
+$(shell $(LD) -r -o "SoftCam.Key.o" -z noexecstack --format=binary "SoftCam.Key")
+$(shell $(OBJCOPY) --rename-section .data=.rodata,alloc,load,readonly,data,contents "SoftCam.Key.o")
+EXTRA_LIBS += SoftCam.Key.o
 endif
 endif
 endif
@@ -352,6 +355,7 @@ SRC-$(CONFIG_READER_DRE) += reader-dre-common.c
 SRC-$(CONFIG_READER_DRE) += reader-dre-st20.c
 SRC-$(CONFIG_READER_GRIFFIN) += reader-griffin.c
 SRC-$(CONFIG_READER_IRDETO) += reader-irdeto.c
+SRC-$(CONFIG_READER_NAGRA_COMMON) += reader-nagra-common.c
 SRC-$(CONFIG_READER_NAGRA) += reader-nagra.c
 SRC-$(CONFIG_READER_NAGRA_MERLIN) += reader-nagracak7.c
 SRC-$(CONFIG_READER_SECA) += reader-seca.c
@@ -396,8 +400,8 @@ SRC-y += oscam.c
 # config.c is automatically generated by config.sh in OBJDIR
 SRC-y += config.c
 ifdef BUILD_TESTS
-SRC-y += tests.c
-override STD_DEFS += -DBUILD_TESTS=1
+	SRC-y += tests.c
+	override STD_DEFS += -DBUILD_TESTS=1
 endif
 
 SRC := $(SRC-y)

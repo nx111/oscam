@@ -23,11 +23,11 @@ extern DEMUXTYPE demux[MAX_DEMUX];
 int32_t openxcas_provid;
 uint16_t openxcas_sid, openxcas_caid, openxcas_ecm_pid;
 
-static unsigned char openxcas_cw[16];
+static uint8_t openxcas_cw[16];
 static int32_t openxcas_seq, openxcas_filter_idx, openxcas_stream_id, openxcas_cipher_idx, openxcas_busy = 0;
 static uint16_t openxcas_video_pid, openxcas_audio_pid, openxcas_data_pid;
 
-static void azbox_openxcas_ecm_callback(int32_t stream_id, uint32_t UNUSED(seq), int32_t cipher_index, uint32_t UNUSED(caid), unsigned char *ecm_data, int32_t l, uint16_t pid)
+static void azbox_openxcas_ecm_callback(int32_t stream_id, uint32_t UNUSED(seq), int32_t cipher_index, uint32_t UNUSED(caid), uint8_t *ecm_data, int32_t l, uint16_t pid)
 {
 	cs_log_dbg(D_DVBAPI, "ecm callback received");
 
@@ -64,9 +64,10 @@ static void azbox_openxcas_ecm_callback(int32_t stream_id, uint32_t UNUSED(seq),
 	tp.time += 500;
 }
 
+
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic ignored "-Wunused-function"
-static void azbox_openxcas_ex_callback(int32_t stream_id, uint32_t seq, int32_t idx, uint32_t pid, unsigned char *ecm_data, int32_t l)
+static void azbox_openxcas_ex_callback(int32_t stream_id, uint32_t seq, int32_t idx, uint32_t pid, uint8_t *ecm_data, int32_t l)
 {
 	cs_log_dbg(D_DVBAPI, "ex callback received");
 
@@ -77,7 +78,7 @@ static void azbox_openxcas_ex_callback(int32_t stream_id, uint32_t seq, int32_t 
 	if(l < 0 || l > MAX_ECM_SIZE)
 		{ return; }
 
-	ECM_REQUEST *er;	
+	ECM_REQUEST *er;
 	if(!(er = get_ecmtask()))
 		{ return; }
 
@@ -98,17 +99,17 @@ static void azbox_openxcas_ex_callback(int32_t stream_id, uint32_t seq, int32_t 
 
 
 
-	unsigned char mask[12];
-	unsigned char comp[12];
+	uint8_t mask[12];
+	uint8_t comp[12];
 	memset(&mask, 0x00, sizeof(mask));
 	memset(&comp, 0x00, sizeof(comp));
 
 	mask[0] = 0xff;
-
-	if(caid_is_dvn(openxcas_caid))
+	if (caid_is_dvn(openxcas_caid)) {
 		comp[0] = 0x50;
-	else
+	} else {
 		comp[0] = ecm_data[0] ^ 1;
+	}
 
 	if((openxcas_filter_idx = openxcas_start_filter_ex(stream_id, seq, openxcas_ecm_pid, mask, comp, (void *)azbox_openxcas_ex_callback)) < 0)
 		{ cs_log("unable to start ex filter"); }
@@ -166,7 +167,7 @@ static void *azbox_main_thread(void *cli)
 				cs_log_dbg(D_DVBAPI, "OPENXCAS_START_PMT_ECM");
 
 				// parse pmt
-				uchar *dest;
+				uint8_t *dest;
 				if(!cs_malloc(&dest, msg.buf_len + 7 - 12 - 4))
 					{ break; }
 
@@ -181,8 +182,8 @@ static void *azbox_main_thread(void *cli)
 				dvbapi_parse_capmt(dest, 7 + msg.buf_len - 12 - 4, -1, NULL, 0, 0, 0, 0);
 				NULLFREE(dest);
 
-				unsigned char mask[12];
-				unsigned char comp[12];
+				uint8_t mask[12];
+				uint8_t comp[12];
 				memset(&mask, 0x00, sizeof(mask));
 				memset(&comp, 0x00, sizeof(comp));
 
@@ -252,7 +253,7 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er)
 	uint32_t delay = 0;
 
 	cs_log_dbg(D_DVBAPI, "send_dcw");
-		
+
 	if(delayentry)
 	{
 		if(delayentry->delay < 1000)
@@ -266,7 +267,7 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er)
 		delay = cfg.dvbapi_delayer;
 		cs_log_dbg(D_DVBAPI, "generic delay: write cw %d ms after ecmrequest", delay);
 	}
-		
+
 	delayer(er, delay);
 
 	dvbapi_write_ecminfo_file(client, er, demux[0].lastcw[0], demux[0].lastcw[1]);
@@ -286,8 +287,8 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er)
 			openxcas_stop_filter(openxcas_stream_id, OPENXCAS_FILTER_ECM);
 			openxcas_remove_filter(openxcas_stream_id, OPENXCAS_FILTER_ECM);
 
-			unsigned char mask[12];
-			unsigned char comp[12];
+			uint8_t mask[12];
+			uint8_t comp[12];
 			memset(&mask, 0x00, sizeof(mask));
 			memset(&comp, 0x00, sizeof(comp));
 
@@ -319,7 +320,7 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er)
 		}
 	}
 
-	unsigned char nullcw[8];
+	uint8_t nullcw[8];
 	memset(nullcw, 0, 8);
 
 	int32_t n;
@@ -357,7 +358,7 @@ void azbox_close(void)
 		{ cs_log("could not close"); }
 }
 
-void *azbox_handler(struct s_client *cl, uchar *mbuf, int32_t module_idx)
+void *azbox_handler(struct s_client *cl, uint8_t *mbuf, int32_t module_idx)
 {
 	return dvbapi_start_handler(cl, mbuf, module_idx, azbox_main_thread);
 }

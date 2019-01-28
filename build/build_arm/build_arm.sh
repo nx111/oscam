@@ -11,7 +11,7 @@ TOOCHAINFILE=toolchain-arm-wrt350nv2-openwrt.cmake
 curdir=`pwd`
 builddir=`cd $(dirname $0);pwd`
 
-. $(dirname $builddir)/include/pre_build.sh 
+. $(dirname $builddir)/include/pre_build.sh
 
 ##############################################
 
@@ -56,5 +56,5 @@ make STAGING_DIR=${TOOLCHAIN_STAGE}
 
 ##############################################
 
-. $(dirname $builddir)/include/post_build.sh 
+. $(dirname $builddir)/include/post_build.sh
 

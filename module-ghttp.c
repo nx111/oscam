@@ -16,9 +16,9 @@
 
 typedef struct
 {
-	uchar *session_id;
-	uchar *host_id;
-	uchar *fallback_id;
+	uint8_t *session_id;
+	uint8_t *host_id;
+	uint8_t *fallback_id;
 	pthread_mutex_t conn_mutex;
 	LLIST *post_contexts;
 	LLIST *ecm_q;
@@ -47,7 +47,7 @@ static bool _ssl_connect(struct s_client *client, int32_t fd)
 {
 	s_ghttp *context = (s_ghttp *)client->ghttp;
 
-	if(context->ssl_handle)    // cleanup previous
+	if(context->ssl_handle) // cleanup previous
 	{
 		SSL_shutdown(context->ssl_handle);
 		SSL_free(context->ssl_handle);
@@ -108,32 +108,42 @@ int32_t ghttp_client_init(struct s_client *cl)
 #endif
 
 	if(cl->reader->r_port == 0)
-		{ cl->reader->r_port = cl->reader->ghttp_use_ssl ? 443 : 80; }
+	{
+		cl->reader->r_port = cl->reader->ghttp_use_ssl ? 443 : 80;
+	}
 
 	str = strstr(cl->reader->device, ".");
 	if(!str)
 	{
 		char host[128];
 		cs_strncpy(host, cl->reader->device, sizeof(cl->reader->device));
-		snprintf(cl->reader->device, sizeof(cl->reader->device), "%s.appspot.com", host);
+		snprintf(cl->reader->device, sizeof(cl->reader->device), "%.115s.appspot.com", host);
 	}
 
 	cs_log("%s: init google cache client %s:%d (fd=%d)", cl->reader->label, cl->reader->device, cl->reader->r_port, cl->udp_fd);
 
-	if(cl->udp_fd) { network_tcp_connection_close(cl->reader, "re-init"); }
+	if(cl->udp_fd)
+	{
+		network_tcp_connection_close(cl->reader, "re-init");
+	}
 
 	handle = network_tcp_connection_open(cl->reader);
-	if(handle < 0) { return -1; }
+	if(handle < 0)
+	{
+		return -1;
+	}
 
 	cl->reader->tcp_connected = 2;
 	cl->reader->card_status = CARD_INSERTED;
 	cl->reader->last_g = cl->reader->last_s = time((time_t *)0);
 
 	cl->pfd = cl->udp_fd;
-
 	if(!cl->ghttp)
 	{
-		if(!cs_malloc(&(cl->ghttp), sizeof(s_ghttp))) { return -1; }
+		if(!cs_malloc(&(cl->ghttp), sizeof(s_ghttp)))
+		{
+			return -1;
+		}
 		memset(cl->ghttp, 0, sizeof(s_ghttp));
 		((s_ghttp *)cl->ghttp)->post_contexts = ll_create("post contexts");
 		((s_ghttp *)cl->ghttp)->ecm_q = ll_create("ecm queue");
@@ -150,7 +160,10 @@ int32_t ghttp_client_init(struct s_client *cl)
 		return -1;
 #endif
 #ifdef WITH_SSL
-		if(ghttp_ssl_context == NULL) { return -1; }
+		if(ghttp_ssl_context == NULL)
+		{
+			return -1;
+		}
 
 		if(_ssl_connect(cl, handle))
 		{
@@ -167,7 +180,7 @@ int32_t ghttp_client_init(struct s_client *cl)
 	return 0;
 }
 
-static uint32_t javastring_hashcode(uchar *input, int32_t len)
+static uint32_t javastring_hashcode(uint8_t *input, int32_t len)
 {
 	uint32_t h = 0;
 	while(/**input &&*/ len--)
@@ -177,7 +190,7 @@ static uint32_t javastring_hashcode(uchar *input, int32_t len)
 	return h;
 }
 
-static int32_t ghttp_send_int(struct s_client *client, uchar *buf, int32_t l)
+static int32_t ghttp_send_int(struct s_client *client, uint8_t *buf, int32_t l)
 {
 	cs_log_dbg(D_CLIENT, "%s: sending %d bytes", client->reader->label, l);
 	if(!client->pfd)
@@ -190,12 +203,14 @@ static int32_t ghttp_send_int(struct s_client *client, uchar *buf, int32_t l)
 #ifdef WITH_SSL
 	s_ghttp *context = (s_ghttp *)client->ghttp;
 	if(client->reader->ghttp_use_ssl)
-		{ return SSL_write(context->ssl_handle, buf, l); }
+	{
+		return SSL_write(context->ssl_handle, buf, l);
+	}
 #endif
 	return send(client->pfd, buf, l, 0);
 }
 
-static int32_t ghttp_send(struct s_client *client, uchar *buf, int32_t l)
+static int32_t ghttp_send(struct s_client *client, uint8_t *buf, int32_t l)
 {
 	s_ghttp *context = (s_ghttp *)client->ghttp;
 	SAFE_MUTEX_LOCK(&context->conn_mutex);
@@ -204,7 +219,7 @@ static int32_t ghttp_send(struct s_client *client, uchar *buf, int32_t l)
 	return ret;
 }
 
-static int32_t ghttp_recv_int(struct s_client *client, uchar *buf, int32_t l)
+static int32_t ghttp_recv_int(struct s_client *client, uint8_t *buf, int32_t l)
 {
 	int32_t n = -1;
 	s_ghttp *context = (s_ghttp *)client->ghttp;
@@ -221,7 +236,10 @@ static int32_t ghttp_recv_int(struct s_client *client, uchar *buf, int32_t l)
 		n = SSL_read(context->ssl_handle, buf, l);
 #endif
 	}
-	else { n = cs_recv(client->pfd, buf, l, 0); }
+	else
+	{
+		n = cs_recv(client->pfd, buf, l, 0);
+	}
 
 	if(n > 0)
 	{
@@ -235,6 +253,7 @@ static int32_t ghttp_recv_int(struct s_client *client, uchar *buf, int32_t l)
 			return -1; // assumes google error, disconnects
 		}
 	}
+
 	if(n < 5)
 	{
 		cs_log_dbg(D_CLIENT, "%s: read %d bytes, disconnecting", client->reader->label, n);
@@ -243,7 +262,7 @@ static int32_t ghttp_recv_int(struct s_client *client, uchar *buf, int32_t l)
 	return n;
 }
 
-static int32_t ghttp_recv(struct s_client *client, uchar *buf, int32_t l)
+static int32_t ghttp_recv(struct s_client *client, uint8_t *buf, int32_t l)
 {
 	s_ghttp *context = (s_ghttp *)client->ghttp;
 	SAFE_MUTEX_LOCK(&context->conn_mutex);
@@ -256,6 +275,7 @@ static bool _is_post_context(LLIST *ca_contexts, ECM_REQUEST *er, bool remove_da
 {
 	s_ca_context *ctx;
 	s_ca_context *existing = NULL;
+
 	if(cs_malloc(&ctx, sizeof(s_ca_context)))
 	{
 		ctx->onid = er->onid;
@@ -264,8 +284,11 @@ static bool _is_post_context(LLIST *ca_contexts, ECM_REQUEST *er, bool remove_da
 		ctx->pid = 0;
 
 		existing = (s_ca_context *)ll_contains_data(ca_contexts, ctx, sizeof(s_ca_context));
+
 		if(remove_data)
-			{ ll_remove_data(ca_contexts, existing); }
+		{
+			ll_remove_data(ca_contexts, existing);
+		}
 		NULLFREE(ctx);
 	}
 	return existing != NULL;
@@ -277,10 +300,15 @@ static void _add_context(LLIST *ca_contexts, s_ca_context *context)
 	{
 		ll_append(ca_contexts, context);
 	}
-	else { NULLFREE(context); }
+	else
+	{
+		NULLFREE(context);
+	}
 
 	while(ll_count(ca_contexts) > 64)
-		{ ll_remove_first_data(ca_contexts); }
+	{
+		ll_remove_first_data(ca_contexts);
+	}
 
 	cs_log_dbg(D_CLIENT, "ca contexts size %d", ll_count(ca_contexts));
 }
@@ -298,7 +326,7 @@ static void _set_pid_status(LLIST *ca_contexts, uint16_t onid, uint16_t tsid, ui
 	}
 }
 
-static void _set_pids_status(LLIST *ca_contexts, uint16_t onid, uint16_t tsid, uint16_t sid, uchar *buf, int len)
+static void _set_pids_status(LLIST *ca_contexts, uint16_t onid, uint16_t tsid, uint16_t sid, uint8_t *buf, int len)
 {
 	int8_t offs = 0;
 	uint16_t pid = 0;
@@ -313,8 +341,12 @@ static void _set_pids_status(LLIST *ca_contexts, uint16_t onid, uint16_t tsid, u
 
 static bool _swap_hosts(s_ghttp *context)
 {
-	if(!context->fallback_id) { return false; }
-	uchar *tmp = context->host_id;
+	if(!context->fallback_id)
+	{
+		return false;
+	}
+
+	uint8_t *tmp = context->host_id;
 	context->host_id = context->fallback_id;
 	context->fallback_id = tmp;
 	NULLFREE(context->session_id);
@@ -323,13 +355,21 @@ static bool _swap_hosts(s_ghttp *context)
 	return true;
 }
 
-static char *_get_header_substr(uchar *buf, const char *start, const char *end)
+static char *_get_header_substr(uint8_t *buf, const char *start, const char *end)
 {
 	char *data = strstr((char *)buf, start);
-	if(!data) { return NULL; }
+	if(!data)
+	{
+		return NULL;
+	}
+
 	data += strlen(start);
 	int len = strstr(data, end) - data;
-	if(len <= 0) { return NULL; }
+	if(len <= 0)
+	{
+		return NULL;
+	}
+
 	char tmp = data[len];
 	data[len] = '\0';
 	char *value = cs_strdup(data);
@@ -337,7 +377,7 @@ static char *_get_header_substr(uchar *buf, const char *start, const char *end)
 	return value;
 }
 
-static int _get_int_header(uchar *buf, const char *start)
+static int _get_int_header(uint8_t *buf, const char *start)
 {
 	char *data = strstr((char *)buf, start);
 	if(!data) { return -1; }
@@ -345,21 +385,24 @@ static int _get_int_header(uchar *buf, const char *start)
 	return atoi(data);
 }
 
-static char *_get_header(uchar *buf, const char *start)
+static char *_get_header(uint8_t *buf, const char *start)
 {
 	return _get_header_substr(buf, start, "\r\n");
 }
 
-static int32_t ghttp_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc, uchar *buf, int32_t n)
+static int32_t ghttp_recv_chk(struct s_client *client, uint8_t *dcw, int32_t *rc, uint8_t *buf, int32_t n)
 {
 	char *data;
 	char *hdrstr;
-	uchar *content;
+	uint8_t *content;
 	int rcode, len, clen = 0;
 	s_ghttp *context = (s_ghttp *)client->ghttp;
 	ECM_REQUEST *er = NULL;
 
-	if(n < 5) { return -1; }
+	if(n < 5)
+	{
+		return -1;
+	}
 
 	data = strstr((char *)buf, "HTTP/1.1 ");
 	if(!data || ll_count(context->ecm_q) > 6)
@@ -378,14 +421,15 @@ static int32_t ghttp_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc, 
 	rcode = _get_int_header(buf, "HTTP/1.1 ");
 	clen = _get_int_header(buf, "Content-Length: ");
 
-	content = (uchar *)(strstr(data, "\r\n\r\n") + 4);
+	content = (uint8_t *)(strstr(data, "\r\n\r\n") + 4);
 
 	hdrstr = _get_header_substr(buf, "ETag: \"", "\"\r\n");
 	if(hdrstr)
 	{
 		NULLFREE(context->host_id);
-		context->host_id = (uchar *)hdrstr;
+		context->host_id = (uint8_t *)hdrstr;
 		cs_log_dbg(D_CLIENT, "%s: new name: %s", client->reader->label, context->host_id);
+
 		len = b64decode(context->host_id);
 		if(len == 0 || len >= 64)
 		{
@@ -405,8 +449,9 @@ static int32_t ghttp_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc, 
 	if(hdrstr)
 	{
 		NULLFREE(context->fallback_id);
-		context->fallback_id = (uchar *)hdrstr;
+		context->fallback_id = (uint8_t *)hdrstr;
 		cs_log_dbg(D_CLIENT, "%s: new fallback name: %s", client->reader->label, context->fallback_id);
+
 		len = b64decode(context->fallback_id);
 		if(len == 0 || len >= 64)
 		{
@@ -418,7 +463,7 @@ static int32_t ghttp_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc, 
 	if(hdrstr)
 	{
 		NULLFREE(context->session_id);
-		context->session_id = (uchar *)hdrstr;
+		context->session_id = (uint8_t *)hdrstr;
 		cs_log_dbg(D_CLIENT, "%s: set session_id to: %s", client->reader->label, context->session_id);
 	}
 
@@ -429,7 +474,7 @@ static int32_t ghttp_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc, 
 	{
 		cs_log_dbg(D_CLIENT, "%s: http error code %d", client->reader->label, rcode);
 		data = strstr((char *)buf, "Content-Type: application/octet-stream"); // if not octet-stream, google error. need reconnect?
-		if(data)    // we have error info string in the post content
+		if(data) // we have error info string in the post content
 		{
 			if(clen > 0)
 			{
@@ -437,6 +482,7 @@ static int32_t ghttp_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc, 
 				cs_log_dbg(D_CLIENT, "%s: http error message: %s", client->reader->label, content);
 			}
 		}
+
 		if(rcode == 503)
 		{
 			if(er && _is_post_context(context->post_contexts, er, false))
@@ -494,10 +540,15 @@ static int32_t ghttp_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc, 
 	{
 		if(clen > 1)
 		{
-			cs_log_dump_dbg(D_CLIENT, content, clen, "%s: pmt ignore reply - %s (%d pids)", client->reader->label, hdrstr, clen / 2);
+			cs_log_dump_dbg(D_CLIENT, content, clen, "%s: pmt ignore reply - %s (%d pids)",
+					client->reader->label, hdrstr, clen / 2);
+
 			uint32_t onid = 0, tsid = 0, sid = 0;
+
 			if(sscanf(hdrstr, "%4x-%4x-%4x", &onid, &tsid, &sid) == 3)
-				{ _set_pids_status(ghttp_ignored_contexts, onid, tsid, sid, content, clen); }
+			{
+				_set_pids_status(ghttp_ignored_contexts, onid, tsid, sid, content, clen);
+			}
 			NULLFREE(hdrstr);
 			return -1;
 		}
@@ -507,7 +558,9 @@ static int32_t ghttp_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc, 
 	data = strstr((char *)buf, "Pragma: context-ignore-clear");
 	if(data)
 	{
-		cs_log_dbg(D_CLIENT, "%s: clearing local ignore list (size %d)", client->reader->label, ll_count(ghttp_ignored_contexts));
+		cs_log_dbg(D_CLIENT, "%s: clearing local ignore list (size %d)",
+				client->reader->label, ll_count(ghttp_ignored_contexts));
+
 		ll_clear_data(ghttp_ignored_contexts);
 	}
 
@@ -517,30 +570,42 @@ static int32_t ghttp_recv_chk(struct s_client *client, uchar *dcw, int32_t *rc, 
 		data = strstr((char *)buf, "Pragma: cached");
 		if(data || (client->cwlastresptime > 0 && client->cwlastresptime < 640))
 		{
-			cs_log_dbg(D_CLIENT, "%s: probably cached cw (%d ms), switching back to cache get for next req", client->reader->label, client->cwlastresptime);
-			if(er) { _is_post_context(context->post_contexts, er, true); }
+			cs_log_dbg(D_CLIENT, "%s: probably cached cw (%d ms), switching back to cache get for next req",
+					client->reader->label, client->cwlastresptime);
+
+			if(er)
+			{
+				_is_post_context(context->post_contexts, er, true);
+			}
 		}
 	}
 
-	if(clen == 16)    // cw in content
+	if(clen == 16) // cw in content
 	{
 		memcpy(dcw, content, 16);
 		*rc = 1;
 		er = ll_remove_first(context->ecm_q);
-		if(!er) { return -1; }
+		if(!er)
+		{
+			return -1;
+		}
+
 		cs_log_dump_dbg(D_TRACE, dcw, 16, "%s: cw recv chk for idx %d", client->reader->label, er->idx);
 		return er->idx;
 	}
 	else
 	{
-		if(clen != 0) { cs_log_dump_dbg(D_CLIENT, content, clen, "%s: recv_chk fail, clen = %d", client->reader->label, clen); }
+		if(clen != 0)
+		{
+			cs_log_dump_dbg(D_CLIENT, content, clen, "%s: recv_chk fail, clen = %d", client->reader->label, clen);
+		}
 	}
 	return -1;
 }
 
 static char *_ghttp_basic_auth(struct s_client *client)
 {
-	uchar auth[64];
+	uint8_t auth[64];
 	char *encauth = NULL;
 	int32_t ret;
 	s_ghttp *context = (s_ghttp *)client->ghttp;
@@ -556,27 +621,31 @@ static char *_ghttp_basic_auth(struct s_client *client)
 
 static int32_t _ghttp_http_get(struct s_client *client, uint32_t hash, int odd)
 {
-	uchar req[128];
+	uint8_t req[128];
 	char *encauth = NULL;
 	int32_t ret;
 	s_ghttp *context = (s_ghttp *)client->ghttp;
 
 	encauth = _ghttp_basic_auth(client);
 
-	if(encauth)    // basic auth login
+	if(encauth) // basic auth login
 	{
-		ret = snprintf((char *)req, sizeof(req), "GET /api/c/%d/%x HTTP/1.1\r\nHost: %s\r\nAuthorization: Basic %s\r\n\r\n", odd ? 81 : 80, hash, context->host_id, encauth);
+		ret = snprintf((char *)req, sizeof(req), "GET /api/c/%d/%x HTTP/1.1\r\nHost: %s\r\nAuthorization: Basic %s\r\n\r\n",
+					odd ? 81 : 80, hash, context->host_id, encauth);
+
 		NULLFREE(encauth);
 	}
 	else
 	{
-		if(context->session_id)    // session exists
+		if(context->session_id) // session exists
 		{
-			ret = snprintf((char *)req, sizeof(req), "GET /api/c/%s/%d/%x HTTP/1.1\r\nHost: %s\r\n\r\n", context->session_id, odd ? 81 : 80, hash, context->host_id);
+			ret = snprintf((char *)req, sizeof(req), "GET /api/c/%s/%d/%x HTTP/1.1\r\nHost: %s\r\n\r\n",
+						context->session_id, odd ? 81 : 80, hash, context->host_id);
 		}
-		else     // no credentials configured, assume no session required
+		else // no credentials configured, assume no session required
 		{
-			ret = snprintf((char *)req, sizeof(req), "GET /api/c/%d/%x HTTP/1.1\r\nHost: %s\r\n\r\n", odd ? 81 : 80, hash, context->host_id);
+			ret = snprintf((char *)req, sizeof(req), "GET /api/c/%d/%x HTTP/1.1\r\nHost: %s\r\n\r\n",
+						odd ? 81 : 80, hash, context->host_id);
 		}
 	}
 
@@ -587,34 +656,39 @@ static int32_t _ghttp_http_get(struct s_client *client, uint32_t hash, int odd)
 
 static int32_t _ghttp_post_ecmdata(struct s_client *client, ECM_REQUEST *er)
 {
-	uchar req[640];
-	uchar *end;
+	uint8_t req[640];
+	uint8_t *end;
 	char *encauth = NULL;
 	int32_t ret;
 	s_ghttp *context = (s_ghttp *)client->ghttp;
 
 	encauth = _ghttp_basic_auth(client);
 
-	if(encauth)    // basic auth login
+	if(encauth) // basic auth login
 	{
-		ret = snprintf((char *)req, sizeof(req), "POST /api/e/%x/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s\r\nAuthorization: Basic %s\r\nContent-Length: %d\r\n\r\n", er->onid, er->tsid, er->pid, er->srvid, er->caid, er->prid, context->host_id, encauth, er->ecmlen);
+		ret = snprintf((char *)req, sizeof(req), "POST /api/e/%x/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s\r\nAuthorization: Basic %s\r\nContent-Length: %d\r\n\r\n",
+					er->onid, er->tsid, er->pid, er->srvid, er->caid, er->prid, context->host_id, encauth, er->ecmlen);
+
 		NULLFREE(encauth);
 	}
 	else
 	{
-		if(context->session_id)    // session exists
+		if(context->session_id) // session exists
 		{
-			ret = snprintf((char *)req, sizeof(req), "POST /api/e/%s/%x/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n", context->session_id, er->onid, er->tsid, er->pid, er->srvid, er->caid, er->prid, context->host_id, er->ecmlen);
+			ret = snprintf((char *)req, sizeof(req), "POST /api/e/%s/%x/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n",
+						context->session_id, er->onid, er->tsid, er->pid, er->srvid, er->caid, er->prid, context->host_id, er->ecmlen);
 		}
-		else     // no credentials configured, assume no session required
+		else // no credentials configured, assume no session required
 		{
-			ret = snprintf((char *)req, sizeof(req), "POST /api/e/%x/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n", er->onid, er->tsid, er->pid, er->srvid, er->caid, er->prid, context->host_id, er->ecmlen);
+			ret = snprintf((char *)req, sizeof(req), "POST /api/e/%x/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n",
+						er->onid, er->tsid, er->pid, er->srvid, er->caid, er->prid, context->host_id, er->ecmlen);
 		}
 	}
 	end = req + ret;
 	memcpy(end, er->ecm, er->ecmlen);
 
-	cs_log_dbg(D_CLIENT, "%s: sending full ecm - /api/e/%x/%x/%x/%x/%x/%x", client->reader->label, er->onid, er->tsid, er->pid, er->srvid, er->caid, er->prid);
+	cs_log_dbg(D_CLIENT, "%s: sending full ecm - /api/e/%x/%x/%x/%x/%x/%x",
+			client->reader->label, er->onid, er->tsid, er->pid, er->srvid, er->caid, er->prid);
 
 	ret = ghttp_send(client, req, ret + er->ecmlen);
 
@@ -630,12 +704,16 @@ static bool _is_pid_ignored(ECM_REQUEST *er)
 		ignore->tsid = er->tsid;
 		ignore->sid = er->srvid;
 		ignore->pid = er->pid;
+
 		if(ll_contains_data(ghttp_ignored_contexts, ignore, sizeof(s_ca_context)))
 		{
 			NULLFREE(ignore);
 			return true;
 		}
-		else { NULLFREE(ignore); }
+		else
+		{
+			NULLFREE(ignore);
+		}
 	}
 	return false;
 }
@@ -647,15 +725,18 @@ static int32_t ghttp_send_ecm(struct s_client *client, ECM_REQUEST *er)
 
 	if(_is_pid_ignored(er))
 	{
-		cs_log_dbg(D_CLIENT, "%s: ca context found in ignore list, ecm blocked: %x-%x-%x pid %x", client->reader->label, er->onid, er->tsid, er->srvid, er->pid);
+		cs_log_dbg(D_CLIENT, "%s: ca context found in ignore list, ecm blocked: %x-%x-%x pid %x",
+				client->reader->label, er->onid, er->tsid, er->srvid, er->pid);
 		return -1;
 	}
 
-	if(!context->host_id) { context->host_id = (uchar *)cs_strdup(client->reader->device); }
+	if(!context->host_id) { context->host_id = (uint8_t *)cs_strdup(client->reader->device); }
 
 	ll_append(context->ecm_q, er);
 	if(ll_count(context->ecm_q) > 1)
-		{ cs_log_dbg(D_CLIENT, "%s: %d simultaneous ecms...", client->reader->label, ll_count(context->ecm_q)); }
+	{
+		cs_log_dbg(D_CLIENT, "%s: %d simultaneous ecms...", client->reader->label, ll_count(context->ecm_q));
+	}
 
 	if(_is_post_context(context->post_contexts, er, false))
 	{
@@ -683,6 +764,7 @@ static void ghttp_cleanup(struct s_client *client)
 		NULLFREE(context->fallback_id);
 		ll_destroy(&context->ecm_q);
 		ll_destroy_data(&context->post_contexts);
+
 #ifdef WITH_SSL
 		if(context->ssl_handle)
 		{
@@ -698,23 +780,29 @@ static void ghttp_cleanup(struct s_client *client)
 #ifdef HAVE_DVBAPI
 static int32_t ghttp_capmt_notify(struct s_client *client, struct demux_s *demux)
 {
-	uchar req[640], lenhdr[64] = "";
-	uchar *pids = NULL;
-	uchar *end;
+	uint8_t req[640], lenhdr[64] = "";
+	uint8_t *pids = NULL;
+	uint8_t *end;
 	char *encauth = NULL;
 	int32_t ret;
 	int8_t i, pids_len = 0, offs = 0;
 	s_ghttp *context = (s_ghttp *)client->ghttp;
 
-	if(!context) { return -1; }
+	if(!context)
+	{
+		return -1;
+	}
 
-	cs_log_dbg(D_CLIENT, "%s: capmt %x-%x-%x %d pids on adapter %d mask %x dmx index %d", client->reader->label, demux->onid, demux->tsid, demux->program_number, demux->ECMpidcount, demux->adapter_index, demux->ca_mask, demux->demux_index);
+	cs_log_dbg(D_CLIENT, "%s: capmt %x-%x-%x %d pids on adapter %d mask %x dmx index %d",
+		client->reader->label, demux->onid, demux->tsid, demux->program_number, demux->ECMpidcount,
+		demux->adapter_index, demux->ca_mask, demux->demux_index);
 
 	if(demux->ECMpidcount > 0)
 	{
 		if(cs_malloc(&pids, demux->ECMpidcount * 8))
 		{
 			pids_len = demux->ECMpidcount * 8;
+
 			for(i = 0; i < demux->ECMpidcount; i++)
 			{
 				i2b_buf(2, demux->ECMpids[i].ECM_PID, pids + offs);
@@ -724,27 +812,40 @@ static int32_t ghttp_capmt_notify(struct s_client *client, struct demux_s *demux
 			}
 			snprintf((char *)lenhdr, sizeof(lenhdr), "\r\nContent-Length: %d", pids_len);
 		}
-		else { return -1; }
+		else
+		{
+			return -1;
+		}
 	}
 
-	if(!context->host_id) { context->host_id = (uchar *)cs_strdup(client->reader->device); }
+	if(!context->host_id)
+	{
+		context->host_id = (uint8_t *)cs_strdup(client->reader->device);
+	}
 
 	encauth = _ghttp_basic_auth(client);
 
-	if(encauth)    // basic auth login
+	if(encauth) // basic auth login
 	{
-		ret = snprintf((char *)req, sizeof(req), "%s /api/p/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s\r\nAuthorization: Basic %s%s\r\n\r\n", ((pids_len > 0) ? "POST" : "GET"), demux->onid, demux->tsid, demux->program_number, demux->ECMpidcount, demux->enigma_namespace, context->host_id, encauth, lenhdr);
+		ret = snprintf((char *)req, sizeof(req), "%s /api/p/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s\r\nAuthorization: Basic %s%s\r\n\r\n",
+					((pids_len > 0) ? "POST" : "GET"), demux->onid, demux->tsid, demux->program_number,
+					demux->ECMpidcount, demux->enigma_namespace, context->host_id, encauth, lenhdr);
+
 		NULLFREE(encauth);
 	}
 	else
 	{
-		if(context->session_id)    // session exists
+		if(context->session_id) // session exists
 		{
-			ret = snprintf((char *)req, sizeof(req), "%s /api/p/%s/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s%s\r\n\r\n", ((pids_len > 0) ? "POST" : "GET"), context->session_id, demux->onid, demux->tsid, demux->program_number, demux->ECMpidcount, demux->enigma_namespace, context->host_id, lenhdr);
+			ret = snprintf((char *)req, sizeof(req), "%s /api/p/%s/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s%s\r\n\r\n",
+						((pids_len > 0) ? "POST" : "GET"), context->session_id, demux->onid, demux->tsid,
+						demux->program_number, demux->ECMpidcount, demux->enigma_namespace, context->host_id, lenhdr);
 		}
-		else     // no credentials configured, assume no session required
+		else // no credentials configured, assume no session required
 		{
-			ret = snprintf((char *)req, sizeof(req), "%s /api/p/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s%s\r\n\r\n", ((pids_len > 0) ? "POST" : "GET"), demux->onid, demux->tsid, demux->program_number, demux->ECMpidcount, demux->enigma_namespace, context->host_id, lenhdr);
+			ret = snprintf((char *)req, sizeof(req), "%s /api/p/%x/%x/%x/%x/%x HTTP/1.1\r\nHost: %s%s\r\n\r\n",
+						((pids_len > 0) ? "POST" : "GET"), demux->onid, demux->tsid, demux->program_number,
+						demux->ECMpidcount, demux->enigma_namespace, context->host_id, lenhdr);
 		}
 	}
 	end = req + ret;
@@ -754,11 +855,16 @@ static int32_t ghttp_capmt_notify(struct s_client *client, struct demux_s *demux
 		cs_log_dbg(D_CLIENT, "%s: new unscrambling detected, switching to post", client->reader->label);
 		_set_pid_status(context->post_contexts, demux->onid, demux->tsid, demux->program_number, 0);
 	}
-	cs_log_dump_dbg(D_CLIENT, pids, pids_len, "%s: sending capmt ecm pids - %s /api/p/%x/%x/%x/%x/%x", client->reader->label, (pids_len > 0) ? "POST" : "GET", demux->onid, demux->tsid, demux->program_number, demux->ECMpidcount, demux->enigma_namespace);
+	cs_log_dump_dbg(D_CLIENT, pids, pids_len, "%s: sending capmt ecm pids - %s /api/p/%x/%x/%x/%x/%x",
+			client->reader->label, (pids_len > 0) ? "POST" : "GET", demux->onid, demux->tsid,
+			demux->program_number, demux->ECMpidcount, demux->enigma_namespace);
 
 	ret = ghttp_send(client, req, ret + pids_len);
 
-	if(pids_len > 0) { NULLFREE(pids); }
+	if(pids_len > 0)
+	{
+		NULLFREE(pids);
+	}
 
 	return 0;
 }
