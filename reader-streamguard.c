@@ -377,12 +377,36 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 
 static int32_t streamguard_get_emm_type(EMM_PACKET *ep, struct s_reader *UNUSED(reader))
 {
-	ep->type = UNKNOWN;
-	return 1;
+	ep->type = EMM_UNKNOWN;		// need more working.
+	return OK;
 }
 
-void streamguard_get_emm_filter(struct s_reader *UNUSED(reader), uint8_t *UNUSED(filter))
+static int32_t streamguard_get_emm_filter(struct s_reader *rdr, struct s_csystem_emm_filter **emm_filters, uint32_t *filter_count)
 {
+	struct s_csystem_emm_filter *filters = *emm_filters;
+
+	if ((emm_filters == NULL) || (emm_filters[0] == NULL) || filter_count == NULL) {
+		return ERROR;
+	}
+
+	if (rdr->hexserial[2] + rdr->hexserial[3] + rdr->hexserial[4] + rdr->hexserial[5] == 0) {
+		rdr_log(rdr, "error: get emm filter failed (card serial is empty)!");
+		return ERROR;
+	}
+
+	memset(filters[0].filter, 0, sizeof(filters[0].filter));
+	memset(filters[0].mask, 0, sizeof(filters[0].mask));
+
+	filters[0].type = EMM_UNKNOWN;		// need more working.
+	filters[0].enabled = 1;
+	filters[0].filter[0] = 0x82;
+	filters[0].mask[0] = 0xFF;
+	
+	memset(filters[0].filter + 1, 0xFF, 4);
+	memcpy(filters[0].mask + 1, rdr->hexserial + 2, 4);
+	*filter_count = 1;
+
+	return OK;
 }
 
 static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
@@ -392,9 +416,16 @@ static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 	int32_t len;
 	uint16_t status;
 	uint8_t data[256];
+    
+	struct timeb now;
+	cs_ftime(&now);
+	int64_t gone = comp_timeb(&now, &reader->emm_last);
+	if(gone < 19*1000) {
+		return ERROR;
+	}
 
 	if(SCT_LEN(ep->emm) < 8) {
-		rdr_log(reader, "error: emm data too short !");
+		rdr_log(reader, "error: emm data too short (%d < 8)!", SCT_LEN(ep->emm));
 		return ERROR;
 	}
 
@@ -416,6 +447,28 @@ static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 	if((len != streamguard_read_data(reader, len, data, &status)) ||
 	    (cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)){
 		rdr_log(reader, "error: read data failed for emm cmd returned.");
+		return ERROR;
+	}
+
+	// do_emm 2
+	len = SCT_LEN(ep->emm) - 3;
+	emm_cmd[4] = len;
+	memcpy(emm_cmd + 5, ep->emm + 3, len);
+	if (len < 5) {
+		rdr_log(reader, "error: emm cmd len to small(%d < 5)", len);
+		return ERROR;
+	}
+	memcpy(emm_cmd + 5 + 1, reader->hexserial + 2, 4);
+	write_cmd(emm_cmd, emm_cmd + 5);
+	
+	if((cta_res[cta_lr - 2] & 0xf0) != 0x60){
+		rdr_log(reader,"error: send emm cmd 2 failed!");
+		return ERROR;
+	}
+	len = cta_res[1];
+	if((len != streamguard_read_data(reader, len, data, &status)) ||
+	    (cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)){
+		rdr_log(reader, "error: read data failed for emm cmd 2 returned.");
 		return ERROR;
 	}
 
@@ -538,6 +591,7 @@ const struct s_cardsystem reader_streamguard =
 	.card_info    = streamguard_card_info,
 	.card_init    = streamguard_card_init,
 	.get_emm_type = streamguard_get_emm_type,
+	.get_emm_filter = streamguard_get_emm_filter,
 };
 
 #endif
