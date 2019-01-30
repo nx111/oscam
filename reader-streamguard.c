@@ -25,7 +25,8 @@ static void  decrypt_cw_ex(int32_t tag, int32_t a, int32_t b, int32_t c, uint8_t
     uint8_t key1[16] = {0xB5, 0xD5, 0xE8, 0x8A, 0x09, 0x98, 0x5E, 0xD0, 0xDA, 0xEE, 0x3E, 0xC3, 0x30, 0xB9, 0xCA, 0x35};
     uint8_t key2[16] = {0x5F, 0xE2, 0x76, 0xF8, 0x04, 0xCB, 0x5A, 0x24, 0x79, 0xF9, 0xC9, 0x7F, 0x23, 0x21, 0x45, 0x84};
     uint8_t key3[16] = {0xE3, 0x78, 0xB9, 0x8C, 0x74, 0x55, 0xBC, 0xEE, 0x03, 0x85, 0xFD, 0xA0, 0x2A, 0x86, 0xEF, 0xAF};
-	uint8_t keybuf[22] = {0xCC,0x65,0xE0, 0xCB,0x60,0x62,0x06,0x33,0x87,0xE3,0xB5,0x2D,0x4B,0x12,0x90,0xD9,0x00,0x00,0x00,0x00,0x00,0x00};
+	uint8_t keybuf[22] = {0xCC, 0x65, 0xE0, 0xCB, 0x60, 0x62, 0x06, 0x33, 0x87, 0xE3, 0xB5,
+	                      0x2D, 0x4B, 0x12, 0x90, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	uint8_t md5key[16];
 	uint8_t md5tmp[20];
 	uint8_t deskey1[8], deskey2[8];
@@ -82,20 +83,25 @@ static int32_t streamguard_read_data(struct s_reader *reader, uint8_t size, uint
 
 static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 {
-	uint8_t get_ppua_cmd[7] = {0x00,0xa4,0x04,0x00,0x02,0x3f,0x00};
-	uint8_t get_serial_cmd[11] = {0x00,0xb2,0x00,0x05,0x06,0x00,0x01,0xff,0x00,0x01,0xff};
-	uint8_t begin_cmd2[5] = {0x00,0x84,0x00,0x00,0x08};
-	uint8_t begin_cmd3[11] = {0x00,0x20,0x04,0x02,0x06,0x12,0x34,0x56,0x78,0x00,0x00};
-	uint8_t begin_cmd4[5] = {0x00,0xFC,0x00,0x00,0x00};
-	uint8_t pairing_cmd[25] = {0x80,0x5A,0x00,0x00,0x10,0x36,0x9A,0xEE,0x31,0xB2,0xDA,0x94,
-				 0x3D,0xEF,0xBA,0x10,0x22,0x67,0xA5,0x1F,0xFB,0x3B,0x9E,0x1F,0xCB};
-	uint8_t confirm_pairing_cmd[9] = {0x80,0x5A,0x00,0x01,0x04,0x3B,0x9E,0x1F,0xCB};
+	uint8_t get_ppua_cmd[7] = {0x00, 0xA4, 0x04, 0x00, 0x02, 0x3F, 0x00};
+	uint8_t get_serial_cmd[11] = {0x00, 0xB2, 0x00, 0x05, 0x06, 0x00, 0x01, 0xFF, 0x00, 0x01, 0xFF};
+	uint8_t begin_cmd2[5] = {0x00, 0x84, 0x00, 0x00, 0x08};
+	uint8_t begin_cmd3[11] = {0x00, 0x20, 0x04, 0x02, 0x06, 0x12, 0x34, 0x56, 0x78, 0x00, 0x00};
+	//uint8_t begin_cmd4[9] = {0x80, 0x52, 0x00, 0x00, 0x04, 0xa5, 0x66, 0xd7, 0xe0};
+	//uint8_t begin_cmd5[11] = {0x00, 0xB2, 0x00, 0x10, 0x06, 0x00, 0x01, 0x14, 0x00, 0x01, 0xFF};
+	uint8_t begin_cmd6[12] = {0x00, 0xB2, 0x00, 0x06, 0x07, 0x00, 0x05, 0xFF, 0x00, 0x02, 0xFF, 0xFF};
+	uint8_t begin_cmd7[12] = {0x00, 0xB2, 0x00, 0x0D, 0x07, 0x00, 0x01, 0x28, 0x00, 0x02, 0x05, 0xD2};
+	uint8_t begin_cmd8[5] = {0x00, 0xFC, 0x00, 0x00, 0x00};
+	uint8_t pairing_cmd[25] = {0x80, 0x5A, 0x00, 0x00, 0x10, 0x36, 0x9A, 0xEE, 0x31, 0xB2, 0xDA, 0x94,
+	                           0x3D, 0xEF, 0xBA, 0x10, 0x22, 0x67, 0xA5, 0x1F, 0xFB, 0x3B, 0x9E, 0x1F, 0xCB};
+	uint8_t confirm_pairing_cmd[9] = {0x80, 0x5A, 0x00, 0x01, 0x04, 0x3B, 0x9E, 0x1F, 0xCB};
 
-	uint8_t seed[] = {0x00,0x00,0x00,0x00,0x24,0x30,0x28,0x73,0x40,0x33,0x46,0x2C,0x6D,0x2E,0x7E,0x3B,0x3D,0x6E,0x3C,0x37};
-	uint8_t randkey[16]={0};
+	uint8_t seed[20] = {0x00, 0x00, 0x00, 0x00, 0x24, 0x30, 0x28, 0x73, 0x40, 0x33,
+	                    0x46, 0x2C, 0x6D, 0x2E, 0x7E, 0x3B, 0x3D, 0x6E, 0x3C, 0x37};
+	uint8_t randkey[16] = {0};
 	uint8_t key1[8], key2[8];
 	uint8_t data[257];
-	uint8_t boxID[4] = {0xff, 0xff, 0xff, 0xff};
+	uint8_t boxID[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 	uint8_t md5_key[16] = {0};
 
 	int32_t data_len = 0;
@@ -139,7 +145,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 
 	if(reader->cas_version >= 20){
 		write_cmd(begin_cmd2, begin_cmd2 + 5);
-		if((cta_res[cta_lr - 2] & 0xf0) == 0x60) {
+		if((cta_res[cta_lr - 2] & 0xF0) == 0x60) {
 			data_len = streamguard_read_data(reader,cta_res[cta_lr - 1], data, &status);
 			if(data_len < 0){
 				rdr_log(reader, "error: init read data failed 1.");
@@ -153,7 +159,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 	}
 
 	write_cmd(get_serial_cmd, get_serial_cmd + 5);
-	if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
+	if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
 		rdr_log(reader, "error: init run get serial cmd failed.");
 		return ERROR;
 	}
@@ -171,8 +177,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 		MD5(seed,sizeof(seed),md5_key);
 
 		write_cmd(begin_cmd2, begin_cmd2 + 5);
-
-		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
+		if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
 			rdr_log(reader, "error: init begin cmd2 failed.");
 			return ERROR;
 		}
@@ -188,8 +193,51 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 			rdr_log(reader, "error: init begin cmd3 failed.");
 			return ERROR;
 		}
+#if 0
+		write_cmd(begin_cmd4, begin_cmd4 + 5);
+		if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)){
+			rdr_log(reader, "error: init begin cmd4 failed.");
+			//return ERROR;
+		}
 
-		write_cmd(begin_cmd4, NULL);
+		write_cmd(begin_cmd5, begin_cmd5 + 5);
+		if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
+			rdr_log(reader, "error: init begin cmd5 failed.");
+			//return ERROR;
+		} else {
+			data_len = streamguard_read_data(reader,cta_res[cta_lr - 1], data, &status);
+			if(data_len < 0){
+				rdr_log(reader, "error: init read data failed for begin cmd5.");
+				//return ERROR;
+			}
+		}
+#endif
+
+		write_cmd(begin_cmd6, begin_cmd6 + 5);
+		if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
+			rdr_log(reader, "error: init begin cmd6 failed.");
+			//return ERROR;
+		} else {
+			data_len = streamguard_read_data(reader,cta_res[cta_lr - 1], data, &status);
+			if(data_len < 0){
+				rdr_log(reader, "error: init read data failed for begin cmd6.");
+				//return ERROR;
+			}
+		}
+
+		write_cmd(begin_cmd7, begin_cmd7 + 5);
+		if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
+			rdr_log(reader, "error: init begin cmd7 failed.");
+			//return ERROR;
+		} else {
+			data_len = streamguard_read_data(reader,cta_res[cta_lr - 1], data, &status);
+			if(data_len < 0){
+				rdr_log(reader, "error: init read data failed for begin cmd7.");
+				//return ERROR;
+			}
+		}
+
+		write_cmd(begin_cmd8, NULL);
 		if((cta_res[cta_lr - 2] & 0xF0) != 0x60){
 			rdr_log(reader, "error: init begin cmd4 failed.");
 			return ERROR;
@@ -221,7 +269,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 		}
 
 		write_cmd(pairing_cmd, pairing_cmd + 5);
-		if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
+		if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
 			rdr_log(reader, "error: init pairing failed.");
 			return ERROR;
 		}
@@ -234,7 +282,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 		if(reader->boxid){
 			memcpy(confirm_pairing_cmd + 5, boxID, 4);
 			write_cmd(confirm_pairing_cmd, confirm_pairing_cmd + 5);
-			if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
+			if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
 				rdr_log(reader, "error: init confirm_pairing_cmd failed.");
 				return ERROR;
 			}
@@ -266,7 +314,7 @@ E1 70 71 20 C7 FB 35 B1 EC 32 02 5C 0C 7E 04 CC
 */
 static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct s_ecm_answer *ea)
 {
-	uint8_t ecm_cmd[256] = {0x80,0x32,0x00,0x00,0x3C};
+	uint8_t ecm_cmd[256] = {0x80, 0x32, 0x00, 0x00, 0x3C};
 	uint8_t data[256];
 	int32_t ecm_len;
 	int32_t i = 0;
@@ -296,7 +344,7 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 	}
 	else
 	{
-		if((cta_res[cta_lr - 2] & 0xf0) == 0x60)
+		if((cta_res[cta_lr - 2] & 0xF0) == 0x60)
 		{
 			read_size = cta_res[cta_lr - 1];
 		}
@@ -411,7 +459,7 @@ static int32_t streamguard_get_emm_filter(struct s_reader *rdr, struct s_csystem
 
 static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 {
-	uint8_t emm_cmd[200] = {0x80,0x30,0x00,0x00,0x4c};
+	uint8_t emm_cmd[200] = {0x80, 0x30, 0x00, 0x00, 0x4C};
 	def_resp;
 	int32_t len;
 	uint16_t status;
@@ -439,7 +487,7 @@ static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 	memcpy(emm_cmd + 5, ep->emm, len);
 
 	write_cmd(emm_cmd, emm_cmd + 5);
-	if((cta_res[cta_lr - 2] & 0xf0) != 0x60){
+	if((cta_res[cta_lr - 2] & 0xF0) != 0x60){
 		rdr_log(reader,"error: send emm cmd failed!");
 		return ERROR;
 	}
@@ -461,7 +509,7 @@ static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 	memcpy(emm_cmd + 5 + 1, reader->hexserial + 2, 4);
 	write_cmd(emm_cmd, emm_cmd + 5);
 	
-	if((cta_res[cta_lr - 2] & 0xf0) != 0x60){
+	if((cta_res[cta_lr - 2] & 0xF0) != 0x60){
 		rdr_log(reader,"error: send emm cmd 2 failed!");
 		return ERROR;
 	}
@@ -477,15 +525,15 @@ static int32_t streamguard_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 
 static int32_t streamguard_card_info(struct s_reader *reader)
 {
-	uint8_t get_provid_cmd[12] = {0x00,0xb2,0x00,0x06,0x07,0x00,0x05,0xff,0x00,0x02,0xff,0xff};
-	uint8_t get_subscription_cmd[12] = {0x00,0xb2,0x00,0x07,0x07,0x00,0xfa,0xff,0x00,0x02,0x03,0xd4};
+	uint8_t get_provid_cmd[12] = {0x00, 0xB2, 0x00,0x06, 0x07, 0x00, 0x05, 0xFF, 0x00, 0x02, 0xFF, 0xFF};
+	uint8_t get_subscription_cmd[12] = {0x00, 0xB2, 0x00, 0x07, 0x07, 0x00, 0xFA, 0xFF, 0x00, 0x02, 0x03, 0xD4};
 	uint8_t data[256];
 	uint16_t status = 0;
 
 	def_resp;
 
 	write_cmd(get_provid_cmd, get_provid_cmd + 5);
-	if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
+	if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
 		rdr_log(reader, "error: get provid  failed.");
 		return ERROR;
 	}
@@ -528,7 +576,7 @@ static int32_t streamguard_card_info(struct s_reader *reader)
                 for(;;){
 			get_subscription_cmd[5] = bankid;
 			write_cmd(get_subscription_cmd, get_subscription_cmd + 5);
-			if((cta_res[cta_lr - 2] & 0xf0) != 0x60) {
+			if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
 				rdr_log(reader, "error:  get subscription failed.");
 				break;
 			}
