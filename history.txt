@@ -1,100 +1,100 @@
-20fa8 Merge to r11486 from 'streamboard.tv'
-01ffa [streamserver] Fixed Compel and Rosscrypt1 packet descrambling Compel was broken since https://github.com/oscam-emu/oscam-patched/commit/f8aa15be8c091fcf3668262e13208fcdf118f6b1 and Rosscrypt1 probably never worked...
-d88eb Merge branch 'oscam-svn'
-fd948 add UPC Hungary support & clean up http://www.streamboard.tv/wbb2/thread.php?postid=582474#post582474
-a02cc Fix NAN % in READERS ECM INFO
-930f0 Merge branch 'oscam-svn'
-07ff3 Merge branch 'oscam-svn'
-518c2 enhancement #4662 by Jotne show number of cards in the log
-5c000 fix small typo move log to debug #4664
-30d15 fix #4692 for missing values in ecminfo_type = 3
-d59f6 small cleanup - CMakeLists.txt - Makefile
-b84e8 big update pack 5 another cleanup & removed duplicate functions
-dc3a6 unified presentation of tabs and spaces
-850aa [cryptoworks] Replaced 3des function
-26b2b [powervu + viaccess] Replaced crc function
-fc11f Merge branch 'oscam-svn'
-d1295 big cleanup pack 4
-e6c65 another buildwarning fix !!! SAMYGO User !!! report any issue
-a1f7d fix 4 build warnings
-4b3dc fix another small build warning
-f1628 fix cmake compiler warning
-4f2e9 big cleanup pack 3
-7d68e big cleanup & bugfix for all warnings for gcc 7.2+
-d4014 [dvbapi] Remove "pid limiter" option This option is not needed anymore. Extended cw pids are limited to 5 at most anyway.
-18b5f Merge branch 'oscam-svn'
-3d8fb cleanup module-dvbapi.c
-c3057 Cleanup and add functions
-fdd6e Merge branch 'oscam-svn'
-fa98a fix warnings in #11468
-6328f another cleanup patch
-0bba1 small cleanup in cscrypt + adding libs
-672b4 [drecrypt + irdeto] Fixed compiler warnings
-cc1b8 [oscam] Fixed compilation after oscam clean up
-00cf5 [config.sh] Set file mode to 755, once again...
-e7d55 Merge branch 'oscam-svn'
-e6de5 [cmakelists] Fixed compilation after previous changes
-ea45b set demuxer stop point if PMT demux_index == 0 found by schwa226
-e457a [osemu] Increased version number
-cca83 Merge branch 'oscam-svn'
-6ffba [dvbapi] Stream type identification defaults to "audio" now On some powervu channels starting a recording resulted in audio not being descrambled. This is a quick fix, until a better solution is found.
-d34f5 [dvbapi] Limit the number of streams descrambled on extended cw Descrambling is now limited to 4 audio streams (there are no more than 4 audio streams in powervu channels anyway) and disabled completely for data/subtitle streams as there appear to be un-encrypted in every powervu channel. This saves CA indices and allows for more channels to be descrambled simultaneously (e.g. when doing recordings).
-e7888 [makefile] Fixed linking of empty SoftCam.Key file on aarch64 boxes
-3b2f9 Changeset: - fix Nagra & Nagra Merlin Tier Expire Dates - Nagra EMM Filter merged - Nagra Merlin Code cleanup - completeness check of the required CAK7 keys - Block NAD changes reverted - fix xxor fallthrough - aescbc removed - tabs / comments / spaces cleanup thnx kabeltod
-57682 tryfix http://www.streamboard.tv/wbb2/thread.php?postid=582014#post582014
-fbb45 part1 cleanup and fixes for gcc 8.2
-cdc3b fix last commit
-27175 another cleanup patch thnx optimum power
-f9bfe Merge branch 'oscam-svn'
-36710 code cleanup and fix for NDS Standard cards thnx to KD (de-board)
-9579c fix typo missing ;
-6b2a2 fix 1x fallthrough / break videoguard2 cleanup
-49a57 part 2 for ORF AU fix -add CAID 0D96 -add on/off switch thnx to pehedima
-f8aa1 [streamserver] Fixed small bug in packet reading
-0b6cb [osemu] Add RossCrypt1 as supported caid This is not a functional change, as it works without this also. This is needed just to stop the "decoding is waiting for matching readers" message in the livelog.
-c1ef8 [config.sh] Display oscam revision and emu version (thx to WanWizard)
-6d9d4 [streamserver] Added Rosscrypt1 support
-dcacc [osemu] Increased version
-96e6a [gbx] - fix oscam crash when enable ccc to gbx share
-a5c2f add support for VideoGuard BSkyB (0960) entitlement date
-f9525 I send the FEDC patch for polish seca cards. It was made by: Jej@n and ketanol
-ef9ff created functions for detecting caid. "tandberg" is renamed to "director", because tandberg is the compary and director is the CA system.
-65ae6 some dvbapi cleanups (but there's more to do.) -whitespace clean up
-0da62 Merge branch 'oscam-svn'
-345b4 fix for last commit ...
-4b614 Merge branch 'oscam-svn'
-5b022 !!!! Better stream type identification based on descriptors
-723e8 fix orf cards (0D98) au if global is blocked
-606e9 better solution streamid thnx Nautilus7
-1fb1a Tryfix for Powervu EMU by Nautilus7 http://www.streamboard.tv/wbb2/thread.php?threadid=45918
-19ca5 - [gbx] - Speed up local card status detection and report cards to peers
-4c6d7 [streamserver + dvbapi] Changed comments about stream type
-9bd26 [streamserver] Changed variable name To match the naming used in the specification
-0f94d [streamserver] Added support for Compel encryption system This unconventional encryption system (data are XOR-ed with a dynamic key) works only via the Stream Relay option. Refer to the wiki for more information on how to configure OSCam-Emu for use with Compel.
-bc4cb - fix for ticket #4699 - add tandberg to 'get cardsysten' in oscam.simples.c - fix for ticket #4700 - add #include <sys/sysmacros.h> to globals.h
-cbeaf [streamserver] Added "Caid" setting in the stream relay configuration From now on the stream relay accepts a caid setting via the webif. The relay will be enabled only for the caid(s) specified. Channels with caids other than those specified in this setting will be descrambled via the dvb-api. An empty setting means the stream relay will be not used at all.
-2da9f [streamserver] Separate PAT and PMT searching from PowerVu descrambling
-06789 [streamserver] Small optimizations and cosmetics
-c5a0c [powervu] Code cosmetics
-8b18e [webif] Cosmetics in text
-116c9 [dvbapi + streamserver] Added future audio stream types for ATSC (currently not activated)
-c3397 Merge branch 'oscam-svn'
-55628 [osemu] Bump version
-443fd [dvbapi + streamserver] Rework audio identification for extended cw Removed some stream types from the audio list and added some that were missing. Hopefully this change will fix the rest of the powervu channels that have audio problems. If there are still channels with no audio, please report.
-4de72 [irdeto] Fixed cw checksum bytes Also did some code cosmetics
-c6c1a [gbx] - fix peer password not stored in config  issue introduced with last commit  thx @Azo for catching that
-a879a [gbx] - fix parameter 'gbox_reshare'  - show peer-id & online stat in webif reader  - code clear up
-d60fb [powervu] Added support for hash mode 27
-00199 [powervu] Code cosmetics
-b5aab Fixed file permissions Somehow the condig.sh permissions where changed from 755 to 644. This raised compilation problems on some systems.
-b2ca2 Merge branch 'oscam-svn'
-ccebc [streamserver] Fixed typo in log message and did some code cosmetics
-955db fix compiler issue when build without gbox
-600ce [osemu] Bump version to r780
-3d941 Merge branch 'oscam-svn'
-5fda3 [powervu] Added support for hash mode 26
-654a5 [dvbapi] Allow the creation of descramblers for all stream pids This should fix some streams on powervu channels not working. It should have been fixed on oscam side, so let's hope they will add it.
-9e9a4 [powervu] Did some cleanup and added a couple debug messages
-8012e [streamserver] Cosmetics
-598ce [gbx]  - improve REMM feature  - show remm req in webif  - gbx webif cosmetics/improvements  - fix typos from r11437 thx @sattotal  - remove ccc stuff from gbx page when ccc not compiled in  - webif: display 'use_gpio' on physical readers only
-826c6 [nagra merlin]  - fix some compiler errors and warnings introduced r11429  - patch provided by @DaMulda
+20acb small fix for build without webif
+72e4a old compiler dont like passive #pragma comments
+1eb4b eliminate build warnings by using the integrated function
+a44ce extended fix for orf global emm dont disable global emms or set in config blockemm-g = 0 caid 0x0D96 & 0x0D98
+e6ae5 fix last commit missing ;
+c230d some cleanups for newcamd and add script for git svn diff creation
+882ba streamguard: add more init command, and format code.
+8ad2d add patches on official oscam and emu.
+43695 streamguard: try to parse emm data.
+28e57 fix typo in mca build thanks sattotal
+38989 enhance function anticascading or SIDs count
+f610a Merge to r11486 from streamboard.tv (oscam emu r175).
+3399c streamguard: code format.
+e11eb build: keep work files for debug.
+1f0ec streamguard: use md5 from cscrypt.
+ae78c streamguard: change the method of calculate cas_version.
+7b113 not link pcsclite when enabled dl.
+2dd31 add UPC Hungary support & clean up http://www.streamboard.tv/wbb2/thread.php?postid=582474#post582474
+2c078 Fix NAN % in READERS ECM INFO
+e62d5 enhancement #4662 by Jotne show number of cards in the log
+1aa74 fix small typo move log to debug #4664
+a132b fix #4692 for missing values in ecminfo_type = 3
+79262 small cleanup - CMakeLists.txt - Makefile
+f14ef big update pack 5 another cleanup & removed duplicate functions
+bd2ad unified presentation of tabs and spaces
+b2fc3 big cleanup pack 4
+8ed86 another buildwarning fix !!! SAMYGO User !!! report any issue
+489a4 fix 4 build warnings
+dc7b5 fix another small build warning
+8387b fix cmake compiler warning
+16014 big cleanup pack 3
+6d381 big cleanup & bugfix for all warnings for gcc 7.2+
+daf5b cleanup module-dvbapi.c
+7016b Cleanup and add functions
+40f4c fix warnings in #11468
+21106 another cleanup patch
+5a37e small cleanup in cscrypt + adding libs
+5b028 set demuxer stop point if PMT demux_index == 0 found by schwa226
+b888a Changeset: - fix Nagra & Nagra Merlin Tier Expire Dates - Nagra EMM Filter merged - Nagra Merlin Code cleanup - completeness check of the required CAK7 keys - Block NAD changes reverted - fix xxor fallthrough - aescbc removed - tabs / comments / spaces cleanup thnx kabeltod
+adaed tryfix http://www.streamboard.tv/wbb2/thread.php?postid=582014#post582014
+50847 part1 cleanup and fixes for gcc 8.2
+b39e0 fix last commit
+83a91 another cleanup patch thnx optimum power
+c0b72 code cleanup and fix for NDS Standard cards thnx to KD (de-board)
+6bcb1 fix typo missing ;
+cd9f9 fix 1x fallthrough / break videoguard2 cleanup
+55d90 part 2 for ORF AU fix -add CAID 0D96 -add on/off switch thnx to pehedima
+ef4d2 [gbx] - fix oscam crash when enable ccc to gbx share
+1e1c0 add support for VideoGuard BSkyB (0960) entitlement date
+3707e I send the FEDC patch for polish seca cards. It was made by: Jej@n and ketanol
+2d175 created functions for detecting caid. "tandberg" is renamed to "director", because tandberg is the compary and director is the CA system.
+abf00 some dvbapi cleanups (but there's more to do.) -whitespace clean up
+3684a update oscam-emu to r784.
+bfc98 fix for last commit ...
+52b0e !!!! Better stream type identification based on descriptors
+5f5e7 fix orf cards (0D98) au if global is blocked
+008fd better solution streamid thnx Nautilus7
+5cbfc Tryfix for Powervu EMU by Nautilus7 http://www.streamboard.tv/wbb2/thread.php?threadid=45918
+244e5 - [gbx] - Speed up local card status detection and report cards to peers
+30a88 fix for last commit ...
+485cf !!!! Better stream type identification based on descriptors
+a277a fix orf cards (0D98) au if global is blocked
+a348e better solution streamid thnx Nautilus7
+e8eab Tryfix for Powervu EMU by Nautilus7 http://www.streamboard.tv/wbb2/thread.php?threadid=45918
+db517 - [gbx] - Speed up local card status detection and report cards to peers
+50811 - fix for ticket #4699 - add tandberg to 'get cardsysten' in oscam.simples.c - fix for ticket #4700 - add #include <sys/sysmacros.h> to globals.h
+b0b20 - fix for ticket #4699 - add tandberg to 'get cardsysten' in oscam.simples.c - fix for ticket #4700 - add #include <sys/sysmacros.h> to globals.h
+c0929 [gbx] - fix peer password not stored in config  issue introduced with last commit  thx @Azo for catching that
+74895 [gbx] - fix peer password not stored in config  issue introduced with last commit  thx @Azo for catching that
+e7fee dvbapi: slience array bounds warnning for selected_box device.
+3b091 [gbx] - fix parameter 'gbox_reshare'  - show peer-id & online stat in webif reader  - code clear up
+762db fix compiler issue when build without gbox
+ddc10 [gbx] - fix parameter 'gbox_reshare'  - show peer-id & online stat in webif reader  - code clear up
+7b138 fix compiler issue when build without gbox
+d8779 [gbx]  - improve REMM feature  - show remm req in webif  - gbx webif cosmetics/improvements  - fix typos from r11437 thx @sattotal  - remove ccc stuff from gbx page when ccc not compiled in  - webif: display 'use_gpio' on physical readers only
+cd737 [nagra merlin]  - fix some compiler errors and warnings introduced r11429  - patch provided by @DaMulda
+6515d [gbx]  - improve REMM feature  - show remm req in webif  - gbx webif cosmetics/improvements  - fix typos from r11437 thx @sattotal  - remove ccc stuff from gbx page when ccc not compiled in  - webif: display 'use_gpio' on physical readers only
+c5803 [nagra merlin]  - fix some compiler errors and warnings introduced r11429  - patch provided by @DaMulda
+e20ee mdc2: fix multiple definition of DES_SPtrans and DES_encrypt1 for some toolchain.
+52b8c svnversion bump to 11439.
+a33d8 - Enables Nagra Merlin (CAK7) reader by default - Corresponding keys are now configurable via WebIf and config files
+89b87 dvbapi: fix a error for stapi.
+0a766 - Enables Nagra Merlin (CAK7) reader by default - Corresponding keys are now configurable via WebIf and config files
+06efb [gbx webif] - dont show cccam stuff in gbx reader page
+1d62e [gbx webif] - make webif more gbx friendly - gbx specific settings not shown on other protocols - moved 'use_gpio' from smargo to mouse
+44881 Fix for tiers with rights set to 0x49xx (tnx tommy76 for research and patch!)
+adb7d - Revert r11164 see ticket #4609 (tnx Tommy76 for researching!)
+ce403 - Fix #4688 not procesing all received emm packets at filter startup tnx xoxo for this patch!
+df283 - fix DGCrypt Redlight Card not running since r11429 - this fixes ticket #4687 - thx @OP and @pehedima - fix mdc2.c compilation with openssl 1.1.x - thx @flk - fix orf_ice text in cardlist.h
+fd7f6 KDG G0x - don't set deprecated mode by default
+3d28c [gbx webif] - dont show cccam stuff in gbx reader page
+feb91 [gbx webif] - make webif more gbx friendly - gbx specific settings not shown on other protocols - moved 'use_gpio' from smargo to mouse
+c8f30 Fix for tiers with rights set to 0x49xx (tnx tommy76 for research and patch!)
+29ccf - Revert r11164 see ticket #4609 (tnx Tommy76 for researching!)
+168df - Fix #4688 not procesing all received emm packets at filter startup tnx xoxo for this patch!
+5f4bd - fix DGCrypt Redlight Card not running since r11429 - this fixes ticket #4687 - thx @OP and @pehedima - fix mdc2.c compilation with openssl 1.1.x - thx @flk - fix orf_ice text in cardlist.h
+d7ee5 KDG G0x - don't set deprecated mode by default
+8e7c4 [CMake]： link pcsclite.
+cf262 [CMAKE] - some systems need libm for nagra cak7 - patch provided by @caveman99 - fix for ticket #4681
+ee601 [Nagra] - continue to prepare code for Nagra Merlin support - try to fix for HD04 display of tiers and valid_to
