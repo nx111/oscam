@@ -6,7 +6,7 @@
 #include "oscam-time.h"
 #include <time.h>
 
-static int32_t is_valid(uchar *buf, size_t len)
+static int32_t is_valid(uint8_t *buf, size_t len)
 {
 	size_t i;
 

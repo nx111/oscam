@@ -402,7 +402,11 @@
 #define MAX_EMM_SIZE			512
 #endif
 
-#define CS_EMMCACHESIZE			1024	// nr of EMMs that each reader will cache
+#ifdef WITH_EMU
+#define CS_EMMCACHESIZE			1024	// nr of EMMs that EMU reader will cache
+#else
+#define CS_EMMCACHESIZE			512		// nr of EMMs that each reader will cache
+#endif
 #define MSGLOGSIZE				64		// size of string buffer for a ecm to return messages
 
 #define D_TRACE					0x0001	// Generate very detailed error/trace messages per routine

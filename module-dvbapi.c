@@ -1719,7 +1719,6 @@ void dvbapi_start_emm_filter(int32_t demux_index)
 				{
 					csystem = get_cardsystem_by_caid(caid);
 				}
-
 				if(csystem)
 				{
 					if(caid != ncaid)
@@ -5352,7 +5351,8 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uint8_t *buffer,
 				return;
 			}
 
-			if(caid_is_powervu(curpid->CAID))
+#ifdef WITH_EMU
+			if(caid_is_powervu(curpid->CAID)) // ecm counter for powervu
 			{
 				pvu_skip = 1;
 
@@ -5367,7 +5367,7 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uint8_t *buffer,
 					}
 				}
 			}
-
+#endif
 			if((curpid->table == buffer[0] && !caid_is_irdeto(curpid->CAID) && !caid_is_dvn(curpid->CAID)) || pvu_skip) // wait for odd / even ecm change (only not for irdeto!)
 			{
 				if(!(er = get_ecmtask()))
@@ -5701,39 +5701,6 @@ void dvbapi_process_input(int32_t demux_id, int32_t filter_num, uint8_t *buffer,
 			dvbapi_stop_filternum(demux_id, filter_num, msgid);
 			return;
 		}
-
-#ifdef WITH_EMU
-		if(caid_is_director(demux[demux_id].demux_fd[filter_num].caid))
-		{
-			uint32_t i;
-			uint32_t emmhash;
-
-			if(sctlen < 4)
-			{
-				return;
-			}
-
-			for(i=0; i+2<sctlen; i++)
-			{
-				if(buffer[i] == 0xF0 && (buffer[i+2] == 0xE1 || buffer[i+2] == 0xE4))
-				{
-					emmhash = (buffer[3]<<8) | buffer[sctlen-2];
-
-					if(demux[demux_id].demux_fd[filter_num].cadata == emmhash)
-					{
-						return;
-					}
-
-					demux[demux_id].demux_fd[filter_num].cadata = emmhash;
-
-					dvbapi_process_emm(demux_id, filter_num, buffer, sctlen);
-					return;
-				}
-			}
-
-			return;
-		}
-#endif
 
 #ifdef WITH_EMU
 		if(caid_is_director(demux[demux_id].demux_fd[filter_num].caid))

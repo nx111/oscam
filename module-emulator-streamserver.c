@@ -15,6 +15,12 @@
 #include "oscam-time.h"
 #include "oscam-chk.h"
 
+#define STREAM_UNDEFINED 0x00
+#define STREAM_VIDEO     0x01
+#define STREAM_AUDIO     0x02
+#define STREAM_SUBTITLE  0x03
+#define STREAM_TELETEXT  0x04
+
 extern int32_t exit_oscam;
 
 typedef struct
@@ -88,10 +94,14 @@ static void ParseTsData(uint8_t table_id, uint8_t table_mask, uint8_t min_table_
 	uint16_t section_length, offset = 0;
 
 	if (len < 1)
-		{ return; }
+	{
+		return;
+	}
 
 	if (*flag == 0 && !payloadStart)
-		{ return; }
+	{
+		return;
+	}
 
 	if (*flag == 0)
 	{
@@ -104,7 +114,9 @@ static void ParseTsData(uint8_t table_id, uint8_t table_mask, uint8_t min_table_
 	}
 
 	if (len - offset < 1)
-		{ return; }
+	{
+		return;
+	}
 
 	free_data_length = data_length - *data_pos;
 	copySize = (len - offset) > free_data_length ? free_data_length : (len - offset);
@@ -144,7 +156,9 @@ static void ParseTsData(uint8_t table_id, uint8_t table_mask, uint8_t min_table_
 	*flag = 2;
 
 	if (*data_pos < 3)
-		{ return; }
+	{
+		return;
+	}
 
 	section_length = SCT_LEN(data);
 
@@ -155,7 +169,9 @@ static void ParseTsData(uint8_t table_id, uint8_t table_mask, uint8_t min_table_
 	}
 
 	if ((*data_pos) < section_length)
-		{ return; }
+	{
+		return;
+	}
 
 	func(cdata);
 
@@ -178,8 +194,11 @@ static void ParseTsData(uint8_t table_id, uint8_t table_mask, uint8_t min_table_
 			break;
 		}
 	}
+
 	if (!found_start)
-		{ *data_pos = 0; }
+	{
+		*data_pos = 0;
+	}
 
 	*flag = 1;
 }
@@ -193,9 +212,10 @@ static void ParsePatData(emu_stream_client_data *cdata)
 	for (i = 8; i + 7 < section_length; i += 4)
 	{
 		srvid = b2i(2, data + i);
-
 		if (srvid == 0)
-			{ continue; }
+		{
+			continue;
+		}
 
 		if (cdata->srvid == srvid)
 		{
@@ -203,6 +223,103 @@ static void ParsePatData(emu_stream_client_data *cdata)
 			cs_log_dbg(D_READER, "Stream %i found pmt pid: 0x%04X (%i)",
 						cdata->connid, cdata->pmt_pid, cdata->pmt_pid);
 			break;
+		}
+	}
+}
+
+static int8_t stream_client_get_caid(emu_stream_client_data *cdata)
+{
+	uint32_t tmp1 = (cdata->srvid << 16) | cdata->pmt_pid;
+	uint8_t tmp2[2];
+
+	if (emu_find_key('A', tmp1, 0, "FAKE", tmp2, 2, 0, 0, 0, NULL))
+	{
+		cdata->caid = b2i(2, tmp2);
+		return 1;
+	}
+	return 0;
+}
+
+static void ParseDescriptors(uint8_t *buffer, uint16_t info_length, uint8_t *type)
+{
+	uint8_t descriptor_tag = buffer[0], descriptor_length = 0;
+	uint32_t j, k;
+
+	static const char format_identifiers_audio[10][5] =
+	{
+		// "HDMV" format identifier is removed
+		// OSCam does not need to know about Blu-ray
+		"AC-3", "BSSD", "dmat", "DRA1", "DTS1",
+		"DTS2", "DTS3", "EAC3", "mlpa", "Opus",
+	};
+
+	if (info_length < 1)
+	{
+		return;
+	}
+
+	for (j = 0; j + 1 < info_length; j += descriptor_length + 2)
+	{
+		descriptor_tag = buffer[j];
+		descriptor_length = buffer[j + 1];
+
+		switch (descriptor_tag)
+		{
+			case 0x05: // registration descriptor
+			{
+				for (k = 0; k < 10; k++)
+				{
+					if (memcmp(buffer + j + 2, format_identifiers_audio[k], 4) == 0)
+					{
+						*type = STREAM_AUDIO;
+						break;
+					}
+				}
+				break;
+			}
+
+			//case 0x09: // CA descriptor
+			//{
+			//	break;
+			//}
+
+			case 0x46: // VBI teletext descriptor (DVB)
+			case 0x56: // teletext descriptor (DVB)
+			{
+				*type = STREAM_TELETEXT;
+				break;
+			}
+
+			case 0x59: // subtitling descriptor (DVB)
+			{
+				*type = STREAM_SUBTITLE;
+				break;
+			}
+
+			case 0x6A: // AC-3 descriptor (DVB)
+			case 0x7A: // enhanced AC-3 descriptor (DVB)
+			case 0x7B: // DTS descriptor (DVB)
+			case 0x7C: // AAC descriptor (DVB)
+			case 0x81: // AC-3 descriptor (ATSC)
+			{
+				*type = STREAM_AUDIO;
+				break;
+			}
+
+			case 0x7F: // extension descriptor (DVB)
+			{
+				uint8_t extension_descriptor_tag = buffer[j + 2];
+
+				switch (extension_descriptor_tag)
+				{
+					case 0x0E: // DTS-HD descriptor (DVB)
+					case 0x0F: // DTS Neural descriptor (DVB)
+					case 0x15: // AC-4 descriptor (DVB)
+						*type = STREAM_AUDIO;
+						break;
+				}
+				break;
+			}
 		}
 	}
 }
@@ -225,26 +342,36 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 	program_info_length = b2i(2, data + 10) & 0xFFF;
 
 	if (12 + program_info_length >= section_length)
-		{ return; }
+	{
+		return;
+	}
 
+	// parse program descriptors (we are looking only for CA descriptor here)
 	for (i = 12; i + 1 < 12 + program_info_length; i += descriptor_length + 2)
 	{
 		descriptor_tag = data[i];
 		descriptor_length = data[i + 1];
 
 		if (descriptor_length < 1)
-			{ break; }
+		{
+			break;
+		}
 
 		if (i + 1 + descriptor_length >= 12 + program_info_length)
-			{ break; }
+		{
+			break;
+		}
 
 		if (descriptor_tag == 0x09 && descriptor_length >= 4)
 		{
 			caid = b2i(2, data + i + 2);
 
-			if (caid_is_powervu(caid)) // add all supported caids here
+			if (caid_is_powervu(caid) || caid == 0xA101) // add all supported caids here
 			{
-				if (cdata->caid == NO_CAID_VALUE) { cdata->caid = caid; }
+				if (cdata->caid == NO_CAID_VALUE)
+				{
+					cdata->caid = caid;
+				}
 				cdata->ecm_pid = b2i(2, data + i + 4) & 0x1FFF;
 				cs_log_dbg(D_READER, "Stream %i found ecm pid: 0x%04X (%i)",
 							cdata->connid, cdata->ecm_pid, cdata->ecm_pid);
@@ -269,7 +396,6 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 			case 0x24: // HEVC video
 			case 0x25: // HEVC video
 			case 0x42: // Chinese video
-			case 0x80: // DigiCipher 2 video
 			case 0xD1: // Dirac video
 			case 0xEA: // VC-1 video
 			{
@@ -281,20 +407,16 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 
 			case 0x03: // MPEG-1 part 3 audio (MP1, MP2, MP3)
 			case 0x04: // MPEG-2 part 3 audio (MP1, MP2, MP3)
-			case 0x06: // AC-3, Enhanced AC-3, AC-4, DTS, DTS-HD and DTS-UHD audio (DVB)
 			case 0x0F: // MPEG-2 part 7 audio (AAC)
 			case 0x11: // MPEG-4 part 3 audio (AAC, HE AAC and AAC v2)
 			case 0x1C: // MPEG-4 part 3 audio (DST, ALS, SLS)
 			case 0x2D: // MPEG-H part 3 3D audio (main stream)
 			case 0x2E: // MPEG-H part 3 3D audio (auxiliary stream)
-			case 0x81: // AC-3 audio (ATSC)
-			case 0x87: // Enhanced AC-3 audio (ATSC)
-			//case 0x88: // DTS-HD audio (ATSC 2.0) /* fixme: has ATSC 2.0 ever been used? */
-			//case 0x??: // AC-4 audio (ATSC 3.0) /* fixme: add the actual value when it gets published */
-			//case 0x??: // MPEG-H part 3 3D audio (ATSC 3.0) /* fixme: add the actual value when it gets published */
 			{
 				if (cdata->audio_pid_count >= EMU_STREAM_MAX_AUDIO_SUB_TRACKS)
-					{ continue; }
+				{
+					continue;
+				}
 
 				cdata->audio_pids[cdata->audio_pid_count] = elementary_pid;
 				cdata->audio_pid_count++;
@@ -302,7 +424,46 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 							cdata->connid, elementary_pid, elementary_pid);
 				break;
 			}
+
+			case 0x06: // AC-3, Enhanced AC-3, AC-4, DTS, DTS-HD and DTS-UHD audio (DVB)
+			case 0x81: // AC-3 audio (ATSC)
+			case 0x87: // Enhanced AC-3 audio (ATSC)
+			//case 0x88: // DTS-HD audio (ATSC 2.0) /* fixme: has ATSC 2.0 ever been used? */
+			//case 0x??: // AC-4 audio (ATSC 3.0) /* fixme: add the actual value when it gets published */
+			//case 0x??: // MPEG-H part 3 3D audio (ATSC 3.0) /* fixme: add the actual value when it gets published */
+			{
+				uint8_t type = STREAM_UNDEFINED;
+				ParseDescriptors(data + i + 5, es_info_length, &type);
+
+				if (type == STREAM_AUDIO)
+				{
+					if (cdata->audio_pid_count >= EMU_STREAM_MAX_AUDIO_SUB_TRACKS)
+					{
+						continue;
+					}
+
+					cdata->audio_pids[cdata->audio_pid_count] = elementary_pid;
+					cdata->audio_pid_count++;
+					cs_log_dbg(D_READER, "Stream %i found audio pid: 0x%04X (%i)",
+								cdata->connid, elementary_pid, elementary_pid);
+				}
+				else if (type == STREAM_TELETEXT)
+				{
+					cdata->teletext_pid = elementary_pid;
+					cs_log_dbg(D_READER, "Stream %i found teletext pid: 0x%04X (%i)",
+								cdata->connid, elementary_pid, elementary_pid);
+				}
+				break;
+			}
 		}
+	}
+
+	// If we haven't found a CAID for this service,
+	// search the keyDB for a fake one
+	if (cdata->caid == NO_CAID_VALUE && stream_client_get_caid(cdata) == 1)
+	{
+		cs_log_dbg(D_READER, "Stream %i found fake caid: 0x%04X (%i)",
+					cdata->connid, cdata->caid, cdata->caid);
 	}
 }
 
@@ -314,13 +475,18 @@ static void ParseCatData(emu_stream_client_data *cdata)
 	for (i = 8; i < (b2i(2, data + 1) & 0xFFF) - 1; i += data[i + 1] + 2)
 	{
 		if (data[i] != 0x09)
-			{ continue; }
+		{
+			continue;
+		}
 
 		uint16_t caid = b2i(2, data + i + 2);
 
 		if (caid_is_powervu(caid)) // add all supported caids here
 		{
-			if (cdata->caid == NO_CAID_VALUE) { cdata->caid = caid; }
+			if (cdata->caid == NO_CAID_VALUE)
+			{
+				cdata->caid = caid;
+			}
 			cdata->emm_pid = b2i(2, data + i + 4) & 0x1FFF;;
 			cs_log_dbg(D_READER, "Stream %i found emm pid: 0x%04X (%i)",
 						cdata->connid, cdata->emm_pid, cdata->emm_pid);
@@ -333,7 +499,7 @@ static void ParseEmmData(emu_stream_client_data *cdata)
 {
 	uint32_t keysAdded = 0;
 
-	ProcessEMM(NULL, cdata->caid, 0, cdata->emm_data, &keysAdded);
+	emu_process_emm(NULL, cdata->caid, 0, cdata->emm_data, &keysAdded);
 
 	if (keysAdded)
 	{
@@ -349,19 +515,21 @@ static void ParseEcmData(emu_stream_client_data *cdata)
 	uint16_t section_length = SCT_LEN(data);
 
 	if (section_length < 11)
-		{ return; }
+	{
+		return;
+	}
 
 	if (caid_is_powervu(cdata->caid))
 	{
 		if (data[11] > cdata->ecm_nb || (cdata->ecm_nb == 255 && data[11] == 0) || ((cdata->ecm_nb - data[11]) > 5))
 		{
 			cdata->ecm_nb = data[11];
-			PowervuECM(data, dcw, cdata->srvid, &cdata->key, NULL);
+			powervu_ecm(data, dcw, cdata->srvid, &cdata->key, NULL);
 		}
 	}
 	//else if () // All other caids
 	//{
-		//ProcessECM();
+		//emu_process_ecm();
 	//}
 }
 
@@ -387,7 +555,9 @@ static void ParseTsPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 		}
 
 		if (packetSize - offset < 1)
-			{ continue; }
+		{
+			continue;
+		}
 
 		if (pid == 0x0000 && data->have_pat_data != 1) // Search the PAT for the PMT pid
 		{
@@ -405,7 +575,9 @@ static void ParseTsPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 
 		// We have bot PAT and PMT data - No need to search the rest of the packets
 		if (data->have_pat_data == 1 && data->have_pmt_data == 1)
-			{ break; }
+		{
+			break;
+		}
 	}
 }
 
@@ -447,7 +619,9 @@ static void DescrambleTsPacketsPowervu(emu_stream_client_data *data, uint8_t *st
 		}
 
 		if (packetSize - offset < 1)
-			{ continue; }
+		{
+			continue;
+		}
 
 		if (emu_stream_emm_enabled && pid == 0x0001 && data->have_cat_data != 1) // Search the CAT for EMM pids
 		{
@@ -485,7 +659,9 @@ static void DescrambleTsPacketsPowervu(emu_stream_client_data *data, uint8_t *st
 		}
 
 		if (scramblingControl == 0)
-			{ continue; }
+		{
+			continue;
+		}
 
 		if (!(stream_buf[i + 3] & 0x10))
 		{
@@ -672,7 +848,7 @@ static void DescrambleTsPacketsPowervu(emu_stream_client_data *data, uint8_t *st
 
 static void DescrambleTsPacketsRosscrypt1(emu_stream_client_data *data, uint8_t *stream_buf, uint32_t bufLength, uint16_t packetSize)
 {
-	int8_t can_decode = 0;
+	int8_t is_av_pid;
 	int32_t j;
 
 	uint8_t scramblingControl;
@@ -695,10 +871,14 @@ static void DescrambleTsPacketsRosscrypt1(emu_stream_client_data *data, uint8_t 
 		}
 
 		if (packetSize - offset < 1)
-			{ continue; }
+		{
+			continue;
+		}
 
 		if (scramblingControl == 0)
-			{ continue; }
+		{
+			continue;
+		}
 
 		if (!(stream_buf[i + 3] & 0x10))
 		{
@@ -706,26 +886,36 @@ static void DescrambleTsPacketsRosscrypt1(emu_stream_client_data *data, uint8_t 
 			continue;
 		}
 
+		is_av_pid = 0;
+
 		if (pid == data->video_pid)
 		{
-			can_decode = 1;
+			is_av_pid = 1;
 		}
 		else
 		{
 			for (j = 0; j < data->audio_pid_count; j++)
 			{
-					if (pid == data->audio_pids[j])
-					{
-						can_decode = 1;
-						break;
-					}
+				if (pid == data->audio_pids[j])
+				{
+					is_av_pid = 1;
+					break;
+				}
 			}
 		}
 
-		if (can_decode)
+		if (is_av_pid)
 		{
 			static uint8_t dyn_key[184];
 			static uint8_t last_packet[184];
+
+			// Reset key on channel change
+			if (data->reset_key_data == 1)
+			{
+				memset(dyn_key, 0x00, 184);
+				memset(last_packet, 0x00, 184);
+				data->reset_key_data = 0;
+			}
 
 			if (memcmp(last_packet, stream_buf + i + 4, 184) == 0)
 			{
@@ -751,8 +941,9 @@ static void DescrambleTsPacketsRosscrypt1(emu_stream_client_data *data, uint8_t 
 
 static void DescrambleTsPacketsCompel(emu_stream_client_data *data, uint8_t *stream_buf, uint32_t bufLength, uint16_t packetSize)
 {
-	int8_t can_decode = 0;
+	int8_t is_pes_pid; // any PES pid
 	int32_t j;
+	const int8_t limit = 4;
 
 	uint8_t scramblingControl;
 	uint16_t pid, offset;
@@ -774,10 +965,14 @@ static void DescrambleTsPacketsCompel(emu_stream_client_data *data, uint8_t *str
 		}
 
 		if (packetSize - offset < 1)
-			{ continue; }
+		{
+			continue;
+		}
 
 		if (scramblingControl == 0)
-			{ continue; }
+		{
+			continue;
+		}
 
 		if (!(stream_buf[i + 3] & 0x10))
 		{
@@ -785,129 +980,243 @@ static void DescrambleTsPacketsCompel(emu_stream_client_data *data, uint8_t *str
 			continue;
 		}
 
+		is_pes_pid = 0;
+
 		if (pid == data->video_pid)
 		{
-			can_decode = 1;
+			is_pes_pid = 1;
+		}
+		else if (pid == data->teletext_pid)
+		{
+			is_pes_pid = 1;
 		}
 		else
 		{
 			for (j = 0; j < data->audio_pid_count; j++)
 			{
-					if (pid == data->audio_pids[j])
-					{
-						can_decode = 1;
-						break;
-					}
+				if (pid == data->audio_pids[j])
+				{
+					is_pes_pid = 1;
+					break;
+				}
 			}
 		}
 
-		if (can_decode)
+		if (is_pes_pid)
 		{
 			static uint8_t dyn_key[184];
+			static uint8_t found_key_bytes[184];
+			static uint8_t found_key_bytes_count = 8;
+			static uint8_t lastScramblingControl = 0xFF;
 
 			int8_t matches00 = 0;
 			int8_t matchesFF = 0;
 			int8_t last00_was_good = 0;
 			int8_t lastFF_was_good = 0;
-			int8_t limit = 64;
 
-			for (j = 0; j < 184; j++)
+			// Reset key when scrambling control changes from odd to even
+			// and vice versa (every ~53 seconds) or when we change channel
+			if (lastScramblingControl != scramblingControl)
 			{
+				memset(dyn_key, 0x00, 184);
+				memset(found_key_bytes, 0, 184);
+				found_key_bytes_count = 8;
+				lastScramblingControl = scramblingControl;
+
+				//cs_log_dbg(D_READER, "resetting key data (scrambling control: %02X)", scramblingControl);
+			}
+
+			for (j = 8; j < 184; j++)
+			{
+				if (found_key_bytes_count == 184)
+				{
+					break;
+				}
+
 				if (stream_buf[i + 4 + j] == 0x00)
 				{
 					last00_was_good = 1;
 					matches00++;
-					if (matches00 > limit) dyn_key[j] = 0x00;
+
+					if (matches00 > limit && found_key_bytes[j] == 0)
+					{
+						dyn_key[j] = 0x00;
+						found_key_bytes[j] = 1;
+						found_key_bytes_count++;
+					}
 				}
 				else if (stream_buf[i + 4 + j] == 0x3F)
 				{
 					last00_was_good = 1;
 					matches00++;
-					if (matches00 > limit) dyn_key[j] = 0x3F;
+
+					if (matches00 > limit && found_key_bytes[j] == 0)
+					{
+						dyn_key[j] = 0x3F;
+						found_key_bytes[j] = 1;
+						found_key_bytes_count++;
+					}
 				}
 				else
 				{
-					if (last00_was_good) matches00--;
-					else matches00 -= 2;
+					if (last00_was_good == 1)
+					{
+						last00_was_good = 0;
+						matches00--;
+					}
+					else
+					{
+						matches00 -= 2;
+					}
 
-					if (matches00 < 0) matches00 = 0;
-					last00_was_good = 0;
+					if (matches00 < 0)
+					{
+						matches00 = 0;
+					}
 				}
 
 				if (stream_buf[i + 4 + j] == 0xC0)
 				{
 					lastFF_was_good = 1;
 					matchesFF++;
-					if (matchesFF > limit) dyn_key[j] = 0x3F;
+
+					if (matchesFF > limit && found_key_bytes[j] == 0)
+					{
+						dyn_key[j] = 0x3F;
+						found_key_bytes[j] = 1;
+						found_key_bytes_count++;
+					}
 				}
 				else if (stream_buf[i + 4 + j] == 0xFF)
 				{
 					lastFF_was_good = 1;
 					matchesFF++;
-					if (matchesFF > limit) dyn_key[j] = 0x00;
+
+					if (matchesFF > limit && found_key_bytes[j] == 0)
+					{
+						dyn_key[j] = 0x00;
+						found_key_bytes[j] = 1;
+						found_key_bytes_count++;
+					}
 				}
 				else
 				{
-					if (lastFF_was_good) matchesFF--;
-					else matchesFF -= 2;
+					if (lastFF_was_good == 1)
+					{
+						lastFF_was_good = 0;
+						matchesFF--;
+					}
+					else
+					{
+						matchesFF -= 2;
+					}
 
-					if (matchesFF < 0) matchesFF = 0;
-					lastFF_was_good = 0;
+					if (matchesFF < 0)
+					{
+						matchesFF = 0;
+					}
 				}
 			}
 
-			for (j = 183; j >= 0; j--)
+			for (j = 183; j >= 8; j--)
 			{
+				if (found_key_bytes_count == 184)
+				{
+					break;
+				}
+
 				if (stream_buf[i + 4 + j] == 0x00)
 				{
 					last00_was_good = 1;
 					matches00++;
-					if (matches00 > limit) dyn_key[j] = 0x00;
+
+					if (matches00 > limit && found_key_bytes[j] == 0)
+					{
+						dyn_key[j] = 0x00;
+						found_key_bytes[j] = 1;
+						found_key_bytes_count++;
+					}
 				}
 				else if (stream_buf[i + 4 + j] == 0x3F)
 				{
 					last00_was_good = 1;
 					matches00++;
-					if (matches00 > limit) dyn_key[j] = 0x3F;
+
+					if (matches00 > limit && found_key_bytes[j] == 0)
+					{
+						dyn_key[j] = 0x3F;
+						found_key_bytes[j] = 1;
+						found_key_bytes_count++;
+					}
 				}
 				else
 				{
-					if (last00_was_good) matches00--;
-					else matches00 -= 2;
+					if (last00_was_good == 1)
+					{
+						last00_was_good = 0;
+						matches00--;
+					}
+					else
+					{
+						matches00 -= 2;
+					}
 
-					if (matches00 < 0) matches00 = 0;
-					last00_was_good = 0;
+					if (matches00 < 0)
+					{
+						matches00 = 0;
+					}
 				}
 
 				if (stream_buf[i + 4 + j] == 0xC0)
 				{
 					lastFF_was_good = 1;
 					matchesFF++;
-					if (matchesFF > limit) dyn_key[j] = 0x3F;
+
+					if (matchesFF > limit && found_key_bytes[j] == 0)
+					{
+						dyn_key[j] = 0x3F;
+						found_key_bytes[j] = 1;
+						found_key_bytes_count++;
+					}
 				}
 				else if (stream_buf[i + 4 + j] == 0xFF)
 				{
 					lastFF_was_good = 1;
 					matchesFF++;
-					if (matchesFF > limit) dyn_key[j] = 0x00;
+
+					if (matchesFF > limit && found_key_bytes[j] == 0)
+					{
+						dyn_key[j] = 0x00;
+						found_key_bytes[j] = 1;
+						found_key_bytes_count++;
+					}
 				}
 				else
 				{
-					if (lastFF_was_good) matchesFF--;
-					else matchesFF -= 2;
+					if (lastFF_was_good == 1)
+					{
+						lastFF_was_good = 0;
+						matchesFF--;
+					}
+					else
+					{
+						matchesFF -= 2;
+					}
 
-					if (matchesFF < 0) matchesFF = 0;
-					lastFF_was_good = 0;
+					if (matchesFF < 0)
+					{
+						matchesFF = 0;
+					}
 				}
 			}
 
-			for (j = 0; j < 184; j++)
+			for (j = 8; j < 184; j++)
 			{
 				stream_buf[i + 4 + j] ^= dyn_key[j];
 			}
-
-			stream_buf[i + 3] &= 0x3F;
 		}
+
+		stream_buf[i + 3] &= 0x3F; // Clear scrambling bits
 	}
 }
 
@@ -918,7 +1227,9 @@ static int32_t connect_to_stream(char *http_buf, int32_t http_buf_len, char *str
 
 	int32_t streamfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (streamfd == -1)
-		{ return -1; }
+	{
+		return -1;
+	}
 
 	struct timeval tv;
 	tv.tv_sec = 2;
@@ -936,7 +1247,9 @@ static int32_t connect_to_stream(char *http_buf, int32_t http_buf_len, char *str
 	cservaddr.sin_port = htons(emu_stream_source_port);
 
 	if (connect(streamfd, (struct sockaddr *)&cservaddr, sizeof(cservaddr)) == -1)
-		{ return -1; }
+	{
+		return -1;
+	}
 
 	if (emu_stream_source_auth)
 	{
@@ -957,7 +1270,9 @@ static int32_t connect_to_stream(char *http_buf, int32_t http_buf_len, char *str
 	}
 
 	if (send(streamfd, http_buf, strlen(http_buf), 0) == -1)
-		{ return -1; }
+	{
+		return -1;
+	}
 
 	return streamfd;
 }
@@ -1058,7 +1373,9 @@ static void *stream_client_handler(void *arg)
 	{
 		token = strtok_r(NULL, ":", &saveptr);
 		if (token == NULL)
-			{ break; }
+		{
+			break;
+		}
 	}
 
 	if (token != NULL)
@@ -1094,6 +1411,12 @@ static void *stream_client_handler(void *arg)
 
 	data->connid = conndata->connid;
 	data->caid = NO_CAID_VALUE;
+	data->have_pat_data = 0;
+	data->have_pmt_data = 0;
+	data->have_cat_data = 0;
+	data->have_ecm_data = 0;
+	data->have_emm_data = 0;
+	data->reset_key_data = 1;
 
 	while (!exit_oscam && clientStatus != -1 && streamConnectErrorCount < 3
 			&& streamDataErrorCount < 15)
