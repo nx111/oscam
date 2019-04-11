@@ -1,9 +1,6 @@
-
 #include "../globals.h"
 #include "../oscam-string.h"
 #include "mdc2.h"
-
-#if !defined(WITH_SSL) && !defined(WITH_LIBCRYPTO)
 
 //#include <stdio.h>
 //#include <stdlib.h>
@@ -11,8 +8,6 @@
 //#include <openssl/crypto.h>
 //#include <openssl/des.h>
 //#include <openssl/mdc2.h>
-
-
 
 #undef c2l
 #define c2l(c,l)        (l =((DES_LONG)(*((c)++)))    , \
@@ -26,7 +21,7 @@
                         *((c)++)=(unsigned char)(((l)>>16L)&0xff), \
                         *((c)++)=(unsigned char)(((l)>>24L)&0xff))
 
-
+#if !defined(WITH_LIBCRYPTO) || WITH_LIBCRYPTO == 0
 
 # define FP(l,r) \
         { \
@@ -38,7 +33,6 @@
         PERM_OP(l,r,tt, 4,0x0f0f0f0fL); \
         }
 
-#if !defined(WITH_LIBCRYPTO) || WITH_LIBCRYPTO == 0
 
 //OPENSSL_GLOBAL const DES_LONG DES_SPtrans[8][64] =
 const DES_LONG DES_SPtrans[8][64] =
@@ -197,7 +191,7 @@ const DES_LONG DES_SPtrans[8][64] =
 	}
 };
 
-
+#endif
 
 #  define LOAD_DATA_tmp(a,b,c,d,e,f) LOAD_DATA(a,b,c,d,e,f,g)
 #  define LOAD_DATA(R,S,u,t,E0,E1,tmp) \
@@ -505,7 +499,7 @@ void DES_set_odd_parity(DES_cblock *key)
 		(*key)[i] = odd_parity[(*key)[i]];
 }
 
-
+#if !defined(WITH_LIBCRYPTO) || WITH_LIBCRYPTO == 0
 void DES_encrypt1(DES_LONG *data, DES_key_schedule *ks, int enc)
 {
 	register DES_LONG l, r, t, u;
@@ -580,8 +574,8 @@ void DES_encrypt1(DES_LONG *data, DES_key_schedule *ks, int enc)
 	data[1] = r;
 	l = r = t = u = 0;
 }
-
 #endif
+
 
 static void mdc2_body(MDC2_CTX *c, const unsigned char *in, size_t len);
 int MDC2_Init(MDC2_CTX *c)
@@ -688,5 +682,3 @@ int MDC2_Final(unsigned char *md, MDC2_CTX *c)
 	memcpy(&(md[MDC2_BLOCK]), (char *)c->hh, MDC2_BLOCK);
 	return 1;
 }
-
-#endif
