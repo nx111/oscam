@@ -15,7 +15,6 @@
 #include "reader-common.h"
 //#include "csctapi/atr.h"
 #include "csctapi/icc_async.h"
-#include "readers.h" // required by the EMU reader
 
 extern const struct s_cardsystem *cardsystems[];
 extern char *RDR_CD_TXT[];
@@ -143,19 +142,6 @@ void cardreader_poll_status(struct s_reader *reader)
 static int32_t reader_get_cardsystem(struct s_reader *reader, ATR *atr)
 {
 	int32_t i;
-
-#ifdef WITH_EMU
-	if(reader->typ == R_EMU)
-	{
-		NULLFREE(reader->csystem_data);
-		rdr_log(reader, "found card system %s", reader_emu.desc);
-		reader->csystem = &reader_emu;
-		reader->csystem_active = true;
-		led_status_found_cardsystem();
-		return (reader->csystem_active);
-	}
-#endif
-
 	for(i = 0; cardsystems[i]; i++)
 	{
 		NULLFREE(reader->csystem_data);
@@ -225,12 +211,12 @@ void cardreader_do_reset(struct s_reader *reader)
 
 		if (ret)
 		{
-			rdr_log(reader,"THIS WAS A SUCCESSFUL START ATTEMPT No  %u out of max allotted of %u", (i + 1), j);
+			rdr_log(reader,"THIS WAS A SUCCESSFUL START ATTEMPT No  %u out of max alloted of %u", (i + 1), j);
 			break;
 		}
 		else
 		{
-			rdr_log(reader, "THIS WAS A FAILED START ATTEMPT No %u out of max allotted of %u", (i + 1), j);
+			rdr_log(reader, "THIS WAS A FAILED START ATTEMPT No %u out of max alloted of %u", (i + 1), j);
 		}
 	}
 
@@ -507,14 +493,11 @@ int32_t cardreader_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 
 void cardreader_process_ecm(struct s_reader *reader, struct s_client *cl, ECM_REQUEST *er)
 {
+	cs_log_dump_dbg(D_ATR, er->ecm, er->ecmlen, "ecm:");
+
 	struct timeb tps, tpe;
 	struct s_ecm_answer ea;
 	memset(&ea, 0, sizeof(struct s_ecm_answer));
-
-#ifdef WITH_EXTENDED_CW
-	// Correct CSA mode is CBC - default to that instead
-	ea.cw_ex.algo_mode = CW_ALGO_MODE_CBC;
-#endif
 
 	cs_ftime(&tps);
 	int32_t rc = cardreader_do_ecm(reader, er, &ea);

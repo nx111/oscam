@@ -6,9 +6,6 @@ Distribution/list_smargo-*
 *~
 *.swp
 
-# IDE resources
-.vscode
-
 # build directories
 /build/
 
@@ -18,7 +15,3 @@ webif/is_defined.txt
 # Testing program
 tests.bin
 tests.bin.debug
-
-# Emu files
-*.patch
-SoftCam.*

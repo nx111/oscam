@@ -109,6 +109,10 @@
 
 #include "cscrypt/aes.h"
 
+#ifndef uchar
+typedef unsigned char uchar;
+#endif
+
 #ifdef IPV6SUPPORT
 #define IN_ADDR_T struct in6_addr
 #define SOCKADDR sockaddr_storage
@@ -390,7 +394,7 @@
 // Support for multiple CWs per channel and other encryption algos
 //#define WITH_EXTENDED_CW		1
 
-#if defined(READER_DRE) || defined(READER_DRECAS) || defined(READER_VIACCESS) || defined(WITH_EMU)
+#if defined(READER_DRE) || defined(READER_DRECAS) || defined(READER_VIACCESS)
 #define MAX_ECM_SIZE			1024
 #define MAX_EMM_SIZE			1024
 #else
@@ -398,11 +402,7 @@
 #define MAX_EMM_SIZE			512
 #endif
 
-#ifdef WITH_EMU
-#define CS_EMMCACHESIZE			1024	// nr of EMMs that EMU reader will cache
-#else
 #define CS_EMMCACHESIZE			512		// nr of EMMs that each reader will cache
-#endif
 #define MSGLOGSIZE				64		// size of string buffer for a ecm to return messages
 
 #define D_TRACE					0x0001	// Generate very detailed error/trace messages per routine
@@ -434,7 +434,6 @@
 #define R_SMART					0x7		// Smartreader+
 #define R_PCSC					0x8		// PCSC
 #define R_DRECAS				0x9		// Reader DRECAS
-#define R_EMU					0x17	// Reader EMU
 /////// proxy readers after R_CS378X
 #define R_CAMD35				0x20	// Reader cascading camd 3.5x
 #define R_CAMD33				0x21	// Reader cascading camd 3.3x
@@ -863,13 +862,6 @@ typedef struct s_entitlement						// contains entitlement Info
 	uint32_t		class;							// the class needed for some systems
 	time_t			start;							// startdate
 	time_t			end;							// enddate
-#ifdef WITH_EMU
-	bool			isKey;
-	bool			isData;
-	char			name[8];
-	uint8_t			*key;
-	uint32_t		keyLength;
-#endif
 } S_ENTITLEMENT;
 
 struct s_client;
@@ -889,12 +881,12 @@ struct s_module
 	//int32_t		s_port;
 	IN_ADDR_T		s_ip;
 	uint16_t		bufsize;
-	void			*(*s_handler)(struct s_client *, uint8_t *, int32_t);
+	void			*(*s_handler)(struct s_client *, uchar *, int32_t);
 	void			(*s_init)(struct s_client *);
-	int32_t			(*recv)(struct s_client *, uint8_t *, int32_t);
+	int32_t			(*recv)(struct s_client *, uchar *, int32_t);
 	void			(*send_dcw)(struct s_client *, struct ecm_request_t *);
 	void			(*cleanup)(struct s_client *);
-	int32_t			(*c_recv_chk)(struct s_client *, uint8_t *, int32_t *, uint8_t *, int32_t);
+	int32_t			(*c_recv_chk)(struct s_client *, uchar *, int32_t *, uchar *, int32_t);
 	int32_t			(*c_init)(struct s_client *);
 	int32_t			(*c_send_ecm)(struct s_client *, struct ecm_request_t *);
 	int32_t			(*c_send_emm)(struct emm_packet_t *);
@@ -947,11 +939,11 @@ struct s_cardreader
 	void			(*lock)(struct s_reader *);
 	void			(*unlock)(struct s_reader *);
 	int32_t			(*close)(struct s_reader *);
-	int32_t			(*set_parity)(struct s_reader *, uint8_t parity);
+	int32_t			(*set_parity)(struct s_reader *, uchar parity);
 	int32_t			(*write_settings)(struct s_reader *, struct s_cardreader_settings *s);
 	int32_t			(*set_protocol)(struct s_reader *, uint8_t *params, uint32_t *length, uint32_t len_request);
 	int32_t			(*set_baudrate)(struct s_reader *, uint32_t baud); // set only for readers which need baudrate setting and timings need to be guarded by OSCam
-	int32_t			(*card_write)(struct s_reader *pcsc_reader, const uint8_t *buf, uint8_t *cta_res, uint16_t *cta_lr, int32_t l);
+	int32_t			(*card_write)(struct s_reader *pcsc_reader, const uchar *buf, uint8_t *cta_res, uint16_t *cta_lr, int32_t l);
 	void			(*display_msg)(struct s_reader *, char *msg);
 
 	int32_t			(*do_reset)(struct s_reader *, struct s_ATR *, int32_t (*rdr_activate_card)(struct s_reader *, struct s_ATR *, uint16_t deprecated), int32_t (*rdr_get_cardsystem)(struct s_reader *, struct s_ATR *));
@@ -984,23 +976,24 @@ struct s_cardsystem
 	void			(*post_process)(struct s_reader *);
 	int32_t			(*get_emm_type)(struct emm_packet_t *, struct s_reader *);
 	int32_t			(*get_emm_filter)(struct s_reader *, struct s_csystem_emm_filter **, uint32_t *);
-	int32_t			(*get_emm_filter_adv)(struct s_reader *, struct s_csystem_emm_filter **, uint32_t *, uint16_t, uint32_t, uint16_t, uint16_t, uint16_t, uint32_t);
 	int32_t			(*get_tunemm_filter)(struct s_reader *, struct s_csystem_emm_filter **, uint32_t *);
 };
 
+#ifdef WITH_EXTENDED_CW
 typedef struct cw_extendted_t
 {
-#ifdef WITH_EXTENDED_CW
 	uint8_t			mode;
-	uint8_t			audio[4][16];					// 4 x odd/even pairs of 8 byte CWs
-	uint8_t			data[16];						// odd/even pair of 8 byte CW or 16 byte IV
-	uint8_t			session_word[32];				// odd/even pair of 16 byte CW
-	uint8_t			algo;							// CSA, DES or AES128
-	uint8_t			algo_mode;						// ECB or CBC
-#else
-	uint8_t			disabled;
-#endif
+	uint8_t			audio[4][16];
+	uint8_t			data[16];
+	uint8_t			algo;
+	uint8_t			algo_mode;
 } EXTENDED_CW;
+#else
+typedef struct cw_extendted_t
+{
+	uint8_t			disabled;
+} EXTENDED_CW;
+#endif
 
 typedef struct ecm_request_t
 {
@@ -1342,8 +1335,6 @@ struct s_client
 
 	struct s_client	*next;							// make client a linked list
 	struct s_client	*nexthashed;
-
-	int8_t			start_hidecards;
 };
 
 typedef struct s_ecm_whitelist_data
@@ -1779,10 +1770,6 @@ struct s_reader										// contains device info, reader info and card info
 #ifdef MODULE_GHTTP
 	uint8_t			ghttp_use_ssl;
 #endif
-#ifdef WITH_EMU
-	FTAB			emu_auproviders;				// AU providers for Emu reader
-	int8_t			emu_datecodedenabled;			// date-coded keys for BISS
-#endif
 	uint8_t			cnxlastecm;						// == 0 - last ecm has not been paired ecm, > 0 last ecm has been paired ecm
 	LLIST			*emmstat;						// emm stats
 	CS_MUTEX_LOCK	emmstat_lock;
@@ -1834,13 +1821,12 @@ struct s_auth
 	int32_t			ac_users;						// 0 - unlimited
 	int8_t			ac_penalty;						// 0 - log, >0 - fake dw
 	struct s_acasc	ac_stat;
-	int8_t			acosc_max_ecms_per_minute;		// user value 0 - unlimited
 	int8_t			acosc_max_active_sids;			// user value 0 - unlimited
 	int8_t			acosc_zap_limit;				// user value 0 - unlimited
 	int8_t			acosc_penalty;					// user value penalty
 	int32_t			acosc_penalty_duration;			// user value how long is penalty activ in sek.
 	time_t			acosc_penalty_until;
-	int8_t			acosc_penalty_active;			// 0-deaktiv 1-max_active_sids 2-zap_limit 3-max_ecms_per_minute 4-penaly_duration
+	int8_t			acosc_penalty_active;			// 0-deaktiv 1-max_active_sids 2-zap_limit 3-penaly_duration
 	int32_t			acosc_delay;					// user value
 	int8_t			acosc_user_zap_count;
 	time_t			acosc_user_zap_count_start_time;
@@ -2247,7 +2233,6 @@ struct s_config
 	char			*ac_logfile;
 	struct s_cpmap	*cpmap;
 	int8_t			acosc_enabled;
-	int8_t			acosc_max_ecms_per_minute;		// global value 0 - unlimited
 	int8_t			acosc_max_active_sids;			// global value 0 - unlimited
 	int8_t			acosc_zap_limit;				// global value 0 - unlimited
 	int32_t			acosc_penalty_duration;			// global value how long is penalty activ in sek.
@@ -2280,18 +2265,6 @@ struct s_config
 	int32_t			scam_port;
 	IN_ADDR_T		scam_srvip;
 	struct s_ip		*scam_allowed;
-#endif
-
-#ifdef WITH_EMU
-	char			*emu_stream_source_host;
-	int32_t			emu_stream_source_port;
-	char			*emu_stream_source_auth_user;
-	char			*emu_stream_source_auth_password;
-	int32_t			emu_stream_relay_port;
-	uint32_t		emu_stream_ecm_delay;
-	int8_t			emu_stream_relay_enabled;
-	int8_t			emu_stream_emm_enabled;
-	CAIDTAB			emu_stream_relay_ctab;			// use the stream server for these caids
 #endif
 
 	int32_t			max_cache_time;					// seconds ecms are stored in ecmcwcache
@@ -2451,8 +2424,6 @@ const char *boxtype_get(void);
 const char *boxname_get(void);
 static inline bool caid_is_fake(uint16_t caid) { return caid == 0xffff; }
 static inline bool caid_is_biss(uint16_t caid) { return caid >> 8 == 0x26; }
-static inline bool caid_is_biss_fixed(uint16_t caid) { return caid == 0x2600 || caid == 0x2602; } // fixed cw, fake ecm
-static inline bool caid_is_biss_dynamic(uint16_t caid) { return caid == 0x2610; } // dynamic cw, real ecm and emm
 static inline bool caid_is_seca(uint16_t caid) { return caid >> 8 == 0x01; }
 static inline bool caid_is_viaccess(uint16_t caid) { return caid >> 8 == 0x05; }
 static inline bool caid_is_irdeto(uint16_t caid) { return caid >> 8 == 0x06; }
@@ -2466,9 +2437,5 @@ static inline bool caid_is_nagra(uint16_t caid) { return caid >> 8 == 0x18; }
 static inline bool caid_is_bulcrypt(uint16_t caid) { return caid == 0x5581 || caid == 0x4AEE; }
 static inline bool caid_is_dre(uint16_t caid) { return caid == 0x4AE0 || caid == 0x4AE1 || caid == 0x2710;}
 const char *get_cardsystem_desc_by_caid(uint16_t caid);
-
-#ifdef WITH_EMU
-FILTER *get_emu_prids_for_caid(struct s_reader *rdr, uint16_t caid);
-#endif
 
 #endif

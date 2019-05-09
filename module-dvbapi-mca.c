@@ -293,8 +293,7 @@ static void mca_demux_convert(DEMUXTYPE *demux_orig, DEMUXMATRIX *demux_matrix)
 	demux_matrix->curindex = (int32_t)demux_orig->curindex;
 	demux_matrix->max_status = (int32_t)demux_orig->max_status;
 	demux_matrix->program_number = (uint16_t)demux_orig->program_number;
-	memcpy(&demux_matrix->lastcw[0], &demux_orig->last_cw[0][0], 8 * sizeof(uint8_t));
-	memcpy(&demux_matrix->lastcw[1], &demux_orig->last_cw[0][1], 8 * sizeof(uint8_t));
+	memcpy(&demux_matrix->lastcw, &demux_orig->lastcw, 2 * 8 * sizeof(uint8_t));
 	demux_matrix->emm_filter = (int32_t)demux_orig->emm_filter;
 	memcpy(&demux_matrix->hexserial, &demux_orig->hexserial, 8 * sizeof(uint8_t));
 	demux_matrix->rdr = (struct s_reader *)demux_orig->rdr;
@@ -505,7 +504,7 @@ static void *mca_main_thread(void *cli)
 				cs_log_dbg(D_DVBAPI, "OPENXCAS_PID_FILTER_CALLBACK");
 				memcpy(&data, msg.buf, msg.buf_len);
 				//openxcas_filter_callback_ex(msg.stream_id, msg.sequence, (struct stOpenXCAS_Data *)msg.buf);
-				mca_ex_callback(msg.stream_id, msg.sequence, data.cipher_index, data.pid, (uint8_t *)&data.buf, data.len);
+				mca_ex_callback(msg.stream_id, msg.sequence, data.cipher_index, data.pid, (uuint8_t *)&data.buf, data.len);
 				break;
 			case OPENXCAS_QUIT:
 				cs_log_dbg(D_DVBAPI, "OPENXCAS_QUIT");
@@ -548,7 +547,7 @@ void mca_send_dcw(struct s_client *client, ECM_REQUEST *er)
 
 	delayer(er, delay);
 
-	dvbapi_write_ecminfo_file(client, er, demux[0].last_cw[0][0], demux[0].last_cw[0][1], 8);
+	dvbapi_write_ecminfo_file(client, er, demux[0].lastcw[0], demux[0].lastcw[1]);
 
 	openxcas_busy = 0;
 
@@ -598,12 +597,11 @@ void mca_send_dcw(struct s_client *client, ECM_REQUEST *er)
 	int32_t n;
 	for(n = 0; n < 2; n++)
 	{
-		// Skip check for BISS1 - cw could be indeed zero
-		// Skip check for BISS2 - we use the extended cw, so the "simple" cw is always zero
-		if((memcmp(er->cw + (n * 8), demux[0].last_cw[0][0], 8) && memcmp(er->cw + (n * 8), demux[0].last_cw[0][1], 8))
-			&& (memcmp(er->cw + (n * 8), nullcw, 8) != 0 || caid_is_biss(er->caid)))
+		// 0x2600 used by biss and constant cw could be indeed zero
+		if((memcmp(er->cw + (n * 8), demux[0].lastcw[0], 8) && memcmp(er->cw + (n * 8), demux[0].lastcw[1], 8))
+			&& (memcmp(er->cw + (n * 8), nullcw, 8) !=0  || er->caid == 0x2600))
 		{
-			memcpy(demux[0].last_cw[0][n], er->cw + (n * 8), 8);
+			memcpy(demux[0].lastcw[n], er->cw + (n * 8), 8);
 			memcpy(openxcas_cw + (n * 8), er->cw + (n * 8), 8);
 			if(mca_set_key(openxcas_cw) < 0)
 				{ cs_log("set cw failed"); }

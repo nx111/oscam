@@ -2,8 +2,16 @@
 #include "module-newcamd-des.h"
 #include "oscam-string.h"
 
+#define DES_IP    1
+#define DES_IP_1  2
+#define DES_RIGHT 4
+#define DES_HASH  8
+
+#define DES_ECM_CRYPT    0
+#define DES_ECM_HASH     DES_HASH
 #define DES_ECS2_DECRYPT (DES_IP | DES_IP_1 | DES_RIGHT)
 #define DES_ECS2_CRYPT   (DES_IP | DES_IP_1)
+
 
 #define CRYPT        0
 #define HASH         1
@@ -348,7 +356,7 @@ static void desRound(uint8_t left[], uint8_t right[], uint8_t data[], uint8_t mo
 	swap(data - 4, data);
 }
 
-void nc_des(uint8_t key[], uint8_t mode, uint8_t data[])
+static void nc_des(uint8_t key[], uint8_t mode, uint8_t data[])
 {
 	uint8_t i;
 	uint8_t left[8];

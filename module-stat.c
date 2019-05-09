@@ -105,7 +105,7 @@ void load_stat_from_file(void)
 	file = fopen(fname, "r");
 	if(!file)
 	{
-		cs_log_dbg(D_LB, "loadbalancer: could not open %s for reading (errno=%d %s)", fname, errno, strerror(errno));
+		cs_log("loadbalancer: could not open %s for reading (errno=%d %s)", fname, errno, strerror(errno));
 		return;
 	}
 
@@ -152,7 +152,7 @@ void load_stat_from_file(void)
 			valid = (i == 11);
 			if(valid)
 			{
-				cs_strncpy(buf, split[0], sizeof(buf));
+				strncpy(buf, split[0], sizeof(buf) - 1);
 				s->rc = atoi(split[1]);
 				s->caid = a2i(split[2], 4);
 				s->prid = a2i(split[3], 6);
@@ -897,7 +897,7 @@ void check_lb_auto_betatunnel_mode(ECM_REQUEST *er)
 
 uint16_t get_rdr_caid(struct s_reader *rdr)
 {
-	if(is_network_reader(rdr) || rdr->typ == R_EMU)
+	if(is_network_reader(rdr))
 	{
 		return 0; // reader caid is not real caid
 	}
@@ -1288,7 +1288,7 @@ void stat_get_best_reader(ECM_REQUEST *er)
 		for(ea = er->matching_rdr; ea; ea = ea->next)
 		{
 			rdr = ea->reader;
-			if(is_network_reader(rdr) || rdr->typ == R_EMU) // reader caid is not real caid
+			if(is_network_reader(rdr)) // reader caid is not real caid
 			{
 				prv = ea;
 				continue; // proxy can convert or reject

@@ -23,7 +23,6 @@
 #include "oscam-string.h"
 #include "oscam-work.h"
 #include "reader-common.h"
-#include "module-cccam-data.h"
 
 extern CS_MUTEX_LOCK ecmcache_lock;
 extern struct ecm_request_t *ecmcwcache;
@@ -919,13 +918,11 @@ int32_t send_dcw(struct s_client *client, ECM_REQUEST *er)
 		int8_t penalty = 0;
 		int32_t penalty_duration = 0;
 		int32_t delay = 0;
-		int8_t max_ecms_per_minute = 0;
 		char *info1 = NULL;
 		char *info2 = NULL;
 		char *info3 = NULL;
 		char *info4 = NULL;
 		char *info5 = NULL;
-		char *info6 = NULL;
 
 		// **global or user value?
 		cs_writelock(__func__, &clientlist_lock);
@@ -945,18 +942,15 @@ int32_t send_dcw(struct s_client *client, ECM_REQUEST *er)
 		delay = client->account->acosc_delay == -1 ? cfg.acosc_delay : client->account->acosc_delay;
 		info4 = client->account->acosc_delay == -1 ? "Globalvalue" : "Uservalue";
 
-		max_ecms_per_minute = client->account->acosc_max_ecms_per_minute == -1 ? cfg.acosc_max_ecms_per_minute : client->account->acosc_max_ecms_per_minute;
-		info6 = client->account->acosc_max_ecms_per_minute == -1 ? "Globalvalue" : "Uservalue";
-
 		//**
 
-		if((er->rc < E_NOTFOUND && max_active_sids > 0) || zap_limit > 0 || max_ecms_per_minute > 0)
+		if((er->rc < E_NOTFOUND && max_active_sids > 0) || zap_limit > 0)
 		{
 			int8_t k = 0;
 			int8_t active_sid_count = 0;
 			time_t zaptime = time(NULL);
 
-			if(client->account->acosc_penalty_active == 4 && client->account->acosc_penalty_until <= zaptime) // reset penalty_active
+			if(client->account->acosc_penalty_active == 3 && client->account->acosc_penalty_until <= zaptime) // reset penalty_active
 			{
 				client->account->acosc_penalty_active = 0;
 				client->account->acosc_penalty_until = 0;
@@ -987,21 +981,9 @@ int32_t send_dcw(struct s_client *client, ECM_REQUEST *er)
 				client->account->acosc_penalty_until = zaptime + penalty_duration;
 			}
 
-			if(client->account->acosc_penalty_active == 0 && max_ecms_per_minute > 0 && client->n_request[1] >= max_ecms_per_minute && penalty != 4) // max ecms per minute reached
-			{
-				client->account->acosc_penalty_active = 3;
-				client->account->acosc_penalty_until = zaptime + penalty_duration;
-			}
-
-			if(client->account->acosc_penalty_active == 0 && max_ecms_per_minute > 0 && client->n_request[1] > 0 && penalty == 4) // max ecms per minute with hidecards penalty
-			{
-				client->account->acosc_penalty_active = 3;
-				client->account->acosc_penalty_until = zaptime + penalty_duration;
-			}
-
 			if(client->account->acosc_penalty_active > 0)
 			{
-				if(client->account->acosc_penalty_active == 4)
+				if(client->account->acosc_penalty_active == 3)
 					{ cs_log_dbg(D_TRACE, "[zaplist] ACoSC for Client: %s  penalty_duration: %ld seconds left(%s)", username(client), client->account->acosc_penalty_until - zaptime, info3); }
 
 				int16_t lt = get_module(client)->listenertype;
@@ -1014,8 +996,7 @@ int32_t send_dcw(struct s_client *client, ECM_REQUEST *er)
 							{ cs_log("[zaplist] ACoSC for Client: %s  max_activ_sids reached: %i:%i(%s) penalty: 1(%s) send null CW", username(client), active_sid_count, max_active_sids, info1, info2); }
 						if(client->account->acosc_penalty_active == 2)
 							{ cs_log("[zaplist] ACoSC for Client: %s  zap_limit reached: %i:%i(%s) penalty: 1(%s) send null CW", username(client), client->account->acosc_user_zap_count, zap_limit, info5, info2); }
-						if(client->account->acosc_penalty_active == 3)
-							{ cs_log("[maxecms] ACoSC for Client: %s  max_ecms_per_minute reached: ecms_last_minute=%i ecms_now=%i max=%i(%s) penalty: 1(%s) send null CW", username(client), client->n_request[0], client->n_request[1], max_ecms_per_minute, info6, info2); }
+
 						break;
 
 					case 2: // ban
@@ -1025,8 +1006,7 @@ int32_t send_dcw(struct s_client *client, ECM_REQUEST *er)
 								{ cs_log("[zaplist] ACoSC for Client: %s  max_activ_sids reached: %i:%i(%s) penalty: 2(%s) BAN Client - Kill and set Client to failban list for %i sec.", username(client), active_sid_count, max_active_sids, info1, info2, penalty_duration); }
 							if(client->account->acosc_penalty_active == 2)
 								{ cs_log("[zaplist] ACoSC for Client: %s  zap_limit reached: %i:%i(%s) penalty: 2(%s) BAN Client - Kill and set Client to failban list for %i sec.", username(client), client->account->acosc_user_zap_count, zap_limit, info5, info2, penalty_duration); }
-							if(client->account->acosc_penalty_active == 3)
-								{ cs_log("[maxecms] ACoSC for Client: %s  max_ecms_per_minute reached: ecms_last_minute=%i ecms_now=%i max=%i(%s) penalty: 2(%s) BAN Client - Kill and set Client to failban list for %i sec.", username(client), client->n_request[0], client->n_request[1], max_ecms_per_minute, info6, info2, penalty_duration); }
+
 							cs_add_violation_acosc(client, client->account->usr, penalty_duration);
 							add_job(client, ACTION_CLIENT_KILL, NULL, 0);
 						}
@@ -1042,33 +1022,23 @@ int32_t send_dcw(struct s_client *client, ECM_REQUEST *er)
 							{ cs_log("[zaplist] ACoSC for Client: %s  max_activ_sids reached: %i:%i(%s) penalty: 3(%s) delay CW: %ims(%s)", username(client), active_sid_count, max_active_sids, info1, info2, delay, info4); }
 						if(client->account->acosc_penalty_active == 2)
 							{ cs_log("[zaplist] ACoSC for Client: %s  zap_limit reached: %i:%i(%s) penalty: 3(%s) delay CW: %ims(%s)", username(client), client->account->acosc_user_zap_count, zap_limit, info5, info2, delay, info4);	}
-						if(client->account->acosc_penalty_active == 3)
-							{ cs_log("[maxecms] ACoSC for Client: %s  max_ecms_per_minute reached: ecms_last_minute=%i ecms_now=%i max=%i(%s) penalty: 3(%s) delay CW: %ims(%s)", username(client), client->n_request[0], client->n_request[1], max_ecms_per_minute, info6, info2, delay, info4); }
 						cs_writeunlock(__func__, &clientlist_lock);
 						cs_sleepms(delay);
 						cs_writelock(__func__, &clientlist_lock);
 						client->cwlastresptime += delay;
 						snprintf(sreason, sizeof(sreason)-1, " (%d ms penalty delay)", delay);
 						break;
-					case 4: // hidecards
-						if(client->account->acosc_penalty_active == 3)
-						{
-							cs_log("[maxecms] ACoSC for Client: %s ecms_last_minute=%i ecms_now=%i max=%i(%s) penalty: 4(%s) hidecards - hidecards to the client for %i sec", username(client), client->n_request[0], client->n_request[1], max_ecms_per_minute, info6, info2, penalty_duration);
-							client->start_hidecards = 1;
-						}
-						break;
+
 					default: // logging
 						if(client->account->acosc_penalty_active == 1)
 							{ cs_log("[zaplist] ACoSC for Client: %s  max_activ_sids reached: %i:%i(%s) penalty: 0(%s) only logging", username(client), active_sid_count, max_active_sids, info1, info2); }
 						if(client->account->acosc_penalty_active == 2)
 							{ cs_log("[zaplist] ACoSC for Client: %s  zap_limit reached: %i:%i(%s) penalty: 0(%s) only logging", username(client), client->account->acosc_user_zap_count, zap_limit, info5, info2);	}
-						if(client->account->acosc_penalty_active == 3)
-							{ cs_log("[maxecms] ACoSC for Client: %s  max_ecms_per_minute reached: ecms_last_minute=%i ecms_now=%i max=%i(%s) penalty: 0(%s) only logging", username(client), client->n_request[0], client->n_request[1], max_ecms_per_minute, info6, info2); }
+
 						break;
 				}
 				client->account->acosc_user_zap_count = 0; // we got already a penalty
 				client->account->acosc_penalty_active = 3;
-				client->account->acosc_penalty_active = 4;
 			}
 		}
 		cs_writeunlock(__func__, &clientlist_lock);
@@ -1118,16 +1088,6 @@ int32_t send_dcw(struct s_client *client, ECM_REQUEST *er)
 
 	if(is_fake)
 		{ er->rc = E_FAKE; }
-
-#ifdef CS_ANTICASC
-	cs_writelock(__func__, &clientlist_lock);
-	if(client->start_hidecards)
-	{
-		client->start_hidecards = 0;
-		add_job(client, ACTION_CLIENT_HIDECARDS, NULL, 0);
-	}
-	cs_writeunlock(__func__, &clientlist_lock);
-#endif
 
 	if(!(er->rc == E_SLEEPING && client->cwlastresptime == 0))
 	{
@@ -1592,6 +1552,8 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 	if(er->tps.time < timeout) // < and NOT <=
 		{ return 0; }
 
+	int32_t i;
+	uint8_t c;
 	struct timeb now;
 	cs_ftime(&now);
 
@@ -1620,10 +1582,8 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 		return 0;
 	}
 
-	// Special checks for rc
-	// Skip check for BISS1 - cw could be zero but still catch cw=0 by anticascading
-	// Skip check for BISS2 - we use the extended cw, so the "simple" cw is always zero
-	if(rc < E_NOTFOUND && cw && chk_is_null_CW(cw) && !caid_is_biss(er->caid))
+	//SPECIAL CHECKs for rc
+	if(rc < E_NOTFOUND && cw && chk_is_null_CW(cw) && er->caid != 0x2600) // 0x2600 used by biss and constant cw could be zero but still catch cw=0 by anticascading
 	{
 		rc = E_NOTFOUND;
 		cs_log_dbg(D_TRACE | D_LB, "WARNING: reader %s send fake cw, set rc=E_NOTFOUND!", reader ? reader->label : "-");
@@ -1637,56 +1597,57 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 
 	if(reader && cw && rc < E_NOTFOUND)
 	{
-		if(!cfg.disablecrccws && !reader->disablecrccws)
+		if(cfg.disablecrccws == 0 && reader->disablecrccws == 0)
 		{
-			if(!(chk_if_ignore_checksum(er, &cfg.disablecrccws_only_for) + chk_if_ignore_checksum(er, &reader->disablecrccws_only_for)))
+			uint8_t selectedForIgnChecksum = chk_if_ignore_checksum(er, cfg.disablecrccws, &cfg.disablecrccws_only_for)
+					+ chk_if_ignore_checksum(er, reader->disablecrccws, &reader->disablecrccws_only_for);
+
+			for(i = 0; i < 16; i += 4)
 			{
-				uint8_t i, c;
-				for(i = 0; i < 16; i += 4)
+				c = ((cw[i] + cw[i + 1] + cw[i + 2]) & 0xff);
+
+				if((i!=12) && selectedForIgnChecksum && (cw[i + 3] != c))
 				{
-					c = ((cw[i] + cw[i + 1] + cw[i + 2]) & 0xff);
+					cs_log_dbg(D_TRACE, "notice: CW checksum check disabled for %04X:%06X", er->caid, er->prid);
+					break;
+				}
 
-					if(cw[i + 3] != c)
+				if(cw[i + 3] != c)
+				{
+					uint8_t nano = 0x00;
+					if(er->caid == 0x100 && er->ecm[5] > 0x00)
 					{
-						uint8_t nano = 0x00;
-						if(er->caid == 0x100 && er->ecm[5] > 0x00)
-						{
-							nano = er->ecm[5]; // seca nano protection
-						}
+						nano = er->ecm[5]; // seca nano protection
+					}
 
-						if(reader->dropbadcws && !nano) // only drop controlword if no cw encryption is applied
+					if(reader->dropbadcws && !nano) // only drop controlword if no cw encryption is applied
+					{
+						rc = E_NOTFOUND;
+						rcEx = E2_WRONG_CHKSUM;
+						break;
+					}
+					else
+					{
+						if(!nano) // only fix checksum if no cw encryption is applied (nano = 0)
 						{
-							rc = E_NOTFOUND;
-							rcEx = E2_WRONG_CHKSUM;
-							break;
+							cs_log_dbg(D_TRACE, "notice: changed dcw checksum byte cw[%i] from %02x to %02x", i + 3, cw[i + 3], c);
+							cw[i + 3] = c;
 						}
 						else
 						{
-							if(!nano) // only fix checksum if no cw encryption is applied (nano = 0)
+							if(i == 12) // there are servers delivering correct controlwords but with failing last cw checksum (on purpose?!)
 							{
-								cs_log_dbg(D_TRACE, "notice: changed dcw checksum byte cw[%i] from %02x to %02x", i + 3, cw[i + 3], c);
-								cw[i + 3] = c;
+								cs_log_dbg(D_TRACE,"NANO%02d: BAD PEER DETECTED, oscam has fixed the last cw crc that wasn't matching!", nano);
+								cw[i + 3] = c; // fix the last controlword
 							}
 							else
 							{
-								if(i == 12) // there are servers delivering correct controlwords but with failing last cw checksum (on purpose?!)
-								{
-									cs_log_dbg(D_TRACE,"NANO%02d: BAD PEER DETECTED, oscam has fixed the last cw crc that wasn't matching!", nano);
-									cw[i + 3] = c; // fix the last controlword
-								}
-								else
-								{
-									cs_log_dbg(D_TRACE,"NANO%02d: not fixing the crc of this cw since its still encrypted!", nano);
-									break; // crc failed so stop!
-								}
+								cs_log_dbg(D_TRACE,"NANO%02d: not fixing the crc of this cw since its still encrypted!", nano);
+								break; // crc failed so stop!
 							}
 						}
 					}
 				}
-			}
-			else
-			{
-				cs_log_dbg(D_TRACE, "notice: CW checksum check disabled for %04X:%06X", er->caid, er->prid);
 			}
 		}
 		else
@@ -1746,12 +1707,8 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 	if(!ea->is_pending) // not for pending ea - only once for ea
 	{
 		// cache update
-		// Skip check for BISS1 - cw could be indeed zero
-		// Skip check for BISS2 - we use the extended cw, so the "simple" cw is always zero
-		if(ea && (ea->rc < E_NOTFOUND) && (!chk_is_null_CW(ea->cw) && !caid_is_biss(er->caid)))
-		{
-			add_cache_from_reader(er, reader, er->csp_hash, er->ecmd5, ea->cw, er->caid, er->prid, er->srvid);
-		}
+		if(ea && (ea->rc < E_NOTFOUND) && (!chk_is_null_CW(ea->cw) && er->caid !=0x2600)) // 0x2600 used by biss and constant cw could be indeed zero
+			add_cache_from_reader(er, reader, er->csp_hash, er->ecmd5, ea->cw, er->caid, er->prid, er->srvid );
 
 		// readers stats for LB
 		send_reader_stat(reader, er, ea, ea->rc);
@@ -2307,12 +2264,9 @@ void get_cw(struct s_client *client, ECM_REQUEST *er)
 		}
 	}
 
-	// Check for odd/even byte
-	// Don't check for BISS1 and BISS2 mode 1/E or fake caid (ECM is fake for them)
-	// Don't check for BISS2 mode CA (ECM table is always 0x80)
-	if(!caid_is_biss(er->caid) && !caid_is_fake(er->caid) && get_odd_even(er) == 0)
-	{
-		cs_log_dbg(D_TRACE, "warning: ecm with null odd/even byte from %s", (check_client(er->client) ? er->client->account->usr : "-"));
+	// checks for odd/even byte
+	if(!caid_is_biss(er->caid) && !caid_is_fake(er->caid) && get_odd_even(er)==0){
+		cs_log_dbg(D_TRACE, "warning: ecm with null odd/even byte from %s", (check_client(er->client)?er->client->account->usr:"-"));
 		er->rc = E_INVALID;
 	}
 
@@ -2427,11 +2381,6 @@ void get_cw(struct s_client *client, ECM_REQUEST *er)
 
 			if(!cs_malloc(&ea, sizeof(struct s_ecm_answer)))
 				{ goto OUT; }
-
-#ifdef WITH_EXTENDED_CW
-			// Correct CSA mode is CBC - default to that instead
-			ea->cw_ex.algo_mode = CW_ALGO_MODE_CBC;
-#endif
 
 			er->readers++;
 

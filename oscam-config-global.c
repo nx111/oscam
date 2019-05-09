@@ -408,23 +408,9 @@ static void anticasc_fixups_fn(void *UNUSED(var))
 	if(cfg.ac_fakedelay < 100 || cfg.ac_fakedelay > 3000) { cfg.ac_fakedelay = 1000; }
 	if(cfg.ac_denysamples < 2 || cfg.ac_denysamples > cfg.ac_samples - 1) { cfg.ac_denysamples = cfg.ac_samples - 1; }
 	if(cfg.ac_denysamples + 1 > cfg.ac_samples) { cfg.ac_denysamples = cfg.ac_samples - 1; }
-	if(cfg.acosc_max_ecms_per_minute < 0) { cfg.acosc_max_ecms_per_minute = 0; }
-	if(cfg.acosc_penalty == 4)
-	{
-		cfg.acosc_max_active_sids = 0; // set default
-		cfg.acosc_zap_limit = 0; // set default
-		//cfg.acosc_penalty_duration = 0; // set default
-
-		if(cfg.acosc_max_ecms_per_minute != 0)
-		{
-			if(cfg.acosc_max_ecms_per_minute < 6) { cfg.acosc_max_ecms_per_minute = 6; }
-			if(cfg.acosc_max_ecms_per_minute > 20) { cfg.acosc_max_ecms_per_minute = 20; }
-			cfg.acosc_penalty_duration = (60 / cfg.acosc_max_ecms_per_minute);
-		}
-	}
 	if(cfg.acosc_max_active_sids < 0) { cfg.acosc_max_active_sids = 0; }
 	if(cfg.acosc_zap_limit < 0) { cfg.acosc_zap_limit = 0; }
-	if(cfg.acosc_penalty < 0 || cfg.acosc_penalty > 4) { cfg.acosc_penalty = 0; }
+	if(cfg.acosc_penalty < 0 || cfg.acosc_penalty > 3) { cfg.acosc_penalty = 0; }
 	if(cfg.acosc_penalty_duration < 0) { cfg.acosc_penalty_duration = 0; }
 	if(cfg.acosc_delay < 0 || cfg.acosc_delay > 4000) { cfg.acosc_delay = 0; }
 }
@@ -447,7 +433,6 @@ static const struct config_list anticasc_opts[] =
 	DEF_OPT_INT32("fakedelay"              , OFS(ac_fakedelay)          , 3000),
 	DEF_OPT_INT32("denysamples"            , OFS(ac_denysamples)        , 8),
 	DEF_OPT_INT8("acosc_enabled"           , OFS(acosc_enabled)         , 0 ),
-	DEF_OPT_INT8("acosc_max_ecms_per_minute" , OFS(acosc_max_ecms_per_minute), 0 ),
 	DEF_OPT_INT8("acosc_max_active_sids"   , OFS(acosc_max_active_sids) , 0 ),
 	DEF_OPT_INT8("acosc_zap_limit"         , OFS(acosc_zap_limit)       , 0 ),
 	DEF_OPT_INT8("acosc_penalty"           , OFS(acosc_penalty)         , 0 ),
@@ -869,31 +854,6 @@ static const struct config_list scam_opts[] =
 #else
 static const struct config_list scam_opts[] = { DEF_LAST_OPT };
 #endif
-
-#ifdef WITH_EMU
-static bool streamrelay_should_save_fn(void *UNUSED(var))
-{
-	return 1;
-}
-static const struct config_list streamrelay_opts[] =
-{
-	DEF_OPT_SAVE_FUNC(streamrelay_should_save_fn),
-	DEF_OPT_STR("stream_source_host"          , OFS(emu_stream_source_host),          "127.0.0.1"),
-	DEF_OPT_INT32("stream_source_port"        , OFS(emu_stream_source_port),          8001),
-	DEF_OPT_STR("stream_source_auth_user"     , OFS(emu_stream_source_auth_user),     NULL),
-	DEF_OPT_STR("stream_source_auth_password" , OFS(emu_stream_source_auth_password), NULL),
-	DEF_OPT_INT32("stream_relay_port"         , OFS(emu_stream_relay_port),           17999),
-	DEF_OPT_UINT32("stream_ecm_delay"         , OFS(emu_stream_ecm_delay),            600),
-	DEF_OPT_INT8("stream_relay_enabled"       , OFS(emu_stream_relay_enabled),        1),
-	DEF_OPT_INT8("stream_emm_enabled"         , OFS(emu_stream_emm_enabled),          1),
-	DEF_OPT_FUNC("stream_relay_ctab"          , OFS(emu_stream_relay_ctab),           check_caidtab_fn),
-	DEF_LAST_OPT
-};
-#else
-static const struct config_list streamrelay_opts[] = { DEF_LAST_OPT };
-#endif
-
-
 #ifdef MODULE_RADEGAST
 static bool radegast_should_save_fn(void *UNUSED(var))
 {
@@ -1163,13 +1123,16 @@ static void gbox_dest_peers_fn(const char *token, char *value, void *UNUSED(sett
 
 static void gbox_msg_txt_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
 {
+	int len = 0;
 	if (value)
 	{
-		cs_strncpy(cfg.gbox_msg_txt, value, sizeof(cfg.gbox_msg_txt));
+		len = strlen(value);
+		if (len > GBOX_MAX_MSG_TXT) { len = GBOX_MAX_MSG_TXT; }
+		cs_strncpy(cfg.gbox_msg_txt,value, len+1);
 		return;
 	}
 
-	if ((cfg.gbox_msg_txt[0] != '\0') && cfg.gbox_save_gsms)
+	if ((cfg.gbox_msg_txt[0]!='\0') && cfg.gbox_save_gsms)
 	{
 		fprintf_conf(f, token, "%s\n", cfg.gbox_msg_txt);
 	}
@@ -1367,7 +1330,6 @@ static const struct config_sections oscam_conf[] =
 	{ "cccam", cccam_opts },
 	{ "pandora", pandora_opts },
 	{ "scam", scam_opts },
-	{ "streamrelay", streamrelay_opts },
 	{ "dvbapi", dvbapi_opts },
 	{ "monitor", monitor_opts },
 	{ "webif", webif_opts },

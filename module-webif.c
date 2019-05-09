@@ -103,7 +103,6 @@ static bool use_srvid2 = false;
 #define MNU_CFG_LCD         14
 #define MNU_CFG_MONITOR     15
 #define MNU_CFG_WEBIF       16
-#define MNU_CFG_STREAMRELAY 17
 
 /* constants for files.html submenuactivating */
 #define MNU_CFG_FVERSION     0
@@ -138,9 +137,8 @@ static bool use_srvid2 = false;
 #define MNU_GBX_FSTAINF     27
 #define MNU_GBX_FEXPINF     28
 #define MNU_GBX_INFOLOG     29
-#define MNU_CFG_FSOFTCAMKEY 30
 
-#define MNU_CFG_TOTAL_ITEMS 31 // sum of items above. Use it for "All inactive" in function calls too.
+#define MNU_CFG_TOTAL_ITEMS 30 // sum of items above. Use it for "All inactive" in function calls too.
 
 static void set_status_info_var(struct templatevars *vars, char *varname, int no_data, char *fmt, double value)
 {
@@ -1232,38 +1230,6 @@ static char *send_oscam_config_scam(struct templatevars *vars, struct uriparams 
 }
 #endif
 
-#ifdef WITH_EMU
-static char *send_oscam_config_streamrelay(struct templatevars *vars, struct uriparams *params)
-{
-	char *value;
-
-	setActiveSubMenu(vars, MNU_CFG_STREAMRELAY);
-
-	webif_save_config("streamrelay", vars, params);
-
-	tpl_printf(vars, TPLADD, "STREAM_SOURCE_HOST", "%s", cfg.emu_stream_source_host);
-	tpl_printf(vars, TPLADD, "STREAM_SOURCE_PORT", "%d", cfg.emu_stream_source_port);
-	if(cfg.emu_stream_source_auth_user)
-		{ tpl_printf(vars, TPLADD, "STREAM_SOURCE_AUTH_USER", "%s", cfg.emu_stream_source_auth_user); }
-	if(cfg.emu_stream_source_auth_password)
-		{ tpl_printf(vars, TPLADD, "STREAM_SOURCE_AUTH_PASSWORD", "%s", cfg.emu_stream_source_auth_password); }
-	tpl_printf(vars, TPLADD, "STREAM_RELAY_PORT", "%d", cfg.emu_stream_relay_port);
-	tpl_printf(vars, TPLADD, "STREAM_ECM_DELAY", "%d", cfg.emu_stream_ecm_delay);
-
-	tpl_printf(vars, TPLADD, "TMP", "STREAMRELAYENABLEDSELECTED%d", cfg.emu_stream_relay_enabled);
-	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
-
-	tpl_printf(vars, TPLADD, "TMP", "STREAMEMMENABLEDSELECTED%d", cfg.emu_stream_emm_enabled);
-	tpl_addVar(vars, TPLADD, tpl_getVar(vars, "TMP"), "selected");
-
-	value = mk_t_caidtab(&cfg.emu_stream_relay_ctab);
-	tpl_addVar(vars, TPLADD, "STREAM_RELAY_CTAB", value);
-	free_mk_t(value);
-
-	return tpl_getTpl(vars, "CONFIGSTREAMRELAY");
-}
-#endif
-
 #ifdef MODULE_CCCAM
 static char *send_oscam_config_cccam(struct templatevars *vars, struct uriparams *params)
 {
@@ -1644,7 +1610,6 @@ static char *send_oscam_config_anticasc(struct templatevars *vars, struct uripar
 
 	if(cfg.acosc_enabled == 1)
 		{ tpl_addVar(vars, TPLADD, "ACOSC_CHECKED", "checked"); }
-	tpl_printf(vars, TPLADD, "ACOSC_MAX_ECMS_PER_MINUTE", "%d", cfg.acosc_max_ecms_per_minute);
 	tpl_printf(vars, TPLADD, "ACOSC_MAX_ACTIVE_SIDS", "%d", cfg.acosc_max_active_sids);
 	tpl_printf(vars, TPLADD, "ACOSC_ZAP_LIMIT", "%d", cfg.acosc_zap_limit);
 	tpl_printf(vars, TPLADD, "TMP", "ACOSC_PENALTY%d", cfg.acosc_penalty);
@@ -1687,9 +1652,6 @@ static char *send_oscam_config(struct templatevars *vars, struct uriparams *para
 #endif
 #ifdef MODULE_SCAM
 	else if(!strcmp(part, "scam")) { return send_oscam_config_scam(vars, params); }
-#endif
-#ifdef WITH_EMU
-	else if(!strcmp(part, "streamrelay")) { return send_oscam_config_streamrelay(vars, params); }
 #endif
 #ifdef MODULE_CCCAM
 	else if(!strcmp(part, "cccam")) { return send_oscam_config_cccam(vars, params); }
@@ -2170,7 +2132,7 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		chk_reader("services", servicelabels, rdr);
 		chk_reader("lb_whitelist_services", servicelabelslb, rdr);
 
-		if(is_network_reader(rdr) || rdr->typ == R_EMU)    //physical readers make trouble if re-started
+		if(is_network_reader(rdr))    //physical readers make trouble if re-started
 		{
 			if(rdr)
 				{
@@ -2854,23 +2816,6 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	tpl_addVar(vars, TPLADD, "USERSCRIPT", rdr->userscript);
 #endif
 
-#ifdef WITH_EMU
-	//emu_auproviders
-	value = mk_t_ftab(&rdr->emu_auproviders);
-	tpl_addVar(vars, TPLADD, "EMUAUPROVIDERS", value);
-	free_mk_t(value);
-
-	// Date-coded BISS keys
-	if(!apicall)
-	{
-		tpl_addVar(vars, TPLADD, "EMUDATECODEDENABLED", (rdr->emu_datecodedenabled == 1) ? "checked" : "");
-	}
-	else
-	{
-		tpl_addVar(vars, TPLADD, "EMUDATECODEDENABLED", (rdr->emu_datecodedenabled == 1) ? "1" : "0");
-	}
-#endif
-
 	tpl_addVar(vars, TPLADD, "PROTOCOL", reader_get_type_desc(rdr, 0));
 
 	// Show only parameters which needed for the reader
@@ -2891,9 +2836,6 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 		break;
 	case R_CAMD35 :
 		tpl_addVar(vars, TPLAPPEND, "READERDEPENDINGCONFIG", tpl_getTpl(vars, "READERCONFIGCAMD35BIT"));
-		break;
-	case R_EMU :
-		tpl_addVar(vars, TPLAPPEND, "READERDEPENDINGCONFIG", tpl_getTpl(vars, "READERCONFIGEMUBIT"));
 		break;
 	case R_CS378X :
 		tpl_addVar(vars, TPLAPPEND, "READERDEPENDINGCONFIG", tpl_getTpl(vars, "READERCONFIGCS378XBIT"));
@@ -3277,8 +3219,8 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 
 	if(!apicall) { setActiveMenu(vars, MNU_USERS); }
 
-	if(strcmp(getParam(params, "action"), "Save As") == 0) { cs_strncpy(user, getParam(params, "newuser"), sizeof(user)); }
-	else { cs_strncpy(user, getParam(params, "user"), sizeof(user)); }
+	if(strcmp(getParam(params, "action"), "Save As") == 0) { cs_strncpy(user, getParam(params, "newuser"), sizeof(user) / sizeof(char)); }
+	else { cs_strncpy(user, getParam(params, "user"), sizeof(user) / sizeof(char)); }
 
 	account = NULL;
 	for(chk = cfg.account; chk != NULL; chk = chk->next)
@@ -3619,9 +3561,7 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 	{
 		tpl_printf(vars, TPLADD, "PENALTYVALUE", "%d", account->ac_penalty);
 	}
-	tpl_printf(vars, TPLADD, "ACOSC_MAX_ECMS_PER_MINUTE", "%d", account->acosc_max_ecms_per_minute);
 	tpl_printf(vars, TPLADD, "ACOSC_MAX_ACTIVE_SIDS", "%d", account->acosc_max_active_sids);
-	tpl_printf(vars, TPLADD, "CFG_ACOSC_MAX_ECMS_PER_MINUTE", "%d", cfg.acosc_max_ecms_per_minute);
 	tpl_printf(vars, TPLADD, "CFG_ACOSC_MAX_ACTIVE_SIDS", "%d", cfg.acosc_max_active_sids);
 	tpl_printf(vars, TPLADD, "ACOSC_ZAP_LIMIT", "%d", account->acosc_zap_limit);
 	tpl_printf(vars, TPLADD, "CFG_ACOSC_ZAP_LIMIT", "%d", cfg.acosc_zap_limit);
@@ -3646,9 +3586,6 @@ static char *send_oscam_user_config_edit(struct templatevars *vars, struct uripa
 				break;
 			case 3:
 				tmp = "(3) CW delayed";
-				break;
-			case 4:
-				tmp = "(4) Hidecards";
 				break;
 		}
 		tpl_addVar(vars, TPLADD, "CFG_ACOSC_PENALTY", tmp);
@@ -4655,34 +4592,9 @@ static char *send_oscam_entitlement(struct templatevars *vars, struct uriparams 
 
 					tpl_addVar(vars, TPLAPPEND, "LOGHISTORY", "<BR><BR>New Structure:<BR>");
 					char tbuffer[83];
-#ifdef WITH_EMU
-					char keyBuffer[1024];
-#endif
 					int jsondelimiter = 0;
 					while((item = ll_iter_next(&itr)))
 					{
-#ifdef WITH_EMU
-						if(item->isKey)
-						{
-							tpl_addVar(vars, TPLADD, "ENTSTARTDATE", "");
-							tpl_addVar(vars, TPLADD, "ENTENDDATE", "");
-							cs_hexdump(0, item->key, item->keyLength, keyBuffer, sizeof(keyBuffer));
-							tpl_addVar(vars, TPLADD, "ENTEXPIERED", "e_valid");
-							tpl_printf(vars, TPLADD, "ENTCAID", "%04X", item->caid);
-							tpl_printf(vars, TPLADD, "ENTPROVID", "%08X", item->provid);
-							tpl_addVar(vars, TPLADD, "ENTID", item->name);
-							tpl_addVar(vars, TPLADD, "ENTCLASS", keyBuffer);
-							if(item->isData) { tpl_addVar(vars, TPLADD, "ENTTYPE", "data"); }
-							else { tpl_addVar(vars, TPLADD, "ENTTYPE", "key"); }
-							tpl_addVar(vars, TPLADD, "ENTRESNAME", "");
-
-							if((strcmp(getParam(params, "hideexpired"), "1") != 0) || (item->end > now))
-								{ tpl_addVar(vars, TPLAPPEND, "READERENTENTRY", tpl_getTpl(vars, "ENTITLEMENTITEMBIT")); }
-
-							continue;
-						}
-#endif
-
 						localtime_r(&item->start, &start_t);
 						localtime_r(&item->end, &end_t);
 
@@ -5172,9 +5084,6 @@ static char *send_oscam_status(struct templatevars * vars, struct uriparams * pa
 #else
 						filtered = (type == cl->typ);
 #endif
-#ifdef WITH_EMU
-						if(type == 'e' && cl->typ == 'r' && cl->reader->typ == R_EMU) filtered = 1;
-#endif
 					}
 				}
 
@@ -5422,9 +5331,9 @@ static char *send_oscam_status(struct templatevars * vars, struct uriparams * pa
 								tpl_addVar(vars, TPLADD, "LBLVALUE", xml_encode(vars, cl->lastreader));
 								if(strstr(cl->lastreader, " (cache)"))
 								{
-									char lastreader_tmp[strlen(cl->lastreader) - 8];
+									char lastreader_tmp[strlen(cl->lastreader)-8];
 									tpl_addVar(vars, TPLADD, "CLIENTLBVALUE", tpl_getVar(vars, "LBLRPSTRVALUE"));
-									cs_strncpy(lastreader_tmp, cl->lastreader, sizeof(lastreader_tmp));
+									strncpy(lastreader_tmp, cl->lastreader, strlen(cl->lastreader)-8);
 									tpl_addVar(vars, TPLADD, "LBLVALUEENC", urlencode(vars, lastreader_tmp));
 									tpl_addVar(vars, TPLADD, "LBLVALUETITLE", xml_encode(vars, lastreader_tmp));
 								}
@@ -6674,9 +6583,6 @@ static char *send_oscam_files(struct templatevars * vars, struct uriparams * par
 		{ "expired.info",    MNU_GBX_FEXPINF,   FTYPE_GBOX },     // id 28
 		{ "info.log",        MNU_GBX_INFOLOG,   FTYPE_GBOX },     // id 29
 #endif
-#ifdef WITH_EMU
-		{ "SoftCam.Key",     MNU_CFG_FSOFTCAMKEY,FTYPE_CONFIG },  // id 30
-#endif
 		{ NULL, 0, 0 },
 	};
 
@@ -7143,11 +7049,7 @@ static char *send_oscam_EMM_running(struct templatevars * vars, struct uriparams
 		else if(!proxy && rdr->csystem_active)     // local active reader
 		{
 			csystem = rdr->csystem;
-
-			if(rdr->typ != R_EMU)
-			{
-				caid = rdr->caid;
-			}
+			caid = rdr->caid;
 		}
 
 		if(csystem)
@@ -8180,11 +8082,8 @@ static int32_t readRequest(FILE * f, IN_ADDR_T in, char **result, int8_t forcePl
 		memcpy(*result + bufsize, buf2, n);
 		bufsize += n;
 
-#ifdef WITH_EMU
-		if(bufsize > 204800) // max request size 200kb
-#else
-		if(bufsize > 102400) // max request size 100kb
-#endif
+		//max request size 100kb
+		if(bufsize > 102400)
 		{
 			cs_log("error: too much data received from %s", cs_inet_ntoa(in));
 			NULLFREE(*result);

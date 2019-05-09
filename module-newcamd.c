@@ -919,13 +919,6 @@ static int8_t newcamd_auth_client(IN_ADDR_T ip, uint8_t *deskey)
 			// set userfilter for au enabled clients
 			if(aureader)
 			{
-#ifdef WITH_EMU
-				if(aureader->typ == R_EMU)
-				{
-					usr_filter = *get_emu_prids_for_caid(aureader, cfg.ncd_ptab.ports[cl->port_idx].ncd->ncd_ftab.filts[0].caid);
-				}
-				else
-#endif
 				mk_user_au_ftab(aureader, &usr_filter);
 			}
 
@@ -980,7 +973,7 @@ static int8_t newcamd_auth_client(IN_ADDR_T ip, uint8_t *deskey)
 					int32_t k, found;
 					uint32_t rprid;
 					found = 0;
-					if(pufilt->caid == aureader->caid && aureader->typ != R_EMU)
+					if(pufilt->caid == aureader->caid)
 					{
 						for(k = 0; (k < aureader->nprov); k++)
 						{
@@ -1006,7 +999,6 @@ static int8_t newcamd_auth_client(IN_ADDR_T ip, uint8_t *deskey)
 							}
 						}
 					}
-
 					if(!found)
 					{
 						mbuf[22 + 11 * j] = 0x00;
