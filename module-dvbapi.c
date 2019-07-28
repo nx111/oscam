@@ -2671,20 +2671,13 @@ int32_t dvbapi_start_descrambling(int32_t demux_id, int32_t pid, int8_t checked,
 				demux[demux_id].ECMpids[pid].VPID);
 
 			demux[demux_id].curindex = pid; // set current pid to the fresh started one
-			uint32_t table = 0x80;
-			uint32_t mask = 0xF0;
-			if(caid_is_dvn(demux[demux_id].ECMpids[pid].CAID)){
-				table = 0x50;
-				mask = 0xFF;
-			}
-
 			dvbapi_start_filter(demux_id,
 						pid,
 						demux[demux_id].ECMpids[pid].ECM_PID,
 						demux[demux_id].ECMpids[pid].CAID,
 						demux[demux_id].ECMpids[pid].PROVID,
-						table,
-						mask,
+						0x80,
+						0xF0,
 						3000,
 						TYPE_ECM);
 
@@ -2727,13 +2720,19 @@ int32_t dvbapi_start_descrambling(int32_t demux_id, int32_t pid, int8_t checked,
 			}
 
 			demux[demux_id].curindex = pid; // set current pid to the fresh started one
+			uint32_t table = 0x80;
+			uint32_t mask = 0xF0;
+			if(caid_is_dvn(demux[demux_id].ECMpids[pid].CAID)){
+				table = 0x50;
+				mask = 0xFF;
+			}
 			dvbapi_start_filter(demux_id,
 						pid,
 						demux[demux_id].ECMpids[pid].ECM_PID,
 						demux[demux_id].ECMpids[pid].CAID,
 						demux[demux_id].ECMpids[pid].PROVID,
-						0x80,
-						0xF0,
+						table,
+						mask,
 						3000,
 						TYPE_ECM);
 
