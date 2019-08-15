@@ -817,6 +817,23 @@ static void cccam_port_fn(const char *token, char *value, void *UNUSED(setting),
 	free_mk_t(value);
 }
 
+static void cc_cfgfile_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
+{
+	if(value)
+	{
+		if (strcmp(value,"(null)"))
+		{
+			cfg.cc_cfgfile = value;
+		}
+		return;
+	}
+	if(cfg.cc_cfgfile && strcmp(cfg.cc_cfgfile,"(null)"))
+	{
+		fprintf_conf(f, token, "%s\n", cfg.cc_cfgfile);
+	}
+	free_mk_t(value);
+}
+
 static bool cccam_should_save_fn(void *UNUSED(var))
 {
 	return cfg.cc_port[0];
@@ -838,7 +855,7 @@ static const struct config_list cccam_opts[] =
 	DEF_OPT_INT8("minimizecards"      , OFS(cc_minimize_cards)     , 0),
 	DEF_OPT_INT8("keepconnected"      , OFS(cc_keep_connected)     , 1),
 	DEF_OPT_UINT32("recv_timeout"     , OFS(cc_recv_timeout)       , DEFAULT_CC_RECV_TIMEOUT),
-	DEF_OPT_STR("cccfgfile"           , OFS(cc_cfgfile)            , NULL),
+	DEF_OPT_FUNC("cccfgfile"          , OFS(cc_cfgfile)            , cc_cfgfile_fn),
 	DEF_OPT_INT32("autosidblock"      , OFS(cc_autosidblock)       , 1),
 	DEF_LAST_OPT
 };
