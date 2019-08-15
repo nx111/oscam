@@ -268,7 +268,9 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	struct twofish_ctx ctx;
 
 	if((hist_size < 14) || (memcmp(hist,"FLASH ATR DVB TESTING", 21) && memcmp(hist, "DVN TECH", 8) != 0)) { return ERROR; }
-	reader->cas_version = (hist[12] - 0x30) * 10 + hist[13] - 0x30;
+	if(reader->cas_version < 10) {
+		reader->cas_version = (hist[12] - 0x30) * 10 + hist[13] - 0x30;
+	}
 
 	rdr_log(reader, "DVN Jetcas version %d.%d card detect",reader->cas_version / 10, reader->cas_version % 10);
 	reader->caid = 0x4A30;

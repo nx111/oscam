@@ -72,15 +72,17 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	get_atr;
 	def_resp;
 
-	if (atr_size == 8 && atr[0] == 0x3B && atr[1] == 0x64) {
-		reader->cas_version = 1;
-	} else if (atr_size > 9 && atr[0] == 0x3B && (atr[1] & 0xF0) == 0x60 && 0 == memcmp(atr + 4, "NTIC", 4)) {
-		reader->cas_version = atr[8] - 0x30 + 1;
-	} else if ((atr_size == ((uint32_t)(atr[1] & 0x0F) + 4)) && (atr[0] == 0x3B)
-			&& ((atr[1] & 0xF0) == 0x60) && (atr[2] == 0x00) && ((atr[3] & 0xF0) == 0x00)) {
-		reader->cas_version = 2;
-	} else {
-		return ERROR; //not yxsb/yxtf
+    if (reader->cas_version == 0) {
+		if (atr_size == 8 && atr[0] == 0x3B && atr[1] == 0x64) {
+			reader->cas_version = 1;
+		} else if (atr_size > 9 && atr[0] == 0x3B && (atr[1] & 0xF0) == 0x60 && 0 == memcmp(atr + 4, "NTIC", 4)) {
+			reader->cas_version = atr[8] - 0x30 + 1;
+		} else if ((atr_size == ((uint32_t)(atr[1] & 0x0F) + 4)) && (atr[0] == 0x3B)
+				&& ((atr[1] & 0xF0) == 0x60) && (atr[2] == 0x00) && ((atr[3] & 0xF0) == 0x00)) {
+			reader->cas_version = 2;
+		} else {
+			return ERROR; //not yxsb/yxtf
+		}
 	}
 
 	reader->caid = 0x4A02;

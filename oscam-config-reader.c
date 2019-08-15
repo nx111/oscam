@@ -1163,7 +1163,7 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_FUNC("caid"                           , OFS(ctab),                            reader_caid_fn),
 	DEF_OPT_FUNC("atr"                            , 0,                                    atr_fn),
 	DEF_OPT_FUNC("boxid"                          , 0,                                    boxid_fn),
-#ifdef READER_STREAMGUARD
+#if defined(READER_STREAMGUARD) || defined(READER_TONGFANG) || defined(READER_JET)
 	DEF_OPT_UINT32("cas_version"                  , OFS(cas_version),                     0),
 #endif
 #ifdef  READER_TONGFANG
