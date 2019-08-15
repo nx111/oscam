@@ -72,7 +72,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 	get_atr;
 	def_resp;
 
-    if (reader->cas_version == 0) {
+    if (!(reader->cas_version & 0x010000)) {
 		if (atr_size == 8 && atr[0] == 0x3B && atr[1] == 0x64) {
 			reader->cas_version = 1;
 		} else if (atr_size > 9 && atr[0] == 0x3B && (atr[1] & 0xF0) == 0x60 && 0 == memcmp(atr + 4, "NTIC", 4)) {
@@ -84,6 +84,8 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 			return ERROR; //not yxsb/yxtf
 		}
 	}
+
+	uint32_t cas_version = reader->cas_version & 0x00FFFFL;
 
 	reader->caid = 0x4A02;
 	reader->nprov = 1;
@@ -97,13 +99,13 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		}
 	}
 
-	if(reader->cas_version <= 2){	//tongfang 1-2
+	if(cas_version <= 2){	//tongfang 1-2
 		write_cmd(get_ppua_cmdv1, get_ppua_cmdv1 + 5);
 		if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00))
 		{
 			return ERROR;
 		}
-		rdr_log(reader, "Tongfang %d card detected", reader->cas_version);
+		rdr_log(reader, "Tongfang %d card detected", cas_version);
 		//get card serial
 		if(atr[8] == 0x31){	//degrade card from version 3
 			write_cmd(get_serial_cmdv2, get_serial_cmdv2 + 5);
@@ -153,7 +155,7 @@ static int32_t tongfang_card_init(struct s_reader *reader, ATR *newatr)
 		}
 
 	}
-	else if(reader->cas_version == 3){	//tongfang 3
+	else if(cas_version == 3){	//tongfang 3
 		write_cmd(get_ppua_cmdv3, get_ppua_cmdv3 + 5);
 		if((cta_res[cta_lr - 2] & 0xf0) != 0x60)
 		{
@@ -289,6 +291,7 @@ static int32_t tongfang_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, s
 	size_t read_size = 0;
 	size_t data_len = 0;
 	uint16_t status = 0;
+	uint32_t cas_version = reader->cas_version & 0x00FFFFL;
 
 	def_resp;
 	if(cs_malloc(&tmp, er->ecmlen * 3 + 1))
@@ -378,7 +381,7 @@ static int32_t tongfang_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, s
 		return ERROR;
 	}
 
-	if(reader->cas_version >= 3){
+	if(cas_version >= 3){
 		des_ecb_encrypt(ea->cw, reader->tongfang3_commkey, 8);
 		des_ecb_encrypt(ea->cw + 8, reader->tongfang3_commkey, 8);
 	}

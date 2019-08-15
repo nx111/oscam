@@ -2824,7 +2824,8 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	if(rdr->detect_seca_nagra_tunneled_card)
 		{ tpl_addVar(vars, TPLADD, "NAGRADETECTSECACARDCHECKED", "checked"); }
 #ifdef READER_STREAMGUARD
-	tpl_printf(vars, TPLADD, "CASVERSION",  "%d", rdr->cas_version);
+	tpl_printf(vars, TPLADD, "CASVERSION",  "%ld", rdr->cas_version & 0x00FFFFL);
+	tpl_printf(vars, TPLADD, "CASVERSIONFIXED",  (rdr->cas_version & 0x010000L) ? "checked" : "");
 #endif
 #ifdef READER_TONGFANG
 	if(rdr->tongfang3_calibsn)

@@ -268,11 +268,13 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	struct twofish_ctx ctx;
 
 	if((hist_size < 14) || (memcmp(hist,"FLASH ATR DVB TESTING", 21) && memcmp(hist, "DVN TECH", 8) != 0)) { return ERROR; }
-	if(reader->cas_version < 10) {
+	if(!(reader->cas_version & 0x010000)) {
 		reader->cas_version = (hist[12] - 0x30) * 10 + hist[13] - 0x30;
 	}
 
-	rdr_log(reader, "DVN Jetcas version %d.%d card detect",reader->cas_version / 10, reader->cas_version % 10);
+	uint32_t cas_version = reader->cas_version & 0x00FFFFL;
+
+	rdr_log(reader, "DVN Jetcas version %d.%d card detect",cas_version / 10, cas_version % 10);
 	reader->caid = 0x4A30;
 	reader->nprov = 1;
 	memset(reader->prid, 0x00, sizeof(reader->prid));
@@ -280,7 +282,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	if(reader->boxkey_length != 32)
 		memset(reader->boxkey, 0xEE, 32);
 
-	if(reader->cas_version <= 52){
+	if(cas_version <= 52){
 		for(i = 0; i < 32; i++)
 			reader->jet_vendor_key[i] = i;
 	}
@@ -292,7 +294,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	memcpy(reader->hexserial, cta_res + 9, 8);
 	rdr_log_dump(reader, cta_res +9 , 8,  "serial step1,SN");
 
-	if(reader->cas_version >= 53){
+	if(cas_version >= 53){
 		//get root key
 		jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get rootkey");
 		memcpy(temp, cta_res + 5, cta_res[4]);
@@ -364,11 +366,11 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	pairing_cmd02[36] = 0x01;
 	for(i = 37;i < 45; i++)
 		pairing_cmd02[i] = 0x30;
-	if(reader->cas_version >= 5)
+	if(cas_version >= 5)
 		memcpy(pairing_cmd02 + 45, reader->jet_derive_key + 45, 8);
 	jet_write_cmd_hold(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing step 2");
 
-	if(reader->cas_version <= 52){
+	if(cas_version <= 52){
 		for( i = 1; i <= 7; i++){
 			memcpy(cmd_buf, confirm_box_cmd, sizeof(confirm_box_cmd));
 			cmd_buf[0] = 0x38;
@@ -426,7 +428,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
 	memcpy(reader->hexserial, buf + 4, 8);
 
-	if(reader->cas_version >= 53){
+	if(cas_version >= 53){
 		//confirm box 2
 		confirm_box_cmd[4] = 0x10;
 		jet_write_cmd_hold(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm box step 2");
@@ -453,6 +455,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 	int ecm_len;
 	char * tmp;
 	static uint32_t count_for_resync_vendorkey = 0;
+	uint32_t cas_version = reader->cas_version & 0x00FFFFL;
 
 	def_resp;
 
@@ -474,7 +477,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 	}
 
 	offset = 0;
-	if(reader->cas_version <= 52){
+	if(cas_version <= 52){
 		ecm_len = len - 13;
 		len = len + 25;
 	}
@@ -495,12 +498,12 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 		cmd[0] = 0x1F;
 	else if(ecm[8 - offset] == 3)
 		cmd[0] = 0x1E;
-	else if(reader->cas_version >= 5 && (ecm[8 - offset] & 0x7F) == 4 && ecm[2] == 0x9E)
+	else if(cas_version >= 5 && (ecm[8 - offset] & 0x7F) == 4 && ecm[2] == 0x9E)
 		cmd[0] = 0x1F;
 	else
 		cmd[0] = 0x1B;
 
-	if(reader->cas_version <= 52)
+	if(cas_version <= 52)
 		cmd[1] = 0xA2;
 	else
 		cmd[1] = 0xB2;
@@ -509,7 +512,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 	memcpy(cmd + 4 + ecm_len, reader->boxkey, 32);
 	cmd[ecm_len + 36] = ecm[10 - offset] ^ ecm[138 - offset];
 	cmd[ecm_len + 37] = ecm[11 - offset] ^ ecm[139 - offset];
-	if(reader->cas_version >= 5)
+	if(cas_version >= 5)
 		memcpy(cmd + ecm_len + 38, reader->jet_service_key, 8);
 	jet_write_cmd(reader, cmd, len, 0x16, "parse ecm");
 	if(cta_lr < 27){
@@ -531,7 +534,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 		return ERROR;
 	}
 
-	if(reader->cas_version >= 40 && reader->jet_resync_vendorkey){
+	if(cas_version >= 40 && reader->jet_resync_vendorkey){
 		count_for_resync_vendorkey++;
 		if(count_for_resync_vendorkey > 48)
 		{
@@ -588,6 +591,8 @@ static int32_t jet_card_info(struct s_reader *reader)
 	uint8_t buf[256];
 	int entitlements_count = 0;
 	int i,page=0;
+	uint32_t cas_version = reader->cas_version & 0x00FFFFL;
+
 	def_resp;
 
 	struct twofish_ctx ctx;
@@ -606,7 +611,7 @@ static int32_t jet_card_info(struct s_reader *reader)
 	memcpy(get_entitlements_cmd2 + 7, reader->boxkey, 32);
 	get_entitlements_cmd2[39] = 0x01;
 	for(i = 40; i < 48; i++)
-		get_entitlements_cmd2[i] = reader->cas_version < 40 ? 0x09 : 0x30;
+		get_entitlements_cmd2[i] = cas_version < 40 ? 0x09 : 0x30;
 	memcpy(get_entitlements_cmd2 + 48, reader->jet_authorize_id, 8);
 	for(i=0; i < entitlements_count; page++){
 		get_entitlements_cmd2[6] = page;
