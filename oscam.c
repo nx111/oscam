@@ -1696,6 +1696,7 @@ static void find_conf_dir(void)
 			"/var/etc/oscam/",
 			"/var/etc/",
 			"/var/oscam/",
+			"/etc/oscam/",
 			"/config/oscam/",
 			NULL
 		};
