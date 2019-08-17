@@ -227,6 +227,7 @@ static void boxid_fn(const char *token, char *value, void *setting, FILE *f)
 		{ fprintf_conf(f, token, "\n"); }
 }
 
+#if defined(READER_STREAMGUARD) || defined(READER_TONGFANG) || defined(READER_JET)
 static void cas_version_fixed_fn(const char *UNUSED(token), char *value, void *setting, FILE *UNUSED(f))
 {
 	struct s_reader *rdr = setting;
@@ -241,6 +242,7 @@ static void cas_version_fixed_fn(const char *UNUSED(token), char *value, void *s
 		return;
 	}
 }
+#endif
 
 #ifdef READER_JET
 static void jet_authorize_id_fn(const char *token, char *value, void *setting, FILE *f)

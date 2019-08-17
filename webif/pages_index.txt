@@ -196,6 +196,7 @@ READERCONFIGHOPBIT            readerconfig/readerconfig_hopbit.html             
 READERCONFIGSTDHWREADERBIT    readerconfig/readerconfig_hwreader.html                     WITH_CARDREADER
 READERCONFIGCRYPTOWORKS       readerconfig/readerconfig_hwreader_cryptoworks.html         READER_CRYPTOWORKS
 READERCONFIGBOXKEY            readerconfig/readerconfig_hwreader_boxkey.html              READER_NAGRA,READER_IRDETO,READER_SECA,READER_VIACCESS
+READERCONFIGCASVERSION        readerconfig/readerconfig_hwreader_casversion.html          READER_JET,READER_STREAMGUARD,READER_TONGFANG
 READERCONFIGIRDETO            readerconfig/readerconfig_hwreader_irdeto.html              READER_IRDETO
 READERCONFIGNAGRA             readerconfig/readerconfig_hwreader_nagra.html               READER_NAGRA
 READERCONFIGNAGRACAK7         readerconfig/readerconfig_hwreader_nagracak7.html           READER_NAGRA_MERLIN
@@ -208,7 +209,6 @@ READERCONFIGSMARGO            readerconfig/readerconfig_hwreader_smargo.html    
 READERCONFIGVIACCESS          readerconfig/readerconfig_hwreader_viaccess.html            READER_VIACCESS
 READERCONFIGDRE               readerconfig/readerconfig_hwreader_dre.html                 READER_DRE
 READERCONFIGVIDEOGUARD        readerconfig/readerconfig_hwreader_videoguard.html          READER_VIDEOGUARD
-READERCONFIGSTREAMGUARD       readerconfig/readerconfig_hwreader_streamguard.html         READER_STREAMGUARD
 READERCONFIGTONGFANG          readerconfig/readerconfig_hwreader_tongfang.html            READER_TONGFANG
 READERCONFIGJET               readerconfig/readerconfig_hwreader_jet.html                 READER_JET
 READERCONFIGLBWEIGHT          readerconfig/readerconfig_lbweight.html                     WITH_LB
