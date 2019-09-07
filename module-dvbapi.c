@@ -2184,7 +2184,7 @@ static void dvbapi_parse_cat_ca_descriptor(int32_t demux_id, const uint8_t *buff
 		case 0x27:
 		case 0x4A:
 		{
-			if(caid_is_bulcrypt(ca_system_id))
+			if(!caid_is_dre(ca_system_id))
 			{
 				dvbapi_add_emmpid(demux_id, ca_system_id, ca_pid, 0, 0, EMM_UNIQUE | EMM_SHARED | EMM_GLOBAL);
 				break;
