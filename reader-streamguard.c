@@ -611,10 +611,6 @@ static int32_t streamguard_card_info(struct s_reader *reader)
 				localtime_r(&start_t, &tm_start);
 				localtime_r(&end_t, &tm_end);
 				localtime_r(&subscription_t, &tm_subscription);
-				if(tm_subscription.tm_year >= 117){
-					tm_end.tm_year += 1;
-					end_t = cs_timegm(&tm_end);
-				}
 
 				strftime(subscription_day, sizeof(subscription_day), "%Y-%m-%d %H:%M:%S", &tm_subscription);
 				strftime(start_day, sizeof(start_day), "%Y-%m-%d %H:%M:%S", &tm_start);
