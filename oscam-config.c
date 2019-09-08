@@ -1585,11 +1585,14 @@ void * read_cccamcfg(int32_t mode)
 	int32_t port,ret;
 	int32_t caid,prid;
 
+	if(!cfg.cc_cfgfile || (mode != CCCAMCFGREADER && mode != CCCAMCFGUSER))
+		return NULL;
+
+	if (!strncmp(cfg.cc_cfgfile, "(null)", 6))
+		return NULL;
+
 	if(!readed_cccamcfg)
 		cs_log("load CCcam config file: %s",cfg.cc_cfgfile);
-
-	if(!cfg.cc_cfgfile || (mode != CCCAMCFGREADER && mode != CCCAMCFGUSER))
-			return NULL;
 
 	readed_cccamcfg=1;
 
