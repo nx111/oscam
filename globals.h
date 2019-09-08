@@ -2505,7 +2505,7 @@ static inline bool caid_is_betacrypt(uint16_t caid) { return caid >> 8 == 0x17; 
 static inline bool caid_is_nagra(uint16_t caid) { return caid >> 8 == 0x18; }
 static inline bool caid_is_bulcrypt(uint16_t caid) { return caid == 0x5581 || caid == 0x4AEE; }
 static inline bool caid_is_dre(uint16_t caid) { return caid == 0x4AE0 || caid == 0x4AE1 || caid == 0x2710;}
-static inline bool caid_is_streamguard(uint16_t caid) { return caid == 0x4AD2; }
+static inline bool caid_is_streamguard(uint16_t caid) { return caid == 0x4AD2 || caid == 0x4AD3; }
 static inline bool caid_is_dvn(uint16_t caid) { return caid == 0x4A30; }
 static inline bool caid_is_tongfang(uint16_t caid) { return (caid == 0x4A02) || (caid >= 0x4B00 && caid <= 0x4BFF); }
 const char *get_cardsystem_desc_by_caid(uint16_t caid);
