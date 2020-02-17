@@ -1,4 +1,56 @@
-96c53 fix a small warning.
+9bb36 update build scripts for ubuntu 20.04.
+0868b Revert "- More fix for malformed ecm request as described in ticket 4760"
+7d5c7 Revert "- Newcamd: Corrected brain fart commit (zero check was even already present)"
+bab5f Revert "Fix: valid section length is minimal 4"
+71e56 - fix for BSkyB 0963 - fix ticket #4764
+c233d  - NDS DES/3DES Overcrypt support  - fix bug for wrong decoded classD3 CMD's  - improved Sky DE/CH/AT V14/V15 payload log output  - patch provided by kabeltod
+f8274 [webif ssl]  - fix certificate chain loading  - fix for ticket #4573  - patch provided by @delilah23
+e8fc9 Attempt to count descramblers used properly
+b3505 remove unused build script file for openwrt i486.
+b8cfd - Fix for descramblers used not 100% fixed but it is more accurate than before
+69ecd - More fix for dvbapi client v3
+4ef25 HD+ HD05 Card support (tnx pehedima for patch!)
+e05d6 - More tryfix socketdata handling
+59c19 - Small fix
+9f442 - More tryfix for dvbapi client protocol 3
+ad54c - Tryfix for ticket 4759
+cce0e [dvbapi] Always regard stream_type 0x81 as audio (ac3) without looking for the ac3_descriptor
+f7207 - Remove more dvbapi logspam
+87238 Fix: valid section length is minimal 4
+d94d8 - Newcamd: Corrected brain fart commit (zero check was even already present) - Camd35: Add protection against empty ecms
+28649 - More fix for malformed ecm request as described in ticket 4760
+8eef1 - Refactor handling of command packages - Add generic command package dump to assist in debugging - Remove the now superfluous dumps that were thrown while processing the commands
+bdf0b - Add generic hardening against empty ecm. It makes no sense to process empty ecms at all!
+41ac1 - Implement changes needed as researched by t5b6_de for dvbapi client protocol V3
+8dc84 - More fix due to bad refactoring commits
+c62f6 [gbx remm] - allow remm request for unknown emm [gbx] - dont send via issuer as peer card
+e89c3 - Tryfix regression due to furious refactoring without unittests
+f74fe - Final refactoring step of dvbapi_get_packet_size()
+3e63e - More furious refactoring since I still wasnt happy with the resulting code!
+f1fb6 - Just refactoring due to investigating an issue with CAPMT parsing
+81498 [gbx remm] - fix card not updated if entitlements are expired - new gbox reader parameter 'force_remm' - dont send same successive remm twice
+64726 scripts: fix pass config dir error by start-stop-daemon command.
+d922b streamguard: fix entitlements in webif.
+e5cad Revert "update cc_cfgfile config reading/writing."
+f2e68 dvbapi: refix playing program break out for streamguard.
+b4e8f fix link static librt issue.
+40f82 dvbapi: add emmpid for more 0x4A CAID
+b1fde [gbox] Cosmetics
+53fe8 Replaced strncpy() with cs_strncpy() in a few places
+2923c [dvbapi] Added more PMT audio descriptors
+b4fb5 [dvbapi] Cosmetics and minor optimizations
+63072 [dvbapi] CAT filtering optimizations
+d36df [dvbapi] Display service name when zapping
+2abcb [dvbapi] SDT parsing optimizations
+c45d2 [dvbapi] Added option to enable/disable ecm.info file creation
+32cc3 [documentation] Whitespace cleanup
+60049 cas_version just for jet/streamguard/tongfang.
+34c1a add /etc/oscam for config dir.
+80352 refine that not calculate cas_version when set value manual.
+fd23c update cc_cfgfile config reading/writing.
+74655 fix cmake system name for openwrt.
+7cfb5 tongfang/jet/streamguard: auto calucate cas_version when not setup.
+a247f fix a small warning.
 ee93b support compile for openwrt x86/x86_64.
 d12f1 [dvbapi] Reworked "ca_pmt_cmd_id" skipping logic
 d88e4 [dvbapi] Fixed "ca_pmt_cmd_id" value for PMT files
@@ -46,55 +98,3 @@ a8bdc part 2.
 708a6 first part of the rework on dvbapi to incrase the amount of descramblers
 14dff change tab / spaces
 a9776 switch to cbc and fix oscam-string.x
-535e3 first part of the rework on dvbapi to incrase the amount of descramblers
-e8ae3 change tab / spaces
-3e176 switch to cbc and fix oscam-string.x
-8d245 irdeto: remove unnecessary condition.
-2c939 dont overwrite demux_index if demuxid >0
-8626e dont overwrite demux_index if demuxid >0
-d6fb4 to make people be happy ...
-d5bc7 this patch includes:
-f15c6 -fix some bugs -insert hd03 and hd04 atr
-05c18 complete remove of cardlist.c + cardlist.h
-28d81 -this is expected to be the last cleanup patch
-7e348 this patch includes:
-dd43c -fix some bugs -insert hd03 and hd04 atr
-9ae57 complete remove of cardlist.c + cardlist.h
-1c4c7 -this is expected to be the last cleanup patch
-3f2dd fiy small inconsistencies in config.h/config.sh
-e186a fix bbuild for make & cmake disable writing of empty keys
-7a5de fiy small inconsistencies in config.h/config.sh
-a1e00 fix bbuild for make & cmake disable writing of empty keys
-5959b fix reset to wrong defaults
-6b5a4 -clean implementation of the card list -rarely used modules are set from default on to default off (no codechange just setup switch)
-f279d small acosc fix
-a74f5 fix reset to wrong defaults
-2c178 -clean implementation of the card list -rarely used modules are set from default on to default off (no codechange just setup switch)
-15a5d small acosc fix
-81915 small fix for build without webif
-1d330 small fix for build without webif
-72e4a old compiler dont like passive #pragma comments
-1eb4b eliminate build warnings by using the integrated function
-a44ce extended fix for orf global emm dont disable global emms or set in config blockemm-g = 0 caid 0x0D96 & 0x0D98
-e5730 old compiler dont like passive #pragma comments
-628ad eliminate build warnings by using the integrated function
-04f83 extended fix for orf global emm dont disable global emms or set in config blockemm-g = 0 caid 0x0D96 & 0x0D98
-e6ae5 fix last commit missing ;
-c230d some cleanups for newcamd and add script for git svn diff creation
-882ba streamguard: add more init command, and format code.
-8ad2d add patches on official oscam and emu.
-43695 streamguard: try to parse emm data.
-28e57 fix typo in mca build thanks sattotal
-38989 enhance function anticascading or SIDs count
-f610a Merge to r11486 from streamboard.tv (oscam emu r175).
-3c69c fix last commit missing ;
-6866a some cleanups for newcamd and add script for git svn diff creation
-3399c streamguard: code format.
-e11eb build: keep work files for debug.
-1f0ec streamguard: use md5 from cscrypt.
-ae78c streamguard: change the method of calculate cas_version.
-7b113 not link pcsclite when enabled dl.
-101f1 fix typo in mca build thanks sattotal
-3db97 enhance function anticascading or SIDs count
-2dd31 add UPC Hungary support & clean up http://www.streamboard.tv/wbb2/thread.php?postid=582474#post582474
-2c078 Fix NAN % in READERS ECM INFO
