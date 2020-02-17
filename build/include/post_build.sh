@@ -61,8 +61,7 @@ if [ -f $ROOT/build/.tmp/image${machine}/${OSCAM_TARGET} ]; then
 			echo "Building oscam-${plat}${libc}-r${svnver}${feature}-nx111-${compile_time}.ipk successed!"
 		fi
 	fi
-
-	tar czf $(dirname $builddir)/oscam-${plat}${libc}-r${svnver}${feature}-nx111-${compile_time}.tar.gz * --exclude=CONTROL
+	tar czf $(dirname $builddir)/oscam-${plat}${libc}-r${svnver}${feature}-nx111-${compile_time}.tar.gz  --exclude=CONTROL *
 	echo "Building oscam-${plat}${libc}-r${svnver}${feature}-nx111-${compile_time}.tar.gz successed!"
 fi
 [ -f $ROOT/history.txt.orig ] && mv $ROOT/history.txt.orig $ROOT/history.txt

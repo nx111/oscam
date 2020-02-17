@@ -8,7 +8,7 @@ TOOLCHAIN=x86_64-openwrt-linux
 TOOLCHAIN_ROOT=toolchain-x86_64_gcc-7.4.0_musl
 TOOCHAINFILE=toolchain-x86_64-openwrt.cmake
 TOOLCHAIN_STAGE=/work/dreambox/toolchains/x86_64-openwrt-gcc-7.4.0
-
+STAGING_DIR=$TOOLCHAIN_STAGE/$TOOLCHAIN_ROOT/bin
 #############################################
 curdir=`pwd`
 builddir=`cd $(dirname $0);pwd`
@@ -17,7 +17,7 @@ builddir=`cd $(dirname $0);pwd`
 ##############################################
 
 if  [ "$buildtype" = "inline" ]; then
-   PATH=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/bin:$PATH \
+   PATH=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/bin:$PATH STAGING_DIR=$TOOLCHAIN_STAGE/$TOOLCHAIN_ROOT/bin \
    cmake  -DCMAKE_TOOLCHAIN_FILE=$ROOT/toolchains/${TOOCHAINFILE}\
 	  -DOPTIONAL_INCLUDE_DIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/usr/include \
 	  -DOPENSSL_INCLUDE_DIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/usr/include \
@@ -35,7 +35,7 @@ if  [ "$buildtype" = "inline" ]; then
 	  -DWEBIF=1 $ROOT
    feature=-pcsc-ssl-inline
 else
-   PATH=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/bin:$PATH \
+   PATH=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/bin:$PATH STAGING_DIR=$TOOLCHAIN_STAGE/$TOOLCHAIN_ROOT/bin \
    cmake  -DCMAKE_TOOLCHAIN_FILE=$ROOT/toolchains/${TOOCHAINFILE}\
 	  -DOPTIONAL_INCLUDE_DIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/usr/include\
 	  -DOPENSSL_INCLUDE_DIR=${TOOLCHAIN_STAGE}/${TOOLCHAIN_ROOT}/usr/include\
