@@ -1,100 +1,100 @@
-9bb36 update build scripts for ubuntu 20.04.
-0868b Revert "- More fix for malformed ecm request as described in ticket 4760"
-7d5c7 Revert "- Newcamd: Corrected brain fart commit (zero check was even already present)"
-bab5f Revert "Fix: valid section length is minimal 4"
-71e56 - fix for BSkyB 0963 - fix ticket #4764
-c233d  - NDS DES/3DES Overcrypt support  - fix bug for wrong decoded classD3 CMD's  - improved Sky DE/CH/AT V14/V15 payload log output  - patch provided by kabeltod
-f8274 [webif ssl]  - fix certificate chain loading  - fix for ticket #4573  - patch provided by @delilah23
-e8fc9 Attempt to count descramblers used properly
-b3505 remove unused build script file for openwrt i486.
-b8cfd - Fix for descramblers used not 100% fixed but it is more accurate than before
-69ecd - More fix for dvbapi client v3
-4ef25 HD+ HD05 Card support (tnx pehedima for patch!)
-e05d6 - More tryfix socketdata handling
-59c19 - Small fix
-9f442 - More tryfix for dvbapi client protocol 3
-ad54c - Tryfix for ticket 4759
-cce0e [dvbapi] Always regard stream_type 0x81 as audio (ac3) without looking for the ac3_descriptor
-f7207 - Remove more dvbapi logspam
-87238 Fix: valid section length is minimal 4
-d94d8 - Newcamd: Corrected brain fart commit (zero check was even already present) - Camd35: Add protection against empty ecms
-28649 - More fix for malformed ecm request as described in ticket 4760
-8eef1 - Refactor handling of command packages - Add generic command package dump to assist in debugging - Remove the now superfluous dumps that were thrown while processing the commands
-bdf0b - Add generic hardening against empty ecm. It makes no sense to process empty ecms at all!
-41ac1 - Implement changes needed as researched by t5b6_de for dvbapi client protocol V3
-8dc84 - More fix due to bad refactoring commits
-c62f6 [gbx remm] - allow remm request for unknown emm [gbx] - dont send via issuer as peer card
-e89c3 - Tryfix regression due to furious refactoring without unittests
-f74fe - Final refactoring step of dvbapi_get_packet_size()
-3e63e - More furious refactoring since I still wasnt happy with the resulting code!
-f1fb6 - Just refactoring due to investigating an issue with CAPMT parsing
-81498 [gbx remm] - fix card not updated if entitlements are expired - new gbox reader parameter 'force_remm' - dont send same successive remm twice
-64726 scripts: fix pass config dir error by start-stop-daemon command.
-d922b streamguard: fix entitlements in webif.
-e5cad Revert "update cc_cfgfile config reading/writing."
-f2e68 dvbapi: refix playing program break out for streamguard.
-b4e8f fix link static librt issue.
-40f82 dvbapi: add emmpid for more 0x4A CAID
-b1fde [gbox] Cosmetics
-53fe8 Replaced strncpy() with cs_strncpy() in a few places
-2923c [dvbapi] Added more PMT audio descriptors
-b4fb5 [dvbapi] Cosmetics and minor optimizations
-63072 [dvbapi] CAT filtering optimizations
-d36df [dvbapi] Display service name when zapping
-2abcb [dvbapi] SDT parsing optimizations
-c45d2 [dvbapi] Added option to enable/disable ecm.info file creation
-32cc3 [documentation] Whitespace cleanup
-60049 cas_version just for jet/streamguard/tongfang.
-34c1a add /etc/oscam for config dir.
-80352 refine that not calculate cas_version when set value manual.
-fd23c update cc_cfgfile config reading/writing.
-74655 fix cmake system name for openwrt.
-7cfb5 tongfang/jet/streamguard: auto calucate cas_version when not setup.
-a247f fix a small warning.
-ee93b support compile for openwrt x86/x86_64.
-d12f1 [dvbapi] Reworked "ca_pmt_cmd_id" skipping logic
-d88e4 [dvbapi] Fixed "ca_pmt_cmd_id" value for PMT files
-c5c7d [dvbapi] Tryfix for various boxes not working after 11533
-594ce dvbapi: fix start descrambling for dvn.
-d7e0b [dvbapi] Fixed previous commit when WITH_EXTENDED_CW is enabled
-afbaf [dvbapi] Rewritten the CA PMT parsing code
-881e3 [dvbapi] Small fix to previous commit
-1baa6 [dvbapi] DVBAPI_CA_SET_DESCR_DATA struct was not sent correctly to network clients
-f1e83 [dvbapi] Fixed compilation with coolapi
-cfd17 bump svnrevision to 11529
-faf62 [dvbapi] Moved #define's to header file and made a few cosmetic changes
-14a23 [dvbapi] Moved parsing of CA descriptor to a separate function
-4d1fa [dvbapi] Moved reading of priority entries in separate functions
-6caf8 [dvbapi] When parsing PAT, save found PMT pid in the demuxer
-36fe7 [dvbapi] Changes to a couple of log messages
-9cf1c [dvbapi] Changed variable name (cosmetic)
-f11c9 - Revert 11522 and applied correct fix made by nautilus7
-9c328 Tryfix possible regression introduced in rev 11520
-de114 fix webif save issue with high var count
-a068e Added support for a higher number of demux devices in CA PMT
-d072c small cleanup
-33e2d update oscam-svn to r11518 and oscam-emu to 796.
-9218a merge oscam-emu to r796.
-c219e DVBAPI: Fixed bug in dvbapi not releasing used descramblers in stapi, coolapi and gxapi boxes Increased MAX_STREAM_INDICES back to 32 (it must be equal to MAX_STREAM_PIDS) Modified the get_emm_filter_adv() function to accept more arguments
-d7a92 enable sc8in1 and smargo.
-227d4 - fix bug in disablecrccws_only_for also in cacheex - general disable checksum correction code optimization
-0d052 fix bug in disablecrccws_only_for
-91a55 small fix to the open() call when we get the descrambler count from the box
-0e17e remove duplicate debug dump of er->ecm
-f2cb3 fix building incrase MAX_ECM_PIDS, MAX_EMM_PIDS and CA_MAX
-f47e1 fixed the problem and oscam-emu can now be built with static libcrypto
-dd4c7 3.part of dvb api changes
-3d471 small text typo fixes
-c7531 part 2.
-8a784 - fix bug in disablecrccws_only_for also in cacheex - general disable checksum correction code optimization
-255c5 fix bug in disablecrccws_only_for
-690be small fix to the open() call when we get the descrambler count from the box
-79f81 remove duplicate debug dump of er->ecm
-95eaa fix building incrase MAX_ECM_PIDS, MAX_EMM_PIDS and CA_MAX
-488ee fixed the problem and oscam-emu can now be built with static libcrypto
-637f9 3.part of dvb api changes
-e11ba small text typo fixes
-a8bdc part 2.
-708a6 first part of the rework on dvbapi to incrase the amount of descramblers
-14dff change tab / spaces
-a9776 switch to cbc and fix oscam-string.x
+e2f2c confnig.sh: git log use topo-order.
+8fa2b Merge to r11603 from 'https://svn.streamboard.tv/oscam/trunk‘
+684bc next build fix
+456df next build fix
+5afa7 fix build module-monitor.c
+2b6d6 fix stapi build
+d2a18 fix stapi5 build
+35ff1 fix small monitor build error
+fd0b2 small fix for (lg) detection
+2679b module-monitor.c build Fix
+8751b fix for reset readerstats @webif thnx to uf2k fix for client send cmd 0x50 after server restart fix client au + client auth
+1f6ad small fix for webif
+fdb6d webif cache-size / reader page for lg-flagged CWs
+7bdf2 add missing range from RFC 1597 https://tools.ietf.org/html/rfc1597
+600d3 fix camd35/ext mode
+53b50 update wiki links
+2132f restore config.h to 11580
+ec8da redo fixed version
+b8fa1 w33dburn buildfix
+4c992 fix build without cacheex
+b5b4c this is an extension for cacheex and only for this !!! it does not change any other aspects of oscam
+75624 Merge from 'http://www.streamboard.tv/svn/oscam'
+46e22 small fix for CAK7 Cards HD03/04/05 refresh valid to date
+67ff7 Commit patch that fixes some URL's from ticket #4800
+355ad [gbx] - repeat to ask all gbox readers again during fallback time - thx to @chimpie232 for providing the patch
+78039 - fix for ticker #4787
+59bbd update wiki URL
+2e6e4 Revision 11393 introduced sharing instability side effect. My fix is rather lame since it restores the old behavior in case the nodeid is lower than 0x7fffffffff
+06f18 - rework code ref gbox_maxecmsend - fix for ticket #4780 - change default to 5 - clean up some ecm stuff
+67a7e cak7 - fix HD03/05 CMD Overflow - patch provided by @pehedima - should fix ticket #4777 - remove some DOS CRLFs in oscam.work.c
+9a7f0 [gbx] - more generalized routing info in cw msg - fix minor bugs - thanks @chimpie23
+601d6 - cak7 - fix caid 0000 and all other known issues - no config change required - patch provided by @pehedima
+89bba [gbx] - fix ccc->gbox reshare [gbx] - add caidtab as reshare setting
+05809 [gbx] - try fix ecm and cw messages - fix ecmfmt g,j parameters [dvbapi] - add ecm.info gbox style
+4f26b - fix for BSkyB 0963 - fix ticket #4764
+cd950  - NDS DES/3DES Overcrypt support  - fix bug for wrong decoded classD3 CMD's  - improved Sky DE/CH/AT V14/V15 payload log output  - patch provided by kabeltod
+bd541 [webif ssl]  - fix certificate chain loading  - fix for ticket #4573  - patch provided by @delilah23
+47312 Attempt to count descramblers used properly
+9250f - Fix for descramblers used not 100% fixed but it is more accurate than before
+b6843 - More fix for dvbapi client v3
+1e672 HD+ HD05 Card support (tnx pehedima for patch!)
+4e7d2 - More tryfix socketdata handling
+a3804 - Small fix
+1eefa - More tryfix for dvbapi client protocol 3
+135e9 - Tryfix for ticket 4759
+acb8b [dvbapi] Always regard stream_type 0x81 as audio (ac3) without looking for the ac3_descriptor
+217f5 - Remove more dvbapi logspam
+4fea7 Fix: valid section length is minimal 4
+35a88 - Newcamd: Corrected brain fart commit (zero check was even already present) - Camd35: Add protection against empty ecms
+5e910 - More fix for malformed ecm request as described in ticket 4760
+3810e - Refactor handling of command packages - Add generic command package dump to assist in debugging - Remove the now superfluous dumps that were thrown while processing the commands
+e2766 - Add generic hardening against empty ecm. It makes no sense to process empty ecms at all!
+1402d - Implement changes needed as researched by t5b6_de for dvbapi client protocol V3
+687ff - More fix due to bad refactoring commits
+e5815 [gbx remm] - allow remm request for unknown emm [gbx] - dont send via issuer as peer card
+72bd6 - Tryfix regression due to furious refactoring without unittests
+ac4db - Final refactoring step of dvbapi_get_packet_size()
+c2075 - More furious refactoring since I still wasnt happy with the resulting code!
+2411a - Just refactoring due to investigating an issue with CAPMT parsing
+5778c [gbx remm] - fix card not updated if entitlements are expired - new gbox reader parameter 'force_remm' - dont send same successive remm twice
+eb8a5 [gbox] Cosmetics
+4af09 Replaced strncpy() with cs_strncpy() in a few places
+4d3ee [dvbapi] Added more PMT audio descriptors
+2ee2d [dvbapi] Cosmetics and minor optimizations
+c2b84 [dvbapi] CAT filtering optimizations
+1f9a1 [dvbapi] Display service name when zapping
+8abf5 [dvbapi] SDT parsing optimizations
+555bb [dvbapi] Added option to enable/disable ecm.info file creation
+102da [documentation] Whitespace cleanup
+95721 [dvbapi] Reworked "ca_pmt_cmd_id" skipping logic
+fc3b9 [dvbapi] Fixed "ca_pmt_cmd_id" value for PMT files
+b0fd7 [dvbapi] Tryfix for various boxes not working after 11533
+c4025 [dvbapi] Fixed previous commit when WITH_EXTENDED_CW is enabled
+51a47 [dvbapi] Rewritten the CA PMT parsing code
+b95ca [dvbapi] Small fix to previous commit
+fa2be [dvbapi] DVBAPI_CA_SET_DESCR_DATA struct was not sent correctly to network clients
+1e6af [dvbapi] Fixed compilation with coolapi
+ca32d [dvbapi] Moved #define's to header file and made a few cosmetic changes
+22f98 [dvbapi] Moved parsing of CA descriptor to a separate function
+85bf5 [dvbapi] Moved reading of priority entries in separate functions
+ff46b [dvbapi] When parsing PAT, save found PMT pid in the demuxer
+a3a2a [dvbapi] Changes to a couple of log messages
+3322b [dvbapi] Changed variable name (cosmetic)
+86f0a - Revert 11522 and applied correct fix made by nautilus7
+04eaa Tryfix possible regression introduced in rev 11520
+a1bbc fix webif save issue with high var count
+79656 Added support for a higher number of demux devices in CA PMT
+b9b02 small cleanup
+549e4 small fix for CAK7 Cards HD03/04/05 refresh valid to date
+f8118 Commit patch that fixes some URL's from ticket #4800
+bf763 [gbx] - repeat to ask all gbox readers again during fallback time - thx to @chimpie232 for providing the patch
+28468 build: track failed building.
+2f3f5 - fix for ticker #4787
+f093d update wiki URL
+93927 Revision 11393 introduced sharing instability side effect. My fix is rather lame since it restores the old behavior in case the nodeid is lower than 0x7fffffffff
+335f6 - rework code ref gbox_maxecmsend - fix for ticket #4780 - change default to 5 - clean up some ecm stuff
+f6248 cak7 - fix HD03/05 CMD Overflow - patch provided by @pehedima - should fix ticket #4777 - remove some DOS CRLFs in oscam.work.c
+09857 [gbx] - more generalized routing info in cw msg - fix minor bugs - thanks @chimpie23
+f154b - cak7 - fix caid 0000 and all other known issues - no config change required - patch provided by @pehedima
+ce571 [gbx] - fix ccc->gbox reshare [gbx] - add caidtab as reshare setting
