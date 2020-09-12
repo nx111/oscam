@@ -284,6 +284,11 @@ static int32_t camd35_recv(struct s_client *client, uint8_t *buf, int32_t l)
 				switch(camd35_auth_client(client, buf))
 				{
 					case 0:
+						if(!client->c35_extmode)
+						{
+							camd35_send_extmode(client, false);
+							client->c35_extmode = 1;
+						}
 						break; // ok
 
 					case 1:
@@ -316,7 +321,7 @@ static int32_t camd35_recv(struct s_client *client, uint8_t *buf, int32_t l)
 				{
 					buflen = (((buf[21] & 0x0F) << 8) | buf[22]) + 3;
 				}
-				else if(buf[0] == 0x3D || buf[0] == 0x3E || buf[0] == 0x3F) // cacheex-push
+				else if(buf[0] == 0x40 || buf[0] == 0x41 || buf[0] == 0x42 || buf[0] == 0x3D || buf[0] == 0x3E || buf[0] == 0x3F) // cacheex-push
 				{
 					buflen = buf[1] | (buf[2] << 8);
 				}
@@ -640,7 +645,15 @@ static void camd35_send_dcw(struct s_client *client, ECM_REQUEST *er)
 				memmove(buf + 20 + 16, buf + 20 + buf[1], 0x34);
 			}
 
-			buf[0]++; // ecm response (CMD01 or CMD04)
+			if(er->localgenerated && client->c35_extmode > 1)
+			{
+				buf[0] += 0x51; // ecm response with lg-flag
+			}
+			else
+			{
+				buf[0]++; // ecm response (CMD01 or CMD04)
+			}
+			
 			buf[1] = 16;
 			camd35_cacheex_init_dcw(client, er);
 			memcpy(buf + 20, er->cw, buf[1]);
@@ -861,9 +874,18 @@ static int32_t camd35_client_init(struct s_client *cl)
 		camd35_send_keepalive(cl);
 	}
 
-	if(cacheex_get_rdr_mode(cl->reader) == 2)
+	if(cacheex_get_rdr_mode(cl->reader) == 2 || cacheex_get_rdr_mode(cl->reader) == 1)
 	{
 		camd35_cacheex_send_push_filter(cl, 2);
+#ifdef CS_CACHEEX
+		camd35_cacheex_feature_request(cl);
+#endif
+	}
+
+	if(!cl->c35_extmode)
+	{
+		camd35_send_extmode(cl, false);
+		cl->c35_extmode = 1;
 	}
 
 	return 0;
@@ -948,7 +970,11 @@ static void *camd35_server(struct s_client *client, uint8_t *mbuf, int32_t n)
 		case 55:
 			camd35_send_keepalive_answer(client); // keepalive msg
 			break;
-
+		case 0x43:
+			break;
+		case 0x50:
+			client->c35_extmode = 2;
+			break;
 		default:
 			if(!camd35_cacheex_server(client, mbuf))
 			{
@@ -1004,7 +1030,7 @@ static int32_t camd35_send_ecm(struct s_client *client, ECM_REQUEST *er)
 	buf[18] = 0xFF;
 	buf[19] = 0xFF;
 	memcpy(buf + 20, er->ecm, er->ecmlen);
-
+	
 	int32_t rc = (camd35_send(client, buf, 0) < 1) ? -1 : 0;
 
 	NULLFREE(buf);
@@ -1130,10 +1156,18 @@ static int32_t camd35_recv_chk(struct s_client *client, uint8_t *dcw, int32_t *r
 	{
 		return -1;
 	}
+	
+	if(buf[0] == 0x50)
+	{
+		client->c35_extmode = 2;
 
+		if(buf[12] != 1) // answer
+			camd35_send_extmode(client, true);
+		return -1;
+	}
 	// CMD44: old reject command introduced in mpcs
 	// keeping this for backward compatibility
-	if((buf[0] != 1) && (buf[0] != 0x44) && (buf[0] != 0x08))
+	if((buf[0] != 1) && (buf[0] != 0x44) && (buf[0] != 0x08) && (buf[0] != 0x51))
 	{
 		return -1;
 	}
@@ -1147,10 +1181,39 @@ static int32_t camd35_recv_chk(struct s_client *client, uint8_t *dcw, int32_t *r
 	{
 		*rc = 2; // INVALID sent by CMD08
 	}
-
+	if(buf[0] == 0x51 || buf[0] == 0x54)	// lg-flag
+	{
+		*rc = 0x86;
+		client->c35_extmode = 2;
+	}
+	
 	memcpy(dcw, buf + 20, 16);
 
 	return idx;
+}
+
+void camd35_send_extmode(struct s_client *cl, bool answer)
+{
+	uint8_t rbuf[32]; // minimal size
+	memset(rbuf, 0, sizeof(rbuf));
+
+	rbuf[0] = 0x50;
+	rbuf[1] = 1;
+	rbuf[2] = 0;
+	if(answer)
+		rbuf[12] = 1;
+
+	if(cl->reader)
+	{
+		if(camd35_tcp_connect(cl))
+		{
+			camd35_send(cl, rbuf, 1); // send adds +20
+		}
+	}
+	else if(check_client(cl) && cl->account)
+	{
+		camd35_send(cl, rbuf, 1); // send adds +20
+	}
 }
 
 /*

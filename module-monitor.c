@@ -204,7 +204,7 @@ static void monitor_send_info(char *txt, int32_t last)
 {
 	struct s_client *cur_cl = cur_client();
 	struct monitor_data *module_data = cur_cl->module_data;
-	char buf[8];
+	char buf[16];
 	if(txt)
 	{
 		if(!module_data->btxt[0])
@@ -356,8 +356,8 @@ static void monitor_process_info(void)
 
 static void monitor_send_details(char *txt, uint32_t tid)
 {
-	char buf[256];
-	snprintf(buf, 255, "[D-----]%8X|%s\n", tid, txt);
+	char buf[272];
+	snprintf(buf, sizeof(buf), "[D-----]%8X|%s\n", tid, txt);
 	monitor_send_info(buf, 0);
 }
 
