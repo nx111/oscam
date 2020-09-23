@@ -26,6 +26,7 @@ extern uint16_t len4caid[256];
 #define cs_twin      "oscam.twin"
 
 uint32_t cfg_sidtab_generation = 1;
+uint32_t caid;
 
 extern char cs_confdir[];
 
@@ -54,12 +55,14 @@ int32_t write_services(void)
 			ptr++;
 		}
 		fprintf(f, "[%s]\n", sidtab->label);
+#ifdef CS_CACHEEX_AIO
 		fprintf_conf(f, "disablecrccws_only_for_exception", "%u", sidtab->disablecrccws_only_for_exception); // it should not have \n at the end
 		fputc((int)'\n', f);
 		fprintf_conf(f, "no_wait_time", "%u", sidtab->no_wait_time); // it should not have \n at the end
 		fputc((int)'\n', f);
 		fprintf_conf(f, "lg_only_exception", "%u", sidtab->lg_only_exception); // it should not have \n at the end
 		fputc((int)'\n', f);
+#endif
 		fprintf_conf(f, "caid", "%s", ""); // it should not have \n at the end
 		for(i = 0; i < sidtab->num_caid; i++)
 		{
@@ -102,13 +105,15 @@ static void chk_entry4sidtab(char *value, struct s_sidtab *sidtab, int32_t what)
 	char *ptr, *saveptr1 = NULL;
 	uint16_t *slist = (uint16_t *) 0;
 	uint32_t *llist = (uint32_t *) 0;
-	uint32_t caid;
+#ifdef CS_CACHEEX_AIO
 	uint8_t disablecrccws_only_for_exception = 0;
 	uint8_t no_wait_time = 0;
 	uint8_t lg_only_exception = 0;
+#endif
 	char buf[strlen(value) + 1];
 	cs_strncpy(buf, value, sizeof(buf));
 
+#ifdef CS_CACHEEX_AIO
 	if(what == 5) // lg_only_exception
 	{	
 		sidtab->lg_only_exception = a2i(buf, sizeof(lg_only_exception));
@@ -126,6 +131,7 @@ static void chk_entry4sidtab(char *value, struct s_sidtab *sidtab, int32_t what)
 		sidtab->disablecrccws_only_for_exception = a2i(buf, sizeof(disablecrccws_only_for_exception));
 		return;
 	}
+#endif
 
 	b = (what == 1) ? sizeof(uint32_t) : sizeof(uint16_t);
 
@@ -195,6 +201,7 @@ void chk_sidtab(char *token, char *value, struct s_sidtab *sidtab)
 		chk_entry4sidtab(value, sidtab, 2);
 		return;
 	}
+#ifdef CS_CACHEEX_AIO
 	if(!strcmp(token, "disablecrccws_only_for_exception"))
 	{
 		chk_entry4sidtab(value, sidtab, 3);
@@ -210,6 +217,7 @@ void chk_sidtab(char *token, char *value, struct s_sidtab *sidtab)
 		chk_entry4sidtab(value, sidtab, 5);
 		return;
 	}
+#endif
 	if(token[0] != '#')
 		{ fprintf(stderr, "Warning: keyword '%s' in sidtab section not recognized\n", token); }
 }
@@ -237,9 +245,11 @@ static void show_sidtab(struct s_sidtab *sidtab)
 		char buf[1024];
 		char *saveptr = buf;
 		cs_log("label=%s", sidtab->label);
+#ifdef CS_CACHEEX_AIO
 		cs_log("disablecrccws_only_for_exception=%u", sidtab->disablecrccws_only_for_exception);
 		cs_log("no_wait_time=%u", sidtab->no_wait_time);
 		cs_log("lg_only_exception=%u", sidtab->lg_only_exception);
+#endif
 		snprintf(buf, sizeof(buf), "caid(%d)=", sidtab->num_caid);
 		for(i = 0; i < sidtab->num_caid; i++)
 			{ snprintf(buf + strlen(buf), 1024 - (buf - saveptr), "%04X ", sidtab->caid[i]); }
@@ -607,11 +617,23 @@ int32_t init_srvid(void)
 			{
 				*ptrs[i] = tmpptr + offset[i];
 				// store string in stringcache
-				tmp = *ptrs[i];
-				len2 = strlen(tmp);
+				if (*ptrs[i])
+				{
+					tmp = *ptrs[i];
+					len2 = strlen(tmp);
+				}
+				else
+				{
+					cs_log("FIXME! len2!");
+					len2 = 0;
+				}
+
 				pos = 0;
 				for(j = 0; j < len2; ++j) { pos += (uint8_t)tmp[j]; }
-				pos = pos % 1024;
+				if (pos > 0)
+				{
+					pos = pos % 1024;
+				}
 				if(used[pos] >= allocated[pos])
 				{
 					if(allocated[pos] == 0)
@@ -626,7 +648,14 @@ int32_t init_srvid(void)
 					}
 					allocated[pos] += 16;
 				}
-				stringcache[pos][used[pos]] = tmp;
+				if (tmp[0])
+				{
+					stringcache[pos][used[pos]] = tmp;
+				}
+				else
+				{
+					cs_log("FIXME! tmp!");
+				}
 				used[pos] += 1;
 			}
 		}
@@ -961,12 +990,19 @@ static struct s_rlimit *ratelimit_read_int(void)
 			}
 		}
 
-		uint32_t caid = 0, provid = 0, srvid = 0, chid = 0, ratelimitecm = 0, ratelimittime = 0, srvidholdtime = 0;
+		caid = 0;
+		uint32_t provid = 0, srvid = 0, chid = 0, ratelimitecm = 0, ratelimittime = 0, srvidholdtime = 0;
 		memset(str1, 0, sizeof(str1));
 
 		ret = sscanf(token, "%4x:%6x:%4x:%4x:%d:%d:%d:%1023s", &caid, &provid, &srvid, &chid, &ratelimitecm, &ratelimittime, &srvidholdtime, str1);
-		if(ret < 1) { continue; }
-		strncat(str1, ",", sizeof(str1) - strlen(str1) - 1);
+		if(ret < 1) {
+			continue;
+		}
+
+		if (!cs_strncat(str1, ",", sizeof(str1))) {
+			return new_rlimit;
+		}
+
 		if(!cs_malloc(&entry, sizeof(struct s_rlimit)))
 		{
 			fclose(fp);
@@ -1253,7 +1289,8 @@ static struct s_global_whitelist *global_whitelist_read_int(void)
 		}
 
 		type = 'w';
-		uint32_t caid = 0, provid = 0, srvid = 0, pid = 0, chid = 0, ecmlen = 0, mapcaid = 0, mapprovid = 0;
+		caid = 0;
+		uint32_t provid = 0, srvid = 0, pid = 0, chid = 0, ecmlen = 0, mapcaid = 0, mapprovid = 0;
 		memset(str1, 0, sizeof(str1));
 
 		ret = sscanf(token, "%c:%4x:%6x:%4x:%4x:%4x:%1023s", &type, &caid, &provid, &srvid, &pid, &chid, str1);
@@ -1278,8 +1315,13 @@ static struct s_global_whitelist *global_whitelist_read_int(void)
 			str1[0] = 0;
 			cfg.global_whitelist_use_m = 1;
 		}
-		strncat(str1, ",", sizeof(str1) - strlen(str1) - 1);
+
+		if (!cs_strncat(str1, ",", sizeof(str1))) {
+			return new_whitelist;
+		}
+
 		char *p = str1, *p2 = str1;
+
 		while(*p)
 		{
 			if(*p == ',')
@@ -1427,7 +1469,8 @@ static struct s_twin *twin_read_int(void)
 			}
 		}
 
-		uint32_t caid = 0, provid = 0, srvid = 0, deg = 0, freq = 0;
+		caid = 0;
+		uint32_t provid = 0, srvid = 0, deg = 0, freq = 0;
 		//char hdeg[4], hfreq[4], hsrvid[4];
 		memset(str1, 0, sizeof(str1));
 
@@ -1440,7 +1483,9 @@ static struct s_twin *twin_read_int(void)
 		//sscanf(hfreq, "%4x", &freq);
 		//snprintf(hsrvid, 4, "%x", srvid);
 		//sscanf(hsrvid, "%4x", &srvid);
-		strncat(str1, ",", sizeof(str1) - strlen(str1) - 1);
+		if (!cs_strncat(str1, ",", sizeof(str1))) {
+			return new_twin;
+		}
 
 		if(!cs_malloc(&entry, sizeof(struct s_twin)))
 		{

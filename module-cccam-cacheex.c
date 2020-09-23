@@ -14,8 +14,10 @@
 #include "oscam-string.h"
 #include "oscam-chk.h"
 #include "oscam-reader.h"
+#ifdef CS_CACHEEX_AIO
 #include "oscam-chk.h"
 #include "oscam-config.h"
+#endif
 
 #define CSP_HASH_SWAP(n) (((((uint32_t)(n) & 0xFF)) << 24) | \
                   ((((uint32_t)(n) & 0xFF00)) << 8) | \
@@ -25,6 +27,7 @@
 extern int32_t cc_cli_connect(struct s_client *cl);
 extern int32_t cc_cmd_send(struct s_client *cl, uint8_t *buf, int32_t len, cc_msg_type_t cmd);
 
+#ifdef CS_CACHEEX_AIO
 void cc_cacheex_feature_trigger_in(struct s_client *cl, uint8_t *buf)
 {
 	int32_t feature = 0;
@@ -843,6 +846,7 @@ void cc_cacheex_feature_request(struct s_client *cl)
 	i2b_buf(2, CACHEEX_FEATURES, rbuf);
 	cc_cmd_send(cl, rbuf, size, MSG_CACHE_FEATURE_EXCHANGE);
 }
+#endif
 
 void cc_cacheex_filter_out(struct s_client *cl)
 {
@@ -854,20 +858,28 @@ void cc_cacheex_filter_out(struct s_client *cl)
 	uint8_t buf[482];
 	memset(buf, 0, sizeof(buf));
 
-	if(rdr && (rdr->cacheex.mode == 2 || rdr->cacheex.mode == 1)) // mode == 2 send filters from rdr
+	if(rdr && (rdr->cacheex.mode == 2
+#ifdef CS_CACHEEX_AIO
+		 || rdr->cacheex.mode == 1
+#endif
+	)) // mode == 2 send filters from rdr
 	{
 		filter = &rdr->cacheex.filter_caidtab;
+#ifdef CS_CACHEEX_AIO
 		// if not set, use global settings
 		if(rdr->cacheex.filter_caidtab.cevnum == 0 && cfg.cacheex_filter_caidtab.cevnum > 0)
 			filter = &cfg.cacheex_filter_caidtab;
+#endif
 	}
 	//mode==3 send filters from acc
 	else if(cl->typ == 'c' && cl->account && cl->account->cacheex.mode == 3)
 	{
 		filter = &cl->account->cacheex.filter_caidtab;
+#ifdef CS_CACHEEX_AIO
 		// if not set, use global settings
 		if(cl->account->cacheex.filter_caidtab.cevnum == 0 && cfg.cacheex_filter_caidtab.cevnum > 0)
 			filter = &cfg.cacheex_filter_caidtab;
+#endif
 	}
 	else {
 		return;
@@ -925,7 +937,11 @@ void cc_cacheex_filter_in(struct s_client *cl, uint8_t *buf)
 	CECSPVALUETAB *filter;
 
 	// mode == 2 write filters to acc
-	if(cl->typ == 'c' && cl->account && (cl->account->cacheex.mode == 2 || cl->account->cacheex.mode == 1) && cl->account->cacheex.allow_filter == 1)
+	if(cl->typ == 'c' && cl->account && (cl->account->cacheex.mode == 2
+#ifdef CS_CACHEEX_AIO
+					 || cl->account->cacheex.mode == 1
+#endif
+									) && cl->account->cacheex.allow_filter == 1)
 	{
 		filter = &cl->account->cacheex.filter_caidtab;
 	}
@@ -997,11 +1013,17 @@ static int32_t cc_cacheex_push_chk(struct s_client *cl, struct ecm_request_t *er
 	}
 
 	if(
-			ll_count(er->csp_lastnodes) >= cacheex_maxhop(cl)	    												// check max 10 nodes to push
+			ll_count(er->csp_lastnodes) >= cacheex_maxhop(cl)	// check max 10 nodes to push
+#ifdef CS_CACHEEX_AIO
 		&& (!er->localgenerated || (er->localgenerated && (ll_count(er->csp_lastnodes) >= cacheex_maxhop_lg(cl))))	// check maxhop_lg if cw is lg-flagged
+#endif
 	)
 	{
+#ifdef CS_CACHEEX_AIO
 		cs_log_dbg(D_CACHEEX, "cacheex: nodelist reached %d nodes(non-lg) or reached %d nodes(lg), no push", cacheex_maxhop(cl), cacheex_maxhop_lg(cl));
+#else
+		cs_log_dbg(D_CACHEEX, "cacheex: nodelist reached %d nodes, no push", cacheex_maxhop(cl));
+#endif
 		return 0;
 	}
 
@@ -1068,7 +1090,11 @@ static int32_t cc_cacheex_push_out(struct s_client *cl, struct ecm_request_t *er
 	}
 
 	uint32_t size = sizeof(er->ecmd5) + sizeof(er->csp_hash) + sizeof(er->cw) + sizeof(uint8_t) +
+#ifdef CS_CACHEEX_AIO
 					(ll_count(er->csp_lastnodes) + 1) * 8 + sizeof(uint8_t);
+#else
+					(ll_count(er->csp_lastnodes) + 1) * 8;
+#endif
 
 	uint8_t *buf;
 	if(!cs_malloc(&buf, size + 20)) // camd35_send() adds +20
@@ -1140,6 +1166,7 @@ static int32_t cc_cacheex_push_out(struct s_client *cl, struct ecm_request_t *er
 	}
 	ll_li_destroy(li);
 
+#ifdef CS_CACHEEX_AIO
 	// add localgenerated cw-flag
 	if(er->localgenerated)
 	{
@@ -1150,6 +1177,7 @@ static int32_t cc_cacheex_push_out(struct s_client *cl, struct ecm_request_t *er
 		*ofs = 0xFF;
 	}
 	ofs += 1;
+#endif
 
 	int32_t res = cc_cmd_send(cl, buf, size + 20, MSG_CACHE_PUSH);
 	if(res > 0)   // cache-ex is pushing out, so no receive but last_g should be updated otherwise disconnect!
@@ -1206,6 +1234,23 @@ void cc_cacheex_push_in(struct s_client *cl, uint8_t *buf)
 		}
 	}
 
+#ifndef CS_CACHEEX_AIO
+	if (er->cwc_cycletime && er->cwc_next_cw_cycle < 2)
+	{
+		if(cl->typ == 'c' && cl->account && cl->account->cacheex.mode)
+		{
+			cl->account->cwc_info++;
+		}
+		else if((cl->typ == 'p' || cl->typ == 'r') && (cl->reader && cl->reader->cacheex.mode))
+		{
+			cl->cwc_info++;
+		}
+
+		cs_log_dbg(D_CWC, "CWC (CE) received from %s cycletime: %isek - nextcwcycle: CW%i for %04X@%06X:%04X",
+					username(cl), er->cwc_cycletime, er->cwc_next_cw_cycle, er->caid, er->prid, er->srvid);
+	}
+#endif
+
 	uint8_t *ofs = buf + 20;
 
 	//Read ecmd5
@@ -1215,6 +1260,7 @@ void cc_cacheex_push_in(struct s_client *cl, uint8_t *buf)
 	if(!check_cacheex_filter(cl, er))
 		{ return; }
 
+#ifdef CS_CACHEEX_AIO
 	// check cacheex_ecm_filter
 	if(check_client(cl) && cl->typ == 'p' && cl->reader && cl->reader->cacheex.mode == 2
 		&& 	(		(cl->reader->cacheex.filter_caidtab.cevnum > 0 && !chk_csp_ctab(er, &cl->reader->cacheex.filter_caidtab)) // reader cacheex_ecm_filter not matching if set
@@ -1245,6 +1291,7 @@ void cc_cacheex_push_in(struct s_client *cl, uint8_t *buf)
 		free_push_in_ecm(er);
 		return;
 	}
+#endif
 
 	// Read csp_hash
 	er->csp_hash = CSP_HASH_SWAP(b2i(4, ofs));
@@ -1257,6 +1304,18 @@ void cc_cacheex_push_in(struct s_client *cl, uint8_t *buf)
 	//Read lastnode count:
 	uint8_t count = *ofs;
 	ofs++;
+
+#ifndef CS_CACHEEX_AIO
+	// check max nodes
+	if(count > cacheex_maxhop(cl))
+	{
+		cs_log_dbg(D_CACHEEX, "cacheex: received %d nodes (max=%d), ignored! %s",
+					(int32_t)count, cacheex_maxhop(cl), username(cl));
+
+		NULLFREE(er);
+		return;
+	}
+#endif
 
 	cs_log_dbg(D_CACHEEX, "cacheex: received %d nodes %s", (int32_t)count, username(cl));
 	//Read lastnodes:
@@ -1275,6 +1334,7 @@ void cc_cacheex_push_in(struct s_client *cl, uint8_t *buf)
 		cs_log_dbg(D_CACHEEX, "cacheex: received node %" PRIu64 "X %s", cacheex_node_id(data), username(cl));
 	}
 
+#ifdef CS_CACHEEX_AIO
 	if(b2i(1, ofs) == 1)
 	{
 		er->localgenerated = 1;
@@ -1344,6 +1404,7 @@ void cc_cacheex_push_in(struct s_client *cl, uint8_t *buf)
 			return;
 		}
 	}
+#endif
 
 	// for compatibility: add peer node if no node received
 	if(!ll_count(er->csp_lastnodes))
@@ -1355,6 +1416,7 @@ void cc_cacheex_push_in(struct s_client *cl, uint8_t *buf)
 		cs_log_dbg(D_CACHEEX, "cacheex: added missing remote node id %" PRIu64 "X", cacheex_node_id(data));
 	}
 
+#ifdef CS_CACHEEX_AIO
 	if (er->cwc_cycletime && er->cwc_next_cw_cycle < 2)
 	{
 		if(cl->typ == 'c' && cl->account && cl->account->cacheex.mode)
@@ -1369,7 +1431,8 @@ void cc_cacheex_push_in(struct s_client *cl, uint8_t *buf)
 		cs_log_dbg(D_CWC, "CWC (CE) received from %s cycletime: %isek - nextcwcycle: CW%i for %04X@%06X:%04X",
 					username(cl), er->cwc_cycletime, er->cwc_next_cw_cycle, er->caid, er->prid, er->srvid);
 	}
-	
+#endif
+
 	cacheex_add_to_cache(cl, er);
 }
 

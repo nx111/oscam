@@ -663,7 +663,8 @@ int32_t dvbapi_net_send(uint32_t request, int32_t socket_fd, uint32_t msgid, int
 		case DVBAPI_SERVER_INFO:
 		{
 			int16_t proto_version = htons(DVBAPI_PROTOCOL_VERSION); // our protocol version
-			char capabilities[128] = "\x00"; // two zero characters
+			char capabilities[128];
+			memset(capabilities, 0, sizeof(capabilities));
 			memcpy(&packet[size], &proto_version, 2);
 			size += 2;
 			uint8_t *info_len = &packet[size]; // info string length
@@ -671,12 +672,12 @@ int32_t dvbapi_net_send(uint32_t request, int32_t socket_fd, uint32_t msgid, int
 
 			if(cfg.dvbapi_extended_cw_api == 1)
 			{
-				strcat(capabilities, ",e1mk"); // extended cw, key follows mode - supports CSA, DES, AES128
+				cs_strncat(capabilities, ",e1mk", sizeof(capabilities)); // extended cw, key follows mode - supports CSA, DES, AES128
 			}
 
 			if(cfg.dvbapi_extended_cw_api == 2)
 			{
-				strcat(capabilities, ",e2"); // usage of DES algo signalled through PID index - CSA and DES only
+				cs_strncat(capabilities, ",e2", sizeof(capabilities)); // usage of DES algo signalled through PID index - CSA and DES only
 			}
 
 			*info_len = snprintf((char *) &packet[size], sizeof(packet) - size, "OSCam v%s, build r%s (%s); %s",
@@ -1116,7 +1117,9 @@ static int32_t dvbapi_get_descrambler_info(void)
 	// Ask device for exact number of ca descramblers
 	snprintf(device_path2, sizeof(device_path2), devices[selected_box].ca_device, ca_offset);
 	snprintf(device_path, sizeof(device_path), devices[selected_box].path, 0);
-	strncat(device_path, device_path2, sizeof(device_path) - strlen(device_path));
+
+	if (!cs_strncat(device_path, device_path2, sizeof(device_path)))
+		return 0;
 
 	if((fd = open(device_path, O_RDWR | O_NONBLOCK)) < 0)
 	{
@@ -1203,19 +1206,22 @@ static int32_t dvbapi_detect_api(void)
 		{
 			snprintf(device_path2, sizeof(device_path2), devices[i].demux_device, 0);
 			snprintf(device_path, sizeof(device_path), devices[i].path, n);
-			strncat(device_path, device_path2, sizeof(device_path) - strlen(device_path));
 
 			filtercount = 0;
-			while((dmx_fd = open(device_path, O_RDWR | O_NONBLOCK)) > 0 && filtercount < MAX_FILTER)
+
+			if (cs_strncat(device_path, device_path2, sizeof(device_path)))
 			{
-				filtercount++;
-				if(!cs_malloc(&open_fd, sizeof(struct s_open_fd)))
+				while((dmx_fd = open(device_path, O_RDWR | O_NONBLOCK)) > 0 && filtercount < MAX_FILTER)
 				{
-					close(dmx_fd);
-					break;
+					filtercount++;
+					if(!cs_malloc(&open_fd, sizeof(struct s_open_fd)))
+					{
+						close(dmx_fd);
+						break;
+					}
+					open_fd->fd = dmx_fd;
+					ll_append(ll_max_fd, open_fd);
 				}
-				open_fd->fd = dmx_fd;
-				ll_append(ll_max_fd, open_fd);
 			}
 
 			if(filtercount > 0)
@@ -1350,7 +1356,10 @@ int32_t dvbapi_open_device(int32_t type, int32_t num, int32_t adapter)
 	{
 		snprintf(device_path2, sizeof(device_path2), devices[selected_box].demux_device, num);
 		snprintf(device_path, sizeof(device_path), devices[selected_box].path, adapter);
-		strncat(device_path, device_path2, sizeof(device_path) - strlen(device_path));
+
+		if (!cs_strncat(device_path, device_path2, sizeof(device_path)))
+			return -1;
+
 	}
 	else
 	{
@@ -1370,7 +1379,10 @@ int32_t dvbapi_open_device(int32_t type, int32_t num, int32_t adapter)
 
 		snprintf(device_path2, sizeof(device_path2), devices[selected_box].ca_device, num + ca_offset);
 		snprintf(device_path, sizeof(device_path), devices[selected_box].path, adapter);
-		strncat(device_path, device_path2, sizeof(device_path) - strlen(device_path));
+
+		if (!cs_strncat(device_path, device_path2, sizeof(device_path)))
+			return -1;
+
 	}
 
 	if(cfg.dvbapi_boxtype == BOXTYPE_SAMYGO)
@@ -2069,10 +2081,10 @@ void dvbapi_add_emmpid(int32_t demux_id, uint16_t caid, uint16_t emmpid, uint32_
 	char cadatatext[40];
 	cs_strncpy(typetext, ":", sizeof(typetext));
 
-	if(type & 0x01) { strcat(typetext, "UNIQUE:"); }
-	if(type & 0x02) { strcat(typetext, "SHARED:"); }
-	if(type & 0x04) { strcat(typetext, "GLOBAL:"); }
-	if(type & 0xF8) { strcat(typetext, "UNKNOWN:"); }
+	if(type & 0x01) { cs_strncat(typetext, "UNIQUE:", sizeof(typetext)); }
+	if(type & 0x02) { cs_strncat(typetext, "SHARED:", sizeof(typetext)); }
+	if(type & 0x04) { cs_strncat(typetext, "GLOBAL:", sizeof(typetext)); }
+	if(type & 0xF8) { cs_strncat(typetext, "UNKNOWN:", sizeof(typetext)); }
 
 	if(cadata > 0)
 	{
@@ -5426,7 +5438,8 @@ void event_handler(int32_t UNUSED(signal))
 	char dest[1024];
 	DIR *dirp;
 	struct dirent entry, *dp = NULL;
-	int32_t i, pmt_fd;
+	int32_t i;
+	int32_t pmt_fd = -1;
 	uint8_t mbuf[2048]; // dirty fix: larger buffer needed for CA PMT mode 6 with many parallel channels to decode
 
 	if(dvbapi_client != cur_client())
@@ -5543,8 +5556,32 @@ void event_handler(int32_t UNUSED(signal))
 			continue;
 		}
 #endif
-		snprintf(dest, sizeof(dest), "%s%s", TMPDIR, dp->d_name);
-		pmt_fd = open(dest, O_RDONLY);
+
+		if (!strlen(TMPDIR))
+		{
+			cs_log_dbg(D_DVBAPI, "BUG! strlen(TMPDIR)!!!\n");
+			continue;
+		}
+
+		if (!strlen(dp->d_name))
+		{
+			cs_log_dbg(D_DVBAPI, "BUG! strlen(dp->d_name)!!!\n");
+			continue;
+		}
+
+		if((strlen(dp->d_name) + strlen(TMPDIR) - 1) > sizeof(dest))
+		{
+			cs_log_dbg(D_DVBAPI, "BUG! Sum of the (d_name + TMPDIR) = %u > sizeof(dest) !!!\n", (unsigned int)(strlen(dp->d_name) + strlen(TMPDIR) - 1));
+			continue;
+		}
+		else
+		{
+			memcpy(dest, TMPDIR, strlen(TMPDIR));
+			memcpy(dest + strlen(TMPDIR), dp->d_name, strlen(dp->d_name));
+			dest[strlen(TMPDIR) + strlen(dp->d_name)] = '\0';
+			pmt_fd = open(dest, O_RDONLY);
+		}
+
 		if(pmt_fd < 0)
 		{
 			continue;

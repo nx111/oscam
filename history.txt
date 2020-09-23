@@ -1,3 +1,31 @@
+ae832 #4815 AIO is now completely moved to definition CS_CACHEEX_AIO and can be enabled with config.sh
+07993 add missing file
+5b07e delete files
+20db2 revert #11623
+b303b fix typo
+49289 move file
+9eca3 small build fix
+923e6 AIO is now completely moved to definition CS_CACHEEX_AIO and can be enabled with config.sh!
+02657 Fix all scanbuild warning related to -argument with 'nonnull' attribute passed null
+7cb48 Need PIN on 092F and 091F caid's fixed.
+731dd -fix cl->reader->cacheex.maxhop_lg > max never used -fix smargo build warning
+dc895 -fix module-lcd.c warnings -add newlines to  header_short.html & logobit.html
+23f43 part 3 of 3 warning fixes
+0b9bb part 2 of 3 warning fixes
+011ab part 1 of 3 warning fixes
+8ade8 fix build warnings
+d8dab adaptation to CODING.RULES.txt -Add brackets to prevent compiler complaints
+ce7d4 update for #4814 #4813
+5954e safer protocol implementation in oscam to prevent buffer overflow
+4eff6 build warning: no newline at end of file.
+dee8e fix build warning in module-cccam.c
+0c2c7 fix build warning in oscam-reader.c
+61b1a fix externel css loading #4809
+60d32 Fix slow reader loading #4808
+8c3c7 fix small typos for stapi build
+d043a add aditional fixes for CMakeLists.txt and oscam.c
+93618 fix build warnings
+cfec5 update history.txt
 e2f2c confnig.sh: git log use topo-order.
 8fa2b Merge to r11603 from 'https://svn.streamboard.tv/oscam/trunk‘
 684bc next build fix
@@ -69,32 +97,3 @@ c2b84 [dvbapi] CAT filtering optimizations
 102da [documentation] Whitespace cleanup
 95721 [dvbapi] Reworked "ca_pmt_cmd_id" skipping logic
 fc3b9 [dvbapi] Fixed "ca_pmt_cmd_id" value for PMT files
-b0fd7 [dvbapi] Tryfix for various boxes not working after 11533
-c4025 [dvbapi] Fixed previous commit when WITH_EXTENDED_CW is enabled
-51a47 [dvbapi] Rewritten the CA PMT parsing code
-b95ca [dvbapi] Small fix to previous commit
-fa2be [dvbapi] DVBAPI_CA_SET_DESCR_DATA struct was not sent correctly to network clients
-1e6af [dvbapi] Fixed compilation with coolapi
-ca32d [dvbapi] Moved #define's to header file and made a few cosmetic changes
-22f98 [dvbapi] Moved parsing of CA descriptor to a separate function
-85bf5 [dvbapi] Moved reading of priority entries in separate functions
-ff46b [dvbapi] When parsing PAT, save found PMT pid in the demuxer
-a3a2a [dvbapi] Changes to a couple of log messages
-3322b [dvbapi] Changed variable name (cosmetic)
-86f0a - Revert 11522 and applied correct fix made by nautilus7
-04eaa Tryfix possible regression introduced in rev 11520
-a1bbc fix webif save issue with high var count
-79656 Added support for a higher number of demux devices in CA PMT
-b9b02 small cleanup
-549e4 small fix for CAK7 Cards HD03/04/05 refresh valid to date
-f8118 Commit patch that fixes some URL's from ticket #4800
-bf763 [gbx] - repeat to ask all gbox readers again during fallback time - thx to @chimpie232 for providing the patch
-28468 build: track failed building.
-2f3f5 - fix for ticker #4787
-f093d update wiki URL
-93927 Revision 11393 introduced sharing instability side effect. My fix is rather lame since it restores the old behavior in case the nodeid is lower than 0x7fffffffff
-335f6 - rework code ref gbox_maxecmsend - fix for ticket #4780 - change default to 5 - clean up some ecm stuff
-f6248 cak7 - fix HD03/05 CMD Overflow - patch provided by @pehedima - should fix ticket #4777 - remove some DOS CRLFs in oscam.work.c
-09857 [gbx] - more generalized routing info in cw msg - fix minor bugs - thanks @chimpie23
-f154b - cak7 - fix caid 0000 and all other known issues - no config change required - patch provided by @pehedima
-ce571 [gbx] - fix ccc->gbox reshare [gbx] - add caidtab as reshare setting
