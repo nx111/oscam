@@ -1,3 +1,16 @@
+d7436 Merge to r11641 from streamboard.tv
+a3928 -fix mdc2.h
+d0ab5 -fix external openssl dependency -> thanks to @savan
+008c8 -fix README.config
+70af7 add aio in module-webif-tpl.c
+4da02 fixes a small problem in the handling of srvid / srvid2
+9b20f Replace all strlen with safe strlen -> thanks @savan https://board.streamboard.tv/forum/thread/47678-oscam-bug-report/?postID=599931#post599931
+762d6 small update for cacheex config
+f115b fix missing changes
+b499c cacheex config page fix
+7ba45 fix for aio cacheex table
+1aa75 patch for common bugs reported by scan-build
+bbbed Merge to r11630 from 'https://svn.streamboard.tv/oscam/trunk
 ae832 #4815 AIO is now completely moved to definition CS_CACHEEX_AIO and can be enabled with config.sh
 07993 add missing file
 5b07e delete files
@@ -85,15 +98,3 @@ e5815 [gbx remm] - allow remm request for unknown emm [gbx] - dont send via issu
 ac4db - Final refactoring step of dvbapi_get_packet_size()
 c2075 - More furious refactoring since I still wasnt happy with the resulting code!
 2411a - Just refactoring due to investigating an issue with CAPMT parsing
-5778c [gbx remm] - fix card not updated if entitlements are expired - new gbox reader parameter 'force_remm' - dont send same successive remm twice
-eb8a5 [gbox] Cosmetics
-4af09 Replaced strncpy() with cs_strncpy() in a few places
-4d3ee [dvbapi] Added more PMT audio descriptors
-2ee2d [dvbapi] Cosmetics and minor optimizations
-c2b84 [dvbapi] CAT filtering optimizations
-1f9a1 [dvbapi] Display service name when zapping
-8abf5 [dvbapi] SDT parsing optimizations
-555bb [dvbapi] Added option to enable/disable ecm.info file creation
-102da [documentation] Whitespace cleanup
-95721 [dvbapi] Reworked "ca_pmt_cmd_id" skipping logic
-fc3b9 [dvbapi] Fixed "ca_pmt_cmd_id" value for PMT files

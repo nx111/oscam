@@ -1,13 +1,7 @@
 #include "../globals.h"
-#include "../oscam-string.h"
 #include "mdc2.h"
 
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <string.h>
-//#include <openssl/crypto.h>
-//#include <openssl/des.h>
-//#include <openssl/mdc2.h>
+#if !defined(WITH_LIBCRYPTO) || defined(OPENSSL_NO_MDC2) || defined(OPENSSL_NO_DEPRECATED_3_0)
 
 #undef c2l
 #define c2l(c,l)        (l =((DES_LONG)(*((c)++)))    , \
@@ -683,3 +677,5 @@ int MDC2_Final(unsigned char *md, MDC2_CTX *c)
 	memcpy(&(md[MDC2_BLOCK]), (char *)c->hh, MDC2_BLOCK);
 	return 1;
 }
+
+#endif

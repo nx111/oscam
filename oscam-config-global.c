@@ -54,7 +54,7 @@ static void serverip_fn(const char *token, char *value, void *setting, FILE *f)
 	IN_ADDR_T srvip = *(IN_ADDR_T *)setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			set_null_ip((IN_ADDR_T *)setting);
 		}
@@ -73,7 +73,7 @@ void iprange_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_ip **ip = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			clear_sip(ip);
 		}
@@ -84,7 +84,7 @@ void iprange_fn(const char *token, char *value, void *setting, FILE *f)
 		return;
 	}
 	value = mk_t_iprange(*ip);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -102,7 +102,7 @@ static void logfile_fn(const char *token, char *value, void *UNUSED(setting), FI
 		cfg.logtostdout = 0;
 		cfg.logtosyslog = 0;
 		NULLFREE(cfg.logfile);
-		if(strlen(value) > 0)
+		if(cs_strlen(value) > 0)
 		{
 			char *pch;
 			for(pch = strtok_r(value, ";", &saveptr1); pch != NULL; pch = strtok_r(NULL, ";", &saveptr1))
@@ -138,7 +138,7 @@ void check_caidtab_fn(const char *token, char *value, void *setting, FILE *f)
 	CAIDTAB *caid_table = setting;
 	if(value)
 	{
-		if(strlen(value)) {
+		if(cs_strlen(value)) {
 			chk_caidtab(value, caid_table);
 		} else {
 			caidtab_clear(caid_table);
@@ -158,14 +158,14 @@ void chk_ftab_fn(const char *token, char *value, void *setting, FILE *f)
 	FTAB *ftab = setting;
 	if(value)
 	{
-		if(strlen(value))
+		if(cs_strlen(value))
 			chk_ftab(value, ftab);
 		else
 			ftab_clear(ftab);
 		return;
 	}
 	value = mk_t_ftab(ftab);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -176,7 +176,7 @@ void caidvaluetab_fn(const char *token, char *value, void *setting, FILE *f)
 	CAIDVALUETAB *caid_value_table = setting;
 	if(value)
 	{
-		if (strlen(value)) {
+		if (cs_strlen(value)) {
 			chk_caidvaluetab(value, caid_value_table);
 			if (streq(token, "lb_retrylimits"))
 			{
@@ -206,7 +206,7 @@ void cacheex_valuetab_fn(const char *token, char *value, void *setting, FILE *f)
 	CECSPVALUETAB *cacheex_value_table = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 			{ clear_cacheextab(cacheex_value_table); }
 		else
 			{ chk_cacheex_valuetab(value, cacheex_value_table); }
@@ -225,7 +225,7 @@ void cacheex_cwcheck_tab_fn(const char *token, char *value, void *setting, FILE 
 	CWCHECKTAB *cacheex_value_table = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			cacheex_value_table->cwchecknum = 0;
 			NULLFREE(cacheex_value_table->cwcheckdata);
@@ -250,7 +250,7 @@ void cacheex_hitvaluetab_fn(const char *token, char *value, void *setting, FILE 
 	CECSPVALUETAB *cacheex_value_table = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 			{ clear_cacheextab(cacheex_value_table); }
 		else
 			{ chk_cacheex_hitvaluetab(value, cacheex_value_table); }
@@ -527,7 +527,7 @@ static void http_dyndns_fn(const char *token, char *value, void *UNUSED(setting)
 		}
 		return;
 	}
-	if(strlen((const char *)(cfg.http_dyndns[0])) > 0 || cfg.http_full_cfg)
+	if(cs_strlen((const char *)(cfg.http_dyndns[0])) > 0 || cfg.http_full_cfg)
 	{
 		fprintf_conf(f, token, "%s", ""); // it should not have \n at the end
 		for(i = 0; i < MAX_HTTP_DYNDNS; i++)
@@ -752,7 +752,7 @@ static void porttab_fn(const char *token, char *value, void *setting, FILE *f)
 	PTAB *ptab = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			clear_ptab(ptab);
 		}
@@ -774,7 +774,7 @@ static void porttab_camd35_fn(const char *token, char *value, void *setting, FIL
 	PTAB *ptab = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			clear_ptab(ptab);
 		}
@@ -1139,7 +1139,7 @@ static void gbox_my_vers_fn(const char *token, char *value, void *UNUSED(setting
 	{
 		const char *s;
 		s = value;
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 
 		if ((s[strspn(s, "0123456789abcdefABCDEF")] != 0) || (len == 0) || (len > 2))
 		{
@@ -1168,7 +1168,7 @@ static void gbox_my_cpu_api_fn(const char *token, char *value, void *UNUSED(sett
 	{
 		const char *s;
 		s = value;
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 
 		if ((s[strspn(s, "0123456789abcdefABCDEF")] != 0) || (len == 0) || (len > 2))
 		{
@@ -1202,7 +1202,7 @@ static void gbox_dest_peers_fn(const char *token, char *value, void *UNUSED(sett
 		{
 			s = trim(ptr1);
 			if ((n < GBOX_MAX_DEST_PEERS) && (s[strspn(s, "0123456789abcdefABCDEF")] == 0))
-			{ cfg.gbox_dest_peers[n++] = a2i(trim(ptr1), strlen(trim(ptr1))); }
+			{ cfg.gbox_dest_peers[n++] = a2i(trim(ptr1), cs_strlen(trim(ptr1))); }
 		}
 		cfg.gbox_dest_peers_num = n;
 		return;
@@ -1514,7 +1514,7 @@ int32_t init_config(void)
 	while(fgets(token, MAXLINESIZE, fp))
 	{
 		++line;
-		int len = strlen(trim(token));
+		int len = cs_strlen(trim(token));
 		if(len < 3) // a=b or [a] are at least 3 chars
 			{ continue; }
 		if(token[0] == '#') // Skip comments
