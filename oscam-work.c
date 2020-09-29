@@ -11,6 +11,9 @@
 #include "oscam-string.h"
 #include "oscam-work.h"
 #include "reader-common.h"
+#ifdef READER_NAGRA_MERLIN
+#include "reader-nagracak7.h"
+#endif
 #include "module-cccam.h"
 #include "module-cccam-data.h"
 #include "module-cccshare.h"
@@ -257,22 +260,27 @@ void *work_thread(void *ptr)
 						{ break; }
 					if(s < 0)
 					{
-						if(reader->ph.type == MOD_CONN_TCP)
+						if(cl->reader->ph.type == MOD_CONN_TCP)
 							{ network_tcp_connection_close(reader, "disconnect"); }
 						break;
 					}
-					rc = reader->ph.recv(cl, mbuf, bufsize);
+					rc = cl->reader->ph.recv(cl, mbuf, bufsize);
 					if(rc < 0)
 					{
-						if(reader->ph.type == MOD_CONN_TCP)
-							{ network_tcp_connection_close(reader, "disconnect on receive"); }
+						if(cl->reader->ph.type == MOD_CONN_TCP)
+							{
+								network_tcp_connection_close(reader, "disconnect on receive"); 
+#ifdef CS_CACHEEX_AIO
+								cl->cacheex_aio_checked = 0;
+#endif
+							}
 						break;
 					}
 					cl->last = time(NULL); // *********************************** TO BE REPLACE BY CS_FTIME() LATER ****************
-					idx = reader->ph.c_recv_chk(cl, dcw, &rc, mbuf, rc);
+					idx = cl->reader->ph.c_recv_chk(cl, dcw, &rc, mbuf, rc);
 					if(idx < 0) { break; }  // no dcw received
 					if(!idx) { idx = cl->last_idx; }
-					reader->last_g = time(NULL); // *********************************** TO BE REPLACE BY CS_FTIME() LATER **************** // for reconnect timeout
+					cl->reader->last_g = time(NULL); // *********************************** TO BE REPLACE BY CS_FTIME() LATER **************** // for reconnect timeout
 					for(i = 0, n = 0; i < cfg.max_pending && n == 0; i++)
 					{
 						if(cl->ecmtask[i].idx == idx)
@@ -304,6 +312,12 @@ void *work_thread(void *ptr)
 					cardreader_poll_status(reader);
 					break;
 
+#ifdef READER_NAGRA_MERLIN
+				case ACTION_READER_RENEW_SK:
+					CAK7_getCamKey(reader);
+					break;
+#endif
+
 				case ACTION_READER_INIT:
 					if(!cl->init_done)
 						{ reader_init(reader); }
@@ -315,7 +329,7 @@ void *work_thread(void *ptr)
 					break;
 
 				case ACTION_READER_RESET_FAST:
-					reader->card_status = CARD_NEED_INIT;
+					cl->reader->card_status = CARD_NEED_INIT;
 					cardreader_do_reset(reader);
 					break;
 
@@ -324,7 +338,7 @@ void *work_thread(void *ptr)
 					break;
 
 				case ACTION_READER_CAPMT_NOTIFY:
-					if(reader->ph.c_capmt) { reader->ph.c_capmt(cl, data->ptr); }
+					if(cl->reader->ph.c_capmt) { cl->reader->ph.c_capmt(cl, data->ptr); }
 					break;
 
 				case ACTION_CLIENT_UDP:
@@ -414,6 +428,7 @@ void *work_thread(void *ptr)
 					if(module->s_peer_idle)
 						{ module->s_peer_idle(cl); }
 					break;
+
 				case ACTION_CLIENT_HIDECARDS:
 				{
 #ifdef CS_ANTICASC

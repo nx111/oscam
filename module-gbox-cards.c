@@ -17,6 +17,8 @@ LLIST *gbox_cards;
 LLIST *gbox_backup_cards; // NEEDFIX: this list has to be cleaned from time to time
 CS_MUTEX_LOCK gbox_cards_lock;
 uint8_t checkcode[7];
+uint8_t sid_verified = 0;
+
 
 GBOX_CARDS_ITER *gbox_cards_iter_create(void)
 {
@@ -38,6 +40,26 @@ struct gbox_card *gbox_cards_iter_next(GBOX_CARDS_ITER *gci)
 {
 	if (gci) { return ll_iter_next(&gci->it); }
 	else { return NULL; }
+}
+
+uint8_t gbox_get_crd_dist_lev(uint16_t crd_id)
+{
+	uint8_t crd_dist = 0;
+	uint8_t crd_level = 0;
+	struct gbox_card *card;
+	cs_readlock(__func__, &gbox_cards_lock);
+	LL_ITER it = ll_iter_create(gbox_cards);
+	while((card = ll_iter_next(&it)))
+	{
+		if (card->type == GBOX_CARD_TYPE_GBOX && card->id.peer == crd_id)
+		{
+			crd_dist = card->dist;
+			crd_level = card->lvl;
+			break;
+		}
+	}
+	cs_readunlock(__func__, &gbox_cards_lock);
+	return ((crd_level << 4) | (crd_dist & 0xf));
 }
 
 void gbox_write_share_cards_info(void)
@@ -508,7 +530,7 @@ static int8_t is_already_pending(LLIST *pending_cards, uint16_t peer_id, uint8_t
 	return ret;
 }
 
-uint8_t gbox_get_cards_for_ecm(uint8_t *send_buf, int32_t len2, uint8_t max_cards, ECM_REQUEST *er, uint32_t *current_avg_card_time, uint16_t peer_id)
+uint8_t gbox_get_cards_for_ecm(uint8_t *send_buf, int32_t len2, uint8_t max_cards, ECM_REQUEST *er, uint32_t *current_avg_card_time, uint16_t peer_id, uint8_t force_remm)
 {
 	if (!send_buf || !er)
 		{ return 0; }
@@ -517,7 +539,6 @@ uint8_t gbox_get_cards_for_ecm(uint8_t *send_buf, int32_t len2, uint8_t max_card
 	struct gbox_good_srvid *srvid_good = NULL;
 	struct gbox_bad_srvid *srvid_bad = NULL;
 	uint8_t enough = 0;
-	uint8_t sid_verified = 0;
 	time_t time_since_lastcw;
 
 	// loop over good only
@@ -548,7 +569,7 @@ uint8_t gbox_get_cards_for_ecm(uint8_t *send_buf, int32_t len2, uint8_t max_card
 						else
 						{
 							nb_matching_crds++;
-							if (time_since_lastcw < GBOX_SID_CONFIRM_TIME && er->gbox_ecm_status == GBOX_ECM_NOT_ASKED)
+							if (time_since_lastcw < GBOX_SID_CONFIRM_TIME && er->gbox_ecm_status == GBOX_ECM_NEW_REQ)
 								{ enough = 1; }
 						}
 						i2b_buf(2, card->id.peer, send_buf + len2);
@@ -596,12 +617,20 @@ uint8_t gbox_get_cards_for_ecm(uint8_t *send_buf, int32_t len2, uint8_t max_card
 					{
 						if (srvid_bad->bad_strikes < 3)
 						{
-							sid_verified = 2;
-							srvid_bad->bad_strikes++;
-						}
+						 sid_verified = 2;
+							if(!force_remm)
+							 	{
+							 		srvid_bad->bad_strikes++;
+							 	}
+							else
+								{
+									srvid_bad->bad_strikes = 1;
+									//cs_log("cards.c - get card for ecm - Block bad SID: %04X - %d bad strikes", srvid_bad->srvid.sid, srvid_bad->bad_strikes);
+								}
+ 						}
 						else
 							{ sid_verified = 1; }
-						cs_log_dbg(D_READER, "ID: %04X SL: %02X SID: %04X is bad %d", card->id.peer, card->id.slot, srvid_bad->srvid.sid, srvid_bad->bad_strikes);
+						cs_log_dbg(D_READER, "CRD_ID: %04X Slot: %d SID: %04X failed to relpy %d times", card->id.peer, card->id.slot, srvid_bad->srvid.sid, srvid_bad->bad_strikes);
 						break;
 					}
 				}

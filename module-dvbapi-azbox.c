@@ -179,7 +179,7 @@ static void *azbox_main_thread(void *cli)
 
 				memcpy(dest + 7, msg.buf + 12, msg.buf_len - 12 - 4);
 
-				dvbapi_parse_capmt(dest, 7 + msg.buf_len - 12 - 4, -1, NULL, 0, 0, 0, 0);
+				dvbapi_parse_capmt(dest, 7 + msg.buf_len - 12 - 4, -1, NULL, 0, 0);
 				NULLFREE(dest);
 
 				uint8_t mask[12];
@@ -270,7 +270,10 @@ void azbox_send_dcw(struct s_client *client, ECM_REQUEST *er)
 
 	delayer(er, delay);
 
-	dvbapi_write_ecminfo_file(client, er, demux[0].last_cw[0][0], demux[0].last_cw[0][1], 8);
+	if(cfg.dvbapi_ecminfo_file != 0)
+	{
+		dvbapi_write_ecminfo_file(client, er, demux[0].last_cw[0][0], demux[0].last_cw[0][1], 8);
+	}
 
 	openxcas_busy = 0;
 

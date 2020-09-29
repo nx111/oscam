@@ -364,6 +364,11 @@
  *			constants
  * =========================== */
 #define CS_VERSION				"1.20_svn"
+#ifdef CS_CACHEEX
+#ifdef CS_CACHEEX_AIO
+#define CS_AIO_VERSION			"9.2.6"
+#endif
+#endif
 #ifndef CS_SVN_VERSION
 # define CS_SVN_VERSION			"test"
 #endif
@@ -422,9 +427,16 @@
 #define D_CLIENTECM				0x0400	// Debug Client ECMs
 #define D_CSP					0x0800	// Debug CSP
 #define D_CWC					0x1000	// Debug CWC
+#ifdef CS_CACHEEX_AIO
+#define D_CW_CACHE				0x2000	// Debug CW Cache
+#endif
 #define D_ALL_DUMP				0xFFFF	// dumps all
 
+#ifdef CS_CACHEEX_AIO
+#define MAX_DEBUG_LEVELS		14
+#else
 #define MAX_DEBUG_LEVELS		13
+#endif
 
 /////// phoenix readers which need baudrate setting and timings need to be guarded by OSCam: BEFORE R_MOUSE
 #define R_DB2COM1				0x1		// Reader Dbox2 @ com1
@@ -734,6 +746,11 @@ typedef struct s_tuntab
 typedef struct s_sidtab
 {
 	char			label[64];
+	uint8_t			disablecrccws_only_for_exception;
+#ifdef CS_CACHEEX_AIO
+	uint8_t			no_wait_time;
+	uint8_t			lg_only_exception;
+#endif
 	uint16_t		num_caid;
 	uint16_t		num_provid;
 	uint16_t		num_srvid;
@@ -855,6 +872,9 @@ typedef struct s_cacheex_stat_entry					// Cacheex stats listmember
 	uint16_t		cache_srvid;
 	uint32_t		cache_prid;
 	int8_t			cache_direction;				// 0 = push / 1 = got
+#ifdef CS_CACHEEX_AIO
+	int32_t			cache_count_lg;
+#endif
 } S_CACHEEX_STAT_ENTRY;
 
 typedef struct s_entitlement						// contains entitlement Info
@@ -1055,7 +1075,9 @@ typedef struct ecm_request_t
 
 #if defined MODULE_GBOX
 	uint32_t		gbox_crc;						// rcrc for gbox, used to identify ECM task in peer responses
-	uint16_t		gbox_ecm_id;
+	uint16_t		gbox_cw_src_peer;
+	uint16_t		gbox_ecm_src_peer;
+	uint8_t			gbox_ecm_dist;
 	uint8_t			gbox_ecm_status;
 	LLIST			*gbox_cards_pending;			// type gbox_card_pending
 #endif
@@ -1073,6 +1095,10 @@ typedef struct ecm_request_t
 	uint16_t		cacheex_mode1_delay;			// cacheex mode 1 delay
 	uint8_t			cacheex_hitcache;				// =1 if wait_time due hitcache
 	void			*cw_cache;						// pointer to cw stored in cache
+#endif
+#ifdef CS_CACHEEX_AIO
+	int32_t			ecm_time;						// ecm-time in ms
+	uint8_t			localgenerated;					// flag for local generated CW
 #endif
 	uint32_t		cw_count;
 	uint8_t			from_csp;						// =1 if er from csp cache
@@ -1249,7 +1275,14 @@ struct s_client
 	int32_t			cwcacheexerrcw;					// same Hex, different CW
 	int16_t			cwcacheexping;					// peer ping in ms, only used by csp
 	int32_t			cwc_info;						// count of in/out comming cacheex ecms with CWCinfo
+#ifdef CS_CACHEEX_AIO
+	int32_t			cwcacheexgotlg;					// count got localgenerated-flagged CWs
+	int32_t			cwcacheexpushlg;				// count pushed localgenerated-flagged CWs
+#endif
 	uint8_t			cacheex_needfilter;				// flag for cachex mode 3 used with camd35
+#ifdef CS_CACHEEX_AIO
+	uint8_t			cacheex_aio_checked;			// flag for cacheex aio detection done
+#endif
 #endif
 #ifdef CS_ANTICASC
 	struct s_zap_list client_zap_list[15];			// 15 last zappings from client used for ACoSC
@@ -1270,6 +1303,12 @@ struct s_client
 
 #ifdef MODULE_CCCAM
 	void			*cc;
+#endif
+
+#ifdef CS_CACHEEX_AIO
+#if defined(MODULE_CAMD35) || defined(MODULE_CAMD35_TCP)
+	uint8_t 		c35_extmode;
+#endif
 #endif
 
 #ifdef MODULE_GBOX
@@ -1448,12 +1487,32 @@ typedef struct ce_csp_t
 {
 	int8_t			mode;
 	int8_t			maxhop;
+#ifdef CS_CACHEEX_AIO
+	int8_t			maxhop_lg;
+#endif
 	CECSPVALUETAB	filter_caidtab;
 	uint8_t			allow_request;
 	uint8_t			allow_reforward;
 	uint8_t			drop_csp;
 	uint8_t			allow_filter;
+#ifdef CS_CACHEEX_AIO
+	uint8_t			allow_maxhop;
+#endif
 	uint8_t			block_fakecws;
+#ifdef CS_CACHEEX_AIO
+	uint8_t			cw_check_for_push;
+	uint8_t			localgenerated_only;
+	CAIDTAB			localgenerated_only_caidtab;
+	FTAB			lg_only_tab;
+	uint8_t			localgenerated_only_in;
+	CAIDTAB			localgenerated_only_in_caidtab;
+	FTAB			lg_only_in_tab;
+	uint8_t			lg_only_in_aio_only;
+	uint8_t			lg_only_remote_settings;
+	int32_t			feature_bitfield;
+	CAIDVALUETAB	cacheex_nopushafter_tab;
+	char			aio_version[12];
+#endif
 } CECSP;
 
 struct s_emmlen_range
@@ -1509,6 +1568,10 @@ struct s_reader										// contains device info, reader info and card info
 	int8_t			needsglobalfirst;				// 0:Write one Global EMM for SHARED EMM disabled 1:Write one Global EMM for SHARED EMM enabled
 #endif
 #ifdef READER_NAGRA_MERLIN
+	uint8_t			irdid[4];
+	uint8_t			irdid_length;
+	uint8_t			public_exponent[3];
+	uint8_t			public_exponent_length;
 	uint8_t			mod1[112];
 	uint8_t			mod1_length;
 	uint8_t			data50[80];
@@ -1533,9 +1596,7 @@ struct s_reader										// contains device info, reader info and card info
 	uint8_t			block3[8];
 	uint8_t			v[8];
 	uint8_t			iout[8];
-	uint32_t		dword_83DBC;
 	uint8_t			data2[4];
-	uint8_t			cak7expo[0x11];
 	uint8_t			data[0x80];
 	uint8_t			step1[0x60];
 	uint8_t			step2[0x68];
@@ -1544,10 +1605,12 @@ struct s_reader										// contains device info, reader info and card info
 	uint8_t			result[104];
 	uint8_t			stillencrypted[0x50];
 	uint8_t			resultrsa[0x50];
+	uint32_t		cak7_restart;
 	uint32_t		cak7_seq;
 	uint8_t			cak7_camstate;
 	uint8_t			cak7_aes_key[32];
 	uint8_t			cak7_aes_iv[16];
+	struct timeb	last_refresh;
 #endif
 #ifdef CS_CACHEEX
 	CECSP			cacheex;						// CacheEx Settings
@@ -1586,7 +1649,9 @@ struct s_reader										// contains device info, reader info and card info
 	uint8_t			jet_fix_ecm;					// for dvn jet ,ecm head is 0x50, this option indicate if fix it to 0x80 or 0x81.
 	uint8_t			jet_resync_vendorkey;
 #endif
+#if defined(READER_STREAMGUARD) || defined(READER_TONGFANG) || defined(READER_JET)
 	uint32_t		cas_version;					// cas version, used by tongfang,jet and streamguard. manual set for streamguard.
+#endif
 	int8_t			nagra_read;						// read nagra ncmed records: 0 Disabled (default), 1 read all records, 2 read valid records only
 	int8_t			detect_seca_nagra_tunneled_card;
 	int8_t			force_irdeto;
@@ -1750,6 +1815,9 @@ struct s_reader										// contains device info, reader info and card info
 													// (everything below 60 ms is converted to ms by applying *1000)
 	struct timeb	lastdvbapirateoverride;
 	uint32_t		ecmsok;
+#ifdef CS_CACHEEX_AIO
+	uint32_t		ecmsoklg;
+#endif
 	uint32_t		webif_ecmsok;
 	uint32_t		ecmsnok;
 	uint32_t		webif_ecmsnok;
@@ -1763,6 +1831,9 @@ struct s_reader										// contains device info, reader info and card info
 	int32_t			webif_ecmsfilteredhead;			// count filtered ECM's by ECM Headerwhitelist to readers ecminfo
 	int32_t			webif_ecmsfilteredlen;			// count filtered ECM's by ECM Whitelist to readers ecm info
 	float			ecmshealthok;
+#ifdef CS_CACHEEX_AIO
+	float			ecmshealthoklg;
+#endif
 	float			ecmshealthnok;
 	float			ecmshealthtout;
 	int32_t			cooldown[2];
@@ -1776,6 +1847,8 @@ struct s_reader										// contains device info, reader info and card info
 	uint8_t			ins7E11[0x01 + 1];
 	uint8_t			ins2e06[0x04 + 1];
 	int8_t			ins7e11_fast_reset;
+	uint8_t			k1_generic[0x10 + 1];			// k1 for generic pairing mode
+	uint8_t			k1_unique[0x10 + 1];			// k1 for unique pairing mode
 	uint8_t			sc8in1_dtrrts_patch;			// fix for kernel commit 6a1a82df91fa0eb1cc76069a9efe5714d087eccd
 
 #ifdef READER_VIACCESS
@@ -1797,10 +1870,13 @@ struct s_reader										// contains device info, reader info and card info
 	uint8_t			gbox_maxdist;
 	uint8_t			gbox_maxecmsend;
 	uint8_t			gbox_reshare;
-	uint8_t			gbox_cccam_reshare;
+	int8_t			gbox_cccam_reshare;
 	char			last_gsms[128];
 	uint16_t		gbox_remm_peer;
 	uint16_t		gbox_gsms_peer;
+	uint8_t			gbox_force_remm;
+	uint16_t		gbox_cw_src_peer;
+	uint8_t			gbox_crd_slot_lev;
 #endif
 
 #ifdef MODULE_PANDORA
@@ -1924,6 +2000,10 @@ struct s_auth
 	int32_t			cwcacheexerr;					// cw=00 or chksum wrong
 	int32_t			cwcacheexerrcw;					// Same Hex, different CW
 	int32_t			cwc_info;						// count of in/out comming cacheex ecms with CWCinfo
+#ifdef CS_CACHEEX_AIO
+	int32_t			cwcacheexgotlg;					// count got localgenerated-flagged CWs
+	int32_t			cwcacheexpushlg;				// count pushed localgenerated-flagged CWs
+#endif
 #endif
 	struct s_auth	*next;
 };
@@ -2204,7 +2284,7 @@ struct s_config
 	uint8_t			log_hello;
 	uint8_t			dis_attack_txt;
 	char			*gbox_tmp_dir;
-	uint8_t			ccc_reshare;
+	uint8_t			cc_gbx_reshare_en;
 	uint16_t		gbox_ignored_peer[GBOX_MAX_IGNORED_PEERS];
 	uint8_t			gbox_ignored_peer_num;
 	uint16_t		accept_remm_peer[GBOX_MAX_REMM_PEERS];
@@ -2215,7 +2295,8 @@ struct s_config
 	uint8_t			gbox_msg_type;
 	uint16_t		gbox_dest_peers[GBOX_MAX_DEST_PEERS];
 	uint8_t			gbox_dest_peers_num;
-	char			gbox_msg_txt[GBOX_MAX_MSG_TXT+1];
+	char				gbox_msg_txt[GBOX_MAX_MSG_TXT+1];
+	CAIDTAB			ccc_gbx_check_caidtab;
 #endif
 #ifdef MODULE_SERIAL
 	char			*ser_device;
@@ -2267,6 +2348,7 @@ struct s_config
 	int32_t			dvbapi_listenport;				// TCP port to listen instead of camd.socket (network mode, default=0 -> disabled)
 	SIDTABS			dvbapi_sidtabs;
 	int32_t			dvbapi_delayer;					// delayer ms, minimum time to write cw
+	int8_t			dvbapi_ecminfo_file;			// Enable or disable ecm.info file creation
 	int8_t			dvbapi_ecminfo_type;
 	int8_t			dvbapi_read_sdt;
 	int8_t			dvbapi_write_sdt_prov;
@@ -2347,15 +2429,43 @@ struct s_config
 	int8_t			block_same_name;				// 0=allow all, 1=block client requests to reader with same name (default=1)
 
 #ifdef CS_CACHEEX
+#ifdef CS_CACHEEX_AIO
+	uint32_t		cw_cache_size;
+	uint32_t		cw_cache_memory;
+	CWCHECKTAB		cw_cache_settings;
+
+	uint32_t		ecm_cache_size;
+	uint32_t		ecm_cache_memory;
+	int32_t			ecm_cache_droptime;
+#endif
 	uint8_t			wait_until_ctimeout;
 	CWCHECKTAB		cacheex_cwcheck_tab;
 	IN_ADDR_T		csp_srvip;
 	int32_t			csp_port;
 	CECSPVALUETAB	cacheex_wait_timetab;
 	CAIDVALUETAB	cacheex_mode1_delay_tab;
+#ifdef CS_CACHEEX_AIO
+	CAIDVALUETAB	cacheex_nopushafter_tab;
+	uint8_t			waittime_block_start;
+	uint16_t		waittime_block_time;
+#endif
 	CECSP			csp;							// CSP Settings
 	uint8_t			cacheex_enable_stats;			// enable stats
 	struct s_cacheex_matcher *cacheex_matcher;
+#ifdef CS_CACHEEX_AIO
+	uint8_t			cacheex_dropdiffs;
+	uint8_t			cacheex_lg_only_remote_settings;
+	uint8_t			cacheex_localgenerated_only;
+	CAIDTAB			cacheex_localgenerated_only_caidtab;
+	FTAB			cacheex_lg_only_tab;
+	uint8_t			cacheex_localgenerated_only_in;
+	CAIDTAB			cacheex_localgenerated_only_in_caidtab;
+	FTAB			cacheex_lg_only_in_tab;
+	uint8_t			cacheex_lg_only_in_aio_only;
+	CECSPVALUETAB	cacheex_filter_caidtab;
+	CECSPVALUETAB	cacheex_filter_caidtab_aio;
+	uint64_t		cacheex_push_lg_groups;
+#endif
 #endif
 
 #ifdef CW_CYCLE_CHECK
@@ -2502,7 +2612,7 @@ static inline bool caid_is_betacrypt(uint16_t caid) { return caid >> 8 == 0x17; 
 static inline bool caid_is_nagra(uint16_t caid) { return caid >> 8 == 0x18; }
 static inline bool caid_is_bulcrypt(uint16_t caid) { return caid == 0x5581 || caid == 0x4AEE; }
 static inline bool caid_is_dre(uint16_t caid) { return caid == 0x4AE0 || caid == 0x4AE1 || caid == 0x2710;}
-static inline bool caid_is_streamguard(uint16_t caid) { return caid == 0x4AD2; }
+static inline bool caid_is_streamguard(uint16_t caid) { return caid == 0x4AD2 || caid == 0x4AD3; }
 static inline bool caid_is_dvn(uint16_t caid) { return caid == 0x4A30; }
 static inline bool caid_is_tongfang(uint16_t caid) { return (caid == 0x4A02) || (caid >= 0x4B00 && caid <= 0x4BFF); }
 const char *get_cardsystem_desc_by_caid(uint16_t caid);

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-addons="WEBIF WEBIF_LIVELOG WEBIF_JQUERY TOUCH WITH_SSL HAVE_DVBAPI WITH_NEUTRINO READ_SDT_CHARSETS IRDETO_GUESSING CS_ANTICASC WITH_DEBUG MODULE_MONITOR WITH_LB CS_CACHEEX CW_CYCLE_CHECK LCDSUPPORT LEDSUPPORT CLOCKFIX IPV6SUPPORT WITH_EMU WITH_SOFTCAM"
+addons="WEBIF WEBIF_LIVELOG WEBIF_JQUERY TOUCH WITH_SSL HAVE_DVBAPI WITH_NEUTRINO READ_SDT_CHARSETS IRDETO_GUESSING CS_ANTICASC WITH_DEBUG MODULE_MONITOR WITH_LB CS_CACHEEX CS_CACHEEX_AIO CW_CYCLE_CHECK LCDSUPPORT LEDSUPPORT CLOCKFIX IPV6SUPPORT WITH_EMU WITH_SOFTCAM"
 protocols="MODULE_CAMD33 MODULE_CAMD35 MODULE_CAMD35_TCP MODULE_NEWCAMD MODULE_CCCAM MODULE_CCCSHARE MODULE_GBOX MODULE_RADEGAST MODULE_SCAM MODULE_SERIAL MODULE_CONSTCW MODULE_PANDORA MODULE_GHTTP"
 readers="READER_NAGRA READER_NAGRA_MERLIN READER_IRDETO READER_CONAX READER_CRYPTOWORKS READER_SECA READER_VIACCESS READER_VIDEOGUARD READER_DRE READER_TONGFANG READER_STREAMGUARD READER_JET READER_BULCRYPT READER_GRIFFIN READER_DGCRYPT"
 card_readers="CARDREADER_PHOENIX CARDREADER_INTERNAL CARDREADER_SC8IN1 CARDREADER_MP35 CARDREADER_SMARGO CARDREADER_DB2COM CARDREADER_STAPI CARDREADER_STAPI5 CARDREADER_STINGER CARDREADER_DRECAS"
@@ -20,6 +20,7 @@ CONFIG_WITH_DEBUG=y
 CONFIG_MODULE_MONITOR=y
 CONFIG_WITH_LB=y
 # CONFIG_CS_CACHEEX=n
+# CONFIG_CS_CACHEEX_AIO=n
 # CONFIG_CW_CYCLE_CHECK=n
 # CONFIG_LCDSUPPORT=n
 # CONFIG_LEDSUPPORT=n
@@ -306,6 +307,7 @@ update_deps() {
 	enabled WITH_EMU && enable_opt READER_DRE >/dev/null
 	enabled WITH_EMU && enable_opt MODULE_NEWCAMD >/dev/null
 	enabled WITH_EMU && enable_opt WITH_SOFTCAM >/dev/null
+	enabled CS_CACHEEX_AIO && enable_opt CS_CACHEEX >/dev/null
 }
 
 list_config() {
@@ -356,7 +358,7 @@ list_config() {
 	enabled MODULE_CCCAM && echo "CONFIG_LIB_RC6=y" || echo "# CONFIG_LIB_RC6=n"
 	not_have_flag USE_LIBCRYPTO && enabled MODULE_CCCAM && echo "CONFIG_LIB_SHA1=y" || echo "# CONFIG_LIB_SHA1=n"
 	enabled_any READER_JET && echo "CONFIG_LIB_TWOFISH=y" || echo "CONFIG_LIB_TWOFISH=n"
-	enabled_any READER_DRE MODULE_SCAM READER_VIACCESS READER_NAGRA_MERLIN READER_TONGFANG READER_STREAMGUARD READER_JET WITH_EMU && echo "CONFIG_LIB_DES=y" || echo "# CONFIG_LIB_DES=n"
+	enabled_any READER_DRE MODULE_SCAM READER_VIACCESS READER_NAGRA_MERLIN READER_VIDEOGUARD  READER_TONGFANG READER_STREAMGUARD READER_JET WITH_EMU && echo "CONFIG_LIB_DES=y" || echo "# CONFIG_LIB_DES=n"
 	enabled_any MODULE_CCCAM READER_NAGRA READER_NAGRA_MERLIN READER_SECA WITH_EMU && echo "CONFIG_LIB_IDEA=y" || echo "# CONFIG_LIB_IDEA=n"
 	not_have_flag USE_LIBCRYPTO && enabled_any READER_CONAX READER_CRYPTOWORKS READER_NAGRA READER_NAGRA_MERLIN WITH_EMU && echo "CONFIG_LIB_BIGNUM=y" || echo "# CONFIG_LIB_BIGNUM=n"
 	enabled READER_NAGRA_MERLIN && echo "CONFIG_LIB_MDC2=y" || echo "# CONFIG_LIB_MDC2=n"
@@ -469,6 +471,7 @@ menu_addons() {
 		MODULE_MONITOR		"Monitor"								$(check_test "MODULE_MONITOR") \
 		WITH_LB				"Loadbalancing"							$(check_test "WITH_LB") \
 		CS_CACHEEX			"Cache exchange"						$(check_test "CS_CACHEEX") \
+		CS_CACHEEX_AIO			"Cache exchange aio (depend on Cache exchange)"			$(check_test "CS_CACHEEX_AIO") \
 		CW_CYCLE_CHECK		"CW Cycle Check"						$(check_test "CW_CYCLE_CHECK") \
 		LCDSUPPORT			"LCD support"							$(check_test "LCDSUPPORT") \
 		LEDSUPPORT			"LED support"							$(check_test "LEDSUPPORT") \
@@ -714,14 +717,17 @@ do
 		revision=`(svnversion -n . 2>/dev/null || printf 0) | sed 's/.*://; s/[^0-9]*$//; s/^$/0/'`
 
 		if [ "$revision" = "" -o "$revision" = "0" ]; then
-			which git > /dev/null 2>&1 && svnrevision=$(git log -10 --pretty=%B | grep git-svn-id | head -n 1 | sed -n -e 's/^.*trunk@\([0-9]*\) .*$/\1/p')
-			which git > /dev/null 2>&1 && gitrevision=$(git log 2>/dev/null | sed -n 1p|cut -d' ' -f2 | cut -c1-5 )
+			which git > /dev/null 2>&1 && svnrevision=$(git log -30 --topo-order --pretty=%B | grep git-svn-id | head -n 1 | sed -n -e 's/^.*trunk@\([0-9]*\) .*$/\1/p')
+			which git > /dev/null 2>&1 && gitrevision=$(git log --topo-order 2>/dev/null | sed -n 1p|cut -d' ' -f2 | cut -c1-5 )
 			if [ "$svnrevision" = "" -o "$gitrevision" = "0" ]; then
 				[ -f history.txt ] && gitrevision=$(cat history.txt | sed -n 1p | cut -d' ' -f1)
 				[ -f .svnrevision ] && svnrevision=$(cat .svnrevision)
 			else
-				git log --pretty=oneline -n 100 | sed -e "s/^\([[:print:]]\{5,5\}\)[^[:space:]]*\( .*\)/\1\2/" > history.txt
+				git log --topo-order --pretty=oneline -n 100 | sed -e "s/^\([[:print:]]\{5,5\}\)[^[:space:]]*\( .*\)/\1\2/" > history.txt
 				echo $svnrevision > .svnrevision
+			fi
+			if git show -1 | grep "^diff " | cut -f3 -d' ' | grep -q history.txt; then
+			    sed -i 1d history.txt
 			fi
 			[ "$svnrevision" = "0" ] || revision=$svnrevision
 			[ "$gitrevision" = "0" ] || revision=${revision}_${gitrevision}

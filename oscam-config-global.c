@@ -10,11 +10,13 @@
 #include "oscam-config.h"
 #include "oscam-net.h"
 #include "oscam-string.h"
-
+#ifdef CS_CACHEEX_AIO
+#include "module-cacheex.h"
+#endif
 #define cs_conf "oscam.conf"
 
 #define DEFAULT_HTTP_PORT 8888
-#define DEFAULT_HTTP_ALLOW "127.0.0.1,192.168.0.0-192.168.255.255,10.0.0.0-10.255.255.255,::1"
+#define DEFAULT_HTTP_ALLOW "127.0.0.1,192.168.0.0-192.168.255.255,10.0.0.0-10.255.255.255,172.16.0.0-172.31.255.255,::1"
 
 extern uint8_t cs_http_use_utf8;
 static void disablelog_fn(const char *token, char *value, void *UNUSED(setting), FILE *f)
@@ -52,7 +54,7 @@ static void serverip_fn(const char *token, char *value, void *setting, FILE *f)
 	IN_ADDR_T srvip = *(IN_ADDR_T *)setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			set_null_ip((IN_ADDR_T *)setting);
 		}
@@ -71,7 +73,7 @@ void iprange_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_ip **ip = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			clear_sip(ip);
 		}
@@ -82,7 +84,7 @@ void iprange_fn(const char *token, char *value, void *setting, FILE *f)
 		return;
 	}
 	value = mk_t_iprange(*ip);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -100,7 +102,7 @@ static void logfile_fn(const char *token, char *value, void *UNUSED(setting), FI
 		cfg.logtostdout = 0;
 		cfg.logtosyslog = 0;
 		NULLFREE(cfg.logfile);
-		if(strlen(value) > 0)
+		if(cs_strlen(value) > 0)
 		{
 			char *pch;
 			for(pch = strtok_r(value, ";", &saveptr1); pch != NULL; pch = strtok_r(NULL, ";", &saveptr1))
@@ -136,7 +138,7 @@ void check_caidtab_fn(const char *token, char *value, void *setting, FILE *f)
 	CAIDTAB *caid_table = setting;
 	if(value)
 	{
-		if(strlen(value)) {
+		if(cs_strlen(value)) {
 			chk_caidtab(value, caid_table);
 		} else {
 			caidtab_clear(caid_table);
@@ -156,14 +158,14 @@ void chk_ftab_fn(const char *token, char *value, void *setting, FILE *f)
 	FTAB *ftab = setting;
 	if(value)
 	{
-		if(strlen(value))
+		if(cs_strlen(value))
 			chk_ftab(value, ftab);
 		else
 			ftab_clear(ftab);
 		return;
 	}
 	value = mk_t_ftab(ftab);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -174,7 +176,7 @@ void caidvaluetab_fn(const char *token, char *value, void *setting, FILE *f)
 	CAIDVALUETAB *caid_value_table = setting;
 	if(value)
 	{
-		if (strlen(value)) {
+		if (cs_strlen(value)) {
 			chk_caidvaluetab(value, caid_value_table);
 			if (streq(token, "lb_retrylimits"))
 			{
@@ -204,7 +206,7 @@ void cacheex_valuetab_fn(const char *token, char *value, void *setting, FILE *f)
 	CECSPVALUETAB *cacheex_value_table = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 			{ clear_cacheextab(cacheex_value_table); }
 		else
 			{ chk_cacheex_valuetab(value, cacheex_value_table); }
@@ -223,7 +225,7 @@ void cacheex_cwcheck_tab_fn(const char *token, char *value, void *setting, FILE 
 	CWCHECKTAB *cacheex_value_table = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			cacheex_value_table->cwchecknum = 0;
 			NULLFREE(cacheex_value_table->cwcheckdata);
@@ -248,7 +250,7 @@ void cacheex_hitvaluetab_fn(const char *token, char *value, void *setting, FILE 
 	CECSPVALUETAB *cacheex_value_table = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 			{ clear_cacheextab(cacheex_value_table); }
 		else
 			{ chk_cacheex_hitvaluetab(value, cacheex_value_table); }
@@ -525,7 +527,7 @@ static void http_dyndns_fn(const char *token, char *value, void *UNUSED(setting)
 		}
 		return;
 	}
-	if(strlen((const char *)(cfg.http_dyndns[0])) > 0 || cfg.http_full_cfg)
+	if(cs_strlen((const char *)(cfg.http_dyndns[0])) > 0 || cfg.http_full_cfg)
 	{
 		fprintf_conf(f, token, "%s", ""); // it should not have \n at the end
 		for(i = 0; i < MAX_HTTP_DYNDNS; i++)
@@ -640,13 +642,24 @@ void cache_fixups_fn(void *UNUSED(var))
 	if(cfg.cwcycle_sensitive > 4) { cfg.cwcycle_sensitive = 4; }
 	if(cfg.cwcycle_sensitive == 1) { cfg.cwcycle_sensitive = 2; }
 #endif
+#ifdef CS_CACHEEX_AIO
+	// lgo-ctab -> lgo-ftab port
+	caidtab2ftab_add(&cfg.cacheex_localgenerated_only_in_caidtab, &cfg.cacheex_lg_only_in_tab);
+	caidtab_clear(&cfg.cacheex_localgenerated_only_in_caidtab);
+	caidtab2ftab_add(&cfg.cacheex_localgenerated_only_caidtab, &cfg.cacheex_lg_only_tab);
+	caidtab_clear(&cfg.cacheex_localgenerated_only_caidtab);
+#endif
 }
 
 static bool cache_should_save_fn(void *UNUSED(var))
 {
 	return cfg.delay > 0 || cfg.max_cache_time != 15
 #ifdef CS_CACHEEX
+#ifdef CS_CACHEEX_AIO
+			|| cfg.cacheex_lg_only_tab.nfilts || cfg.cacheex_lg_only_in_tab.nfilts || cfg.cacheex_lg_only_remote_settings || cfg.cacheex_lg_only_in_aio_only || cfg.cacheex_push_lg_groups || cfg.cacheex_filter_caidtab_aio.cevnum || cfg.cacheex_filter_caidtab.cevnum || cfg.cacheex_localgenerated_only_caidtab.ctnum || cfg.cacheex_localgenerated_only_in_caidtab.ctnum || cfg.cacheex_localgenerated_only_in || cfg.cacheex_localgenerated_only || cfg.cacheex_dropdiffs || cfg.cw_cache_settings.cwchecknum || cfg.cw_cache_size > 0 || cfg.cw_cache_memory > 0 || cfg.cacheex_wait_timetab.cevnum || cfg.cacheex_enable_stats > 0 || cfg.csp_port || cfg.csp.filter_caidtab.cevnum || cfg.csp.allow_request == 0 || cfg.csp.allow_reforward > 0
+#else
 			|| cfg.cacheex_wait_timetab.cevnum || cfg.cacheex_enable_stats > 0 || cfg.csp_port || cfg.csp.filter_caidtab.cevnum || cfg.csp.allow_request == 0 || cfg.csp.allow_reforward > 0
+#endif
 #endif
 #ifdef CW_CYCLE_CHECK
 			|| cfg.cwcycle_check_enable || cfg.cwcycle_check_caidtab.ctnum || cfg.maxcyclelist != 500 || cfg.keepcycletime || cfg.onbadcycle || cfg.cwcycle_dropold || cfg.cwcycle_sensitive || cfg.cwcycle_allowbadfromffb || cfg.cwcycle_usecwcfromce
@@ -661,10 +674,32 @@ static const struct config_list cache_opts[] =
 	DEF_OPT_UINT32("delay"                , OFS(delay)                  , CS_DELAY),
 	DEF_OPT_INT32("max_time"              , OFS(max_cache_time)         , DEFAULT_MAX_CACHE_TIME),
 #ifdef CS_CACHEEX
+#ifdef CS_CACHEEX_AIO
+	DEF_OPT_UINT32("cw_cache_size"        , OFS(cw_cache_size)          , 0),
+	DEF_OPT_UINT32("cw_cache_memory"      , OFS(cw_cache_memory)        , 0),
+	DEF_OPT_FUNC("cw_cache_settings"      , OFS(cw_cache_settings)    	, cacheex_cwcheck_tab_fn),
+	DEF_OPT_UINT32("ecm_cache_size"       , OFS(ecm_cache_size)         , 0),
+	DEF_OPT_UINT32("ecm_cache_memory"     , OFS(ecm_cache_memory)       , 0),
+	DEF_OPT_INT32("ecm_cache_droptime"    , OFS(ecm_cache_droptime)     , 0),
+#endif
 	DEF_OPT_INT32("max_hit_time"          , OFS(max_hitcache_time)      , DEFAULT_MAX_HITCACHE_TIME),
 	DEF_OPT_FUNC("wait_time"              , OFS(cacheex_wait_timetab)   , cacheex_valuetab_fn),
 	DEF_OPT_FUNC("cacheex_mode1_delay"    , OFS(cacheex_mode1_delay_tab), caidvaluetab_fn),
 	DEF_OPT_UINT8("cacheexenablestats"    , OFS(cacheex_enable_stats)   , 0),
+#ifdef CS_CACHEEX_AIO
+	DEF_OPT_UINT8("cacheex_dropdiffs"     , OFS(cacheex_dropdiffs)      , 0),
+	DEF_OPT_FUNC("cacheex_push_lg_groups" , OFS(cacheex_push_lg_groups)	, group_fn),
+	DEF_OPT_UINT8("cacheex_lg_only_remote_settings", OFS(cacheex_lg_only_remote_settings), 1),
+	DEF_OPT_UINT8("cacheex_localgenerated_only", OFS(cacheex_localgenerated_only), 0),
+	DEF_OPT_FUNC("cacheex_localgenerated_only_caid", OFS(cacheex_localgenerated_only_caidtab), check_caidtab_fn),
+	DEF_OPT_FUNC_X("cacheex_lg_only_tab"   , OFS(cacheex_lg_only_tab)   , ftab_fn, FTAB_ACCOUNT),
+	DEF_OPT_UINT8("cacheex_lg_only_in_aio_only", OFS(cacheex_lg_only_in_aio_only), 0),
+	DEF_OPT_UINT8("cacheex_localgenerated_only_in", OFS(cacheex_localgenerated_only_in), 0),
+	DEF_OPT_FUNC("cacheex_localgenerated_only_in_caid", OFS(cacheex_localgenerated_only_in_caidtab), check_caidtab_fn),
+	DEF_OPT_FUNC_X("cacheex_lg_only_in_tab", OFS(cacheex_lg_only_in_tab), ftab_fn, FTAB_ACCOUNT),
+	DEF_OPT_FUNC("cacheex_ecm_filter"     , OFS(cacheex_filter_caidtab) , cacheex_hitvaluetab_fn),
+	DEF_OPT_FUNC("cacheex_ecm_filter_aio" , OFS(cacheex_filter_caidtab_aio) , cacheex_hitvaluetab_fn),
+#endif
 	DEF_OPT_INT32("csp_port"              , OFS(csp_port)               , 0),
 	DEF_OPT_FUNC("csp_serverip"           , OFS(csp_srvip)              , serverip_fn),
 	DEF_OPT_FUNC("csp_ecm_filter"         , OFS(csp.filter_caidtab)     , cacheex_hitvaluetab_fn),
@@ -673,6 +708,11 @@ static const struct config_list cache_opts[] =
 	DEF_OPT_FUNC("cacheex_cw_check"       , OFS(cacheex_cwcheck_tab)    , cacheex_cwcheck_tab_fn),
 	DEF_OPT_UINT8("wait_until_ctimeout"   , OFS(wait_until_ctimeout)    , 0),
 	DEF_OPT_UINT8("csp_block_fakecws"     , OFS(csp.block_fakecws)      , 0),
+#ifdef CS_CACHEEX_AIO
+	DEF_OPT_FUNC("cacheex_nopushafter"    , OFS(cacheex_nopushafter_tab), caidvaluetab_fn),
+	DEF_OPT_UINT8("waittime_block_start"  , OFS(waittime_block_start)   , 0),
+	DEF_OPT_INT32("waittime_block_time"   , OFS(waittime_block_time)    , 0),
+#endif
 #endif
 #ifdef CW_CYCLE_CHECK
 	DEF_OPT_INT8("cwcycle_check_enable"   , OFS(cwcycle_check_enable)   , 0),
@@ -712,7 +752,7 @@ static void porttab_fn(const char *token, char *value, void *setting, FILE *f)
 	PTAB *ptab = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			clear_ptab(ptab);
 		}
@@ -734,7 +774,7 @@ static void porttab_camd35_fn(const char *token, char *value, void *setting, FIL
 	PTAB *ptab = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			clear_ptab(ptab);
 		}
@@ -1099,7 +1139,7 @@ static void gbox_my_vers_fn(const char *token, char *value, void *UNUSED(setting
 	{
 		const char *s;
 		s = value;
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 
 		if ((s[strspn(s, "0123456789abcdefABCDEF")] != 0) || (len == 0) || (len > 2))
 		{
@@ -1128,7 +1168,7 @@ static void gbox_my_cpu_api_fn(const char *token, char *value, void *UNUSED(sett
 	{
 		const char *s;
 		s = value;
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 
 		if ((s[strspn(s, "0123456789abcdefABCDEF")] != 0) || (len == 0) || (len > 2))
 		{
@@ -1162,7 +1202,7 @@ static void gbox_dest_peers_fn(const char *token, char *value, void *UNUSED(sett
 		{
 			s = trim(ptr1);
 			if ((n < GBOX_MAX_DEST_PEERS) && (s[strspn(s, "0123456789abcdefABCDEF")] == 0))
-			{ cfg.gbox_dest_peers[n++] = a2i(trim(ptr1), strlen(trim(ptr1))); }
+			{ cfg.gbox_dest_peers[n++] = a2i(trim(ptr1), cs_strlen(trim(ptr1))); }
 		}
 		cfg.gbox_dest_peers_num = n;
 		return;
@@ -1204,7 +1244,6 @@ static const struct config_list gbox_opts[] =
 	DEF_OPT_UINT32("gbox_reconnect", OFS(gbox_reconnect)   , DEFAULT_GBOX_RECONNECT),
 	DEF_OPT_FUNC("my_vers"         , OFS(gbox_my_vers)     , gbox_my_vers_fn),
 	DEF_OPT_FUNC("my_cpu_api"      , OFS(gbox_my_cpu_api)  , gbox_my_cpu_api_fn),
-	DEF_OPT_UINT8("ccc_reshare"    , OFS(ccc_reshare)      , 0),
 	DEF_OPT_UINT8("gsms_disable"   , OFS(gsms_dis)         , 1),
 	DEF_OPT_UINT8("dis_attack_txt" , OFS(dis_attack_txt)   , 0),
 	DEF_OPT_UINT8("log_hello"      , OFS(log_hello)        , 1),
@@ -1217,6 +1256,8 @@ static const struct config_list gbox_opts[] =
 	DEF_OPT_UINT8("gbox_msg_type"  , OFS(gbox_msg_type)    , 0),
 	DEF_OPT_FUNC("gbox_dest_peers" , OFS(gbox_dest_peers)  , gbox_dest_peers_fn ),
 	DEF_OPT_FUNC("gbox_msg_txt"    , OFS(gbox_msg_txt)     , gbox_msg_txt_fn ),
+	DEF_OPT_UINT8("ccc_reshare"    , OFS(cc_gbx_reshare_en), 0),
+	DEF_OPT_FUNC("ccc_gbx_caid"    , OFS(ccc_gbx_check_caidtab), check_caidtab_fn),
 	DEF_LAST_OPT
 };
 #else
@@ -1324,6 +1365,7 @@ static const struct config_list dvbapi_opts[] =
 	DEF_OPT_INT8("request_mode"   , OFS(dvbapi_requestmode)    , 0),
 	DEF_OPT_INT32("listen_port"   , OFS(dvbapi_listenport)     , 0),
 	DEF_OPT_INT32("delayer"       , OFS(dvbapi_delayer)        , 0),
+	DEF_OPT_INT8("ecminfo_file"   , OFS(dvbapi_ecminfo_file)   , 1),
 	DEF_OPT_INT8("ecminfo_type"   , OFS(dvbapi_ecminfo_type)   , 0),
 	DEF_OPT_STR("user"            , OFS(dvbapi_usr)            , NULL),
 	DEF_OPT_INT8("read_sdt"       , OFS(dvbapi_read_sdt)       , 0),
@@ -1406,7 +1448,19 @@ void config_free(void)
 	caidtab_clear(&cfg.lb_noproviderforcaid);
 #endif
 #ifdef CS_CACHEEX
+#ifdef CS_CACHEEX_AIO
+	cwcheckvaluetab_clear(&cfg.cw_cache_settings);
+#endif
 	caidvaluetab_clear(&cfg.cacheex_mode1_delay_tab);
+#ifdef CS_CACHEEX_AIO
+	caidvaluetab_clear(&cfg.cacheex_nopushafter_tab);
+	caidtab_clear(&cfg.cacheex_localgenerated_only_caidtab);
+	caidtab_clear(&cfg.cacheex_localgenerated_only_in_caidtab);
+	ftab_clear(&cfg.cacheex_lg_only_tab);
+	ftab_clear(&cfg.cacheex_lg_only_in_tab);
+	cecspvaluetab_clear(&cfg.cacheex_filter_caidtab);
+	cecspvaluetab_clear(&cfg.cacheex_filter_caidtab_aio);
+#endif
 	cecspvaluetab_clear(&cfg.cacheex_wait_timetab);
 #endif
 #ifdef CW_CYCLE_CHECK
@@ -1460,7 +1514,7 @@ int32_t init_config(void)
 	while(fgets(token, MAXLINESIZE, fp))
 	{
 		++line;
-		int len = strlen(trim(token));
+		int len = cs_strlen(trim(token));
 		if(len < 3) // a=b or [a] are at least 3 chars
 			{ continue; }
 		if(token[0] == '#') // Skip comments

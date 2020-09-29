@@ -25,7 +25,7 @@ int32_t check_sct_len(const uint8_t *data, int32_t off, int32_t maxSize)
 	int32_t len = SCT_LEN(data);
 	if(len + off > maxSize)
 	{
-		cs_log_dbg(D_TRACE | D_READER, "check_sct_len(): smartcard section too long %zd > %zd", len, maxSize - off);
+		cs_log_dbg(D_TRACE | D_READER, "check_sct_len(): smartcard section too long %d > %d", len, maxSize - off);
 		len = -1;
 	}
 	return len;
@@ -489,7 +489,6 @@ int32_t cardreader_do_emm(struct s_reader *reader, EMM_PACKET *ep)
 	}
 	else
 	{
-		rc = -1;
 		rc = cardreader_do_checkhealth(reader);
 	}
 
@@ -547,7 +546,9 @@ void cardreader_process_ecm(struct s_reader *reader, struct s_client *cl, ECM_RE
 		ea.rcEx = E2_WRONG_CHKSUM; // flag it as wrong checksum
 		memcpy(ea.msglog, "Invalid ecm type for card", 25);
 	}
-
+#ifdef CS_CACHEEX_AIO
+	er->localgenerated = 1;
+#endif
 	write_ecm_answer(reader, er, ea.rc, ea.rcEx, ea.cw, ea.msglog, ea.tier, &ea.cw_ex);
 
 	cl->lastecm = time((time_t *)0);

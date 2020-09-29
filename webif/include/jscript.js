@@ -813,6 +813,10 @@ function updateReaderpage(data) {
 			$(uid + " td.readercol4").text(item.stats.ecmsok + item.stats.ecmsokrel)
 				.data('sort-value', item.stats.ecmsok);
 		}
+		if (!is_nopoll('readercol19')) {
+			$(uid + " td.readercol19").text(item.stats.ecmsoklg + item.stats.ecmsoklgrel)
+				.data('sort-value', item.stats.ecmsoklg);
+		}
 		if (!is_nopoll('readercol5')) {
 			$(uid + " td.readercol5").text(item.stats.ecmsnok + item.stats.ecmsnokrel)
 				.data('sort-value', item.stats.ecmsnok);
@@ -1710,7 +1714,7 @@ $(document).ready(function () {
 	// help wiki links
 	if (typeof oscamconf != "undefined") {
 		var language = $('meta[http-equiv="language"]').attr("content");
-		var wikihref = "http://www.streamboard.tv/wiki/OSCam/" + language + "/Config/oscam." + oscamconf + "#";
+		var wikihref = "https://wiki.streamboard.tv/wiki/OSCam/" + language + "/Config/oscam." + oscamconf + "#";
 		$("form table a").click(function () {
 			if (!$(this).attr("href") && !$(this).attr("name")) {
 				if ($(this).data('p')) {

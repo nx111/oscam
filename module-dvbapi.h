@@ -9,6 +9,7 @@
 #define TYPE_SDT 3
 #define TYPE_PAT 4
 #define TYPE_PMT 5
+#define TYPE_CAT 6
 
 // api
 #define DVBAPI_3    0
@@ -92,6 +93,61 @@
 #define DVBAPI_ECM_INFO           0xFFFF0003
 
 #define DVBAPI_INDEX_DISABLE      0xFFFFFFFF // only used for ca_pid_t
+
+//-----------------------------------------------------------------------------
+// CA PMT defined values according to EN 50221
+// https://www.dvb.org/resources/public/standards/En50221.V1.pdf
+// https://www.dvb.org/resources/public/standards/R206-001.V1.pdf
+//-----------------------------------------------------------------------------
+
+// ca_pmt_list_management: This parameter is used to indicate whether the user has selected a single program or several
+// programs. The following values can be used:
+
+#define CA_PMT_LIST_MORE   0x00 // The CA PMT object is neither the first one, nor the last one of the list.
+
+#define CA_PMT_LIST_FIRST  0x01 // The CA PMT object is the first one of a new list of more than one CA PMT object.
+								// All previously selected programs are being replaced by the programs of the new list.
+
+#define CA_PMT_LIST_LAST   0x02 // The CA PMT object is the last of the list.
+
+#define CA_PMT_LIST_ONLY   0x03 // The list is made of a single CA PMT object.
+
+#define CA_PMT_LIST_ADD    0x04 // The CA PMT has to be added to an existing list, that is, a new program has been seleced
+								// by the user, but all previously selected programs remain selected.
+
+#define CA_PMT_LIST_UPDATE 0x05 // The CA PMT of a program already in the list is sent again because the version_number or
+								// the current_next_indicator has changed.
+
+// ca_pmt_cmd_id: This parameter indicates what response is required from the application to a CA PMT object. It can
+// take the following values:
+
+#define CA_PMT_CMD_OK_DESCRAMBLING 0x01 // The host does not expect answer to the CA PMT and the application can start
+										// descrambling the program or start an MMI dialogue immediately.
+
+#define CA_PMT_CMD_OK_MMI          0x02 // The application can start an MMI dialogue, but shall not start descrambling
+										// before reception of a new CA PMT object with "ca_pmt_cmd_id" set to
+										// "ok_descrambling". In this case the host shall quarantee that an MMI session
+										// can be opened by the CA application.
+
+#define CA_PMT_CMD_QUERY           0x03 // The host expects to receive a CA PMT reply. In this case, the applicaiton is
+										// not allowed to start descrambling or MMI dialogue before reception of a new
+										// CA PMT object with "ca_pmt_cmd_id" set to "ok_descrambling or "ok_mmi".
+
+#define CA_PMT_CMD_NOT_SELECTED    0x04 // It indicates to the CA application that the host no longer requires that CA
+										// application to attempt to descramble the service. The CA application shall
+										// close any MMI dialogue it has opened.
+//----------------
+// ca descriptors
+//----------------
+
+#define CA			     		   		0x09
+#define ENIGMA_NAMESPACE				0x81
+#define DEMUX_CA_MASK_ADAPTER			0x82 // deprecated - applications should use descriptors ADAPTER_DEVICE, DEMUX_DEVICE and CA_DEVICE instead
+#define ADAPTER_DEVICE					0x83
+#define PMT_PID							0x84
+#define SERVICE_TYPE_MASK				0x85 // not used by OSCam
+#define DEMUX_DEVICE					0x86
+#define CA_DEVICE						0x87
 
 //-----------------------------------------------------------------------------
 // api used for internal device communication
@@ -348,15 +404,15 @@ enum stream_type
 
 typedef struct demux_s
 {
-	int8_t           demux_index;                        // id of the (hardware) demux carrying the TS of this demux - we get this via CaPMT
-	int8_t           adapter_index;                      // id of the (hardware) adapter carrying the TS of this demux - we get this via CaPMT
-	uint32_t         ca_mask;                            // bit mask of ca devices used for descrambling of this demux - we get this via CaPMT
-	int32_t          socket_fd;
+	int8_t           demux_index;                        // ID of the (hardware) demux device carrying this program - we get this via CA PMT
+	int8_t           adapter_index;                      // ID of the adapter device carrying this program - we get this via CA PMT
+	uint32_t         ca_mask;                            // Bit mask of ca devices used for descrambling this program - we get this via CA PMT
+	int32_t          socket_fd;                          // Connection identifier through which we received the CA PMT object
 	uint16_t         client_proto_version;
 	FILTERTYPE       demux_fd[MAX_FILTER];
-	int8_t           ECMpidcount;                        // count of ECM pids in the demux
+	int8_t           ECMpidcount;                        // Count of ECM pids in this program
 	ECMPIDTYPE       ECMpids[MAX_ECM_PIDS];
-	int8_t           EMMpidcount;                        // count of EMM pids in the demux
+	int8_t           EMMpidcount;                        // Count of EMM pids in this program
 	EMMPIDTYPE       EMMpids[MAX_EMM_PIDS];
 	struct timeb     emmstart;                           // last time emm cat was started
 	uint16_t         max_emm_filter;
@@ -378,8 +434,8 @@ typedef struct demux_s
 	struct s_reader  *rdr;
 	char             pmt_file[30];
 	time_t           pmt_time;
-	uint8_t          stopdescramble;
-	uint8_t          running;
+	bool             stop_descrambling;                  // Program is marked to stop descrambling (not selected in the new CA PMT list)
+	bool             running;                            // Descrambling is currently running for this program
 	uint8_t          old_ecmfiltercount;                 // previous ecm filter count
 	uint8_t          old_emmfiltercount;                 // previous emm filter count
 	pthread_mutex_t  answerlock;                         // request mode 1 avoid race
@@ -444,7 +500,7 @@ void dvbapi_adjust_prioritytab(int demux_index);
 void dvbapi_write_prio(void);
 void dvbapi_send_dcw(struct s_client *client, ECM_REQUEST *er);
 void dvbapi_write_cw(int32_t demux_id, int32_t pid, int32_t stream_id, uint8_t *cw, uint8_t cw_length, uint8_t *iv, uint8_t iv_length, enum ca_descr_algo algo, enum ca_descr_cipher_mode cipher_mode, uint32_t msgid);
-int32_t dvbapi_parse_capmt(uint8_t *buffer, uint32_t length, int32_t connfd, char *pmtfile, int8_t is_real_pmt, uint16_t existing_demux_id, uint16_t client_proto_version, uint32_t msgid);
+int32_t dvbapi_parse_capmt(const uint8_t *buffer, uint32_t length, int32_t connfd, char *pmtfile, uint16_t client_proto_version, uint32_t msgid);
 void request_cw(struct s_client *client, ECM_REQUEST *er, int32_t demux_id, uint8_t delayed_ecm_check);
 void dvbapi_try_next_caid(int32_t demux_id, int8_t checked, uint32_t msgid);
 void dvbapi_read_priority(void);
@@ -458,6 +514,7 @@ int8_t update_streampid_list(uint8_t cadevice, uint16_t pid, uint32_t idx, bool 
 int8_t remove_streampid_from_list(uint8_t cadevice, uint16_t pid, uint32_t idx);
 void disable_unused_streampids(int16_t demux_id);
 uint32_t is_ca_used(uint8_t cadevice, int32_t pid);
+uint32_t count_active_indexers(void);
 uint16_t dvbapi_get_client_proto_version(void);
 const char *dvbapi_get_client_name(void);
 void rotate_emmfilter(int32_t demux_id);

@@ -15,6 +15,9 @@
 #ifdef MODULE_GBOX
 #include "module-gbox.h"
 #endif
+#ifdef CS_CACHEEX_AIO
+#include "module-cacheex.h"
+#endif
 
 #define cs_srvr "oscam.server"
 
@@ -27,9 +30,9 @@ static void reader_label_fn(const char *token, char *value, void *setting, FILE 
 	if(value)
 	{
 		int i, found = 0;
-		if(!strlen(value))
+		if(!cs_strlen(value))
 			{ return; }
-		for(i = 0; i < (int)strlen(value); i++)
+		for(i = 0; i < (int)cs_strlen(value); i++)
 		{
 			if(value[i] == ' ')
 			{
@@ -50,7 +53,7 @@ static void ecmwhitelist_fn(const char *token, char *value, void *setting, FILE 
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		if(strlen(value))
+		if(cs_strlen(value))
 			chk_ecm_whitelist(value, &rdr->ecm_whitelist);
 		else
 			ecm_whitelist_clear(&rdr->ecm_whitelist);
@@ -58,7 +61,7 @@ static void ecmwhitelist_fn(const char *token, char *value, void *setting, FILE 
 	}
 
 	value = mk_t_ecm_whitelist(&rdr->ecm_whitelist);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -68,7 +71,7 @@ static void ecmheaderwhitelist_fn(const char *token, char *value, void *setting,
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		if(strlen(value))
+		if(cs_strlen(value))
 			chk_ecm_hdr_whitelist(value, &rdr->ecm_hdr_whitelist);
 		else
 			ecm_hdr_whitelist_clear(&rdr->ecm_hdr_whitelist);
@@ -76,7 +79,7 @@ static void ecmheaderwhitelist_fn(const char *token, char *value, void *setting,
 	}
 
 	value = mk_t_ecm_hdr_whitelist(&rdr->ecm_hdr_whitelist);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -86,7 +89,7 @@ static void protocol_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 			{ return; }
 		struct protocol_map
 		{
@@ -218,7 +221,7 @@ static void boxid_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		rdr->boxid = strlen(value) ? a2i(value, 4) : 0;
+		rdr->boxid = cs_strlen(value) ? a2i(value, 4) : 0;
 		return;
 	}
 	if(rdr->boxid)
@@ -226,6 +229,23 @@ static void boxid_fn(const char *token, char *value, void *setting, FILE *f)
 	else if(cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "\n"); }
 }
+
+#if defined(READER_STREAMGUARD) || defined(READER_TONGFANG) || defined(READER_JET)
+static void cas_version_fixed_fn(const char *UNUSED(token), char *value, void *setting, FILE *UNUSED(f))
+{
+	struct s_reader *rdr = setting;
+	if(value)
+	{
+		if(atoi(value) == 1)
+		{
+			rdr->cas_version |= 0x010000L;
+			return;
+		}
+		rdr->cas_version &= 0x00FFFFL;
+		return;
+	}
+}
+#endif
 
 #ifdef READER_JET
 static void jet_authorize_id_fn(const char *token, char *value, void *setting, FILE *f)
@@ -281,7 +301,7 @@ static void rsakey_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(len != 128 && len != 240)
 		{
 			rdr->rsa_mod_length = 0;
@@ -317,7 +337,7 @@ static void deskey_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(((len % 16) != 0) || len == 0 || len > 128*2)
 		{
 			rdr->des_key_length = 0;
@@ -390,7 +410,7 @@ static void mod1_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(len != 224)
 		{
 			rdr->mod1_length = 0;
@@ -426,7 +446,7 @@ static void data50_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(len != 160)
 		{
 			rdr->data50_length = 0;
@@ -462,7 +482,7 @@ static void mod50_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(len != 160)
 		{
 			rdr->mod50_length = 0;
@@ -498,7 +518,7 @@ static void key60_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(len != 192)
 		{
 			rdr->key60_length = 0;
@@ -534,7 +554,7 @@ static void exp60_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(len != 192)
 		{
 			rdr->exp60_length = 0;
@@ -570,7 +590,7 @@ static void nuid_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(len != 8)
 		{
 			rdr->nuid_length = 0;
@@ -606,7 +626,7 @@ static void cwekey_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(len != 32)
 		{
 			rdr->cwekey_length = 0;
@@ -660,7 +680,7 @@ static void ins7E_fn(const char *token, char *value, void *setting, long var_siz
 	var_size -= 1; // var_size contains sizeof(var) which is [X + 1]
 	if(value)
 	{
-		int32_t len = strlen(value);
+		int32_t len = cs_strlen(value);
 		if(len != var_size * 2 || key_atob_l(value, var, len))
 		{
 			if(len > 0)
@@ -682,13 +702,40 @@ static void ins7E_fn(const char *token, char *value, void *setting, long var_siz
 		{ fprintf_conf(f, token, "\n"); }
 }
 
+static void des_and_3des_key_fn(const char *token, char *value, void *setting, FILE *f)
+{
+	uint8_t *var = setting;
+	if(value)
+	{
+		int32_t len = cs_strlen(value);
+		if(((len != 16) && (len != 32)) || (key_atob_l(value, var, len)))
+		{
+			if(len > 0)
+				{ fprintf(stderr, "reader %s parse error, %s=%s\n", token, token, value); }
+			memset(var, 0, 17);
+		}
+		else
+		{
+			var[16] = len/2;
+		}
+		return;
+	}
+	if(var[16])
+	{
+		char tmp[var[16] * 2 + 1];
+		fprintf_conf(f, token, "%s\n", cs_hexdump(0, var, var[16], tmp, sizeof(tmp)));
+	}
+	else if(cfg.http_full_cfg)
+		{ fprintf_conf(f, token, "\n"); }
+}
+
 static void atr_fn(const char *token, char *value, void *setting, FILE *f)
 {
 	struct s_reader *rdr = setting;
 	if(value)
 	{
 		memset(rdr->atr, 0, sizeof(rdr->atr));
-		rdr->atrlen = strlen(value);
+		rdr->atrlen = cs_strlen(value);
 		if(rdr->atrlen)
 		{
 			if(rdr->atrlen > (int32_t)sizeof(rdr->atr) * 2)
@@ -740,7 +787,7 @@ void ftab_fn(const char *token, char *value, void *setting, long ftab_type, FILE
 	FTAB *ftab = setting;
 	if(value)
 	{
-		if(strlen(value))
+		if(cs_strlen(value))
 			chk_ftab(value, ftab);
 		else
 			ftab_clear(ftab);
@@ -761,7 +808,7 @@ void ftab_fn(const char *token, char *value, void *setting, long ftab_type, FILE
 			{ rdr->changes_since_shareupdate = 1; }
 	}
 	value = mk_t_ftab(ftab);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -775,7 +822,7 @@ static void aeskeys_fn(const char *token, char *value, void *setting, FILE *f)
 		return;
 	}
 	value = mk_t_aeskeys(rdr);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -789,7 +836,7 @@ static void emmcache_fn(const char *token, char *value, void *setting, FILE *f)
 		rdr->rewritemm = 0;
 		rdr->logemm    = 0;
 		rdr->deviceemm = 0;
-		if(strlen(value))
+		if(cs_strlen(value))
 		{
 			int i;
 			char *ptr, *saveptr1 = NULL;
@@ -834,7 +881,7 @@ static void blockemm_bylen_fn(const char *token, char *value, void *setting, FIL
 		struct s_emmlen_range *blocklen;
 		uint32_t num;
 
-		if(!strlen(value))
+		if(!cs_strlen(value))
 		{
 			ll_destroy_data(&rdr->blockemmbylen);
 			return;
@@ -866,7 +913,7 @@ static void blockemm_bylen_fn(const char *token, char *value, void *setting, FIL
 		return;
 	}
 	value = mk_t_emmbylen(rdr);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -877,7 +924,7 @@ static void nano_fn(const char *token, char *value, void *setting, FILE *f)
 	if(value)
 	{
 		*nano = 0;
-		if(strlen(value) > 0)
+		if(cs_strlen(value) > 0)
 		{
 			if(streq(value, "all"))
 			{
@@ -898,7 +945,7 @@ static void nano_fn(const char *token, char *value, void *setting, FILE *f)
 		return;
 	}
 	value = mk_t_nano(*nano);
-	if(strlen(value) > 0 || cfg.http_full_cfg)
+	if(cs_strlen(value) > 0 || cfg.http_full_cfg)
 		{ fprintf_conf(f, token, "%s\n", value); }
 	free_mk_t(value);
 }
@@ -909,7 +956,7 @@ static void auprovid_fn(const char *token, char *value, void *setting, FILE *f)
 	if(value)
 	{
 		rdr->auprovid = 0;
-		if(strlen(value))
+		if(cs_strlen(value))
 			{ rdr->auprovid = a2i(value, 3); }
 		return;
 	}
@@ -925,7 +972,7 @@ static void ratelimitecm_fn(const char *token, char *value, void *setting, FILE 
 	if(value)
 	{
 		rdr->ratelimitecm = 0;
-		if(strlen(value))
+		if(cs_strlen(value))
 		{
 			int i;
 			rdr->ratelimitecm = atoi(value);
@@ -946,7 +993,7 @@ static void ecmunique_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			rdr->ecmunique = 0; // default
 		}
@@ -969,7 +1016,7 @@ static void ratelimittime_fn(const char *token, char *value, void *setting, FILE
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			if(rdr->ratelimitecm > 0)
 			{
@@ -999,7 +1046,7 @@ static void srvidholdtime_fn(const char *token, char *value, void *setting, FILE
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			if(rdr->ratelimitecm > 0)
 			{
@@ -1027,7 +1074,7 @@ static void cooldown_fn(const char *token, char *value, void *setting, FILE *f)
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			rdr->cooldown[0] = 0;
 			rdr->cooldown[1] = 0;
@@ -1061,7 +1108,7 @@ static void cooldowndelay_fn(const char *UNUSED(token), char *value, void *setti
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		rdr->cooldown[0] = strlen(value) ? atoi(value) : 0;
+		rdr->cooldown[0] = cs_strlen(value) ? atoi(value) : 0;
 	}
 	// This option is *not* written in the config file.
 	// It is only set by WebIf as convenience
@@ -1072,7 +1119,7 @@ static void cooldowntime_fn(const char *UNUSED(token), char *value, void *settin
 	struct s_reader *rdr = setting;
 	if(value)
 	{
-		if(strlen(value) == 0)
+		if(cs_strlen(value) == 0)
 		{
 			rdr->cooldown[0] = 0; // no cooling down time means no cooling set
 			rdr->cooldown[1] = 0;
@@ -1095,6 +1142,13 @@ void reader_fixups_fn(void *var)
 		{ rdr->lb_weight = 1000; }
 	else if(rdr->lb_weight <= 0)
 		{ rdr->lb_weight = 100; }
+#endif
+
+#ifdef CS_CACHEEX_AIO
+	caidtab2ftab_add(&rdr->cacheex.localgenerated_only_in_caidtab, &rdr->cacheex.lg_only_in_tab);
+	caidtab_clear(&rdr->cacheex.localgenerated_only_in_caidtab);
+	caidtab2ftab_add(&rdr->cacheex.localgenerated_only_caidtab, &rdr->cacheex.lg_only_tab);
+	caidtab_clear(&rdr->cacheex.localgenerated_only_caidtab);
 #endif
 
 	if(is_cascading_reader(rdr) && (rdr->typ == R_CAMD35 || rdr->typ == R_CS378X))
@@ -1130,7 +1184,8 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_UINT8("gbox_max_distance"             , OFS(gbox_maxdist),                    DEFAULT_GBOX_MAX_DIST),
 	DEF_OPT_UINT8("gbox_max_ecm_send"             , OFS(gbox_maxecmsend),                 DEFAULT_GBOX_MAX_ECM_SEND),
 	DEF_OPT_UINT8("gbox_reshare"                  , OFS(gbox_reshare),                    DEFAULT_GBOX_RESHARE),
-	DEF_OPT_UINT8("cccam_reshare"                 , OFS(gbox_cccam_reshare),              DEFAULT_CCC_GBOX_RESHARE),
+	DEF_OPT_INT8("cccam_reshare"                 , OFS(gbox_cccam_reshare),              -1),
+	DEF_OPT_UINT8("force_remm"                    , OFS(gbox_force_remm),                 0),
 #endif
 	DEF_OPT_STR("readnano"                        , OFS(emmfile),                         NULL),
 	DEF_OPT_FUNC("services"                       , OFS(sidtabs),                         reader_services_fn),
@@ -1154,17 +1209,36 @@ static const struct config_list reader_opts[] =
 #ifdef CS_CACHEEX
 	DEF_OPT_INT8("cacheex"                        , OFS(cacheex.mode),                    0),
 	DEF_OPT_INT8("cacheex_maxhop"                 , OFS(cacheex.maxhop),                  0),
+#ifdef CS_CACHEEX_AIO
+	DEF_OPT_INT8("cacheex_maxhop_lg"              , OFS(cacheex.maxhop_lg),                  0),
+#endif
 	DEF_OPT_FUNC("cacheex_ecm_filter"             , OFS(cacheex.filter_caidtab),          cacheex_hitvaluetab_fn),
 	DEF_OPT_UINT8("cacheex_allow_request"         , OFS(cacheex.allow_request),           0),
 	DEF_OPT_UINT8("cacheex_drop_csp"              , OFS(cacheex.drop_csp),                0),
 	DEF_OPT_UINT8("cacheex_allow_filter"          , OFS(cacheex.allow_filter),            1),
+#ifdef CS_CACHEEX_AIO
+	DEF_OPT_UINT8("cacheex_allow_maxhop"          , OFS(cacheex.allow_maxhop),            0),
+#endif
 	DEF_OPT_UINT8("cacheex_block_fakecws"         , OFS(cacheex.block_fakecws),           0),
+#ifdef CS_CACHEEX_AIO
+	DEF_OPT_UINT8("cacheex_cw_check_for_push"     , OFS(cacheex.cw_check_for_push),       0),
+	DEF_OPT_UINT8("cacheex_lg_only_remote_settings", OFS(cacheex.lg_only_remote_settings), 1),
+	DEF_OPT_UINT8("cacheex_localgenerated_only"   , OFS(cacheex.localgenerated_only),     0),
+	DEF_OPT_FUNC("cacheex_localgenerated_only_caid", OFS(cacheex.localgenerated_only_caidtab), check_caidtab_fn),
+	DEF_OPT_FUNC_X("cacheex_lg_only_tab"          , OFS(cacheex.lg_only_tab),             ftab_fn, FTAB_ACCOUNT),
+	DEF_OPT_UINT8("cacheex_lg_only_in_aio_only"	  , OFS(cacheex.lg_only_in_aio_only),     0),
+	DEF_OPT_UINT8("cacheex_localgenerated_only_in", OFS(cacheex.localgenerated_only_in),  0),
+	DEF_OPT_FUNC("cacheex_localgenerated_only_in_caid", OFS(cacheex.localgenerated_only_in_caidtab), check_caidtab_fn),
+	DEF_OPT_FUNC_X("cacheex_lg_only_in_tab"       , OFS(cacheex.lg_only_in_tab),          ftab_fn, FTAB_ACCOUNT),
+	DEF_OPT_FUNC("cacheex_nopushafter"            , OFS(cacheex.cacheex_nopushafter_tab), caidvaluetab_fn),
+#endif
 #endif
 	DEF_OPT_FUNC("caid"                           , OFS(ctab),                            reader_caid_fn),
 	DEF_OPT_FUNC("atr"                            , 0,                                    atr_fn),
 	DEF_OPT_FUNC("boxid"                          , 0,                                    boxid_fn),
-#ifdef READER_STREAMGUARD
-	DEF_OPT_UINT32("cas_version"                  , OFS(cas_version),                     0),
+#if defined(READER_STREAMGUARD) || defined(READER_TONGFANG) || defined(READER_JET)
+	DEF_OPT_INT32("cas_version"                   , OFS(cas_version),                     0),
+	DEF_OPT_FUNC("cas_version_fixed"              , 0,                                    cas_version_fixed_fn),
 #endif
 #ifdef  READER_TONGFANG
 	DEF_OPT_FUNC("tongfang3_calibsn"              , 0,                                    tongfang3_calibsn_fn),
@@ -1189,6 +1263,8 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_FUNC_X("ins7e"                        , OFS(ins7E),                           ins7E_fn, SIZEOF(ins7E)),
 	DEF_OPT_FUNC_X("ins7e11"                      , OFS(ins7E11),                         ins7E_fn, SIZEOF(ins7E11)),
 	DEF_OPT_FUNC_X("ins2e06"                      , OFS(ins2e06),                         ins7E_fn, SIZEOF(ins2e06)),
+	DEF_OPT_FUNC("k1_generic"                     , OFS(k1_generic),                      des_and_3des_key_fn),
+	DEF_OPT_FUNC("k1_unique"                      , OFS(k1_unique),                       des_and_3des_key_fn),
 	DEF_OPT_INT8("fix07"                          , OFS(fix_07),                          1),
 	DEF_OPT_INT8("fix9993"                        , OFS(fix_9993),                        0),
 	DEF_OPT_INT8("readtiers"                      , OFS(readtiers),                       1),
@@ -1296,7 +1372,7 @@ static bool reader_check_setting(const struct config_list *UNUSED(clist), void *
 	static const char *hw_only_settings[] =
 	{
 		"readnano", "resetcycle", "smargopatch", "autospeed", "sc8in1_dtrrts_patch", "boxid","fix07",
-		"fix9993", "rsakey", "deskey", "ins7e", "ins7e11", "ins2e06", "force_irdeto", "needsemmfirst", "boxkey",
+		"fix9993", "rsakey", "deskey", "ins7e", "ins7e11", "ins2e06", "k1_generic", "k1_unique", "force_irdeto", "needsemmfirst", "boxkey",
 		"atr", "detect", "nagra_read", "mhz", "cardmhz", "readtiers", "read_old_classes", "use_gpio", "needsglobalfirst",
 #ifdef READER_NAGRA_MERLIN
 		"mod1", "data50", "mod50", "key60", "exp60", "nuid", "cwekey",
@@ -1374,7 +1450,7 @@ static bool reader_check_setting(const struct config_list *UNUSED(clist), void *
 	// These are written only when the reader is GBOX
 	static const char *gbox_settings[] =
 	{
-		"gbox_max_distance", "gbox_max_ecm_send", "gbox_reshare", "cccam_reshare",
+		"gbox_max_distance", "gbox_max_ecm_send", "gbox_reshare", "cccam_reshare", "force_remm",
 		0
 	};
 	if(reader->typ != R_GBOX)
@@ -1431,7 +1507,7 @@ int32_t init_readerdb(void)
 	while(fgets(token, MAXLINESIZE, fp))
 	{
 		int32_t l;
-		if((l = strlen(trim(token))) < 3)
+		if((l = cs_strlen(trim(token))) < 3)
 			{ continue; }
 		if((token[0] == '[') && (token[l - 1] == ']'))
 		{
@@ -1495,6 +1571,9 @@ void free_reader(struct s_reader *rdr)
 	ftab_clear(&rdr->localcards);
 	ftab_clear(&rdr->fchid);
 	ftab_clear(&rdr->ftab);
+#ifdef CS_CACHEEX_AIO
+	ftab_clear(&rdr->disablecrccws_only_for);
+#endif
 
     NULLFREE(rdr->cltab.aclass);
  	NULLFREE(rdr->cltab.bclass);
@@ -1502,6 +1581,13 @@ void free_reader(struct s_reader *rdr)
 	caidtab_clear(&rdr->ctab);
 #ifdef CS_CACHEEX
 	cecspvaluetab_clear(&rdr->cacheex.filter_caidtab);
+#ifdef CS_CACHEEX_AIO
+	caidtab_clear(&rdr->cacheex.localgenerated_only_caidtab);
+	caidtab_clear(&rdr->cacheex.localgenerated_only_in_caidtab);
+	ftab_clear(&rdr->cacheex.lg_only_tab);
+	ftab_clear(&rdr->cacheex.lg_only_in_tab);
+	caidvaluetab_clear(&rdr->cacheex.cacheex_nopushafter_tab);
+#endif
 #endif
 	lb_destroy_stats(rdr);
 
