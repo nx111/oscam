@@ -1,4 +1,6 @@
-d7436 Merge to r11641 from streamboard.tv
+213e7 Merge to r11462 from streamboard.tv
+a3949 Applying: tryfix_cc_cw_crypt.patch -> https://trac.streamboard.tv/oscam/ticket/4796 resolution_nonfixable_so_satisfy_all_version2.patch -> https://board.streamboard.tv/forum/thread/47678-oscam-bug-report/?postID=600326#post600326 Thanks for @savan
+6b985 Merge to r11641 from streamboard.tv
 a3928 -fix mdc2.h
 d0ab5 -fix external openssl dependency -> thanks to @savan
 008c8 -fix README.config
@@ -96,5 +98,3 @@ e2766 - Add generic hardening against empty ecm. It makes no sense to process em
 e5815 [gbx remm] - allow remm request for unknown emm [gbx] - dont send via issuer as peer card
 72bd6 - Tryfix regression due to furious refactoring without unittests
 ac4db - Final refactoring step of dvbapi_get_packet_size()
-c2075 - More furious refactoring since I still wasnt happy with the resulting code!
-2411a - Just refactoring due to investigating an issue with CAPMT parsing
