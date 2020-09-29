@@ -6,7 +6,7 @@
 
 #include "module-emulator-osemu.h"
 #include "module-emulator-streamserver.h"
-#include "module-emulator-drecrypt.h"
+#include "module-emulator-biss.h"
 #include "module-emulator-irdeto.h"
 #include "module-emulator-powervu.h"
 #include "oscam-conf-chk.h"
@@ -42,17 +42,10 @@ extern char cs_confdir[128];
 static int8_t emu_key_data_mutex_init = 0;
 pthread_mutex_t emu_key_data_mutex;
 
-// Version info
-
-static inline uint32_t get_osemu_version(void)
-{
-	return atoi("$Version: 789 $" + 10);
-}
-
 static void set_hexserial_to_version(struct s_reader *rdr)
 {
 	char cVersion[32];
-	uint32_t version = get_osemu_version();
+	uint32_t version = EMU_VERSION;
 	uint8_t hversion[2];
 	memset(hversion, 0, 2);
 	snprintf(cVersion, sizeof(cVersion), "%04d", version);
@@ -109,7 +102,10 @@ static void emu_add_entitlement(struct s_reader *rdr, uint16_t caid, uint32_t pr
 static void refresh_entitlements(struct s_reader *rdr)
 {
 	uint32_t i;
+	uint16_t caid;
 	KeyData *tmpKeyData;
+	LL_ITER itr;
+	biss2_rsa_key_t *item;
 
 	cs_clear_entitlement(rdr);
 
@@ -138,15 +134,6 @@ static void refresh_entitlements(struct s_reader *rdr)
 		while (tmpKeyData != NULL);
 	}
 
-	for (i = 0; i < NDSKeys.keyCount; i++)
-	{
-		emu_add_entitlement(rdr, NDSKeys.EmuKeys[i].provider, 0, NDSKeys.EmuKeys[i].key,
-							NDSKeys.EmuKeys[i].keyName, NDSKeys.EmuKeys[i].keyLength, 0);
-	}
-
-	emu_add_entitlement(rdr, 0x090F, 0, viasat_const, "00", 64, 1);
-	emu_add_entitlement(rdr, 0x093E, 0, viasat_const, "00", 64, 1);
-
 	for (i = 0; i < CwKeys.keyCount; i++)
 	{
 		emu_add_entitlement(rdr, CwKeys.EmuKeys[i].provider >> 8, CwKeys.EmuKeys[i].provider & 0xFF,
@@ -171,23 +158,32 @@ static void refresh_entitlements(struct s_reader *rdr)
 							NagraKeys.EmuKeys[i].keyName, NagraKeys.EmuKeys[i].keyLength, 0);
 	}
 
-	for (i = 0; i < BissKeys.keyCount; i++)
+	// Session words for BISS1 mode 1/E (caid 2600) and BISS2 mode 1/E (caid 2602)
+	for (i = 0; i < BissSWs.keyCount; i++)
 	{
-		emu_add_entitlement(rdr, 0x2600, BissKeys.EmuKeys[i].provider, BissKeys.EmuKeys[i].key,
-							BissKeys.EmuKeys[i].keyName, BissKeys.EmuKeys[i].keyLength, 0);
+		caid = (BissSWs.EmuKeys[i].keyLength == 8) ? 0x2600 : 0x2602;
+		emu_add_entitlement(rdr, caid, BissSWs.EmuKeys[i].provider, BissSWs.EmuKeys[i].key,
+							BissSWs.EmuKeys[i].keyName, BissSWs.EmuKeys[i].keyLength, 0);
 	}
 
-	for (i = 0; i < DreKeys.keyCount; i++)
+	// Session keys (ECM keys) for BISS2 mode CA
+	for (i = 0; i < Biss2Keys.keyCount; i++)
 	{
-		emu_add_entitlement(rdr, 0x4AE1, DreKeys.EmuKeys[i].provider, DreKeys.EmuKeys[i].key,
-							DreKeys.EmuKeys[i].keyName, DreKeys.EmuKeys[i].keyLength, 0);
+		emu_add_entitlement(rdr, 0x2610, Biss2Keys.EmuKeys[i].provider, Biss2Keys.EmuKeys[i].key,
+							Biss2Keys.EmuKeys[i].keyName, Biss2Keys.EmuKeys[i].keyLength, 0);
+	}
+
+	// RSA keys (EMM keys) for BISS2 mode CA
+	itr = ll_iter_create(rdr->ll_biss2_rsa_keys);
+	while ((item = ll_iter_next(&itr)))
+	{
+		emu_add_entitlement(rdr, 0x2610, 0, item->ekid, "RSAPRI", 8, 0);
 	}
 }
 
 static int32_t emu_do_ecm(struct s_reader *rdr, const ECM_REQUEST *er, struct s_ecm_answer *ea)
 {
-
-	if (!emu_process_ecm(rdr, er->ecmlen, er->caid, er->prid, er->ecm, ea->cw, er->srvid, er->pid, &ea->cw_ex))
+	if (!emu_process_ecm(rdr, er, ea->cw, &ea->cw_ex))
 	{
 		return CS_OK;
 	}
@@ -209,7 +205,7 @@ static int32_t emu_do_emm(struct s_reader *rdr, EMM_PACKET *emm)
 		return CS_ERROR;
 	}
 
-	if (!emu_process_emm(rdr, b2i(2, emm->caid), b2i(4, emm->provid), emm->emm, &keysAdded))
+	if (!emu_process_emm(rdr, b2i(2, emm->caid), emm->emm, &keysAdded))
 	{
 		if (keysAdded > 0)
 		{
@@ -229,6 +225,9 @@ static int32_t emu_card_info(struct s_reader *rdr)
 	// Delete keys from Emu's memory
 	emu_clear_keydata();
 
+	// Delete BISS2 mode CA RSA keys
+	ll_destroy_data(&rdr->ll_biss2_rsa_keys);
+
 	// Read keys built in the OSCam-Emu binary
 	emu_read_keymemory(rdr);
 
@@ -243,15 +242,13 @@ static int32_t emu_card_info(struct s_reader *rdr)
 		}
 	}
 
-	// Load keys from external files (set via the webif or the reader config directly)
-	emu_read_eebin(rdr->extee36, "ee36.bin");           // Read "ee36.bin"
-	emu_read_eebin(rdr->extee56, "ee56.bin");           // Read "ee56.bin"
-	emu_read_deskey(rdr->des_key, rdr->des_key_length); // Read overcrypt keys for DreCrypt ADEC
+	// Read BISS2 mode CA RSA keys from PEM files
+	biss_read_pem(rdr, BISS2_MAX_RSA_KEYS);
 
-	cs_log("Total keys in memory: W:%d V:%d N:%d I:%d S:%d F:%d P:%d D:%d T:%d A:%d",
+	cs_log("Total keys in memory: W:%d V:%d N:%d I:%d F:%d G:%d P:%d T:%d A:%d",
 			CwKeys.keyCount, ViKeys.keyCount, NagraKeys.keyCount, IrdetoKeys.keyCount,
-			NDSKeys.keyCount, BissKeys.keyCount, PowervuKeys.keyCount, DreKeys.keyCount,
-			TandbergKeys.keyCount, StreamKeys.keyCount);
+			BissSWs.keyCount, Biss2Keys.keyCount, PowervuKeys.keyCount, TandbergKeys.keyCount,
+			StreamKeys.keyCount);
 
 	// Inform OSCam about all available keys.
 	// This is used for listing the "entitlements" in the webif's reader page.
@@ -380,38 +377,6 @@ int32_t emu_get_pvu_emm_type(EMM_PACKET *ep, struct s_reader *rdr)
 	return 1;
 }
 
-int32_t emu_get_dre2_emm_type(EMM_PACKET *ep, struct s_reader *UNUSED(rdr))
-{
-	switch (ep->emm[0])
-	{
-		case 0x82:
-			ep->type = GLOBAL;
-			return 1;
-
-		case 0x86:
-			ep->type = SHARED;
-			memset(ep->hexserial, 0, 8);
-			ep->hexserial[0] = ep->emm[3];
-			return 1;
-
-		//case 0x87:
-		//	ep->type = UNIQUE;
-		//	return 1; //FIXME: no filling of ep->hexserial
-
-		case 0x88:
-			ep->type = UNIQUE;
-			return 1; //FIXME: no filling of ep->hexserial
-
-		case 0x91:
-			ep->type = GLOBAL;
-			return 1;
-
-		default:
-			ep->type = UNKNOWN;
-			return 1;
-	}
-}
-
 int32_t emu_get_tan_emm_type(EMM_PACKET *ep, struct s_reader *rdr)
 {
 	if (ep->emm[0] == 0x82 || ep->emm[0] == 0x83)
@@ -464,7 +429,6 @@ static int32_t emu_get_emm_type(struct emm_packet_t *ep, struct s_reader *rdr)
 	if (caid_is_powervu(caid))      return emu_get_pvu_emm_type(ep, rdr);
 	if (caid_is_director(caid))     return emu_get_tan_emm_type(ep, rdr);
 	if (caid_is_biss_dynamic(caid)) return emu_get_biss_emm_type(ep, rdr);
-	if (caid_is_dre(caid))          return emu_get_dre2_emm_type(ep, rdr);
 
 	return CS_ERROR;
 }
@@ -590,15 +554,22 @@ static int32_t emu_get_ird2_emm_filter(struct s_reader *rdr, struct s_csystem_em
 	return CS_OK;
 }
 
-static int32_t emu_get_pvu_emm_filter(struct s_reader *UNUSED(rdr), struct s_csystem_emm_filter **emm_filters, unsigned int *filter_count, uint16_t UNUSED(caid), uint32_t UNUSED(provid), uint16_t srvid)
+static int32_t emu_get_pvu_emm_filter(struct s_csystem_emm_filter **emm_filters, unsigned int *filter_count,
+										uint16_t caid, uint16_t srvid, uint16_t tsid, uint16_t onid, uint32_t ens)
 {
 	uint8_t hexserials[32][4];
 	uint32_t i, count = 0;
 
 	SAFE_MUTEX_LOCK(&emu_key_data_mutex);
-	if (!powervu_get_hexserials(srvid, hexserials, 32, &count))
+	count = powervu_get_hexserials_new(hexserials, 32, caid, tsid, onid, ens);
+	if (count == 0)
 	{
-		return CS_ERROR;
+		count = powervu_get_hexserials(hexserials, 32, srvid);
+		if (count == 0)
+		{
+			SAFE_MUTEX_UNLOCK(&emu_key_data_mutex);
+			return CS_ERROR;
+		}
 	}
 	SAFE_MUTEX_UNLOCK(&emu_key_data_mutex);
 
@@ -631,69 +602,6 @@ static int32_t emu_get_pvu_emm_filter(struct s_reader *UNUSED(rdr), struct s_csy
 			filters[idx].mask[13]   = 0xFF;
 			idx++;
 		}
-
-		*filter_count = idx;
-	}
-
-	return CS_OK;
-}
-
-static int32_t emu_get_dre2_emm_filter(struct s_reader *UNUSED(rdr), struct s_csystem_emm_filter **emm_filters, unsigned int *filter_count, uint16_t caid, uint32_t provid)
-{
-	uint8_t hexserials[16];
-	int32_t i, count = 0;
-
-	SAFE_MUTEX_LOCK(&emu_key_data_mutex);
-	if (!drecrypt_get_hexserials(caid, provid, hexserials, 16, &count))
-	{
-		count = 0;
-	}
-	SAFE_MUTEX_UNLOCK(&emu_key_data_mutex);
-
-	if (*emm_filters == NULL)
-	{
-		const unsigned int max_filter_count = 1 + count + 1;
-		if (!cs_malloc(emm_filters, max_filter_count * sizeof(struct s_csystem_emm_filter)))
-		{
-			return CS_ERROR;
-		}
-
-		struct s_csystem_emm_filter *filters = *emm_filters;
-		*filter_count = 0;
-
-		int32_t idx = 0;
-
-		if (provid == 0xFE)
-		{
-			filters[idx].type = EMM_GLOBAL;
-			filters[idx].enabled   = 1;
-			filters[idx].filter[0] = 0x91;
-			filters[idx].mask[0]   = 0xFF;
-			idx++;
-		}
-
-		for (i = 0; i < count; i++)
-		{
-			filters[idx].type = EMM_SHARED;
-			filters[idx].enabled   = 1;
-			filters[idx].filter[0] = 0x86;
-			filters[idx].filter[1] = hexserials[i];
-			filters[idx].mask[0]   = 0xFF;
-			filters[idx].mask[1]   = 0xFF;
-			idx++;
-		}
-
-		//filters[idx].type = EMM_UNIQUE;
-		//filters[idx].enabled   = 1;
-		//filters[idx].filter[0] = 0x87;
-		//filters[idx].mask[0]   = 0xFF;
-		//idx++;
-
-		filters[idx].type = EMM_UNIQUE;
-		filters[idx].enabled   = 1;
-		filters[idx].filter[0] = 0x88;
-		filters[idx].mask[0]   = 0xFF;
-		idx++;
 
 		*filter_count = idx;
 	}
@@ -777,14 +685,14 @@ static int32_t emu_get_emm_filter(struct s_reader *UNUSED(rdr), struct s_csystem
 	return CS_ERROR;
 }
 
-static int32_t emu_get_emm_filter_adv(struct s_reader *rdr, struct s_csystem_emm_filter **emm_filters, unsigned int *filter_count, uint16_t caid, uint32_t provid, uint16_t srvid)
+static int32_t emu_get_emm_filter_adv(struct s_reader *rdr, struct s_csystem_emm_filter **emm_filters, unsigned int *filter_count,
+										uint16_t caid, uint32_t provid, uint16_t srvid, uint16_t tsid, uint16_t onid, uint32_t ens)
 {
 	if (caid_is_viaccess(caid))     return emu_get_via3_emm_filter(rdr, emm_filters, filter_count, caid, provid);
 	if (caid_is_irdeto(caid))       return emu_get_ird2_emm_filter(rdr, emm_filters, filter_count, caid, provid);
-	if (caid_is_powervu(caid))      return emu_get_pvu_emm_filter(rdr, emm_filters, filter_count, caid, provid, srvid);
+	if (caid_is_powervu(caid))      return emu_get_pvu_emm_filter(emm_filters, filter_count, caid, srvid, tsid, onid, ens);
 	if (caid_is_director(caid))     return emu_get_tan_emm_filter(rdr, emm_filters, filter_count, caid, provid);
 	if (caid_is_biss_dynamic(caid)) return emu_get_biss_emm_filter(rdr, emm_filters, filter_count, caid, provid);
-	if (caid_is_dre(caid))          return emu_get_dre2_emm_filter(rdr, emm_filters, filter_count, caid, provid);
 
 	return CS_ERROR;
 }
@@ -792,7 +700,7 @@ static int32_t emu_get_emm_filter_adv(struct s_reader *rdr, struct s_csystem_emm
 const struct s_cardsystem reader_emu =
 {
 	.desc = "emu",
-	.caids = (uint16_t[]){ 0x05, 0x06, 0x09, 0x0D, 0x0E, 0x10, 0x18, 0x26, 0x4A, 0 },
+	.caids = (uint16_t[]){ 0x05, 0x06, 0x0D, 0x0E, 0x10, 0x18, 0x26, 0 },
 	.do_ecm = emu_do_ecm,
 	.do_emm = emu_do_emm,
 	.card_info = emu_card_info,
@@ -939,27 +847,25 @@ void add_emu_reader(void)
 		cs_strncpy(rdr->device, emuName, sizeof(emuName));
 
 		// CAIDs
-		ctab = strdup("0500,0604,090F,0E00,1010,1801,2600,2602,2610,4AE1");
+		ctab = strdup("0500,0604,0E00,1010,1801,2600,2602,2610");
 		chk_caidtab(ctab, &rdr->ctab);
 		NULLFREE(ctab);
 
 		// Idents
 		ftab = strdup("0500:000000,007400,007800,021110,023800;"
 					  "0604:000000;"
-					  "090F:000000;"
 					  "0E00:000000;"
 					  "1010:000000;"
 					  "1801:000000,001101,002111,007301;"
 					  "2600:000000;"
 					  "2602:000000;"
 					  "2610:000000;"
-					  "4AE1:000011,000014,0000FE;"
 					 );
 		chk_ftab(ftab, &rdr->ftab);
 		NULLFREE(ftab);
 
 		// AU providers
-		emu_auproviders = strdup("0604:010200;0E00:000000;1010:000000;2610:000000;4AE1:000011,000014,0000FE;");
+		emu_auproviders = strdup("0604:010200;0E00:000000;1010:000000;2610:000000;");
 		chk_ftab(emu_auproviders, &rdr->emu_auproviders);
 		NULLFREE(emu_auproviders);
 
@@ -992,7 +898,7 @@ void add_emu_reader(void)
 	}
 #endif
 
-	cs_log("OSCam-Emu version %d", get_osemu_version());
+	cs_log("OSCam-Emu version %d", EMU_VERSION);
 }
 
 #endif // WITH_EMU

@@ -5,25 +5,17 @@
 #ifdef WITH_EMU
 
 #include "oscam-string.h"
-#include "cscrypt/bn.h"
 #include "module-emulator-osemu.h"
 #include "module-emulator-streamserver.h"
 #include "module-emulator-biss.h"
 #include "module-emulator-cryptoworks.h"
 #include "module-emulator-director.h"
-#include "module-emulator-drecrypt.h"
 #include "module-emulator-irdeto.h"
 #include "module-emulator-nagravision.h"
 #include "module-emulator-powervu.h"
 #include "module-emulator-viaccess.h"
-#include "module-emulator-videoguard.h"
 
 // Shared functions
-
-inline uint16_t get_ecm_len(const uint8_t *ecm)
-{
-	return (((ecm[1] & 0x0F) << 8) | ecm[2]) + 3;
-}
 
 int8_t is_valid_dcw(uint8_t *dw)
 {
@@ -133,10 +125,9 @@ KeyDataContainer CwKeys = { NULL, 0, 0 };
 KeyDataContainer ViKeys = { NULL, 0, 0 };
 KeyDataContainer NagraKeys = { NULL, 0, 0 };
 KeyDataContainer IrdetoKeys = { NULL, 0, 0 };
-KeyDataContainer NDSKeys = { NULL, 0, 0 };
-KeyDataContainer BissKeys = { NULL, 0, 0 };
+KeyDataContainer BissSWs = { NULL, 0, 0 };
+KeyDataContainer Biss2Keys = { NULL, 0, 0 };
 KeyDataContainer PowervuKeys = { NULL, 0, 0 };
-KeyDataContainer DreKeys = { NULL, 0, 0 };
 KeyDataContainer TandbergKeys = { NULL, 0, 0 };
 KeyDataContainer StreamKeys = { NULL, 0, 0 };
 
@@ -152,14 +143,12 @@ KeyDataContainer *emu_get_key_container(char identifier)
 			return &NagraKeys;
 		case 'I':
 			return &IrdetoKeys;
-		case 'S':
-			return &NDSKeys;
 		case 'F':
-			return &BissKeys;
+			return &BissSWs;
+		case 'G':
+			return &Biss2Keys;
 		case 'P':
 			return &PowervuKeys;
-		case 'D':
-			return &DreKeys;
 		case 'T':
 			return &TandbergKeys;
 		case 'A':
@@ -256,16 +245,16 @@ static void write_key_to_file(char identifier, uint32_t provider, const char *ke
 
 	if (comment)
 	{
-		snprintf(line, sizeof(line), "\n%c %.4X %s %s ; added by Emu %s %s",
+		snprintf(line, sizeof(line), "\n%c %08X %s %s ; added by Emu %s %s",
 					identifier, provider, keyName, keyValue, dateText, comment);
 	}
 	else
 	{
-		snprintf(line, sizeof(line), "\n%c %.4X %s %s ; added by Emu %s",
+		snprintf(line, sizeof(line), "\n%c %08X %s %s ; added by Emu %s",
 					identifier, provider, keyName, keyValue, dateText);
 	}
 
-	cs_log("Key written: %c %.4X %s %s", identifier, provider, keyName, keyValue);
+	cs_log("Key written: %c %08X %s %s", identifier, provider, keyName, keyValue);
 
 	free(keyValue);
 
@@ -365,7 +354,7 @@ int8_t emu_set_key(char identifier, uint32_t provider, char *keyName, uint8_t *o
 			continue;
 		}
 
-		// Don't match keyName (i.e. expiration date) for BISS
+		// Don't match keyName (i.e. expiration date) for BISS1 and BISS2 mode 1/E sesssion words
 		if (identifier != 'F' && strcmp(KeyDB->EmuKeys[i].keyName, keyName))
 		{
 			continue;
@@ -574,7 +563,7 @@ int8_t emu_find_key(char identifier, uint32_t provider, uint32_t providerIgnoreM
 				memset(key + tmpKeyData->keyLength, 0, maxKeyLength - tmpKeyData->keyLength);
 			}
 
-			// Report the keyName (i.e. expiration date) of found key back to BissGetKey()
+			// Report the keyName (i.e. expiration date) of the session word found
 			if (identifier == 'F')
 			{
 				cs_strncpy(keyName, tmpKeyData->keyName, EMU_MAX_CHAR_KEYNAME);
@@ -673,28 +662,26 @@ void emu_clear_keydata(void)
 	total += ViKeys.keyCount;
 	total += NagraKeys.keyCount;
 	total += IrdetoKeys.keyCount;
-	total += NDSKeys.keyCount;
-	total += BissKeys.keyCount;
+	total += BissSWs.keyCount;
+	total += Biss2Keys.keyCount;
 	total += PowervuKeys.keyCount;
-	total += DreKeys.keyCount;
 	total += TandbergKeys.keyCount;
 	total += StreamKeys.keyCount;
 
 	if (total != 0)
 	{
-		cs_log("Freeing keys in memory: W:%d V:%d N:%d I:%d S:%d F:%d P:%d D:%d T:%d A:%d",
+		cs_log("Freeing keys in memory: W:%d V:%d N:%d I:%d F:%d G:%d P:%d T:%d A:%d",
 				CwKeys.keyCount, ViKeys.keyCount, NagraKeys.keyCount, IrdetoKeys.keyCount,
-				NDSKeys.keyCount, BissKeys.keyCount, PowervuKeys.keyCount, DreKeys.keyCount,
-				TandbergKeys.keyCount, StreamKeys.keyCount);
+				BissSWs.keyCount, Biss2Keys.keyCount, PowervuKeys.keyCount, TandbergKeys.keyCount,
+				StreamKeys.keyCount);
 
 		delete_keys_in_container('W');
 		delete_keys_in_container('V');
 		delete_keys_in_container('N');
 		delete_keys_in_container('I');
-		delete_keys_in_container('S');
 		delete_keys_in_container('F');
+		delete_keys_in_container('G');
 		delete_keys_in_container('P');
-		delete_keys_in_container('D');
 		delete_keys_in_container('T');
 		delete_keys_in_container('A');
 	}
@@ -806,7 +793,7 @@ uint8_t emu_read_keyfile(struct s_reader *rdr, const char *opath)
 				!(identifier == 'F' && 0 == strncmp(keyString, "XXXXXXXXXXXX", 12))) // Skip warning for BISS 'Example key' lines
 			{
 				// Alert user regarding faulty line
-				cs_log("WARNING: non-hex value in %s at %c %04X %s %s",
+				cs_log("WARNING: non-hex value in %s at %c %08X %s %s",
 						EMU_KEY_FILENAME, identifier, provider, keyName, keyString);
 			}
 		}
@@ -865,7 +852,7 @@ void emu_read_keymemory(struct s_reader *rdr)
 				!(identifier == 'F' && 0 == strncmp(keyString, "XXXXXXXXXXXX", 12))) // Skip warning for BISS 'Example key' lines
 			{
 				// Alert user regarding faulty line
-				cs_log("WARNING: non-hex value in internal keyfile at %c %04X %s %s",
+				cs_log("WARNING: non-hex value in internal keyfile at %c %08X %s %s",
 						identifier, provider, keyName, keyString);
 			}
 		}
@@ -878,191 +865,86 @@ void emu_read_keymemory(struct s_reader *rdr)
 void emu_read_keymemory(struct s_reader *UNUSED(rdr)) { }
 #endif
 
-void emu_read_eebin(const char *path, const char *name)
-{
-	char tmp[256];
-	FILE *file = NULL;
-	uint8_t i, buffer[64][32], dummy[2][32];
-	uint32_t prvid;
-
-	// Path is set
-	if (path != NULL)
-	{
-		snprintf(tmp, 256, "%s%s", path, name);
-	}
-	else // No path is set, use SoftCam.Keys's path
-	{
-		snprintf(tmp, 256, "%s%s", emu_keyfile_path, name);
-	}
-
-	// Read file to buffer
-	if ((file = fopen(tmp, "rb")) != NULL)
-	{
-		cs_log("Reading key file: %s", tmp);
-
-		if (fread(buffer, 1, sizeof(buffer), file) != sizeof(buffer))
-		{
-			cs_log("Corrupt key file: %s", tmp);
-			fclose(file);
-			return;
-		}
-
-		fclose(file);
-	}
-	else
-	{
-		if (path != NULL)
-		{
-			cs_log("Cannot open key file: %s", tmp);
-		}
-
-		return;
-	}
-
-	// Save keys to db
-	memset(dummy[0], 0x00, 32);
-	memset(dummy[1], 0xFF, 32);
-	prvid = (strncmp(name, "ee36.bin", 9) == 0) ? 0x4AE111 : 0x4AE114;
-
-	for (i = 0; i < 32; i++) // Set "3B" type keys
-	{
-		// Write keys if they have "real" values
-		if ((memcmp(buffer[i], dummy[0], 32) !=0) && (memcmp(buffer[i], dummy[1], 32) != 0))
-		{
-			snprintf(tmp, 5, "3B%02X", i);
-			emu_set_key('D', prvid, tmp, buffer[i], 32, 0, NULL, NULL);
-		}
-	}
-
-	for (i = 0; i < 32; i++) // Set "56" type keys
-	{
-		// Write keys if they have "real" values
-		if ((memcmp(buffer[32 + i], dummy[0], 32) !=0) && (memcmp(buffer[32 + i], dummy[1], 32) != 0))
-		{
-			snprintf(tmp, 5, "56%02X", i);
-			emu_set_key('D', prvid, tmp, buffer[32 + i], 32, 0, NULL, NULL);
-		}
-	}
-}
-
-void emu_read_deskey(uint8_t *dreOverKey, uint8_t len)
-{
-	uint8_t i;
-
-	if (len == 128)
-	{
-		cs_log("Reading DreCrypt overcrypt (ADEC) key");
-
-		for (i = 0; i < 16; i++)
-		{
-			emu_set_key('D', i, "OVER", dreOverKey + (i * 8), 8, 0, NULL, NULL);
-		}
-	}
-	else if ((len != 0 && len < 128) || len > 128)
-	{
-		cs_log("DreCrypt overcrypt (ADEC) key has wrong length");
-	}
-}
-
-static const char *get_process_ecm_error_reason(int8_t result)
+static const char *get_error_reason(int8_t result)
 {
 	switch (result)
 	{
-		case 0: return "No error";
-		case 1: return "ECM not supported";
-		case 2: return "Key not found";
-		case 3: return "Nano80 problem";
-		case 4: return "Corrupt data";
-		case 5: return "CW not found";
-		case 6: return "CW checksum error";
-		case 7: return "Out of memory";
-		case 8: return "ECM checksum error";
-		case 9: return "ICG error";
-		default: return "Unknown";
+		case EMU_OK:
+			return "No error";
+
+		case EMU_NOT_SUPPORTED:
+			return "Not supported";
+
+		case EMU_KEY_NOT_FOUND:
+			return "Key not found";
+
+		case EMU_KEY_REJECTED:
+			return "ECM key rejected";
+
+		case EMU_CORRUPT_DATA:
+			return "Corrupt data";
+
+		case EMU_CW_NOT_FOUND:
+			return "CW not found";
+
+		case EMU_CHECKSUM_ERROR:
+			return "Checksum error";
+
+		case EMU_OUT_OF_MEMORY:
+			return "Out of memory";
+
+		default:
+			return "Unknown reason";
 	}
 }
 
-/* Error codes
-0  OK
-1  ECM not supported
-2  Key not found
-3  Nano80 problem
-4  Corrupt data
-5  CW not found
-6  CW checksum error
-7  Out of memory
-8  ECM checksum error
-9  ICG error
-*/
-
-int8_t emu_process_ecm(struct s_reader *rdr, int16_t ecmDataLen, uint16_t caid, uint32_t provider,
-						const uint8_t *ecm, uint8_t *dw, uint16_t srvid, uint16_t ecmpid, EXTENDED_CW *cw_ex)
+int8_t emu_process_ecm(struct s_reader *rdr, const ECM_REQUEST *er, uint8_t *cw, EXTENDED_CW *cw_ex)
 {
-	if (ecmDataLen < 3)
+	if (er->ecmlen < 3)
 	{
 		cs_log_dbg(D_TRACE, "Received ecm data of zero length!");
 		return 4;
 	}
 
-	uint16_t ecmLen = get_ecm_len(ecm);
+	uint16_t ecmLen = SCT_LEN(er->ecm);
 	uint8_t ecmCopy[ecmLen];
 	int8_t result = 1;
 
-	if (ecmLen != ecmDataLen)
+	if (ecmLen != er->ecmlen)
 	{
 		cs_log_dbg(D_TRACE, "Actual ecm data length 0x%03X but ecm section length is 0x%03X",
-							ecmDataLen, ecmLen);
+							er->ecmlen, ecmLen);
 		return 4;
 	}
 
 	if (ecmLen > EMU_MAX_ECM_LEN)
 	{
 		cs_log_dbg(D_TRACE, "Actual ecm data length 0x%03X but maximum supported ecm length is 0x%03X",
-							ecmDataLen, EMU_MAX_ECM_LEN);
+							er->ecmlen, EMU_MAX_ECM_LEN);
 		return 1;
 	}
 
-	memcpy(ecmCopy, ecm, ecmLen);
+	memcpy(ecmCopy, er->ecm, ecmLen);
 
-	     if (caid_is_viaccess(caid))    result = viaccess_ecm(ecmCopy, dw);
-	else if (caid_is_irdeto(caid))      result = irdeto2_ecm(caid, ecmCopy, dw);
-	else if (caid_is_videoguard(caid))  result = videoguard_ecm(caid, ecmCopy, dw);
-	else if (caid_is_cryptoworks(caid)) result = cryptoworks_ecm(caid, ecmCopy, dw);
-	else if (caid_is_powervu(caid))     result = powervu_ecm(ecmCopy, dw, srvid, NULL, cw_ex);
-	else if (caid_is_director(caid))    result = director_ecm(ecmCopy, dw);
-	else if (caid_is_nagra(caid))       result = nagra2_ecm(ecmCopy, dw);
-	else if (caid_is_biss(caid))        result = biss_ecm(rdr, caid, ecm, dw, srvid, ecmpid);
-	else if (caid_is_dre(caid))         result = drecrypt2_ecm(provider, ecmCopy, dw);
+	     if (caid_is_viaccess(er->caid))    result = viaccess_ecm(ecmCopy, cw);
+	else if (caid_is_irdeto(er->caid))      result = irdeto2_ecm(er->caid, ecmCopy, cw);
+	else if (caid_is_cryptoworks(er->caid)) result = cryptoworks_ecm(er->caid, ecmCopy, cw);
+	else if (caid_is_powervu(er->caid))     result = powervu_ecm(ecmCopy, cw, cw_ex, er->srvid, er->caid, er->tsid, er->onid, er->ens, NULL);
+	else if (caid_is_director(er->caid))    result = director_ecm(ecmCopy, cw);
+	else if (caid_is_nagra(er->caid))       result = nagra2_ecm(ecmCopy, cw);
+	else if (caid_is_biss(er->caid))        result = biss_ecm(rdr, er->ecm, er->caid, er->pid, cw, cw_ex);
 
 	if (result != 0)
 	{
-		cs_log("ECM failed: %s", get_process_ecm_error_reason(result));
+		cs_log("ECM failed: %s", get_error_reason(result));
 	}
 
 	return result;
 }
 
-static const char *get_process_emm_error_reason(int8_t result)
+int8_t emu_process_emm(struct s_reader *rdr, uint16_t caid, const uint8_t *emm, uint32_t *keysAdded)
 {
-	switch (result)
-	{
-		case 0: return "No error";
-		case 1: return "EMM not supported";
-		case 2: return "Key not found";
-		case 3: return "Nano80 problem";
-		case 4: return "Corrupt data";
-		case 5: return "Unknown";
-		case 6: return "Checksum error";
-		case 7: return "Out of memory";
-		case 8: return "EMM checksum error";
-		case 9: return "Wrong provider";
-		default: return "Unknown";
-	}
-}
-
-int8_t emu_process_emm(struct s_reader *rdr, uint16_t caid, uint32_t provider, const uint8_t *emm, uint32_t *keysAdded)
-{
-	uint16_t emmLen = get_ecm_len(emm);
+	uint16_t emmLen = SCT_LEN(emm);
 	uint8_t emmCopy[emmLen];
 	int8_t result = 1;
 
@@ -1073,15 +955,15 @@ int8_t emu_process_emm(struct s_reader *rdr, uint16_t caid, uint32_t provider, c
 	memcpy(emmCopy, emm, emmLen);
 	*keysAdded = 0;
 
-	     if (caid_is_viaccess(caid)) result = viaccess_emm(emmCopy, keysAdded);
-	else if (caid_is_irdeto(caid))   result = irdeto2_emm(caid, emmCopy, keysAdded);
-	else if (caid_is_powervu(caid))  result = powervu_emm(emmCopy, keysAdded);
-	else if (caid_is_director(caid)) result = director_emm(emmCopy, keysAdded);
-	else if (caid_is_dre(caid))      result = drecrypt2_emm(rdr, provider, emmCopy, keysAdded);
+	     if (caid_is_viaccess(caid))     result = viaccess_emm(emmCopy, keysAdded);
+	else if (caid_is_irdeto(caid))       result = irdeto2_emm(caid, emmCopy, keysAdded);
+	else if (caid_is_powervu(caid))      result = powervu_emm(emmCopy, keysAdded);
+	else if (caid_is_director(caid))     result = director_emm(emmCopy, keysAdded);
+	else if (caid_is_biss_dynamic(caid)) result = biss_emm(rdr, emmCopy, keysAdded);
 
 	if (result != 0)
 	{
-		cs_log_dbg(D_EMM,"EMM failed: %s", get_process_emm_error_reason(result));
+		cs_log_dbg(D_EMM,"EMM failed: %s", get_error_reason(result));
 	}
 
 	return result;

@@ -1,7 +1,10 @@
-#ifndef MODULE_EMULATOR_H_
-#define MODULE_EMULATOR_H_
+#ifndef MODULE_EMULATOR_OSEMU_H_
+#define MODULE_EMULATOR_OSEMU_H_
 
 #ifdef WITH_EMU
+
+// Version info
+#define EMU_VERSION 798
 
 #define EMU_MAX_CHAR_KEYNAME 12
 #define EMU_KEY_FILENAME "SoftCam.Key"
@@ -14,27 +17,21 @@
  *  0 - OK
  *  1 - ECM / EMM not supported
  *  2 - ECM / EMM key not found
- *  3 - Nano80 error
+ *  3 - ECM key rejected
  *  4 - Corrupt data
  *  5 - CW not found
  *  6 - CW / ECM / EMM checksum error
  *  7 - Out of memory
- *  8 - ICG error
- *  9 - Wrong provider
- * 10 - ECM key rejected
 */
 
 #define EMU_OK             0
 #define EMU_NOT_SUPPORTED  1
 #define EMU_KEY_NOT_FOUND  2
-#define EMU_NANO_80_ERROR  3
+#define EMU_KEY_REJECTED   3
 #define EMU_CORRUPT_DATA   4
 #define EMU_CW_NOT_FOUND   5
 #define EMU_CHECKSUM_ERROR 6
 #define EMU_OUT_OF_MEMORY  7
-#define EMU_ICG_ERROR      8
-#define EMU_WRONG_PROVID   9
-#define EMU_KEY_REJECTED  10
 
 typedef struct KeyData KeyData;
 
@@ -59,10 +56,9 @@ extern KeyDataContainer CwKeys;
 extern KeyDataContainer ViKeys;
 extern KeyDataContainer NagraKeys;
 extern KeyDataContainer IrdetoKeys;
-extern KeyDataContainer NDSKeys;
-extern KeyDataContainer BissKeys;
+extern KeyDataContainer BissSWs;      // 'F' identifier - BISS1 and BISS2 mode 1/E session words
+extern KeyDataContainer Biss2Keys;    // 'G' identifier - BISS2 mode CA session keys (ECM keys)
 extern KeyDataContainer PowervuKeys;
-extern KeyDataContainer DreKeys;
 extern KeyDataContainer TandbergKeys;
 extern KeyDataContainer StreamKeys;
 extern uint8_t viasat_const[];
@@ -73,21 +69,16 @@ void emu_set_keyfile_path(const char *path);
 void emu_clear_keydata(void);
 uint8_t emu_read_keyfile(struct s_reader *rdr, const char *path);
 void emu_read_keymemory(struct s_reader *rdr);
-void emu_read_eebin(const char *path, const char *name);
-void emu_read_deskey(uint8_t *dreOverKey, uint8_t len);
 
-extern uint16_t get_ecm_len(const uint8_t *ecm);
 int8_t is_valid_dcw(uint8_t *dw);
 int8_t char_to_bin(uint8_t *out, const char *in, uint32_t inLen);
 void date_to_str(char *dateStr, uint8_t len, int8_t offset, uint8_t format);
 
 KeyDataContainer *emu_get_key_container(char identifier);
 
-int8_t emu_process_ecm(struct s_reader *rdr, int16_t ecmDataLen, uint16_t caid, uint32_t provider,
-						const uint8_t *ecm, uint8_t *dw, uint16_t srvid, uint16_t ecmpid, EXTENDED_CW* cw_ex);
+int8_t emu_process_ecm(struct s_reader *rdr, const ECM_REQUEST *er, uint8_t *cw, EXTENDED_CW* cw_ex);
 
-int8_t emu_process_emm(struct s_reader *rdr, uint16_t caid, uint32_t provider, const uint8_t *emm,
-						uint32_t *keysAdded);
+int8_t emu_process_emm(struct s_reader *rdr, uint16_t caid, const uint8_t *emm, uint32_t *keysAdded);
 
 int8_t emu_find_key(char identifier, uint32_t provider, uint32_t providerIgnoreMask, char *keyName,
 					uint8_t *key, uint32_t maxKeyLength, uint8_t isCriticalKey, uint32_t keyRef,

@@ -493,6 +493,7 @@ void DES_set_odd_parity(DES_cblock *key)
 		(*key)[i] = odd_parity[(*key)[i]];
 }
 
+
 void DES_encrypt1_Oscam(DES_LONG *data, DES_key_schedule *ks, int enc)
 {
 	register DES_LONG l=0, r=0, t=0, u=0;

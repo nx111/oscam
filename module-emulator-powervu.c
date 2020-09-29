@@ -456,6 +456,11 @@ static const uint8_t table1A[] = { 0x01, 0x05, 0x08, 0x10 };
 static const uint8_t table1B[] = { 0x03, 0x07, 0x08, 0x10 };
 static const uint8_t table1C[] = { 0x03, 0x05, 0x0A, 0x10 };
 static const uint8_t table1D[] = { 0x03, 0x07, 0x0A, 0x10 };
+static const uint8_t table1E[] = { 0x01, 0x05, 0x0B, 0x10 };
+static const uint8_t table1F[] = { 0x06, 0x07, 0x0B, 0x10 };
+static const uint8_t table20[] = { 0x01, 0x08, 0x0B, 0x10 };
+static const uint8_t table21[] = { 0x01, 0x07, 0x0C, 0x10 };
+static const uint8_t table22[] = { 0x05, 0x0B, 0x0C, 0x10 };
 
 static void hash_modes_19_to_27_tables_3(uint8_t *data, uint8_t *hash, const uint8_t *table)
 {
@@ -503,6 +508,13 @@ static void hash_modes_19_to_27_tables_3(uint8_t *data, uint8_t *hash, const uin
 
 static void create_hash(uint8_t *data, int len, uint8_t *hash, int mode)
 {
+	if ((mode > 0x27) || (mode == 0x0B) || (mode == 0x0C) ||
+		(mode == 0x0D) || (mode == 0x0E) || (mode == 0))
+	{
+		memset(hash, 0, 16);
+		return;
+	}
+
 	uint8_t dataPadded[64];
 
 	pad_data(data, len, dataPadded);
@@ -607,6 +619,26 @@ static void create_hash(uint8_t *data, int len, uint8_t *hash, int mode)
 
 		case 29:
 			hash_modes_19_to_27_tables_3(dataPadded, hash, table1D);
+			break;
+
+		case 30:
+			hash_modes_19_to_27_tables_3(dataPadded, hash, table1E);
+			break;
+
+		case 31:
+			hash_modes_19_to_27_tables_3(dataPadded, hash, table1F);
+			break;
+
+		case 32:
+			hash_modes_19_to_27_tables_3(dataPadded, hash, table20);
+			break;
+
+		case 33:
+			hash_modes_19_to_27_tables_3(dataPadded, hash, table21);
+			break;
+
+		case 34:
+			hash_modes_19_to_27_tables_3(dataPadded, hash, table22);
 			break;
 
 		default:
@@ -776,6 +808,200 @@ static void create_data_unmask_mode_03(uint8_t *ecmBody, uint8_t *data)
 	data[7] = ecmBody[0x27];
 }
 
+static void hash_04_add(uint32_t *buffer, int a, int b, int c, int d, int e, int f)
+{
+	uint32_t tmp1 = (buffer[a] & 1) + (buffer[b] & 1);
+	uint32_t tmp2 = (buffer[a] >> 1) + (buffer[b] >> 1) + (tmp1 >> 1);
+
+	buffer[e] = buffer[c] + buffer[d] + (tmp2 >> 31);
+	buffer[f] = tmp2 + tmp2 + (tmp1 & 1);
+}
+
+static void hash_04_shift(uint32_t *buffer, int a, int b, uint8_t shift)
+{
+	uint32_t tmp1 = (buffer[a] >> (32 - shift)) + (buffer[b] << shift);
+	uint32_t tmp2 = (buffer[b] >> (32 - shift)) + (buffer[a] << shift);
+
+	buffer[b] = tmp1;
+	buffer[a] = tmp2;
+}
+
+static void hash_04_xor(uint32_t *buffer, int a, int b, int c, int d)
+{
+	buffer[a] ^= buffer[b];
+	buffer[c] ^= buffer[d];
+}
+
+static void hash_04_swap(uint32_t *buffer, int a, int b)
+{
+	uint32_t tmp = buffer[a];
+
+	buffer[a] = buffer[b];
+	buffer[b] = tmp;
+}
+
+static void hash_04_core(uint32_t *buffer)
+{
+	hash_04_add(buffer, 0, 6, 7, 1, 7, 6);
+	hash_04_shift(buffer, 5, 4, 0x0D);
+	hash_04_xor(buffer, 4, 2, 5, 3);
+	hash_04_swap(buffer, 7, 6);
+	hash_04_add(buffer, 6, 2, 3, 7, 3, 2);
+	hash_04_shift(buffer, 1, 0, 0x10);
+	hash_04_xor(buffer, 0, 4, 1, 5);
+	hash_04_add(buffer, 6, 2, 3, 7, 7, 6);
+	hash_04_shift(buffer, 1, 0, 0x15);
+	hash_04_add(buffer, 6, 0, 1, 7, 1, 0);
+	hash_04_xor(buffer, 2, 4, 3, 5);
+	hash_04_shift(buffer, 5, 4, 0x11);
+	hash_04_xor(buffer, 4, 2, 5, 3);
+	hash_04_swap(buffer, 3, 2);
+}
+
+static void create_hash_mode_04(uint8_t *data, uint8_t *hash)
+{
+	int i, j;
+	uint32_t d0, d1, h0, h1, h2, h3;
+	uint32_t buffer[] =
+	{
+		0x1F253724, 0x3E8136B3, 0x9677CEDF, 0x25B5E75A,
+		0x9494BC16, 0xCFD3FB34, 0xF37C75BB, 0x97D4632E
+	};
+
+	for (j = 0; j < 64; j += 8)
+	{
+		d0 = (data[j + 3] << 24) + (data[j + 2] << 16) + (data[j + 1] << 8) + data[j + 0];
+		d1 = (data[j + 7] << 24) + (data[j + 6] << 16) + (data[j + 5] << 8) + data[j + 4];
+
+		buffer[0] ^= d0;
+		buffer[1] ^= d1;
+
+		for (i = 0; i < 2; i++)
+		{
+			hash_04_core(buffer);
+		}
+
+		buffer[6] ^= d0;
+		buffer[7] ^= d1;
+	}
+
+	buffer[1] ^= 0x40000000;
+	buffer[0] ^= 0x00000000;
+
+	for (i = 0; i < 2; i++)
+	{
+		hash_04_core(buffer);
+	}
+
+	buffer[7] ^= 0x40000000;
+	buffer[6] ^= 0x00000000;
+	buffer[2] ^= 0xEE;
+
+	for (i = 0; i < 4; i++)
+	{
+		hash_04_core(buffer);
+	}
+
+	h0 = buffer[0] ^ buffer[2] ^ buffer[4] ^ buffer[6];
+	h1 = buffer[1] ^ buffer[3] ^ buffer[5] ^ buffer[7];
+
+	hash[0] = (uint8_t)  h0;
+	hash[1] = (uint8_t) (h0 >>  8);
+	hash[2] = (uint8_t) (h0 >> 16);
+	hash[3] = (uint8_t) (h0 >> 24);
+	hash[4] = (uint8_t)  h1;
+	hash[5] = (uint8_t) (h1 >>  8);
+	hash[6] = (uint8_t) (h1 >> 16);
+	hash[7] = (uint8_t) (h1 >> 24);
+
+	buffer[4] ^= 0xDD;
+
+	for (i = 0; i < 4; i++)
+	{
+		hash_04_core(buffer);
+	}
+
+	h2 = buffer[0] ^ buffer[2] ^ buffer[4] ^ buffer[6];
+	h3 = buffer[1] ^ buffer[3] ^ buffer[5] ^ buffer[7];
+
+	hash[8]  = (uint8_t)  h2;
+	hash[9]  = (uint8_t) (h2 >> 8);
+	hash[10] = (uint8_t) (h2 >> 16);
+	hash[11] = (uint8_t) (h2 >> 24);
+	hash[12] = (uint8_t)  h3;
+	hash[13] = (uint8_t) (h3 >> 8);
+	hash[14] = (uint8_t) (h3 >> 16);
+	hash[15] = (uint8_t) (h3 >> 24);
+}
+
+static void create_data_cw_mode_04(uint8_t *seed, int lenSeed, uint8_t *basecw,
+									uint8_t val, uint8_t *ecmBody, uint8_t *data)
+{
+	uint8_t padding[] =
+	{
+		0x18, 0xD6, 0x24, 0xA8, 0xDE, 0x14, 0xD8, 0x30,
+		0x3C, 0xB2, 0x24, 0x54, 0x17, 0x5A, 0x28, 0x61,
+		0xBC, 0xB9, 0x29, 0xAD, 0xA5, 0x13, 0xD4, 0x24,
+		0x6D, 0x61, 0x40, 0xC8, 0xFD, 0x27, 0xD7, 0xFF,
+		0x3E, 0x84, 0x50, 0xC2, 0x47, 0x4C, 0xD5, 0xC5,
+		0xF2, 0x79, 0xAD, 0x02, 0xC5, 0x05, 0x7B, 0xFD,
+		0x60, 0x4A, 0x16, 0xE5, 0xAA, 0x0E, 0x97, 0x1C
+	};
+
+	memcpy(data + 8, padding, 56);
+
+	data[0] = ecmBody[0x0E];
+	data[1] = ecmBody[0x0A];
+	data[2] = ecmBody[0x0C];
+	data[3] = ecmBody[0x04];
+	data[4] = ecmBody[0x10];
+	data[5] = ecmBody[0x08];
+	data[6] = ecmBody[0x05];
+	data[7] = ecmBody[0x0F];
+
+	int idxData = 8, idxSeed = 0, idxBase = 0;
+
+	while (idxBase < 7)
+	{
+		if ((idxBase == 0) || (idxBase == 1) || (idxBase == 2))
+		{
+			data[idxData++] = val;
+		}
+
+		if (idxSeed < lenSeed)
+		{
+			data[idxData++] = seed[idxSeed++];
+		}
+
+		data[idxData++] = basecw[idxBase++];
+	}
+}
+
+static void create_data_unmask_mode_04(uint8_t *ecmBody, uint8_t *data)
+{
+	uint8_t padding[] =
+	{
+		0x0E, 0x4A, 0x85, 0x85, 0xF9, 0xC0, 0xCC, 0x00,
+		0xBA, 0x9B, 0x98, 0x35, 0x4C, 0xD2, 0xC1, 0x6C,
+		0x87, 0x32, 0x9B, 0x82, 0x31, 0x5B, 0x1D, 0xB4,
+		0xB8, 0x98, 0x74, 0xFF, 0x31, 0x66, 0x08, 0x79,
+		0x47, 0xCE, 0x96, 0x4D, 0xE9, 0x52, 0xCF, 0x8F,
+		0xEC, 0x5C, 0x07, 0xBC, 0x09, 0xA2, 0x82, 0x78,
+		0x3D, 0xB9, 0xFF, 0x3F, 0x76, 0x72, 0x6F, 0x9C
+	};
+
+	memcpy(data + 8, padding, 56);
+
+	data[0] = ecmBody[0x17];
+	data[1] = ecmBody[0x2B];
+	data[2] = ecmBody[0x1D];
+	data[3] = ecmBody[0x2D];
+	data[4] = ecmBody[0x0B];
+	data[5] = ecmBody[0x06];
+	data[6] = ecmBody[0x2F];
+	data[7] = ecmBody[0x1E];
+}
+
 static uint8_t get_mode_cw(uint8_t *extraData)
 {
 	uint64_t data = ((uint32_t)extraData[0] << 24) + (extraData[1] << 16) + (extraData[2] << 8) + extraData[3];
@@ -935,7 +1161,51 @@ static uint8_t unmask_ecm(uint8_t *ecm, uint8_t *seedEcmCw, uint8_t *modeCW)
 	}
 	else if (modeUnmask == 0x04)
 	{
-		// Do nothing
+		ecm[startOffset + 0x1E] -= ecm[startOffset + 0x0D];
+		ecm[startOffset + 0x1D] -= ecm[startOffset + 0x07];
+		ecm[startOffset + 0x2B] -= ecm[startOffset + 0x05];
+		ecm[startOffset + 0x2D] -= ecm[startOffset + 0x08];
+		ecm[startOffset + 0x17] -= ecm[startOffset + 0x04];
+		ecm[startOffset + 0x2F] -= ecm[startOffset + 0x0C];
+		ecm[startOffset + 0x06] -= ecm[startOffset + 0x0A];
+		ecm[startOffset + 0x0B] -= ecm[startOffset + 0x09];
+
+		create_data_unmask_mode_04(ecm + startOffset, data);
+		create_hash_mode_04(data, mask);
+
+		// Unmask body
+		ecm[startOffset + 0x04] ^= mask[0x00];
+		ecm[startOffset + 0x05] ^= mask[0x01];
+		ecm[startOffset + 0x07] ^= mask[0x02];
+		ecm[startOffset + 0x08] ^= mask[0x03];
+		ecm[startOffset + 0x09] ^= mask[0x04];
+		ecm[startOffset + 0x0A] ^= mask[0x05];
+		ecm[startOffset + 0x0C] ^= mask[0x06];
+		ecm[startOffset + 0x0D] ^= mask[0x07];
+		ecm[startOffset + 0x0E] ^= mask[0x08];
+		ecm[startOffset + 0x10] ^= mask[0x09];
+		ecm[startOffset + 0x11] ^= mask[0x0A];
+		ecm[startOffset + 0x18] ^= mask[0x0B];
+		ecm[startOffset + 0x1A] ^= mask[0x0C];
+		ecm[startOffset + 0x1B] ^= mask[0x0D];
+		ecm[startOffset + 0x1C] ^= mask[0x0E];
+		ecm[startOffset + 0x1F] ^= mask[0x0F];
+		ecm[startOffset + 0x22] ^= mask[0x00];
+		ecm[startOffset + 0x24] ^= mask[0x01];
+		ecm[startOffset + 0x25] ^= mask[0x02];
+		ecm[startOffset + 0x26] ^= mask[0x03];
+		ecm[startOffset + 0x27] ^= mask[0x04];
+		ecm[startOffset + 0x28] ^= mask[0x05];
+		ecm[startOffset + 0x29] ^= mask[0x06];
+		ecm[startOffset + 0x2A] ^= mask[0x07];
+		ecm[startOffset + 0x2C] ^= mask[0x08];
+		ecm[startOffset + 0x2E] ^= mask[0x09];
+		ecm[startOffset + 0x31] ^= mask[0x0A];
+
+		for (i = 0; i < ecm[9]; i++)
+		{
+			ecm[10 + i] = 0x00;
+		}
 	}
 	else
 	{
@@ -1029,7 +1299,17 @@ static void create_cw(uint8_t *seed, uint8_t lenSeed, uint8_t *baseCw, uint8_t v
 	}
 	else if (modeCW == 0x04)
 	{
-		// Do nothing
+		create_data_cw_mode_04(seed, lenSeed, baseCw, val, ecmBody, data);
+		create_hash_mode_04(data, hash);
+
+		cw[0] = hash[0x08];
+		cw[1] = hash[0x0F];
+		cw[2] = hash[0x02];
+		cw[3] = hash[0x0A];
+		cw[4] = hash[0x06];
+		cw[5] = hash[0x03];
+		cw[6] = hash[0x09];
+		cw[7] = hash[0x0D];
 	}
 	else
 	{
@@ -1056,9 +1336,39 @@ static void create_cw(uint8_t *seed, uint8_t lenSeed, uint8_t *baseCw, uint8_t v
 	}
 }
 
-static inline int8_t get_ecm_key(uint8_t *key, uint16_t srvid, uint8_t keyIndex, uint32_t keyRef)
+static uint32_t create_channel_hash(uint16_t caid, uint16_t tsid, uint16_t onid, uint32_t ens)
 {
-	return emu_find_key('P', srvid, 0xFFFF0000, keyIndex == 1 ? "01" : "00", key, 7, 0, keyRef, 0, NULL);
+	uint8_t buffer[8];
+	uint32_t channel_hash = 0;
+
+	if (ens)
+	{
+		i2b_buf(2, tsid, buffer);
+		i2b_buf(2, onid, buffer + 2);
+		i2b_buf(4, ens, buffer + 4);
+
+		channel_hash = crc32(caid, buffer, sizeof(buffer));
+	}
+
+	return channel_hash;
+}
+
+static uint16_t get_channel_group(uint32_t channel_hash)
+{
+	uint8_t tmp[2];
+	uint16_t group = 0;
+
+	if (channel_hash && emu_find_key('P', channel_hash, 0x00000000, "GROUP", tmp, 2, 0, 0, 0, NULL))
+	{
+		group = b2i(2, tmp);
+	}
+
+	return group;
+}
+
+static inline int8_t get_ecm_key(uint8_t *key, uint32_t provider, uint32_t ignore_mask, uint8_t keyIndex, uint32_t keyRef)
+{
+	return emu_find_key('P', provider, ignore_mask, keyIndex == 1 ? "01" : "00", key, 7, 0, keyRef, 0, NULL);
 }
 
 static inline int8_t get_emm_key(uint8_t *key, char *uniqueAddress, uint32_t keyRef, uint32_t *groupId)
@@ -1531,12 +1841,13 @@ static void calculate_cw(uint8_t seedType, uint8_t *seed, uint8_t csaUsed, uint8
 	}
 }
 
-int8_t powervu_ecm(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_key_data *cdata, EXTENDED_CW *cw_ex)
+int8_t powervu_ecm(uint8_t *ecm, uint8_t *dw, EXTENDED_CW *cw_ex, uint16_t srvid, uint16_t caid,
+					uint16_t tsid, uint16_t onid, uint32_t ens, emu_stream_client_key_data *cdata)
 {
 	uint32_t i, j, k;
-	uint32_t ecmCrc32, keyRef1, keyRef2;
+	uint32_t ecmCrc32, keyRef0, keyRef1, keyRef2, channel_hash, group_id = 0;
 
-	uint16_t ecmLen = get_ecm_len(ecm);
+	uint16_t ecmLen = SCT_LEN(ecm);
 	uint16_t nanoLen, channelId, ecmSrvid;
 
 	uint8_t keyIndex, sbox, decrypt_ok, calculateAll, hashModeCw = 0, needsUnmasking, xorMode;
@@ -1549,7 +1860,7 @@ int8_t powervu_ecm(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_
 	char tmpBuffer2[17];
 
 	emu_stream_cw_item *cw_item;
-	int8_t update_global_key = 0, ret = 1;
+	int8_t update_global_key = 0;
 	int8_t update_global_keys[EMU_STREAM_SERVER_MAX_CONNECTIONS];
 
 	memset(update_global_keys, 0, sizeof(update_global_keys));
@@ -1671,25 +1982,40 @@ int8_t powervu_ecm(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_
 				channelId = b2i(2, ecm + i + 23);
 				ecmSrvid = (channelId >> 4) | ((channelId & 0xF) << 12);
 
+				cs_log_dbg(D_ATR, "csaUsed: %d, xorMode: %d, ecmSrvid: %04X, hashModeCw: %d, modeCW: %d",
+							csaUsed, xorMode, ecmSrvid, hashModeCw, modeCW);
+
+				channel_hash = create_channel_hash(caid, tsid, onid, ens);
+				group_id = get_channel_group(channel_hash);
+
+				cs_log_dbg(D_ATR, "channel hash: %08X, group id: %04X", channel_hash, group_id);
+
 				decrypt_ok = 0;
 
 				memcpy(ecmPart1, ecm + i + 8, 14);
 				memcpy(ecmPart2, ecm + i + 27, 27);
 
+				keyRef0 = 0;
 				keyRef1 = 0;
 				keyRef2 = 0;
 
-				cs_log_dbg(D_ATR, "csaUsed=%d, xorMode=%d, ecmSrvid=%04X, hashModeCw=%d, modeCW=%d",
-							csaUsed, xorMode, ecmSrvid, hashModeCw, modeCW);
-
 				do
 				{
-					if (!get_ecm_key(ecmKey, ecmSrvid, keyIndex, keyRef1++))
+					if (!group_id || !get_ecm_key(ecmKey, group_id << 16, 0x0000FFFF, keyIndex, keyRef0++))
 					{
-						if (!get_ecm_key(ecmKey, channelId, keyIndex, keyRef2++))
+						if (!get_ecm_key(ecmKey, ecmSrvid, 0xFFFF0000, keyIndex, keyRef1++))
 						{
-							cs_log("Key not found: P %04X %02X", ecmSrvid, keyIndex);
-							return EMU_KEY_NOT_FOUND;
+							if (!get_ecm_key(ecmKey, channelId, 0xFFFF0000, keyIndex, keyRef2++))
+							{
+								cs_log("Key not found or invalid: P ****%04X %02X", ecmSrvid, keyIndex);
+
+								if (group_id) // Print only if there is a matching "GROUP" entry
+								{
+									cs_log("Key not found or invalid: P %04XFFFF %02X", group_id, keyIndex);
+								}
+
+								return EMU_KEY_NOT_FOUND;
+							}
 						}
 					}
 
@@ -1838,7 +2164,7 @@ int8_t powervu_ecm(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_
 						if (csaUsed)
 						{
 							cw_ex->algo = CW_ALGO_CSA;
-							cw_ex->algo_mode = CW_ALGO_MODE_ECB;
+							cw_ex->algo_mode = CW_ALGO_MODE_CBC;
 						}
 						else
 						{
@@ -1911,14 +2237,105 @@ int8_t powervu_ecm(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_
 		i += nanoLen;
 	}
 
-	return ret;
+	return EMU_NOT_SUPPORTED;
 }
 
 // PowerVu EMM EMU
+static void create_data_unmask_emm_mode_03(uint8_t *emmBody, uint8_t *data)
+{
+	int i;
+	uint8_t padding[] =
+	{
+		0xB3, 0x60, 0x35, 0xC8, 0x5C, 0x26, 0xC1, 0xD0,
+		0x88, 0x86, 0x57, 0xB6, 0x45, 0xA7, 0xDF, 0x7E,
+		0xF0, 0xA8, 0x49, 0xFB, 0x79, 0x6C, 0xAF, 0xB0
+	};
+
+	memcpy(data + 0x28, padding, 0x18);
+
+	for (i = 0; i < 5; i++)
+	{
+		data[0 + i * 8] = emmBody[0x18 + i * 0x1B];
+		data[1 + i * 8] = emmBody[0x16 + i * 0x1B];
+		data[2 + i * 8] = emmBody[0x07 + i * 0x1B];
+		data[3 + i * 8] = emmBody[0x0B + i * 0x1B];
+		data[4 + i * 8] = emmBody[0x06 + i * 0x1B];
+		data[5 + i * 8] = emmBody[0x19 + i * 0x1B];
+		data[6 + i * 8] = emmBody[0x15 + i * 0x1B];
+		data[7 + i * 8] = emmBody[0x03 + i * 0x1B];
+	}
+}
+
+static uint8_t get_mode_unmask_emm(uint8_t *extraData)
+{
+	uint16_t data = ((uint16_t)extraData[0] << 8) + extraData[1];
+
+	if (data == 0)
+	{
+		return 0x00;
+	}
+
+	switch (data & 0x0881)
+	{
+		case 0x0080:
+		case 0x0881:
+			return 0x01;
+
+		case 0x0001:
+		case 0x0880:
+			return 0x02;
+
+		case 0x0800:
+		case 0x0081:
+			return 0x03;
+
+		case 0x0000:
+		case 0x0801:
+			switch (data & 0x9020)
+			{
+				case 0x8000:
+				case 0x9000:
+					return 0x04;
+
+				case 0x0020:
+				case 0x9020:
+					return 0x05;
+
+				case 0x0000:
+				case 0x1000:
+					return 0x06;
+
+				case 0x1020:
+				case 0x8020:
+					switch (data & 0x2014)
+					{
+						case 0x2004:
+						case 0x2010:
+							return 0x07;
+
+						case 0x0000:
+						case 0x0004:
+							return 0x08;
+
+						case 0x0014:
+						case 0x2014:
+							return 0x09;
+
+						case 0x0010:
+						case 0x2000:
+							return 0x00;
+					}
+					break;
+			}
+			break;
+	}
+	return 0x00;
+}
+
 static void unmask_emm(uint8_t *emm)
 {
 	uint32_t crc, i, l;
-	uint8_t hashModeEmm, data[30], mask[16];
+	uint8_t hashModeEmm, modeUnmask, data[30], mask[16];
 
 	uint8_t sourcePos[] =
 	{
@@ -1938,19 +2355,60 @@ static void unmask_emm(uint8_t *emm)
 	create_data_ecm_emm(emm, sourcePos, 19, 30, data);
 
 	hashModeEmm = emm[8] ^ crc8_calc(data, 30);
+	modeUnmask = get_mode_unmask_emm(emm + 16);
 
-	create_hash(data, 30, mask, hashModeEmm);
+	if ((modeUnmask == 0x00) || (modeUnmask > 4))
+	{
+		create_hash(data, 30, mask, hashModeEmm);
+
+		// Unmask Body
+		for (i = 0; i < 30; i++)
+		{
+			emm[19 + destPos[i]] ^= mask[i & 0x0F];
+		}
+	}
+	else if (modeUnmask == 0x03)
+	{
+		for (i = 0; i < 5; i++)
+		{
+			emm[0x13 + 0x03 + i * 0x1B] -= emm[0x13 + 0x0D + i * 0x1B];
+			emm[0x13 + 0x06 + i * 0x1B] -= emm[0x13 + 0x1A + i * 0x1B];
+			emm[0x13 + 0x07 + i * 0x1B] -= emm[0x13 + 0x10 + i * 0x1B];
+			emm[0x13 + 0x0B + i * 0x1B] -= emm[0x13 + 0x17 + i * 0x1B];
+			emm[0x13 + 0x15 + i * 0x1B] -= emm[0x13 + 0x05 + i * 0x1B];
+			emm[0x13 + 0x16 + i * 0x1B] -= emm[0x13 + 0x0F + i * 0x1B];
+			emm[0x13 + 0x18 + i * 0x1B] -= emm[0x13 + 0x14 + i * 0x1B];
+			emm[0x13 + 0x19 + i * 0x1B] -= emm[0x13 + 0x04 + i * 0x1B];
+		}
+
+		create_data_unmask_emm_mode_03(emm + 0x13, data);
+		create_hash_mode_03(data, mask);
+
+		for (i = 0; i < 5; i++)
+		{
+			emm[0x13 + 0x14 + i * 0x1B] ^= mask[0x00];
+			emm[0x13 + 0x0F + i * 0x1B] ^= mask[0x01];
+			emm[0x13 + 0x10 + i * 0x1B] ^= mask[0x02];
+			emm[0x13 + 0x17 + i * 0x1B] ^= mask[0x03];
+			emm[0x13 + 0x1A + i * 0x1B] ^= mask[0x04];
+			emm[0x13 + 0x04 + i * 0x1B] ^= mask[0x05];
+			emm[0x13 + 0x05 + i * 0x1B] ^= mask[0x06];
+			emm[0x13 + 0x0D + i * 0x1B] ^= mask[0x07];
+			emm[0x13 + 0x09 + i * 0x1B] ^= mask[0x08];
+			emm[0x13 + 0x0A + i * 0x1B] ^= mask[0x09];
+			emm[0x13 + 0x0E + i * 0x1B] ^= mask[0x0A];
+			emm[0x13 + 0x11 + i * 0x1B] ^= mask[0x0B];
+			emm[0x13 + 0x12 + i * 0x1B] ^= mask[0x0C];
+			emm[0x13 + 0x13 + i * 0x1B] ^= mask[0x0D];
+			emm[0x13 + 0x08 + i * 0x1B] ^= mask[0x0E];
+			emm[0x13 + 0x0C + i * 0x1B] ^= mask[0x0F];
+		}
+	}
 
 	// Fix Header
 	emm[3] &= 0x0F;
 	emm[3] |= 0x10;
 	emm[8] = 0x00;
-
-	// Unmask Body
-	for (i = 0; i < 30; i++)
-	{
-		emm[19 + destPos[i]] ^= mask[i & 0x0F];
-	}
 
 	// Fix CRC (optional)
 	l = (((emm[1] << 8) + emm[2]) & 0xFFF) + 3 - 4;
@@ -1996,7 +2454,7 @@ int8_t powervu_emm(uint8_t *emm, uint32_t *keysAdded)
 {
 	uint8_t emmInfo, emmType, decryptOk = 0;
 	uint8_t emmKey[7], tmpEmmKey[7], tmp[26];
-	uint16_t emmLen = get_ecm_len(emm);
+	uint16_t emmLen = SCT_LEN(emm);
 	uint32_t i, uniqueAddress, groupId, keyRef = 0;
 	//uint32_t emmCrc32;
 	char keyName[EMU_MAX_CHAR_KEYNAME], keyValue[16];
@@ -2028,7 +2486,7 @@ int8_t powervu_emm(uint8_t *emm, uint32_t *keysAdded)
 	{
 		if (!get_emm_key(emmKey, keyName, keyRef++, &groupId))
 		{
-			cs_log_dbg(D_TRACE, "EMM key for UA %s is missing", keyName);
+			//cs_log_dbg(D_ATR, "EMM key for UA %s is missing", keyName);
 			return EMU_KEY_NOT_FOUND;
 		}
 
@@ -2090,13 +2548,13 @@ int8_t powervu_emm(uint8_t *emm, uint32_t *keysAdded)
 	return EMU_OK;
 }
 
-int8_t powervu_get_hexserials(uint16_t srvid, uint8_t hexserials[][4], uint32_t maxCount, uint32_t *count)
+int8_t powervu_get_hexserials(uint8_t hexserials[][4], uint32_t maxCount, uint16_t srvid)
 {
 	//srvid == 0xFFFF -> get all
 
 	int8_t alreadyAdded;
 	uint8_t tmp[4];
-	uint32_t i, j, k, groupid, length;
+	uint32_t i, j, k, groupid, length, count = 0;
 	KeyDataContainer *KeyDB;
 
 	KeyDB = emu_get_key_container('P');
@@ -2105,11 +2563,9 @@ int8_t powervu_get_hexserials(uint16_t srvid, uint8_t hexserials[][4], uint32_t 
 		return 0;
 	}
 
-	(*count) = 0;
-
-	for (i = 0; i < KeyDB->keyCount && (*count) < maxCount; i++)
+	for (i = 0; i < KeyDB->keyCount && count < maxCount; i++)
 	{
-		if (KeyDB->EmuKeys[i].provider <= 0x0000FFFF) // skip au keys
+		if (KeyDB->EmuKeys[i].provider <= 0x0000FFFF) // skip EMM keys
 		{
 			continue;
 		}
@@ -2119,11 +2575,15 @@ int8_t powervu_get_hexserials(uint16_t srvid, uint8_t hexserials[][4], uint32_t 
 			continue;
 		}
 
+		// This "groupid" has an ECM key with our "srvid"
+		// (in ECM keys "groupid" is top 16 bits)
 		groupid = KeyDB->EmuKeys[i].provider >> 16;
 
-		for (j = 0; j < KeyDB->keyCount && (*count) < maxCount; j++)
+		for (j = 0; j < KeyDB->keyCount && count < maxCount; j++)
 		{
-			if (KeyDB->EmuKeys[j].provider != groupid) // search au key with groupip
+			// Skip EMM keys belonging to other groups
+			// (in EMM keys "groupid" is bottom 16 bits)
+			if (KeyDB->EmuKeys[j].provider != groupid)
 			{
 				continue;
 			}
@@ -2143,7 +2603,7 @@ int8_t powervu_get_hexserials(uint16_t srvid, uint8_t hexserials[][4], uint32_t 
 			memset(tmp, 0, 4);
 			char_to_bin(tmp + (4 - (length / 2)), KeyDB->EmuKeys[j].keyName, length);
 
-			for (k = 0, alreadyAdded = 0; k < *count; k++)
+			for (k = 0, alreadyAdded = 0; k < count; k++)
 			{
 				if (!memcmp(hexserials[k], tmp, 4))
 				{
@@ -2154,13 +2614,78 @@ int8_t powervu_get_hexserials(uint16_t srvid, uint8_t hexserials[][4], uint32_t 
 
 			if (!alreadyAdded)
 			{
-				memcpy(hexserials[*count], tmp, 4);
-				(*count)++;
+				memcpy(hexserials[count], tmp, 4);
+				count++;
 			}
 		}
 	}
 
-	return 1;
+	return count;
+}
+
+int8_t powervu_get_hexserials_new(uint8_t hexserials[][4], uint32_t maxCount, uint16_t caid,
+									uint16_t tsid, uint16_t onid, uint32_t ens)
+{
+	int8_t alreadyAdded;
+	uint8_t tmp[4];
+	uint32_t i, j, channel_hash, group_id, length, count = 0;
+	KeyDataContainer *KeyDB;
+
+	KeyDB = emu_get_key_container('P');
+	if (KeyDB == NULL)
+	{
+		return 0;
+	}
+
+	channel_hash = create_channel_hash(caid, tsid, onid, ens);
+	group_id = get_channel_group(channel_hash);
+
+	if (group_id == 0) // No group found for this hash
+	{
+		return 0;
+	}
+
+	for (i = 0; i < KeyDB->keyCount && count < maxCount; i++)
+	{
+		// Skip EMM keys belonging to other groups
+		// (in EMM keys "groupid" is bottom 16 bits)
+		if (KeyDB->EmuKeys[i].provider != group_id)
+		{
+			continue;
+		}
+
+		length = strlen(KeyDB->EmuKeys[i].keyName);
+
+		if (length < 3)
+		{
+			continue;
+		}
+
+		if (length > 8)
+		{
+			length = 8;
+		}
+
+		memset(tmp, 0, 4);
+		char_to_bin(tmp + (4 - (length / 2)), KeyDB->EmuKeys[i].keyName, length);
+
+		for (j = 0, alreadyAdded = 0; j < count; j++)
+		{
+			if (!memcmp(hexserials[j], tmp, 4))
+			{
+				alreadyAdded = 1;
+				break;
+			}
+		}
+
+		if (!alreadyAdded)
+		{
+			memcpy(hexserials[count], tmp, 4);
+			count++;
+		}
+	}
+
+	return count;
 }
 
 #endif // WITH_EMU

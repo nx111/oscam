@@ -69,7 +69,7 @@ int8_t director_ecm(uint8_t *ecm, uint8_t *dw)
 	uint32_t entitlementId;
 	uint32_t ks[32];
 	uint8_t ecmKey[8];
-	uint16_t ecmLen = get_ecm_len(ecm);
+	uint16_t ecmLen = SCT_LEN(ecm);
 
 	if (ecmLen < 5)
 	{
@@ -266,6 +266,11 @@ int8_t director_ecm(uint8_t *ecm, uint8_t *dw)
 
 				des(dw, ks, 0);
 				des(dw + 8, ks, 0);
+
+				dw[3] = (dw[0] + dw[1] + dw[2]) & 0xFF;
+				dw[7] = (dw[4] + dw[5] + dw[6]) & 0xFF;
+				dw[11] = (dw[8] + dw[9] + dw[10]) & 0xFF;
+				dw[15] = (dw[12] + dw[13] + dw[14]) & 0xFF;
 
 				return EMU_OK;
 			}
@@ -578,7 +583,7 @@ static int8_t parse_emm_nano_data(uint8_t *data, uint32_t *nanoLength, uint32_t 
 int8_t director_emm(uint8_t *emm, uint32_t *keysAdded)
 {
 	uint8_t keyIndex, ret = EMU_OK;
-	uint16_t emmLen = get_ecm_len(emm);
+	uint16_t emmLen = SCT_LEN(emm);
 	uint32_t pos = 3;
 	uint32_t permissionDataType;
 	uint32_t nanoLength = 0;

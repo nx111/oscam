@@ -1,100 +1,100 @@
-213e7 Merge to r11462 from streamboard.tv
-a3949 Applying: tryfix_cc_cw_crypt.patch -> https://trac.streamboard.tv/oscam/ticket/4796 resolution_nonfixable_so_satisfy_all_version2.patch -> https://board.streamboard.tv/forum/thread/47678-oscam-bug-report/?postID=600326#post600326 Thanks for @savan
-6b985 Merge to r11641 from streamboard.tv
-a3928 -fix mdc2.h
-d0ab5 -fix external openssl dependency -> thanks to @savan
-008c8 -fix README.config
-70af7 add aio in module-webif-tpl.c
-4da02 fixes a small problem in the handling of srvid / srvid2
-9b20f Replace all strlen with safe strlen -> thanks @savan https://board.streamboard.tv/forum/thread/47678-oscam-bug-report/?postID=599931#post599931
-762d6 small update for cacheex config
-f115b fix missing changes
-b499c cacheex config page fix
-7ba45 fix for aio cacheex table
-1aa75 patch for common bugs reported by scan-build
-bbbed Merge to r11630 from 'https://svn.streamboard.tv/oscam/trunk
-ae832 #4815 AIO is now completely moved to definition CS_CACHEEX_AIO and can be enabled with config.sh
-07993 add missing file
-5b07e delete files
-20db2 revert #11623
-b303b fix typo
-49289 move file
-9eca3 small build fix
-923e6 AIO is now completely moved to definition CS_CACHEEX_AIO and can be enabled with config.sh!
-02657 Fix all scanbuild warning related to -argument with 'nonnull' attribute passed null
-7cb48 Need PIN on 092F and 091F caid's fixed.
-731dd -fix cl->reader->cacheex.maxhop_lg > max never used -fix smargo build warning
-dc895 -fix module-lcd.c warnings -add newlines to  header_short.html & logobit.html
-23f43 part 3 of 3 warning fixes
-0b9bb part 2 of 3 warning fixes
-011ab part 1 of 3 warning fixes
-8ade8 fix build warnings
-d8dab adaptation to CODING.RULES.txt -Add brackets to prevent compiler complaints
-ce7d4 update for #4814 #4813
-5954e safer protocol implementation in oscam to prevent buffer overflow
-4eff6 build warning: no newline at end of file.
-dee8e fix build warning in module-cccam.c
-0c2c7 fix build warning in oscam-reader.c
-61b1a fix externel css loading #4809
-60d32 Fix slow reader loading #4808
-8c3c7 fix small typos for stapi build
-d043a add aditional fixes for CMakeLists.txt and oscam.c
-93618 fix build warnings
-cfec5 update history.txt
-e2f2c confnig.sh: git log use topo-order.
-8fa2b Merge to r11603 from 'https://svn.streamboard.tv/oscam/trunk‘
-684bc next build fix
-456df next build fix
-5afa7 fix build module-monitor.c
-2b6d6 fix stapi build
-d2a18 fix stapi5 build
-35ff1 fix small monitor build error
-fd0b2 small fix for (lg) detection
-2679b module-monitor.c build Fix
-8751b fix for reset readerstats @webif thnx to uf2k fix for client send cmd 0x50 after server restart fix client au + client auth
-1f6ad small fix for webif
-fdb6d webif cache-size / reader page for lg-flagged CWs
-7bdf2 add missing range from RFC 1597 https://tools.ietf.org/html/rfc1597
-600d3 fix camd35/ext mode
-53b50 update wiki links
-2132f restore config.h to 11580
-ec8da redo fixed version
-b8fa1 w33dburn buildfix
-4c992 fix build without cacheex
-b5b4c this is an extension for cacheex and only for this !!! it does not change any other aspects of oscam
-75624 Merge from 'http://www.streamboard.tv/svn/oscam'
-46e22 small fix for CAK7 Cards HD03/04/05 refresh valid to date
-67ff7 Commit patch that fixes some URL's from ticket #4800
-355ad [gbx] - repeat to ask all gbox readers again during fallback time - thx to @chimpie232 for providing the patch
-78039 - fix for ticker #4787
-59bbd update wiki URL
-2e6e4 Revision 11393 introduced sharing instability side effect. My fix is rather lame since it restores the old behavior in case the nodeid is lower than 0x7fffffffff
-06f18 - rework code ref gbox_maxecmsend - fix for ticket #4780 - change default to 5 - clean up some ecm stuff
-67a7e cak7 - fix HD03/05 CMD Overflow - patch provided by @pehedima - should fix ticket #4777 - remove some DOS CRLFs in oscam.work.c
-9a7f0 [gbx] - more generalized routing info in cw msg - fix minor bugs - thanks @chimpie23
-601d6 - cak7 - fix caid 0000 and all other known issues - no config change required - patch provided by @pehedima
-89bba [gbx] - fix ccc->gbox reshare [gbx] - add caidtab as reshare setting
-05809 [gbx] - try fix ecm and cw messages - fix ecmfmt g,j parameters [dvbapi] - add ecm.info gbox style
-4f26b - fix for BSkyB 0963 - fix ticket #4764
-cd950  - NDS DES/3DES Overcrypt support  - fix bug for wrong decoded classD3 CMD's  - improved Sky DE/CH/AT V14/V15 payload log output  - patch provided by kabeltod
-bd541 [webif ssl]  - fix certificate chain loading  - fix for ticket #4573  - patch provided by @delilah23
-47312 Attempt to count descramblers used properly
-9250f - Fix for descramblers used not 100% fixed but it is more accurate than before
-b6843 - More fix for dvbapi client v3
-1e672 HD+ HD05 Card support (tnx pehedima for patch!)
-4e7d2 - More tryfix socketdata handling
-a3804 - Small fix
-1eefa - More tryfix for dvbapi client protocol 3
-135e9 - Tryfix for ticket 4759
-acb8b [dvbapi] Always regard stream_type 0x81 as audio (ac3) without looking for the ac3_descriptor
-217f5 - Remove more dvbapi logspam
-4fea7 Fix: valid section length is minimal 4
-35a88 - Newcamd: Corrected brain fart commit (zero check was even already present) - Camd35: Add protection against empty ecms
-5e910 - More fix for malformed ecm request as described in ticket 4760
-3810e - Refactor handling of command packages - Add generic command package dump to assist in debugging - Remove the now superfluous dumps that were thrown while processing the commands
-e2766 - Add generic hardening against empty ecm. It makes no sense to process empty ecms at all!
-1402d - Implement changes needed as researched by t5b6_de for dvbapi client protocol V3
-687ff - More fix due to bad refactoring commits
-e5815 [gbx remm] - allow remm request for unknown emm [gbx] - dont send via issuer as peer card
-72bd6 - Tryfix regression due to furious refactoring without unittests
-ac4db - Final refactoring step of dvbapi_get_packet_size()
+b424a merge oscam-emu to r798
+be846 Merge branch 'oscam-svn' into master
+22650 Applying: tryfix_cc_cw_crypt.patch -> https://trac.streamboard.tv/oscam/ticket/4796 resolution_nonfixable_so_satisfy_all_version2.patch -> https://board.streamboard.tv/forum/thread/47678-oscam-bug-report/?postID=600326#post600326 Thanks for @savan
+3a6da -fix mdc2.h
+dcee9 -fix external openssl dependency -> thanks to @savan
+9f14d -fix README.config
+e9dd5 add aio in module-webif-tpl.c
+f36b5 fixes a small problem in the handling of srvid / srvid2
+c15ce Replace all strlen with safe strlen -> thanks @savan https://board.streamboard.tv/forum/thread/47678-oscam-bug-report/?postID=599931#post599931
+c7b41 small update for cacheex config
+aa2fc fix missing changes
+b0baa cacheex config page fix
+d3005 fix for aio cacheex table
+25b23 patch for common bugs reported by scan-build
+17d69 #4815 AIO is now completely moved to definition CS_CACHEEX_AIO and can be enabled with config.sh
+3bc89 add missing file
+8814e delete files
+df9d7 revert #11623
+5f1b6 fix typo
+992e8 move file
+6c666 small build fix
+3b83a AIO is now completely moved to definition CS_CACHEEX_AIO and can be enabled with config.sh!
+672f9 Fix all scanbuild warning related to -argument with 'nonnull' attribute passed null
+d31a3 Need PIN on 092F and 091F caid's fixed.
+cd806 -fix cl->reader->cacheex.maxhop_lg > max never used -fix smargo build warning
+9503d -fix module-lcd.c warnings -add newlines to  header_short.html & logobit.html
+1d83f part 3 of 3 warning fixes
+99ea7 part 2 of 3 warning fixes
+e593c part 1 of 3 warning fixes
+fa028 fix build warnings
+6fcab adaptation to CODING.RULES.txt -Add brackets to prevent compiler complaints
+4f7cd update for #4814 #4813
+0d863 safer protocol implementation in oscam to prevent buffer overflow
+ea71b build warning: no newline at end of file.
+1e96e fix build warning in module-cccam.c
+e1632 fix build warning in oscam-reader.c
+23c49 fix externel css loading #4809
+5869c Fix slow reader loading #4808
+4f45a fix small typos for stapi build
+63075 add aditional fixes for CMakeLists.txt and oscam.c
+01231 fix build warnings
+4db03 next build fix
+1ff43 next build fix
+74b89 fix build module-monitor.c
+8e766 fix stapi build
+98a11 fix stapi5 build
+ae86f fix small monitor build error
+ed915 small fix for (lg) detection
+7300c module-monitor.c build Fix
+90753 fix for reset readerstats @webif thnx to uf2k fix for client send cmd 0x50 after server restart fix client au + client auth
+1eb1f small fix for webif
+51afc webif cache-size / reader page for lg-flagged CWs
+e9d43 add missing range from RFC 1597 https://tools.ietf.org/html/rfc1597
+b8ff9 fix camd35/ext mode
+6f59c update wiki links
+0d696 restore config.h to 11580
+6ad15 redo fixed version
+57994 w33dburn buildfix
+d8406 fix build without cacheex
+7f112 this is an extension for cacheex and only for this !!! it does not change any other aspects of oscam
+a1897 small fix for CAK7 Cards HD03/04/05 refresh valid to date
+293a9 Commit patch that fixes some URL's from ticket #4800
+f3608 [gbx] - repeat to ask all gbox readers again during fallback time - thx to @chimpie232 for providing the patch
+119cb Merge branch 'oscam-svn' into master
+a217d - fix for ticker #4787
+787f2 update wiki URL
+8aaa1 Revision 11393 introduced sharing instability side effect. My fix is rather lame since it restores the old behavior in case the nodeid is lower than 0x7fffffffff
+1aa46 - rework code ref gbox_maxecmsend - fix for ticket #4780 - change default to 5 - clean up some ecm stuff
+afe2d cak7 - fix HD03/05 CMD Overflow - patch provided by @pehedima - should fix ticket #4777 - remove some DOS CRLFs in oscam.work.c
+b5785 [powervu] Fixed emm algo
+d5128 Merge branch 'oscam-svn'
+c9276 [gbx] - more generalized routing info in cw msg - fix minor bugs - thanks @chimpie23
+a6ff3 - cak7 - fix caid 0000 and all other known issues - no config change required - patch provided by @pehedima
+c163f [gbx] - fix ccc->gbox reshare [gbx] - add caidtab as reshare setting
+d4f0f [gbx] - try fix ecm and cw messages - fix ecmfmt g,j parameters [dvbapi] - add ecm.info gbox style
+c46c7 [streamserver] Synced descriptor parsing code with the dvbapi
+711db Merge branch 'oscam-svn'
+91afe - fix for BSkyB 0963 - fix ticket #4764
+22ae9  - NDS DES/3DES Overcrypt support  - fix bug for wrong decoded classD3 CMD's  - improved Sky DE/CH/AT V14/V15 payload log output  - patch provided by kabeltod
+94055 Merge branch 'oscam-svn'
+ad9b9 [webif ssl]  - fix certificate chain loading  - fix for ticket #4573  - patch provided by @delilah23
+efbf8 Merge branch 'oscam-svn'
+de227 Attempt to count descramblers used properly
+e5a98 - Fix for descramblers used not 100% fixed but it is more accurate than before
+48c30 - More fix for dvbapi client v3
+71ea5 HD+ HD05 Card support (tnx pehedima for patch!)
+07fa0 - More tryfix socketdata handling
+a7a3e - Small fix
+415b9 - More tryfix for dvbapi client protocol 3
+570e5 - Tryfix for ticket 4759
+45705 Merge branch 'oscam-svn'
+001db [dvbapi] Always regard stream_type 0x81 as audio (ac3) without looking for the ac3_descriptor
+a7cbe - Remove more dvbapi logspam
+13cc3 Fix: valid section length is minimal 4
+146e6 - Newcamd: Corrected brain fart commit (zero check was even already present) - Camd35: Add protection against empty ecms
+90e2b - More fix for malformed ecm request as described in ticket 4760
+8478f - Refactor handling of command packages - Add generic command package dump to assist in debugging - Remove the now superfluous dumps that were thrown while processing the commands
+127e9 - Add generic hardening against empty ecm. It makes no sense to process empty ecms at all!
+047a1 - Implement changes needed as researched by t5b6_de for dvbapi client protocol V3
+3c602 - More fix due to bad refactoring commits

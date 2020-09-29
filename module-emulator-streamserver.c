@@ -220,7 +220,7 @@ static void ParsePatData(emu_stream_client_data *cdata)
 		if (cdata->srvid == srvid)
 		{
 			cdata->pmt_pid = b2i(2, data + i + 2) & 0x1FFF;
-			cs_log_dbg(D_READER, "Stream %i found pmt pid: 0x%04X (%i)",
+			cs_log_dbg(D_READER, "Stream client %i found pmt pid: 0x%04X (%i)",
 						cdata->connid, cdata->pmt_pid, cdata->pmt_pid);
 			break;
 		}
@@ -245,14 +245,6 @@ static void ParseDescriptors(uint8_t *buffer, uint16_t info_length, uint8_t *typ
 	uint8_t descriptor_tag = buffer[0], descriptor_length = 0;
 	uint32_t j, k;
 
-	static const char format_identifiers_audio[10][5] =
-	{
-		// "HDMV" format identifier is removed
-		// OSCam does not need to know about Blu-ray
-		"AC-3", "BSSD", "dmat", "DRA1", "DTS1",
-		"DTS2", "DTS3", "EAC3", "mlpa", "Opus",
-	};
-
 	if (info_length < 1)
 	{
 		return;
@@ -265,8 +257,16 @@ static void ParseDescriptors(uint8_t *buffer, uint16_t info_length, uint8_t *typ
 
 		switch (descriptor_tag)
 		{
-			case 0x05: // registration descriptor
+			case 0x05: // Registration descriptor
 			{
+				// "HDMV" format identifier is removed
+				// OSCam does not need to know about Blu-ray
+				const char format_identifiers_audio[10][5] =
+				{
+					"AC-3", "BSSD", "dmat", "DRA1", "DTS1",
+					"DTS2", "DTS3", "EAC3", "mlpa", "Opus",
+				};
+
 				for (k = 0; k < 10; k++)
 				{
 					if (memcmp(buffer + j + 2, format_identifiers_audio[k], 4) == 0)
@@ -301,6 +301,7 @@ static void ParseDescriptors(uint8_t *buffer, uint16_t info_length, uint8_t *typ
 			case 0x7B: // DTS descriptor (DVB)
 			case 0x7C: // AAC descriptor (DVB)
 			case 0x81: // AC-3 descriptor (ATSC)
+			case 0xCC: // Enhanced AC-3 descriptor (ATSC)
 			{
 				*type = STREAM_AUDIO;
 				break;
@@ -315,6 +316,7 @@ static void ParseDescriptors(uint8_t *buffer, uint16_t info_length, uint8_t *typ
 					case 0x0E: // DTS-HD descriptor (DVB)
 					case 0x0F: // DTS Neural descriptor (DVB)
 					case 0x15: // AC-4 descriptor (DVB)
+					case 0x21: // DTS-UHD descriptor (DVB)
 						*type = STREAM_AUDIO;
 						break;
 				}
@@ -335,7 +337,7 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 	cdata->pcr_pid = b2i(2, data + 8) & 0x1FFF;
 	if (cdata->pcr_pid != 0x1FFF)
 	{
-		cs_log_dbg(D_READER, "Stream %i found pcr pid: 0x%04X (%i)",
+		cs_log_dbg(D_READER, "Stream client %i found pcr pid: 0x%04X (%i)",
 					cdata->connid, cdata->pcr_pid, cdata->pcr_pid);
 	}
 
@@ -373,7 +375,7 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 					cdata->caid = caid;
 				}
 				cdata->ecm_pid = b2i(2, data + i + 4) & 0x1FFF;
-				cs_log_dbg(D_READER, "Stream %i found ecm pid: 0x%04X (%i)",
+				cs_log_dbg(D_READER, "Stream client %i found ecm pid: 0x%04X (%i)",
 							cdata->connid, cdata->ecm_pid, cdata->ecm_pid);
 				break;
 			}
@@ -388,30 +390,31 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 
 		switch (stream_type)
 		{
-			case 0x01: // MPEG-1 video
-			case 0x02: // MPEG-1 (constrained parameter), MPEG-2 video
-			case 0x10: // MPEG-4 video
-			case 0x1B: // AVC video
-			case 0x20: // MVC video
-			case 0x24: // HEVC video
-			case 0x25: // HEVC video
-			case 0x42: // Chinese video
-			case 0xD1: // Dirac video
-			case 0xEA: // VC-1 video
+			case 0x01:
+			case 0x02:
+			case 0x10:
+			case 0x1B:
+			case 0x20:
+			case 0x24:
+			case 0x25:
+			case 0x42:
+			case 0xD1:
+			case 0xEA:
 			{
 				cdata->video_pid = elementary_pid;
-				cs_log_dbg(D_READER, "Stream %i found video pid: 0x%04X (%i)",
+				cs_log_dbg(D_READER, "Stream client %i found video pid: 0x%04X (%i)",
 							cdata->connid, elementary_pid, elementary_pid);
 				break;
 			}
 
-			case 0x03: // MPEG-1 part 3 audio (MP1, MP2, MP3)
-			case 0x04: // MPEG-2 part 3 audio (MP1, MP2, MP3)
-			case 0x0F: // MPEG-2 part 7 audio (AAC)
-			case 0x11: // MPEG-4 part 3 audio (AAC, HE AAC and AAC v2)
-			case 0x1C: // MPEG-4 part 3 audio (DST, ALS, SLS)
-			case 0x2D: // MPEG-H part 3 3D audio (main stream)
-			case 0x2E: // MPEG-H part 3 3D audio (auxiliary stream)
+			case 0x03:
+			case 0x04:
+			case 0x0F:
+			case 0x11:
+			case 0x1C:
+			case 0x2D:
+			case 0x2E:
+			case 0x81:
 			{
 				if (cdata->audio_pid_count >= EMU_STREAM_MAX_AUDIO_SUB_TRACKS)
 				{
@@ -420,17 +423,14 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 
 				cdata->audio_pids[cdata->audio_pid_count] = elementary_pid;
 				cdata->audio_pid_count++;
-				cs_log_dbg(D_READER, "Stream %i found audio pid: 0x%04X (%i)",
+				cs_log_dbg(D_READER, "Stream client %i found audio pid: 0x%04X (%i)",
 							cdata->connid, elementary_pid, elementary_pid);
 				break;
 			}
 
-			case 0x06: // AC-3, Enhanced AC-3, AC-4, DTS, DTS-HD and DTS-UHD audio (DVB)
-			case 0x81: // AC-3 audio (ATSC)
-			case 0x87: // Enhanced AC-3 audio (ATSC)
-			//case 0x88: // DTS-HD audio (ATSC 2.0) /* fixme: has ATSC 2.0 ever been used? */
-			//case 0x??: // AC-4 audio (ATSC 3.0) /* fixme: add the actual value when it gets published */
-			//case 0x??: // MPEG-H part 3 3D audio (ATSC 3.0) /* fixme: add the actual value when it gets published */
+			case 0x06:
+			//case 0x81: // some ATSC AC-3 streams do not contain the AC-3 descriptor!
+			case 0x87:
 			{
 				uint8_t type = STREAM_UNDEFINED;
 				ParseDescriptors(data + i + 5, es_info_length, &type);
@@ -444,13 +444,13 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 
 					cdata->audio_pids[cdata->audio_pid_count] = elementary_pid;
 					cdata->audio_pid_count++;
-					cs_log_dbg(D_READER, "Stream %i found audio pid: 0x%04X (%i)",
+					cs_log_dbg(D_READER, "Stream client %i found audio pid: 0x%04X (%i)",
 								cdata->connid, elementary_pid, elementary_pid);
 				}
 				else if (type == STREAM_TELETEXT)
 				{
 					cdata->teletext_pid = elementary_pid;
-					cs_log_dbg(D_READER, "Stream %i found teletext pid: 0x%04X (%i)",
+					cs_log_dbg(D_READER, "Stream client %i found teletext pid: 0x%04X (%i)",
 								cdata->connid, elementary_pid, elementary_pid);
 				}
 				break;
@@ -462,7 +462,7 @@ static void ParsePmtData(emu_stream_client_data *cdata)
 	// search the keyDB for a fake one
 	if (cdata->caid == NO_CAID_VALUE && stream_client_get_caid(cdata) == 1)
 	{
-		cs_log_dbg(D_READER, "Stream %i found fake caid: 0x%04X (%i)",
+		cs_log_dbg(D_READER, "Stream client %i found fake caid: 0x%04X (%i)",
 					cdata->connid, cdata->caid, cdata->caid);
 	}
 }
@@ -488,7 +488,7 @@ static void ParseCatData(emu_stream_client_data *cdata)
 				cdata->caid = caid;
 			}
 			cdata->emm_pid = b2i(2, data + i + 4) & 0x1FFF;;
-			cs_log_dbg(D_READER, "Stream %i found emm pid: 0x%04X (%i)",
+			cs_log_dbg(D_READER, "Stream client %i found emm pid: 0x%04X (%i)",
 						cdata->connid, cdata->emm_pid, cdata->emm_pid);
 			break;
 		}
@@ -499,12 +499,12 @@ static void ParseEmmData(emu_stream_client_data *cdata)
 {
 	uint32_t keysAdded = 0;
 
-	emu_process_emm(NULL, cdata->caid, 0, cdata->emm_data, &keysAdded);
+	emu_process_emm(NULL, cdata->caid, cdata->emm_data, &keysAdded);
 
 	if (keysAdded)
 	{
 		//refresh_entitlements(rdr);
-		cs_log("Stream %i found %i keys", cdata->connid, keysAdded);
+		cs_log("Stream client %i found %i keys", cdata->connid, keysAdded);
 	}
 }
 
@@ -524,7 +524,7 @@ static void ParseEcmData(emu_stream_client_data *cdata)
 		if (data[11] > cdata->ecm_nb || (cdata->ecm_nb == 255 && data[11] == 0) || ((cdata->ecm_nb - data[11]) > 5))
 		{
 			cdata->ecm_nb = data[11];
-			powervu_ecm(data, dcw, cdata->srvid, &cdata->key, NULL);
+			powervu_ecm(data, dcw, NULL, cdata->srvid, cdata->caid, cdata->tsid, cdata->onid, cdata->ens, &cdata->key);
 		}
 	}
 	//else if () // All other caids
@@ -1316,11 +1316,11 @@ static void *stream_client_handler(void *arg)
 	int8_t streamConnectErrorCount = 0, streamDataErrorCount = 0;
 	int32_t bytesRead = 0, http_status_code = 0;
 	int32_t clientStatus, streamStatus, streamfd;
-	int32_t cur_dvb_buffer_size, cur_dvb_buffer_wait, i, srvidtmp;
+	int32_t cur_dvb_buffer_size, cur_dvb_buffer_wait, i;
 
 	uint8_t *stream_buf;
 	uint16_t packetCount = 0, packetSize = 0, startOffset = 0;
-	uint32_t remainingDataPos, remainingDataLength;
+	uint32_t remainingDataPos, remainingDataLength, tmp_pids[4];
 
 	cs_log("Stream client %i connected", conndata->connid);
 
@@ -1367,30 +1367,30 @@ static void *stream_client_handler(void *arg)
 
 	cs_strncpy(stream_path_copy, stream_path, sizeof(stream_path));
 
-	token = strtok_r(stream_path_copy, ":", &saveptr);
-
-	for (i = 0; token != NULL && i < 3; i++)
+	token = strtok_r(stream_path_copy, ":", &saveptr); // token 0
+	for (i = 1; token != NULL && i < 7; i++) // tokens 1 to 6
 	{
 		token = strtok_r(NULL, ":", &saveptr);
 		if (token == NULL)
 		{
 			break;
 		}
-	}
 
-	if (token != NULL)
-	{
-		if (sscanf(token, "%x", &srvidtmp) < 1)
+		if (i >= 3) // We olny need token 3 (srvid), 4 (tsid), 5 (onid) and 6 (ens)
 		{
-			token = NULL;
-		}
-		else
-		{
-			data->srvid = srvidtmp & 0xFFFF;
+			if (sscanf(token, "%x", &tmp_pids[i - 3]) != 1)
+			{
+				tmp_pids[i - 3] = 0;
+			}
 		}
 	}
 
-	if (token == NULL)
+	data->srvid = tmp_pids[0] & 0xFFFF;
+	data->tsid = tmp_pids[1] & 0xFFFF;
+	data->onid = tmp_pids[2] & 0xFFFF;
+	data->ens = tmp_pids[3];
+
+	if (data->srvid == 0) // We didn't get a srvid - Exit
 	{
 		NULLFREE(http_buf);
 		NULLFREE(stream_buf);
@@ -1405,6 +1405,9 @@ static void *stream_client_handler(void *arg)
 	SAFE_MUTEX_UNLOCK(&emu_fixed_key_srvid_mutex);
 
 	cs_log("Stream client %i request %s", conndata->connid, stream_path);
+
+	cs_log_dbg(D_READER, "Stream client %i received srvid: %04X tsid: %04X onid: %04X ens: %08X",
+				conndata->connid, data->srvid, data->tsid, data->onid, data->ens);
 
 	snprintf(http_buf, 1024, "HTTP/1.0 200 OK\nConnection: Close\nContent-Type: video/mpeg\nServer: stream_enigma2\n\n");
 	clientStatus = send(conndata->connfd, http_buf, strlen(http_buf), 0);
