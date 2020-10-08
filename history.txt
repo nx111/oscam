@@ -1,4 +1,15 @@
-b424a merge oscam-emu to r798
+f7b89 Merge to r11650 from streamboard.tv
+88ded small fix for ecm-whitelist
+89cd8 remove ifdef inside ifdef
+f8a26 fix building with Enable CS_CACHEEX Enable CS_CACHEEX_AIO Enable CW_CYCLE_CHECK Disable WITH_DEBUG
+ddc1d small update in oscam-ecm.c
+8e2f5 fix typos move debug logoutput to debug
+597d1 fix small build warning
+65d28 small fix for AIO-Stats
+faa0b fix a small bug.
+ca3c5 Merge to r11463 from svn.streamboard.tv
+43f39 small fix for lg maxhop
+7bdac merge oscam-emu to r798
 be846 Merge branch 'oscam-svn' into master
 22650 Applying: tryfix_cc_cw_crypt.patch -> https://trac.streamboard.tv/oscam/ticket/4796 resolution_nonfixable_so_satisfy_all_version2.patch -> https://board.streamboard.tv/forum/thread/47678-oscam-bug-report/?postID=600326#post600326 Thanks for @savan
 3a6da -fix mdc2.h
@@ -87,14 +98,3 @@ e5a98 - Fix for descramblers used not 100% fixed but it is more accurate than be
 07fa0 - More tryfix socketdata handling
 a7a3e - Small fix
 415b9 - More tryfix for dvbapi client protocol 3
-570e5 - Tryfix for ticket 4759
-45705 Merge branch 'oscam-svn'
-001db [dvbapi] Always regard stream_type 0x81 as audio (ac3) without looking for the ac3_descriptor
-a7cbe - Remove more dvbapi logspam
-13cc3 Fix: valid section length is minimal 4
-146e6 - Newcamd: Corrected brain fart commit (zero check was even already present) - Camd35: Add protection against empty ecms
-90e2b - More fix for malformed ecm request as described in ticket 4760
-8478f - Refactor handling of command packages - Add generic command package dump to assist in debugging - Remove the now superfluous dumps that were thrown while processing the commands
-127e9 - Add generic hardening against empty ecm. It makes no sense to process empty ecms at all!
-047a1 - Implement changes needed as researched by t5b6_de for dvbapi client protocol V3
-3c602 - More fix due to bad refactoring commits
