@@ -1770,6 +1770,11 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 	struct timeb now;
 	cs_ftime(&now);
 
+#ifdef CS_CACHEEX_AIO
+	uint8_t dontsetAnswered = 0;
+#endif
+	uint8_t dontwriteStats = 0;
+
 	if(er && er->parent)
 	{
 		// parent is only set on reader->client->ecmtask[], but we want original er
@@ -1785,6 +1790,16 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 		if(er->tps.time < timeout)
 			{ return 0; }
 	}
+
+#ifdef CS_CACHEEX_AIO
+	if(rc < E_NOTFOUND && !er->localgenerated && (reader->cacheex.localgenerated_only_in || chk_lg_only(er, &reader->cacheex.lg_only_in_tab)) && !chk_srvid_localgenerated_only_exception(er))
+	{
+		cs_log_dbg(D_CACHEEX, "reader: %s !er->localgenerated - rc: E_NOTFOUND set, no stats written for reader", reader ? reader->label : "-");
+		rc = E_NOTFOUND;
+		dontsetAnswered = 1;
+		dontwriteStats = 1;
+	}
+#endif
 
 	struct s_ecm_answer *ea = get_ecm_answer(reader, er);
 	if(!ea) { return 0; }
@@ -1802,26 +1817,24 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 	// Skip check for BISS1 - cw could be zero but still catch cw=0 by anticascading
 	// Skip check for BISS2 - we use the extended cw, so the "simple" cw is always zero
 
-#ifdef CS_CACHEEX_AIO
-	// vg2 bad/wrong chksum/ecm
+	// bad/wrong chksum/ecm
 	if(rc == E_NOTFOUND && rcEx == E2_WRONG_CHKSUM)
 	{
-		er->rc = E_INVALID;
-		er->rcEx = rcEx;
-		er->stage = 5;
-		er->reader_avail= 0;				// count of available readers for ecm
-		er->readers= 0;						// count of available used readers for ecm
-		er->reader_requested= 0;			// count of real requested readers
-		er->localreader_count= 0;			// count of selected local readers
-		er->cacheex_reader_count= 0;		// count of selected cacheex mode-1 readers
-		er->fallback_reader_count= 0;		// count of selected fb readers
-		er->reader_count= 0;				// count of selected not fb readers
-		send_dcw(er->client, er);
 		cs_log_dbg(D_READER, "ECM for reader %s was bad/has a wrong chksum!", reader ? reader->label : "-");
-		cs_writeunlock(__func__, &ea->ecmanswer_lock);
-		return 0;
+		rc = E_INVALID;
+		rcEx = E2_WRONG_CHKSUM;
+		er->stage = 5;
+
+		// dont write stats for bad/wrong chksum/ecm
+		dontwriteStats = 1;
+
+		// set all other matching_readers => inactive to skip them and dont spread the bad ecm
+		struct s_ecm_answer *ea_list;
+		for(ea_list = er->matching_rdr; ea_list; ea_list = ea_list->next)
+		{
+			ea_list->status &= ~(READER_ACTIVE | READER_FALLBACK);
+		}
 	}
-#endif
 
 	if(rc < E_NOTFOUND && cw && chk_is_null_CW(cw) && !caid_is_biss(er->caid))
 	{
@@ -1961,7 +1974,14 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 #endif
 	//END -- SPECIAL CHECKs for rc
 
-	ea->status |= REQUEST_ANSWERED;
+#ifdef CS_CACHEEX_AIO
+	if(!dontsetAnswered)
+	{
+#endif
+		ea->status |= REQUEST_ANSWERED;
+#ifdef CS_CACHEEX_AIO
+	}
+#endif
 	ea->rc = rc;
 	ea->ecm_time = comp_timeb(&now, &ea->time_request_sent);
 	if(ea->ecm_time < 1) { ea->ecm_time = 1; } // set ecm_time 1 if answer immediately
@@ -2017,9 +2037,12 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 #endif
 		}
 
-		// readers stats for LB
-		send_reader_stat(reader, er, ea, ea->rc);
-
+		if(!dontwriteStats)
+		{
+			// readers stats for LB
+			send_reader_stat(reader, er, ea, ea->rc);
+		}
+		
 		// reader checks
 #ifdef WITH_DEBUG
 	if(cs_dblevel & D_TRACE)

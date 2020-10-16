@@ -1,4 +1,10 @@
-f7b89 Merge to r11650 from streamboard.tv
+3e758 Merge to r11655 from streamboard.tv
+ce594 crash fix + the fix for the "drop bad ecm" part and the new feature for lg-only at "normal" readers
+158db update 11652
+8df81 revert 11651
+1225e crash fix for bad ecm & AIO
+da2c3 fix build warnings
+6af7a Merge to r11650 from streamboard.tv
 88ded small fix for ecm-whitelist
 89cd8 remove ifdef inside ifdef
 f8a26 fix building with Enable CS_CACHEEX Enable CS_CACHEEX_AIO Enable CW_CYCLE_CHECK Disable WITH_DEBUG
@@ -92,9 +98,3 @@ c46c7 [streamserver] Synced descriptor parsing code with the dvbapi
 ad9b9 [webif ssl]  - fix certificate chain loading  - fix for ticket #4573  - patch provided by @delilah23
 efbf8 Merge branch 'oscam-svn'
 de227 Attempt to count descramblers used properly
-e5a98 - Fix for descramblers used not 100% fixed but it is more accurate than before
-48c30 - More fix for dvbapi client v3
-71ea5 HD+ HD05 Card support (tnx pehedima for patch!)
-07fa0 - More tryfix socketdata handling
-a7a3e - Small fix
-415b9 - More tryfix for dvbapi client protocol 3
