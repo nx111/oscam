@@ -6,6 +6,7 @@
 #include "oscam-time.h"
 #include <time.h>
 
+
 static int32_t is_valid(uint8_t *buf, size_t len)
 {
 	size_t i;
@@ -20,31 +21,42 @@ static int32_t is_valid(uint8_t *buf, size_t len)
 	return ERROR;
 }
 
-static void  decrypt_cw_ex(int32_t tag, int32_t a, int32_t b, int32_t c, uint8_t *data)
+static void  decrypt_cw_ex(uint32_t tag, int32_t a, int32_t b, int32_t c, uint8_t *data)
 {
-    uint8_t key1[16] = {0xB5, 0xD5, 0xE8, 0x8A, 0x09, 0x98, 0x5E, 0xD0, 0xDA, 0xEE, 0x3E, 0xC3, 0x30, 0xB9, 0xCA, 0x35};
-    uint8_t key2[16] = {0x5F, 0xE2, 0x76, 0xF8, 0x04, 0xCB, 0x5A, 0x24, 0x79, 0xF9, 0xC9, 0x7F, 0x23, 0x21, 0x45, 0x84};
-    uint8_t key3[16] = {0xE3, 0x78, 0xB9, 0x8C, 0x74, 0x55, 0xBC, 0xEE, 0x03, 0x85, 0xFD, 0xA0, 0x2A, 0x86, 0xEF, 0xAF};
+	uint8_t key1[16] = {0xB5, 0xD5, 0xE8, 0x8A, 0x09, 0x98, 0x5E, 0xD0, 0xDA, 0xEE, 0x3E, 0xC3, 0x30, 0xB9, 0xCA, 0x35};
+	uint8_t key2[16] = {0x5F, 0xE2, 0x76, 0xF8, 0x04, 0xCB, 0x5A, 0x24, 0x79, 0xF9, 0xC9, 0x7F, 0x23, 0x21, 0x45, 0x84};
+	uint8_t key3[16] = {0xE3, 0x78, 0xB9, 0x8C, 0x74, 0x55, 0xBC, 0xEE, 0x03, 0x85, 0xFD, 0xA0, 0x2A, 0x86, 0xEF, 0xAF};
+	uint8_t key4[16] = {0xEB, 0x9D, 0xD5, 0x2B, 0x88, 0xCC, 0xF1, 0xA5, 0x88, 0x75, 0x52, 0xB2, 0x75, 0x53, 0x8F, 0x52};
+	uint8_t key5[16] = {0xBC, 0xD0, 0x58, 0x90, 0x8C, 0xB9, 0xF9, 0x05, 0x37, 0x5D, 0x67, 0x76, 0x11, 0xF7, 0x81, 0xE3};
 	uint8_t keybuf[22] = {0xCC, 0x65, 0xE0, 0xCB, 0x60, 0x62, 0x06, 0x33, 0x87, 0xE3, 0xB5,
 	                      0x2D, 0x4B, 0x12, 0x90, 0xD9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	uint8_t md5key[16];
 	uint8_t md5tmp[20];
 	uint8_t deskey1[8], deskey2[8];
 
-	if(tag != 0x120 && tag != 0x100 && tag != 0x10A && tag != 0x101 && tag != 0x47 && tag != 0x92 && tag == 0xDE)
+	if (tag != 0x120 && tag != 0x100 && tag != 0x10A && tag != 0x101 && tag != 0x47 && tag != 0x92 && tag != 0xDE \
+	    && tag != 0x116 && tag != 0x1D6 && tag != 0xCD && tag != 0x3D && tag != 0x1D3 && tag != 0x16E && tag != 0x07)
 		return;
 
-	if(tag == 0x100 || tag == 0x92){
+	if (tag == 0x100 || tag == 0x92 || tag == 0x116 || tag == 0x16E){
 		key1[15] = 0x37;
-		memcpy(keybuf,key1,sizeof(key1));
+		memcpy(keybuf, key1, sizeof(key1));
 	}
-	else if(tag == 0x101){
+	else if (tag == 0x101 || tag == 0x1D6){
 		key2[15] = 0x87;
-		memcpy(keybuf,key2,sizeof(key2));
+		memcpy(keybuf, key2, sizeof(key2));
 	}
-	else if(tag == 0x47){
+	else if (tag == 0x47 || tag == 0x1D3){
 		key3[15] = 0xB3;
-		memcpy(keybuf,key3,sizeof(key3));
+		memcpy(keybuf, key3, sizeof(key3));
+	}
+	else if (tag == 0x3D){
+		key4[0] = 0xE7;
+		memcpy(keybuf, key4, sizeof(key4));
+	}
+	else if (tag == 0xCD || tag == 0x07){
+		key5[0] = 0xB7;
+		memcpy(keybuf, key5, sizeof(key5));
 	}
 	keybuf[16] = (c >> 24) & 0xFF;
 	keybuf[17] = (a >> 8) & 0xFF;
@@ -52,13 +64,13 @@ static void  decrypt_cw_ex(int32_t tag, int32_t a, int32_t b, int32_t c, uint8_t
 	keybuf[19] = (c >> 8) & 0xFF;
 	keybuf[20] = c & 0xFF;
 	keybuf[21] = a & 0xFF;
-	MD5(keybuf,22,md5tmp);
+	MD5(keybuf, 22, md5tmp);
 
 	md5tmp[16] = (b >> 8)& 0xFF;
 	md5tmp[17] = b & 0xFF;
 	md5tmp[18] = (a >> 8) & 0xFF;
 	md5tmp[19] = a & 0xff;
-	MD5(md5tmp,20,md5key);
+	MD5(md5tmp, 20, md5key);
 
 	//3des decrypt
 	memcpy(deskey1, md5key, 8);
@@ -116,13 +128,13 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 
 	reader->caid = 0x4AD2;
 	if(!(reader->cas_version & 0x010000)){
-        if (atr[2] < 0x20) {
-            reader->cas_version = 10;
-        } else if (atr[2] > 0x20) {
-            reader->cas_version = 30;
-        } else {
-            reader->cas_version = 20;
-        }
+		if (atr[2] < 0x20) {
+			reader->cas_version = 10;
+		} else if (atr[2] > 0x20) {
+			reader->cas_version = 30;
+		} else {
+			reader->cas_version = 20;
+		}
 	}
 
 	cas_version = reader->cas_version & 0x00FFFFL;
@@ -132,7 +144,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 	reader->nprov = 1;
 	memset(reader->prid, 0x00, sizeof(reader->prid));
 
-	rdr_log(reader, "[reader-streamguard] StreamGuard card detected");
+	rdr_log(reader, "[reader-streamguard] StreamGuard card detected (cas_version: %d.%d)", cas_version/10, cas_version % 10);
 
 	write_cmd(get_ppua_cmd, get_ppua_cmd + 5);
 	if((cta_res[cta_lr - 2] != 0x90) || (cta_res[cta_lr - 1] != 0x00)){
@@ -176,8 +188,8 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 	memcpy(reader->hexserial + 2, data + 3, 4);
 
 	if(cas_version >= 20){
-		memcpy(seed,data + 3, 4);
-		MD5(seed,sizeof(seed),md5_key);
+		memcpy(seed, data + 3, 4);
+		MD5(seed, sizeof(seed), md5_key);
 
 		write_cmd(begin_cmd2, begin_cmd2 + 5);
 		if((cta_res[cta_lr - 2] & 0xF0) != 0x60) {
@@ -185,7 +197,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 			return ERROR;
 		}
 
-		data_len = streamguard_read_data(reader,cta_res[cta_lr - 1], data, &status);
+		data_len = streamguard_read_data(reader, cta_res[cta_lr - 1], data, &status);
 		if(data_len < 0){
 			rdr_log(reader, "error: init read data failed for begin cmd2.");
 			return ERROR;
@@ -297,7 +309,7 @@ static int32_t streamguard_card_init(struct s_reader *reader, ATR* newatr)
 		}
 	}
 
-	rdr_log(reader, "type: StreamGuard, caid: %04X, serial: {%llu}, hex serial: {%02x%02x%02x%02x}，  BoxID: {%08X}",
+	rdr_log(reader, "type: StreamGuard, caid: %04X, serial: {%llu}, hex serial: {%02x%02x%02x%02x}, BoxID: {%08X}",
 			reader->caid, (unsigned long long)b2ll(6, reader->hexserial), reader->hexserial[2],
 			reader->hexserial[3], reader->hexserial[4], reader->hexserial[5], b2i(4, boxID));
 
@@ -409,6 +421,7 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 		return OK;
 
 	if((data[i + 5] & 0x10) != 0){
+	        rdr_log(reader, "do_ecm: 3des decrypt cw.");
 		//3des decrypt
 		uint8_t key1[8], key2[8];
 		memcpy(key1, reader->des_key, 8);
@@ -418,7 +431,9 @@ static int32_t streamguard_do_ecm(struct s_reader *reader, const ECM_REQUEST *er
 		des_ecb_decrypt(ea->cw, key1, sizeof(ea->cw));  //decrypt
 	}
 
-	if(tag == 0x120 || tag == 0x100 || tag == 0x10A || tag == 0x101 || tag == 0x47 || tag == 0x92 || tag == 0xDE){
+	rdr_log(reader, "do_ecm: tag=%x", tag);
+	if (tag != 0x120 && tag != 0x100 && tag != 0x10A && tag != 0x101 && tag != 0x47 && tag != 0x92 && tag != 0xDE \
+	    && tag != 0x116 && tag != 0x1D6 && tag != 0xCD && tag != 0x3D && tag != 0x1D3 && tag != 0x16E && tag != 0x07) {
 		int32_t a=b2i(2, data);
 		int32_t b=b2i(2, data + i + 2);
 		decrypt_cw_ex(tag, a, b, tag, ea->cw);
