@@ -7,6 +7,7 @@
 #include "cscrypt/jet_dh.h"
 
 #define CRC16 0x8005
+#define NEW_VERSION 50
 static const uint8_t vendor_key[32] = {0x54, 0xF5, 0x53, 0x12, 0xEA, 0xD4, 0xEC, 0x03, 0x28, 0x60, 0x80, 0x94, 0xD6, 0xC4, 0x3A, 0x48, 
                                          0x43, 0x71, 0x28, 0x94, 0xF4, 0xE3, 0xAB, 0xC7, 0x36, 0x59, 0x17, 0x8E, 0xCC, 0x6D, 0xA0, 0x9B};
 #define jet_write_cmd(reader, cmd, len, ins, title) \
@@ -192,7 +193,7 @@ static int generate_derivekey(struct s_reader *reader, uint8_t * out, int len)
 	memset(temp, 0 , sizeof(temp));
 	memcpy(temp + 56, mask_key, sizeof(mask_key));
 	memcpy(temp + 56 + sizeof(mask_key), reader->hexserial, 8);
-	memcpy(temp + 56 + sizeof(mask_key) + 8, reader->jet_root_key, 8);
+	memcpy(temp + 56 + sizeof(mask_key) + 8, reader->jet_comm_key, 8);
 	temp[12] = temp[100] ^ temp[92];
 	temp[16] = temp[102] ^ temp[94];
 	temp[20] = temp[97];
@@ -203,7 +204,7 @@ static int generate_derivekey(struct s_reader *reader, uint8_t * out, int len)
 	temp[48] = temp[101] ^ temp[93];
 	temp[52] = temp[103];
 
-	memcpy(derivekey + 4, reader->jet_root_key, 8);
+	memcpy(derivekey + 4, reader->jet_comm_key, 8);
 	derivekey[12] = temp[32];
 	derivekey[13] = temp[36];
 	derivekey[14] = temp[40];
@@ -282,7 +283,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	if(reader->boxkey_length != 32)
 		memset(reader->boxkey, 0xEE, 32);
 
-	if(cas_version <= 52){
+	if(cas_version < NEW_VERSION){
 		for(i = 0; i < 32; i++)
 			reader->jet_vendor_key[i] = i;
 	}
@@ -292,18 +293,18 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	// get serial step1
 	jet_write_cmd(reader, get_serial_cmd, sizeof(get_serial_cmd), 0xAA, "get serial step1");
 	memcpy(reader->hexserial, cta_res + 9, 8);
-	rdr_log_dump(reader, cta_res +9 , 8,  "serial step1,SN");
+	rdr_log_dump(reader, cta_res +9 , 8,  "serial step1, SN");
 
-	if(cas_version >= 53){
-		//get root key
-		jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get rootkey");
+	if(cas_version >= NEW_VERSION){
+		//get comm key
+		jet_write_cmd(reader, get_key_cmd, sizeof(get_key_cmd), 0xAA, "get comm key");
 		memcpy(temp, cta_res + 5, cta_res[4]);
 		memset(temp + cta_res[4], 0, sizeof(temp) - cta_res[4]);
 		twofish_setkey(&ctx, reader->jet_vendor_key, sizeof(reader->jet_vendor_key));
 		twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
-		memset(reader->jet_root_key, 0 ,sizeof(reader->jet_root_key));
-		memcpy(reader->jet_root_key, buf + 4, (cta_res[4] < sizeof(reader->jet_root_key)) ? cta_res[4] : sizeof(reader->jet_root_key));
-		rdr_log_dump_dbg(reader, D_DEVICE, reader->jet_root_key, sizeof(reader->jet_root_key), "root key");
+		memset(reader->jet_comm_key, 0 ,sizeof(reader->jet_comm_key));
+		memcpy(reader->jet_comm_key, buf + 4, (cta_res[4] < sizeof(reader->jet_comm_key)) ? cta_res[4] : sizeof(reader->jet_comm_key));
+		rdr_log_dump_dbg(reader, D_DEVICE, reader->jet_comm_key, sizeof(reader->jet_comm_key), "comm key");
 
 		//get derive key
 		memset(temp, 0, sizeof(temp));
@@ -319,7 +320,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		//get auth key
 		memset(cmd_buf, 0, sizeof(cmd_buf));
 		memcpy(cmd_buf, get_key_cmd, sizeof(get_key_cmd));
-		memcpy(cmd_buf + 4, reader->jet_root_key, 2);
+		memcpy(cmd_buf + 4, reader->jet_comm_key, 2);
 		jet_write_cmd(reader, cmd_buf, sizeof(get_key_cmd), 0xAA, "get authkey");
 		memset(temp, 0, sizeof(temp));
 		memcpy(temp, cta_res, cta_res[4]);
@@ -331,7 +332,7 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 		memcpy(register_key_cmd + 36, reader->jet_auth_key, 8);
 		register_key_cmd[42] = 0;
 		memcpy(register_key_cmd + 44, reader->jet_derive_key + 44, 4);
-		jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "register authkey");
+		jet_write_cmd(reader, register_key_cmd, sizeof(register_key_cmd), 0x15, "register auth key");
 
 		//change vendor key
 		jet_write_cmd(reader, change_vendorkey_cmd, sizeof(change_vendorkey_cmd), 0x15, "change vendorkey");
@@ -346,31 +347,31 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 			rdr_log_dump(reader, buf, len, "error: update vendor key failed, return data incorrect. returned data[%d]:",len);
 //			return ERROR;
 		}
+
 	}
 
-	//pairing step1
-	memcpy(pairing_cmd01 + 4, reader->boxkey, 32);
-	pairing_cmd01[36] = 0x00;
-	pairing_cmd01[37] = 0x01;
-	jet_write_cmd(reader, pairing_cmd01, sizeof(pairing_cmd01), 0x15, "pairing step 1");
-	memset(temp, 0, sizeof(temp));
-	memcpy(temp, cta_res + 5, cta_res[4]);
-	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
-	if(buf[0] != 0x41){
-		rdr_log(reader, "error: pairing step 1 failed(invalid data) ...");
-//		return ERROR;
-	}
+	if(cas_version < NEW_VERSION){
+		//pairing step1
+		memcpy(pairing_cmd01 + 4, reader->boxkey, 32);
+		pairing_cmd01[36] = 0x00;
+		pairing_cmd01[37] = 0x01;
+		jet_write_cmd(reader, pairing_cmd01, sizeof(pairing_cmd01), 0x15, "pairing step 1");
+		memset(temp, 0, sizeof(temp));
+		memcpy(temp, cta_res + 5, cta_res[4]);
+		twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
+		if(buf[0] != 0x41){
+			rdr_log(reader, "error: pairing step 1 failed(invalid data) ...");
+			//return ERROR;
+		}
 
-	//pairing step 2
-	memcpy(pairing_cmd02 + 4, reader->boxkey, 32);
-	pairing_cmd02[36] = 0x01;
-	for(i = 37;i < 45; i++)
-		pairing_cmd02[i] = 0x30;
-	if(cas_version >= 5)
-		memcpy(pairing_cmd02 + 45, reader->jet_derive_key + 45, 8);
-	jet_write_cmd_hold(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing step 2");
+		//pairing step 2
+		memcpy(pairing_cmd02 + 4, reader->boxkey, 32);
+		pairing_cmd02[36] = 0x01;
+		for(i = 37;i < 45; i++)
+			pairing_cmd02[i] = 0x30;
+		jet_write_cmd_hold(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing step 2");
 
-	if(cas_version <= 52){
+		// confirm box
 		for( i = 1; i <= 7; i++){
 			memcpy(cmd_buf, confirm_box_cmd, sizeof(confirm_box_cmd));
 			cmd_buf[0] = 0x38;
@@ -407,12 +408,14 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 
 		//confirm box 1
 		confirm_box_cmd[4] = 0x0F;
+		confirm_box_cmd[5] = 0;
 		memcpy(confirm_box_cmd + 6, reader->boxkey, 32);
 		confirm_box_cmd[38] = 0x01;
 		for(i = 39;i < 47; i++)
 			confirm_box_cmd[i] = 0x30;
 		memcpy(confirm_box_cmd + 47, reader->jet_derive_key + 47, 8);
 		jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm box step 1");
+
 	}
 
 	//unknow cmd 1
@@ -428,15 +431,49 @@ static int32_t jet_card_init(struct s_reader *reader, ATR *newatr)
 	twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
 	memcpy(reader->hexserial, buf + 4, 8);
 
-	if(cas_version >= 53){
+	if(cas_version >= NEW_VERSION){
 		//confirm box 2
 		confirm_box_cmd[4] = 0x10;
-		jet_write_cmd_hold(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm box step 2");
+		confirm_box_cmd[5] = 0;
+		memcpy(confirm_box_cmd + 6, reader->boxkey, 32);
+		confirm_box_cmd[38] = 0x01;
+		for(i = 39;i < 47; i++)
+			confirm_box_cmd[i] = 0x30;
+		memcpy(confirm_box_cmd + 47, reader->jet_derive_key + 47, 8);
+		jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm box step 2");
 
 		//confirm box 3
 		confirm_box_cmd[4] = 0x0E;
-		jet_write_cmd_hold(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm box step 3");
+		confirm_box_cmd[5] = 0;
+		memcpy(confirm_box_cmd + 6, reader->boxkey, 32);
+		confirm_box_cmd[38] = 0x01;
+		for(i = 39;i < 47; i++)
+			confirm_box_cmd[i] = 0x30;
+		memcpy(confirm_box_cmd + 47, reader->jet_derive_key + 47, 8);
+		jet_write_cmd(reader, confirm_box_cmd, sizeof(confirm_box_cmd), 0x15, "confirm box step 3");
+
+		//pairing step1
+		memcpy(pairing_cmd01 + 4, reader->boxkey, 32);
+		pairing_cmd01[36] = 0x00;
+		pairing_cmd01[37] = 0x01;
+		jet_write_cmd(reader, pairing_cmd01, sizeof(pairing_cmd01), 0x15, "pairing step 1");
+		memset(temp, 0, sizeof(temp));
+		memcpy(temp, cta_res + 5, cta_res[4]);
+		twofish_decrypt(&ctx, temp, cta_res[4], buf, sizeof(buf));
+		if(buf[0] != 0x41){
+			rdr_log(reader, "error: pairing step 1 failed(invalid data) ...");
+			//return ERROR;
+		}
+
+		//pairing step 2
+		memcpy(pairing_cmd02 + 4, reader->boxkey, 32);
+		pairing_cmd02[36] = 0x01;
+		for(i = 37;i < 45; i++)
+			pairing_cmd02[i] = 0x30;
+		memcpy(pairing_cmd02 + 45, reader->jet_derive_key + 45, 8);
+		jet_write_cmd_hold(reader, pairing_cmd02, sizeof(pairing_cmd02), 0x15, "pairing step 2");
 	}
+
 
 	rdr_log_sensitive(reader, "type: jet, caid: %04X, serial: %llu, hex serial: %08llX, boxkey: %s",
 			reader->caid, (unsigned long long)b2ll(8, reader->hexserial), (unsigned long long)b2ll(8, reader->hexserial),
@@ -472,19 +509,19 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 	memcpy(ecm, er->ecm, ecm_len);
 	len = ((ecm[1] & 0x0F) << 8) + ecm[2];
 	if(len < 0x8A){
-		rdr_log(reader, "error: invalid ecm data...");
+		rdr_log(reader, "error: invalid ecm data... (ecm length to small)");
 		return ERROR;
 	}
 
 	offset = 0;
-	if(cas_version <= 52){
+	if(cas_version < NEW_VERSION){
 		ecm_len = len - 13;
 		len = len + 25;
 	}
 	else{
 		if(ecm[2] == 0x8B)
-			offset = 2;
-		ecm_len = len - 13 + offset;
+			offset = -2;
+		ecm_len = len + 3 - (offset + 12) - 4;
 		if(ecm[2] == 0x9E){
 			ecm[23] = ecm[23] ^ ecm[80] ^ ecm[90] ^ ecm[140];
 			ecm[28] = ecm[28] ^ 0x59;
@@ -494,24 +531,24 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 		len = ecm_len + 54;
 	}
 
-	if(ecm[8 - offset] == 4)
+	if(ecm[8 + offset] == 4)
 		cmd[0] = 0x1F;
-	else if(ecm[8 - offset] == 3)
+	else if(ecm[8 + offset] == 3)
 		cmd[0] = 0x1E;
-	else if(cas_version >= 5 && (ecm[8 - offset] & 0x7F) == 4 && ecm[2] == 0x9E)
+	else if(cas_version >= NEW_VERSION && (ecm[8 + offset] & 0x7F) == 4 && ecm[2] == 0x9E)
 		cmd[0] = 0x1F;
 	else
 		cmd[0] = 0x1B;
 
-	if(cas_version <= 52)
+	if(cas_version < NEW_VERSION)
 		cmd[1] = 0xA2;
 	else
 		cmd[1] = 0xB2;
 
-	memcpy(cmd + 4, ecm + 12 - offset, ecm_len);
+	memcpy(cmd + 4, ecm + 12 + offset, ecm_len);
 	memcpy(cmd + 4 + ecm_len, reader->boxkey, 32);
-	cmd[ecm_len + 36] = ecm[10 - offset] ^ ecm[138 - offset];
-	cmd[ecm_len + 37] = ecm[11 - offset] ^ ecm[139 - offset];
+	cmd[ecm_len + 36] = ecm[10 + offset] ^ ecm[138 + offset];
+	cmd[ecm_len + 37] = ecm[11 + offset] ^ ecm[139 + offset];
 	if(cas_version >= 5)
 		memcpy(cmd + ecm_len + 38, reader->jet_service_key, 8);
 	jet_write_cmd(reader, cmd, len, 0x16, "parse ecm");
@@ -534,7 +571,7 @@ static int32_t jet_do_ecm(struct s_reader *reader, const ECM_REQUEST *er, struct
 		return ERROR;
 	}
 
-	if(cas_version >= 40 && reader->jet_resync_vendorkey){
+	if(cas_version >= NEW_VERSION && reader->jet_resync_vendorkey){
 		count_for_resync_vendorkey++;
 		if(count_for_resync_vendorkey > 48)
 		{
