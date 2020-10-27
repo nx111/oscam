@@ -41,8 +41,8 @@ void cc_cacheex_feature_trigger_in(struct s_client *cl, uint8_t *buf)
 	if(
 		!check_client(cl) || 
 		!(
-			(cl->typ == 'c' && (cl->account->cacheex.mode == 2 || cl->account->cacheex.mode == 1)) ||
-			(cl->typ == 'p' && cl->reader->cacheex.mode == 3)
+			(cl->typ == 'c' && cl->account->cacheex.mode > 0) ||
+			(cl->typ == 'p' && cl->reader->cacheex.mode > 0)
 		)
 	)
 	{
@@ -82,6 +82,10 @@ void cc_cacheex_feature_trigger_in(struct s_client *cl, uint8_t *buf)
 			else if(cl->typ == 'p' && cl->reader->cacheex.mode == 3)
 			{
 				lgonly_tab = &cl->reader->cacheex.lg_only_tab;
+			}
+			else
+			{
+				return;
 			}
 
 			// remotesettings enabled - replace local settings
@@ -167,6 +171,10 @@ void cc_cacheex_feature_trigger_in(struct s_client *cl, uint8_t *buf)
 			{
 				filter = &cl->reader->cacheex.filter_caidtab;
 			}
+			else
+			{
+				return;
+			}
 
 			cecspvaluetab_clear(filter);
 
@@ -208,13 +216,17 @@ void cc_cacheex_feature_trigger_in(struct s_client *cl, uint8_t *buf)
 			memset(&ctab, 0, sizeof(ctab));
 
 			if(cl->typ == 'c' && (cl->account->cacheex.mode == 2 || cl->account->cacheex.mode == 1))
-				{
-					ctab = &cl->account->cacheex.cacheex_nopushafter_tab;
-				}
-				else if(cl->typ == 'p' && cl->reader->cacheex.mode == 3)
-				{
-					ctab = &cl->reader->cacheex.cacheex_nopushafter_tab;
-				}
+			{
+				ctab = &cl->account->cacheex.cacheex_nopushafter_tab;
+			}
+			else if(cl->typ == 'p' && cl->reader->cacheex.mode == 3)
+			{
+				ctab = &cl->reader->cacheex.cacheex_nopushafter_tab;
+			}
+			else
+			{
+				return;
+			}
 
 			filter_count = buf[i+4];
 			i += 5;
@@ -280,6 +292,10 @@ void cc_cacheex_feature_trigger_in(struct s_client *cl, uint8_t *buf)
 			else if(cl->typ == 'p' && cl->reader->cacheex.mode == 3)
 			{
 				lgonly_tab = &cl->reader->cacheex.lg_only_tab;
+			}
+			else
+			{
+				return;
 			}
 
 			filter_count = buf[i+4];
@@ -406,7 +422,6 @@ void cc_cacheex_feature_trigger(struct s_client *cl, int32_t feature, uint8_t mo
 					payload[i] = cl->reader->cacheex.localgenerated_only_in;
 				else
 					payload[i] = cfg.cacheex_localgenerated_only_in;
-				i += 1;
 			}
 			else if(mode == 3)
 			{
@@ -414,7 +429,6 @@ void cc_cacheex_feature_trigger(struct s_client *cl, int32_t feature, uint8_t mo
 					payload[i] = cl->account->cacheex.localgenerated_only_in;
 				else
 					payload[i] = cfg.cacheex_localgenerated_only_in;
-				i += 1;
 			}
 			
 			break;
@@ -1221,7 +1235,6 @@ static int32_t cc_cacheex_push_out(struct s_client *cl, struct ecm_request_t *er
 	{
 		*ofs = 0xFF;
 	}
-	ofs += 1;
 #endif
 
 	int32_t res = cc_cmd_send(cl, buf, size + 20, MSG_CACHE_PUSH);

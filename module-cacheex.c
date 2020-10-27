@@ -693,8 +693,8 @@ void cacheex_cache_push(ECM_REQUEST *er)
 					&& chk_ctab(er->caid, &rdr->ctab)                                        // Caid-check
 					&& (!checkECMD5(er) || chk_ident_filter(er->caid, er->prid, &rdr->ftab)) // Ident-check (not for csp: prid=0 always!)
 					&& chk_srvid(cl, er)                                                     // Service-check
-#ifdef CS_CACHEEX_AIO
 					&& chk_csp_ctab(er, &rdr->cacheex.filter_caidtab)                        // cacheex_ecm_filter
+#ifdef CS_CACHEEX_AIO
 					&& (er->localgenerated 													//  lg-only-check
 						|| chk_srvid_localgenerated_only_exception(er)	 					//		service-exception
 						|| !(rdr->cacheex.localgenerated_only							 	//		rdr-lg-only
@@ -844,7 +844,7 @@ static int32_t cacheex_add_to_cache_int(struct s_client *cl, ECM_REQUEST *er, in
 		return 0;
 	}
 
-	if(!cfg.disablecrccws && ((cl->typ == 'c' && !cl->account->disablecrccacheex) || ( cl->typ == 'p' && !cl->reader->disablecrccws)))
+	if(!cfg.disablecrccws && ((cl->typ == 'c' && cl->account && !cl->account->disablecrccacheex) || ( cl->typ == 'p' && cl->reader && !cl->reader->disablecrccws)))
 	{
 		uint8_t selectedForIgnChecksum = chk_if_ignore_checksum(er, &cfg.disablecrccws_only_for);
 		if(cl->typ == 'c')
@@ -881,7 +881,7 @@ static int32_t cacheex_add_to_cache_int(struct s_client *cl, ECM_REQUEST *er, in
 		{
 			if(check_nds_cwex(er))
 			{
-				if(cl->reader->dropbadcws)
+				if(check_client(cl) && cl->reader && cl->reader->dropbadcws)
 				{
 					if (((D_CACHEEX) & cs_dblevel)) // avoid useless operations if debug is not enabled
 					{
