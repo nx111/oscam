@@ -1,4 +1,31 @@
-3e758 Merge to r11655 from streamboard.tv
+3d553 Merge to r11675 from streamboard.tv
+d3591 nagra cleanup https://trac.streamboard.tv/oscam/ticket/4832 -fix bufferoverflow -fix cwdump crash -cleanup spaces
+a995a fix build warning #4831
+75d48 set to skip_extra_atr_parsing=1 for pcsc to prevent random loop problems with some cards
+e0ece fix possible build warning integer overflow
+2fbf9 fix second card readout without prevent card reading twice in a row
+e6739 - add Support Nagra CAK6.3 3DES overcrypt - patch tested and provided by @chimpie23
+c189b Merge to r11671 from streamboard.tv
+e9bb7 propper processing EMM from file thnx to Miese.Ratte https://board.streamboard.tv/forum/thread/47734-speed-for-emmfile-write-emms-like-lucy/?postID=601938#post601938
+8445c card reinit fix based on https://board.streamboard.tv/forum/thread/47737-hd05-ticket-4824-problem-with-refreshing-entitlements/?postID=602066#post602066
+bb7b8 - fix cache2 issue when reader is gbx and client other prot. - revert r11582
+c1639 fix enable conax on any dont skip extra parsing on pcsc output log info on reinit
+3bb3d Merge to r11667 from streamboard.tv
+6cd04 1. fix tommy_cast on C compilers 2. Don't return data from *_remove_existing() functions. 3. tommy_strhash_u32: Fix init_val's type.
+34248 fix build warnings for module-cccam module-ghttp oscam-config
+1be78 fix buildwarnings oscam-chk fix buildwarnings for drecrypt
+3d9fa revert #11663 module-dvbapi.c
+a034d fix oscam-conf-chk oscam-conf-mk & oscam-ecm buildwarnings
+92904 fix dvbapi & webif buildwarnings
+2b41f fix cacheex build warnings
+c4dd0 cleanup smartreader add debug for smartreader & protocol_t1 fix build warnings
+53462 add unlocks and modify garbage collector patch: https://board.streamboard.tv/forum/thread/47687-oscam-loadbalancer-bug-report/?postID=601201#post601201
+04df1 fix cachex mode 3 handling / ecm filter fix disablecrccws_only_for handling
+42a61 restore global CS_SVN_VERSION simplified function handling add missing returns
+87c18 remove unneeded option in webif services "Disable CRC-check" checkbox
+329ae streamguard: update decrypt_cw_ex.
+5c43e reader-jet: update init and do_ecm.
+c2b44 Merge to r11655 from streamboard.tv
 ce594 crash fix + the fix for the "drop bad ecm" part and the new feature for lg-only at "normal" readers
 158db update 11652
 8df81 revert 11651
@@ -71,30 +98,3 @@ e9d43 add missing range from RFC 1597 https://tools.ietf.org/html/rfc1597
 b8ff9 fix camd35/ext mode
 6f59c update wiki links
 0d696 restore config.h to 11580
-6ad15 redo fixed version
-57994 w33dburn buildfix
-d8406 fix build without cacheex
-7f112 this is an extension for cacheex and only for this !!! it does not change any other aspects of oscam
-a1897 small fix for CAK7 Cards HD03/04/05 refresh valid to date
-293a9 Commit patch that fixes some URL's from ticket #4800
-f3608 [gbx] - repeat to ask all gbox readers again during fallback time - thx to @chimpie232 for providing the patch
-119cb Merge branch 'oscam-svn' into master
-a217d - fix for ticker #4787
-787f2 update wiki URL
-8aaa1 Revision 11393 introduced sharing instability side effect. My fix is rather lame since it restores the old behavior in case the nodeid is lower than 0x7fffffffff
-1aa46 - rework code ref gbox_maxecmsend - fix for ticket #4780 - change default to 5 - clean up some ecm stuff
-afe2d cak7 - fix HD03/05 CMD Overflow - patch provided by @pehedima - should fix ticket #4777 - remove some DOS CRLFs in oscam.work.c
-b5785 [powervu] Fixed emm algo
-d5128 Merge branch 'oscam-svn'
-c9276 [gbx] - more generalized routing info in cw msg - fix minor bugs - thanks @chimpie23
-a6ff3 - cak7 - fix caid 0000 and all other known issues - no config change required - patch provided by @pehedima
-c163f [gbx] - fix ccc->gbox reshare [gbx] - add caidtab as reshare setting
-d4f0f [gbx] - try fix ecm and cw messages - fix ecmfmt g,j parameters [dvbapi] - add ecm.info gbox style
-c46c7 [streamserver] Synced descriptor parsing code with the dvbapi
-711db Merge branch 'oscam-svn'
-91afe - fix for BSkyB 0963 - fix ticket #4764
-22ae9  - NDS DES/3DES Overcrypt support  - fix bug for wrong decoded classD3 CMD's  - improved Sky DE/CH/AT V14/V15 payload log output  - patch provided by kabeltod
-94055 Merge branch 'oscam-svn'
-ad9b9 [webif ssl]  - fix certificate chain loading  - fix for ticket #4573  - patch provided by @delilah23
-efbf8 Merge branch 'oscam-svn'
-de227 Attempt to count descramblers used properly
