@@ -1,4 +1,7 @@
-3d553 Merge to r11675 from streamboard.tv
+908ce dvbapi: some changes in dvbapi_set_section_filter for dvn.
+3fd47 emu: remove unused drecrypt and videoguard from makefile.
+e1d55 dvbapi: small change with ecm table for dvn.
+9e67b Merge to r11675 from streamboard.tv
 d3591 nagra cleanup https://trac.streamboard.tv/oscam/ticket/4832 -fix bufferoverflow -fix cwdump crash -cleanup spaces
 a995a fix build warning #4831
 75d48 set to skip_extra_atr_parsing=1 for pcsc to prevent random loop problems with some cards
@@ -95,6 +98,3 @@ ed915 small fix for (lg) detection
 1eb1f small fix for webif
 51afc webif cache-size / reader page for lg-flagged CWs
 e9d43 add missing range from RFC 1597 https://tools.ietf.org/html/rfc1597
-b8ff9 fix camd35/ext mode
-6f59c update wiki links
-0d696 restore config.h to 11580
