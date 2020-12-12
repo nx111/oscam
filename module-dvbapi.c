@@ -8468,12 +8468,15 @@ int32_t dvbapi_set_section_filter(int32_t demux_id, ECM_REQUEST *er, int32_t n)
 	{
 		ecmfilter = 0x80; // current processed ecm is odd, next will be filtered for even
 	}
-	else if (er->ecm[0] == 80)
-	{
-		ecmfilter = 80; // set filter to wait for any ecms
-	}
 
-	if(curpid->table != 0 || er->ecm[0] == 80)   // cycle ecmtype from odd to even or even to odd
+	if(curpid->table == 80)   // for dvn
+	{
+		filter[0] = 80; // set filter to wait for any dvn ecms
+		mask[0] = 0xFF;
+		cs_log_dbg(D_DVBAPI, "Demuxer %d Filter %d set ecmtable to ODD+EVEN (CAID %04X PROVID %06X FD %d) for dvn",
+			demux_id, n + 1, curpid->CAID, curpid->PROVID, fd);
+	}
+	else if(curpid->table != 0)   // cycle ecmtype from odd to even or even to odd
 	{
 		filter[0] = ecmfilter; // only accept new ecms (if previous odd, filter for even and vice versa)
 		mask[0] = 0xFF;
