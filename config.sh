@@ -308,7 +308,6 @@ update_deps() {
 	enabled WITH_EMU && enable_opt READER_DRE >/dev/null
 	enabled WITH_EMU && enable_opt MODULE_NEWCAMD >/dev/null
 	enabled WITH_EMU && enable_opt WITH_SOFTCAM >/dev/null
-	enabled WITH_EMU && enable_opt WITH_SSL >/dev/null
 	enabled CS_CACHEEX_AIO && enable_opt CS_CACHEEX >/dev/null
 }
 
