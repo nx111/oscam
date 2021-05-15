@@ -1,3 +1,22 @@
+8d061 Merge to r11693 from streamboard.tv
+68322 [dvbapi] Whitespace cleanup
+f4416 [dvbapi] fixed socket leaking #4850
+da471 dvbapi FBC Tuner fix
+61e5c buildfix #4836
+4572d [dvbapi] Updated extension descriptor tags
+e5484 Fix need pin for 0961 (reader) 0961_sky [videoguard2] classD3 ins54: no cw --> Card needs pin
+d6811 [gbx] - add dynamic card update/exchange - rearrange hello scheme - add peer specific ccc reshare ident filter - fix major bug in send hello msg - correct checkcode calculation - change some default settings - add optional send msg Here? to selected peers
+161b5 fix ticket #4841 #4842 thx @opti @chimpie23
+6ce8e Ticket #4841 Adding CAID 0961 & CAID 09BB Sky Uk and Airtel India ATR's
+d871b Ticket #4838 Add TotalTV Serbia (0911) ATR
+ea526 oscam doublecheck fix
+75cfd Convert DOS line terminators to Unix line terminators
+4a293 fixind srvid on Radegast Module by Adding srvid because ECM contains 0000
+11499 webif-cacheex-client.reader-description-fix v1 -add else conditions
+ff07f fix 7 build errors in oscam-string.c 2 in 340 & 569 need a fix for negative bitshift
+aafda Merge to r11678 from streamboard.tv
+b1909 Moved nasty error message to dvbapi debug log ERROR: ioctl(CA_GET_DESCR_INFO): Invalid argument
+f1185 emu: fix dependence with ssl.
 908ce dvbapi: some changes in dvbapi_set_section_filter for dvn.
 3fd47 emu: remove unused drecrypt and videoguard from makefile.
 e1d55 dvbapi: small change with ecm table for dvn.
@@ -79,22 +98,3 @@ fa028 fix build warnings
 4f7cd update for #4814 #4813
 0d863 safer protocol implementation in oscam to prevent buffer overflow
 ea71b build warning: no newline at end of file.
-1e96e fix build warning in module-cccam.c
-e1632 fix build warning in oscam-reader.c
-23c49 fix externel css loading #4809
-5869c Fix slow reader loading #4808
-4f45a fix small typos for stapi build
-63075 add aditional fixes for CMakeLists.txt and oscam.c
-01231 fix build warnings
-4db03 next build fix
-1ff43 next build fix
-74b89 fix build module-monitor.c
-8e766 fix stapi build
-98a11 fix stapi5 build
-ae86f fix small monitor build error
-ed915 small fix for (lg) detection
-7300c module-monitor.c build Fix
-90753 fix for reset readerstats @webif thnx to uf2k fix for client send cmd 0x50 after server restart fix client au + client auth
-1eb1f small fix for webif
-51afc webif cache-size / reader page for lg-flagged CWs
-e9d43 add missing range from RFC 1597 https://tools.ietf.org/html/rfc1597

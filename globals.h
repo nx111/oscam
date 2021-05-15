@@ -1879,6 +1879,9 @@ struct s_reader										// contains device info, reader info and card info
 	uint8_t			gbox_force_remm;
 	uint16_t		gbox_cw_src_peer;
 	uint8_t			gbox_crd_slot_lev;
+	FTAB			ccc_gbx_reshare_ident;
+	uint8_t			send_offline_cmd;
+	uint16_t		nb_send_crds;
 #endif
 
 #ifdef MODULE_PANDORA
@@ -2263,14 +2266,13 @@ struct s_config
 #endif
 #ifdef MODULE_GBOX
 	#define			GBOX_MY_VERS_DEF		0x2A
-	#define			GBOX_MY_CPU_API_DEF	0x40
+	#define			GBOX_MY_CPU_API_DEF	0x61
 	#define			GBOX_MAX_PROXY_CARDS	32
 	#define			GBOX_MAX_IGNORED_PEERS 16
 	#define			GBOX_MAX_BLOCKED_ECM	16
 	#define			GBOX_MAX_REMM_PEERS	8
 	#define			GBOX_MAX_DEST_PEERS	16
 	#define			GBOX_MAX_MSG_TXT		127
-
 	uint16_t		gbox_port[CS_MAXPORTS];
 	char			*gbox_hostname;
 	uint32_t		gbox_reconnect;
@@ -2295,7 +2297,6 @@ struct s_config
 	uint16_t		gbox_dest_peers[GBOX_MAX_DEST_PEERS];
 	uint8_t			gbox_dest_peers_num;
 	char				gbox_msg_txt[GBOX_MAX_MSG_TXT+1];
-	CAIDTAB			ccc_gbx_check_caidtab;
 #endif
 #ifdef MODULE_SERIAL
 	char			*ser_device;
@@ -2335,7 +2336,7 @@ struct s_config
 #endif
 	int32_t			resolve_gethostbyname;
 	int8_t			double_check;					// schlocke: Double checks each ecm+dcw from two (or more) readers
-	CAIDTAB			double_check_caid;				// do not store loadbalancer stats with providers for this caid
+	FTAB			double_check_caid;				// do not store loadbalancer stats with providers for this caid
 
 #ifdef HAVE_DVBAPI
 	int8_t			dvbapi_enabled;

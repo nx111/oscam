@@ -388,7 +388,7 @@ static const struct config_list global_opts[] =
 	DEF_OPT_INT32("lb_auto_timeout_p"              , OFS(lb_auto_timeout_p)             , DEFAULT_LB_AUTO_TIMEOUT_P),
 	DEF_OPT_INT32("lb_auto_timeout_t"              , OFS(lb_auto_timeout_t)             , DEFAULT_LB_AUTO_TIMEOUT_T),
 #endif
-	DEF_OPT_FUNC("double_check_caid"               , OFS(double_check_caid)             , check_caidtab_fn),
+	DEF_OPT_FUNC("double_check_caid"               , OFS(double_check_caid)             , chk_ftab_fn),
 	DEF_OPT_STR("ecmfmt"                           , OFS(ecmfmt)                        , NULL),
 	DEF_OPT_INT32("resolvegethostbyname"           , OFS(resolve_gethostbyname)         , 0),
 	DEF_OPT_INT32("failbantime"                    , OFS(failbantime)                   , 0),
@@ -1257,7 +1257,6 @@ static const struct config_list gbox_opts[] =
 	DEF_OPT_FUNC("gbox_dest_peers" , OFS(gbox_dest_peers)  , gbox_dest_peers_fn ),
 	DEF_OPT_FUNC("gbox_msg_txt"    , OFS(gbox_msg_txt)     , gbox_msg_txt_fn ),
 	DEF_OPT_UINT8("ccc_reshare"    , OFS(cc_gbx_reshare_en), 0),
-	DEF_OPT_FUNC("ccc_gbx_caid"    , OFS(ccc_gbx_check_caidtab), check_caidtab_fn),
 	DEF_LAST_OPT
 };
 #else
@@ -1440,7 +1439,7 @@ void config_free(void)
 {
 	config_sections_free(oscam_conf, &cfg);
 	caidvaluetab_clear(&cfg.ftimeouttab);
-	caidtab_clear(&cfg.double_check_caid);
+	ftab_clear(&cfg.double_check_caid);
 	ftab_clear(&cfg.disablecrccws_only_for);
 #ifdef WITH_LB
 	caidvaluetab_clear(&cfg.lb_retrylimittab);
