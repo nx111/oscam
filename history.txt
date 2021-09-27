@@ -1,4 +1,9 @@
-8d061 Merge to r11693 from streamboard.tv
+6d7c0 Merge to r11696 from streamboard.tv
+a84bc [gbx] - enhance 'ignore peer' feature - thx to @chimpie232 for providing the patch - improve ccc reshare - code cosmetic
+d309d Corrected spelling errors in log messages and comments
+4fe3b [videoguard] Fix for "card needs pin" issue (ticket #4859)
+a454c fix build failed when WITH_EMU depending on WITH_SSL
+64f64 Merge to r11693 from streamboard.tv
 68322 [dvbapi] Whitespace cleanup
 f4416 [dvbapi] fixed socket leaking #4850
 da471 dvbapi FBC Tuner fix
@@ -93,8 +98,3 @@ cd806 -fix cl->reader->cacheex.maxhop_lg > max never used -fix smargo build warn
 1d83f part 3 of 3 warning fixes
 99ea7 part 2 of 3 warning fixes
 e593c part 1 of 3 warning fixes
-fa028 fix build warnings
-6fcab adaptation to CODING.RULES.txt -Add brackets to prevent compiler complaints
-4f7cd update for #4814 #4813
-0d863 safer protocol implementation in oscam to prevent buffer overflow
-ea71b build warning: no newline at end of file.
