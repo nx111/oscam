@@ -1826,6 +1826,7 @@ struct s_reader										// contains device info, reader info and card info
 	uint32_t		ecmstout;
 	uint32_t		webif_ecmstout;
 	uint32_t		ecmnotfoundlimit;				// config setting. restart reader if ecmsnok >= ecmnotfoundlimit
+	uint32_t		ecmtimeoutlimit;				// config setting. restart reader if ecmstout >= ecmtimeoutlimit
 	int32_t			ecmsfilteredhead;				// count filtered ECM's by ECM Headerwhitelist
 	int32_t			ecmsfilteredlen;				// count filtered ECM's by ECM Whitelist
 	uint32_t		autorestartseconds;				// auto restart reader after login ,default 0  disable

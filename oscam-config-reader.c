@@ -1283,6 +1283,7 @@ static const struct config_list reader_opts[] =
 	DEF_OPT_INT8("needsglobalfirst"               , OFS(needsglobalfirst),                0),
 #endif
 	DEF_OPT_UINT32("ecmnotfoundlimit"             , OFS(ecmnotfoundlimit),                0),
+	DEF_OPT_UINT32("ecmtimeoutlimit"              , OFS(ecmtimeoutlimit),                 0),
 	DEF_OPT_FUNC("ecmwhitelist"                   , 0,                                    ecmwhitelist_fn),
 	DEF_OPT_FUNC("ecmheaderwhitelist"             , 0,                                    ecmheaderwhitelist_fn),
 	DEF_OPT_FUNC("detect"                         , 0,                                    detect_fn),

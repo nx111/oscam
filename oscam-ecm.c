@@ -2124,6 +2124,14 @@ int32_t write_ecm_answer(struct s_reader *reader, ECM_REQUEST *er, int8_t rc, ui
 #endif
 			reader->ecmstout++; // now append timeouts to the readerinfo timeout count
 			reader->webif_ecmstout++;
+			if(reader->ecmtimeoutlimit && reader->ecmstout >= reader->ecmtimeoutlimit)
+			{
+				rdr_log(reader, "ECM timeout limit reached %u. Restarting the reader.",
+						reader->ecmstout);
+				reader->ecmstout = 0; // Reset the variable
+				reader->webif_ecmstout = 0; // Reset the variable
+				add_job(reader->client, ACTION_READER_RESTART, NULL, 0);
+			}
 		}
 
 		// Reader ECMs Health Try (by Pickser)

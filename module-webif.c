@@ -2584,6 +2584,9 @@ static char *send_oscam_reader_config(struct templatevars *vars, struct uriparam
 	if(rdr->ecmnotfoundlimit)
 		{ tpl_printf(vars, TPLADD, "ECMNOTFOUNDLIMIT", "%u", rdr->ecmnotfoundlimit); }
 
+	if(rdr->ecmtimeoutlimit)
+		{ tpl_printf(vars, TPLADD, "ECMTIMEOUTLIMIT", "%u", rdr->ecmtimeoutlimit); }
+
 	// Force Irdeto
 	if(!apicall)
 	{
