@@ -28,7 +28,6 @@ eval "sed -e \"s/\(.*CMAKE_SYSTEM_PROCESSOR \).*)/\1i686)/\" -i $ROOT/toolchains
 	  -DSTATIC_LIBSSL=1\
 	  -DSTATIC_LIBUSB=1\
 	  -DSTATIC_LIBPCSC=1\
-	  --clean-first\
 	  -DWEBIF=1 $ROOT
    feature=-pcsc-inline
 

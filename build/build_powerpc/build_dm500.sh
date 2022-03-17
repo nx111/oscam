@@ -28,7 +28,6 @@ if  [ "$buildtype" = "inline" ]; then
 	  -DSTATIC_LIBUSB=1\
 	  -DSTATIC_LIBPCSC=1\
       -DSTATIC_LIBRT=1\
-	  --clean-first\
 	  -DWEBIF=1 $ROOT
    feature=-pcsc-inline
 else
@@ -43,7 +42,6 @@ else
 	  -DSTATIC_LIBUSB=1\
 	  -DSTATIC_LIBPCSC=0\
       -DSTATIC_LIBRT=1\
-	  --clean-first\
 	  -DWEBIF=1 $ROOT
    feature=-pcsc
 fi

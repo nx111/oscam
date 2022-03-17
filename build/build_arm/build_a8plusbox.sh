@@ -30,7 +30,6 @@ eval "sed -e \"s/\(.*OSCAM_SYSTEM_NAME \).*)/\1A8PlusBox)/\" -i $ROOT/toolchains
 	  -DWITH_SSL=0\
 	  -DSTATIC_LIBSSL=1\
 	  -DSTATIC_LIBUSB=1\
-	  --clean-first\
 	  -DWEBIF=1 $ROOT
    feature=-pcsc-inline
 

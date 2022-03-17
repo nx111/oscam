@@ -25,7 +25,6 @@ builddir=`cd $(dirname $0);pwd`
 	  -DSTATIC_LIBCRYPTO=1\
 	  -DSTATIC_LIBSSL=1\
 	  -DWITH_SSL=1\
-	  --clean-first\
 	  -DWEBIF=1 $ROOT
    feature=-pcsc-ssl-inline
 
